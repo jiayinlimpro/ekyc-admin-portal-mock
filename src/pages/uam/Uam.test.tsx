@@ -18,7 +18,7 @@ function renderAt(path: string) {
   render(<RouterProvider router={router} />)
   return router
 }
-const region = (name: string) => within(screen.getByRole('region', { name }))
+const region = async (name: string) => within(await screen.findByRole('region', { name }, { timeout: 5000 }))
 
 beforeEach(async () => {
   useDevFlags.setState({ ...DEFAULT_DEV_FLAGS, simulateLatency: false })
@@ -97,7 +97,7 @@ describe('Users', () => {
 describe('Roles', () => {
   it('shows the 2-role permission matrix', async () => {
     renderAt('/uam/roles')
-    const matrix = region('Permission matrix')
+    const matrix = await region('Permission matrix')
     const manage = matrix.getByText('Manage users').closest('tr')!
     expect(within(manage).getAllByRole('img').map((i) => i.getAttribute('aria-label'))).toEqual(['Allowed', 'Not allowed'])
     const review = matrix.getByText('Review').closest('tr')!
@@ -109,7 +109,7 @@ describe('Developers', () => {
   it('Given reveal and rotate, then the secret is a mock key and rotation is audited with a new key ID', async () => {
     useSession.getState().selectMerchant('MER-0002')
     renderAt('/developers')
-    const key = region('API key')
+    const key = await region('API key')
     await waitFor(() => expect(key.getByText('key_mock_mer-0002_01')).toBeTruthy())
     fireEvent.click(key.getByRole('button', { name: /Reveal/ }))
     await waitFor(() => expect(key.getByText(/^sk_mock_[0-9a-f]{32}$/)).toBeTruthy())
@@ -118,7 +118,7 @@ describe('Developers', () => {
     await waitFor(() => expect(key.getByText('key_mock_mer-0002_02')).toBeTruthy())
     const log = await auditService.list({ merchantId: 'MER-0002', actions: ['CREDENTIAL_ROTATION'] }, ADMIN)
     expect(log.items[0].details).toMatchObject({ fromKeyId: 'key_mock_mer-0002_01', keyId: 'key_mock_mer-0002_02' })
-    expect(region('Webhooks').getByText('On hold')).toBeTruthy()
+    expect((await region('Webhooks')).getByText('On hold')).toBeTruthy()
   })
 })
 

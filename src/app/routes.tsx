@@ -1,38 +1,29 @@
-import type { ComponentType } from 'react'
+import { lazy, type ComponentType } from 'react'
 import type { RouteObject } from 'react-router'
 import { AppShell } from '@/components/layout/AppShell'
-import { AuditLogsPage } from '@/pages/audit/AuditLogsPage'
-import { BillingPage } from '@/pages/billing/BillingPage'
-import { IntelligencePage } from '@/pages/dashboard/IntelligencePage'
-import { OverviewPage } from '@/pages/dashboard/OverviewPage'
-import { WorkflowConfigPage } from '@/pages/config/WorkflowConfigPage'
-import { WorkflowDirectoryPage } from '@/pages/directory/WorkflowDirectoryPage'
-import { DevelopersPage } from '@/pages/developers/DevelopersPage'
 import { HomePage } from '@/pages/HomePage'
 import { LoginPage } from '@/pages/LoginPage'
-import { MerchantsPage } from '@/pages/uam/MerchantsPage'
-import { RolesPage } from '@/pages/uam/RolesPage'
-import { UsersPage } from '@/pages/uam/UsersPage'
 import { NotFoundPage, RouteErrorPage } from '@/pages/StatusPages'
-import { VerificationDetailPage } from '@/pages/verifications/VerificationDetailPage'
-import { VerificationsListPage } from '@/pages/verifications/VerificationsListPage'
 import { Guarded } from './Guarded'
 import { NAV_ITEMS } from './nav'
 
+// Route-level code splitting: each screen (and Recharts, for the dashboards) loads when first opened.
+const page = <K extends string>(load: () => Promise<Record<K, ComponentType>>, name: K) => lazy(() => load().then((m) => ({ default: m[name] })))
+
 /** Built screens by route pattern. Anything missing here renders its placeholder. */
 const PAGES: Partial<Record<string, ComponentType>> = {
-  '/verifications': VerificationsListPage,
-  '/verifications/:referenceNo': VerificationDetailPage,
-  '/workflow': WorkflowConfigPage,
-  '/workflow-directory': WorkflowDirectoryPage,
-  '/audit': AuditLogsPage,
-  '/dashboard': OverviewPage,
-  '/intelligence': IntelligencePage,
-  '/billing': BillingPage,
-  '/uam/merchants': MerchantsPage,
-  '/uam/roles': RolesPage,
-  '/uam/users': UsersPage,
-  '/developers': DevelopersPage,
+  '/verifications': page(() => import('@/pages/verifications/VerificationsListPage'), 'VerificationsListPage'),
+  '/verifications/:referenceNo': page(() => import('@/pages/verifications/VerificationDetailPage'), 'VerificationDetailPage'),
+  '/workflow': page(() => import('@/pages/config/WorkflowConfigPage'), 'WorkflowConfigPage'),
+  '/workflow-directory': page(() => import('@/pages/directory/WorkflowDirectoryPage'), 'WorkflowDirectoryPage'),
+  '/audit': page(() => import('@/pages/audit/AuditLogsPage'), 'AuditLogsPage'),
+  '/dashboard': page(() => import('@/pages/dashboard/OverviewPage'), 'OverviewPage'),
+  '/intelligence': page(() => import('@/pages/dashboard/IntelligencePage'), 'IntelligencePage'),
+  '/billing': page(() => import('@/pages/billing/BillingPage'), 'BillingPage'),
+  '/uam/merchants': page(() => import('@/pages/uam/MerchantsPage'), 'MerchantsPage'),
+  '/uam/roles': page(() => import('@/pages/uam/RolesPage'), 'RolesPage'),
+  '/uam/users': page(() => import('@/pages/uam/UsersPage'), 'UsersPage'),
+  '/developers': page(() => import('@/pages/developers/DevelopersPage'), 'DevelopersPage'),
 }
 
 export const routes: RouteObject[] = [
