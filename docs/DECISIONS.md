@@ -92,6 +92,13 @@ These keep the mock runnable. They are not signed-off requirements; change them 
   records (S01–S15) have fixed Reference Nos (`KYC-260901-9000NN`) so UAT deep links stay stable.
 - **MOCK-06** Fake identity data: NRIC serials always use the `999G` pattern, IPs come from the RFC 5737 documentation ranges,
   and images are "SAMPLE – NOT REAL" placeholders.
+- **MOCK-07** Deactivated users (UAM) are refused by the services for claim, cancel and decide, and are not offered as
+  reviewers. Their open claims still end by timeout.
+- **MOCK-08** Cross-tab sync uses localStorage (last writer wins). It demonstrates the race; the real API needs an atomic
+  conditional write (see docs/HANDOFF.md).
+- **MOCK-09** Creating a merchant deploys a default config v1.0.0, audited as its first CONFIG_DEPLOY.
+- **MOCK-10** The eKYC Workflow what-if preview re-runs `deriveStatus` over the merchant's finished sessions. It is
+  read-only and never changes decided records.
 
 ## Conflict register (old FRS / Axure → latest decision)
 | Topic | Old FRS / Axure | Latest decision |
