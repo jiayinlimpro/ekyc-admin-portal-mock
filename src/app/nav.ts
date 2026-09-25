@@ -44,7 +44,7 @@ export const NAV_ITEMS: NavItem[] = [
     group: 'Dashboards',
     inMenu: true,
     priority: 'P2',
-    built: false,
+    built: true,
     notes: ['4 statuses only (DEC-01).', '3 KPI cards; Auto-Clear = APPROVED with Last Updated By = SYSTEM (DEC-14).', 'No Drop-off KPI (DEC-81).'],
   },
   {
@@ -54,7 +54,7 @@ export const NAV_ITEMS: NavItem[] = [
     group: 'Dashboards',
     inMenu: true,
     priority: 'P2',
-    built: false,
+    built: true,
     notes: ['Retry KPI counts user retakes only (DEC-18).', 'Charts show two threshold lines: Auto-Pass and Auto-Reject (DEC-11).'],
   },
   {
@@ -131,7 +131,7 @@ export const NAV_ITEMS: NavItem[] = [
     inMenu: true,
     permission: 'canViewBilling',
     priority: 'P2',
-    built: false,
+    built: true,
     notes: ['Every verification is charged on entry; column "Verification Status" (DEC-60).', '"Cost of Retries" depends on OQ-07 (per-attempt charging).'],
   },
   {

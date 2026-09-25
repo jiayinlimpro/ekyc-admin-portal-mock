@@ -66,3 +66,10 @@ export function riskLevelFromScore(score: number, bands = POLICY.riskBands): Ris
   if (score >= bands.mediumFrom) return 'MEDIUM'
   return 'LOW'
 }
+
+/** OQ-14: mock unit prices (RM). Every verification is charged on entry (DEC-60); retakes only if chargePerAttempt (OQ-07). */
+export const PRICING = {
+  currency: 'MYR',
+  perVerification: { V1: 1.5, V2: 1.8, V3: 2.0, V4: 2.5 },
+  perRetake: 0.5,
+} as const

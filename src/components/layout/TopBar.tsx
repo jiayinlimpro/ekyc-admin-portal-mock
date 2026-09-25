@@ -109,10 +109,10 @@ function MerchantSelector() {
       />
       <DropdownMenuContent className="w-64">
         <DropdownMenuRadioGroup value={merchantId} onValueChange={(v) => selectMerchant(String(v))}>
-          <DropdownMenuRadioItem value={ALL_MERCHANTS}>All merchants</DropdownMenuRadioItem>
+          <DropdownMenuRadioItem value={ALL_MERCHANTS} closeOnClick>All merchants</DropdownMenuRadioItem>
           <DropdownMenuSeparator />
           {merchants.map((m) => (
-            <DropdownMenuRadioItem key={m.merchantId} value={m.merchantId}>
+            <DropdownMenuRadioItem key={m.merchantId} value={m.merchantId} closeOnClick>
               {m.name} <span className="ml-1 text-xs text-muted-foreground">{m.workflowVersion}</span>
             </DropdownMenuRadioItem>
           ))}

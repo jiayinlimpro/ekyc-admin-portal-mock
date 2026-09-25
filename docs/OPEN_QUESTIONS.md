@@ -18,4 +18,7 @@ When the product owner answers, move the answer into `DECISIONS.md` and update t
 | OQ-10 | Decision reason code list | Mock list (3 approve, 4 reject) | `REASON_CODES` |
 | OQ-11 | Does a claim end when the reviewer logs out or closes the tab? | No: only Cancel, timeout or decision | `claimRules.ts` |
 | OQ-12 | Can a reviewer re-claim straight after their own claim times out? | Yes | `claimRules.ts` |
-| OQ-13 | What does the overlay show if the claim expires while the reviewer is typing? | Overlay disables; save fails with "Your claim expired. No changes saved." | Detail page (not built yet) |
+| OQ-13 | What does the overlay show if the claim expires while the reviewer is typing? | Overlay disables; save fails with "Your claim expired. No changes saved." | Detail page (`ClaimBar`, `DecisionOverlay`): typed text is kept |
+| OQ-14 | Unit prices per verification (by workflow version) and per retake | RM 1.50 V1 / RM 2.50 V4; RM 0.50 per user retake when OQ-07 = yes | `PRICING` |
+| OQ-15 | Which 3 KPIs does the Overview show? | Total verifications, Auto-Clear (APPROVED by SYSTEM), Pending review | Overview page |
+| OQ-16 | Should UAM changes (users, roles, merchants) be audited? The agreed audit action list has no UAM events | Not audited in the mock | `DEC-42` |

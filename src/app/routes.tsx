@@ -2,6 +2,9 @@ import type { ComponentType } from 'react'
 import type { RouteObject } from 'react-router'
 import { AppShell } from '@/components/layout/AppShell'
 import { AuditLogsPage } from '@/pages/audit/AuditLogsPage'
+import { BillingPage } from '@/pages/billing/BillingPage'
+import { IntelligencePage } from '@/pages/dashboard/IntelligencePage'
+import { OverviewPage } from '@/pages/dashboard/OverviewPage'
 import { WorkflowConfigPage } from '@/pages/config/WorkflowConfigPage'
 import { WorkflowDirectoryPage } from '@/pages/directory/WorkflowDirectoryPage'
 import { HomePage } from '@/pages/HomePage'
@@ -18,6 +21,9 @@ const PAGES: Partial<Record<string, ComponentType>> = {
   '/workflow': WorkflowConfigPage,
   '/workflow-directory': WorkflowDirectoryPage,
   '/audit': AuditLogsPage,
+  '/dashboard': OverviewPage,
+  '/intelligence': IntelligencePage,
+  '/billing': BillingPage,
 }
 
 export const routes: RouteObject[] = [
