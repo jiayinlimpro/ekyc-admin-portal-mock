@@ -1,5 +1,6 @@
 // Draft → Deploy rules for the per-phase eKYC Workflow configuration (DEC-50 … DEC-53).
-import type { MerchantConfig, PhaseConfig } from './types'
+import { deriveStatus } from './statusRules'
+import type { MerchantConfig, PhaseConfig, Verification } from './types'
 
 export interface ConfigError {
   field: string // e.g. "phases.FACE_MATCH.autoReject"
@@ -63,4 +64,26 @@ export function bumpMinor(version: string): string {
   const m = /^v(\d+)\.(\d+)\.(\d+)$/.exec(version)
   if (!m) throw new Error(`Invalid config version: ${version}`)
   return `v${m[1]}.${Number(m[2]) + 1}.0`
+}
+
+export interface ImpactCounts {
+  total: number
+  APPROVED: number
+  PENDING_REVIEW: number
+  REJECTED: number
+}
+
+/**
+ * What-if: the SYSTEM outcome each finished session would get under `cfg`. Preview only — deployed config applies to
+ * new sessions (DEC-52). Sessions still in progress are skipped; manual decisions are ignored (system view).
+ */
+export function previewImpact(records: Pick<Verification, 'attempts' | 'riskLevel'>[], cfg: Pick<MerchantConfig, 'phases' | 'risk' | 'workflowVersion'>): ImpactCounts {
+  const out: ImpactCounts = { total: 0, APPROVED: 0, PENDING_REVIEW: 0, REJECTED: 0 }
+  for (const r of records) {
+    const { status } = deriveStatus(r, cfg)
+    if (status === 'PROCESSING') continue
+    out.total++
+    out[status]++
+  }
+  return out
 }

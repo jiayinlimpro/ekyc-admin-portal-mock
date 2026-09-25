@@ -94,7 +94,7 @@ export const NAV_ITEMS: NavItem[] = [
     inMenu: true,
     permission: 'canConfigureWorkflow',
     priority: 'P0',
-    built: false,
+    built: true,
     notes: [
       'Configured per phase, not per metric: Auto-Pass, Auto-Reject, max attempts, cooldown (DEC-50).',
       'Active Production Baseline (read-only) vs Staging Canvas (draft); Risk settings for V4 only.',

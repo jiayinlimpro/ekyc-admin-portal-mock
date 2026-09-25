@@ -11,7 +11,7 @@ export function PiiSection({ v }: { v: VerificationDetail }) {
   const fields: [string, React.ReactNode][] = passport
     ? [
         ['Full Name', p.fullName],
-        ['Passport No', <span className="font-mono">{p.passportNo}</span>],
+        ['Passport No', <span key="passport" className="font-mono">{p.passportNo}</span>],
         ['Nationality', p.nationality],
         ['Gender', p.gender],
         ['Date of Birth', formatDate(p.dob)],
@@ -19,7 +19,7 @@ export function PiiSection({ v }: { v: VerificationDetail }) {
       ]
     : [
         ['Full Name', p.fullName],
-        ['NRIC', <span className="font-mono">{p.nric}</span>],
+        ['NRIC', <span key="nric" className="font-mono">{p.nric}</span>],
         ['Gender', p.gender],
         ['Date of Birth', formatDate(p.dob)],
         ['Nationality', p.nationality],
@@ -62,7 +62,7 @@ export function ClientMetadataCard({ v }: { v: VerificationDetail }) {
           ['SDK', m.sdk],
           ['OS', m.os],
           ['Device / browser', m.device],
-          ['IP address', <span className="font-mono">{m.ip}</span>],
+          ['IP address', <span key="ip" className="font-mono">{m.ip}</span>],
           ['Location', m.geo],
         ]}
       />

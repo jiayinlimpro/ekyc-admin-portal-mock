@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { config } from '@/test/factories'
-import { bumpMinor, diffConfig, validateConfig } from './configRules'
+import { ALL_PASS, completed, config, stopped } from '@/test/factories'
+import { bumpMinor, diffConfig, previewImpact, validateConfig } from './configRules'
 import type { MerchantConfig } from './types'
 
 const withPhase = (cfg: MerchantConfig, phase: string, patch: object): MerchantConfig => ({
@@ -54,4 +54,19 @@ describe('bumpMinor (DEC-51)', () => {
   it('v1.2.0 → v1.3.0', () => expect(bumpMinor('v1.2.0')).toBe('v1.3.0'))
   it('v1.9.4 → v1.10.0', () => expect(bumpMinor('v1.9.4')).toBe('v1.10.0'))
   it('rejects a malformed version', () => expect(() => bumpMinor('1.2')).toThrow())
+})
+
+describe('previewImpact (what-if)', () => {
+  const recs = [
+    { attempts: [completed({ ...ALL_PASS })], riskLevel: 'LOW' as const },
+    { attempts: [completed({ ...ALL_PASS, FACE_MATCH: 86 })], riskLevel: 'LOW' as const },
+    { attempts: [completed({ ...ALL_PASS, LIVENESS: 40 })], riskLevel: 'LOW' as const },
+    { attempts: [stopped('SELFIE', 'ABORTED')] }, // still processing: skipped
+  ]
+  it('Given the defaults, then 2 approve and 1 reject', () => {
+    expect(previewImpact(recs, config())).toEqual({ total: 3, APPROVED: 2, PENDING_REVIEW: 0, REJECTED: 1 })
+  })
+  it('Given Face Match Auto-Pass raised to 88, then the 86 moves to review', () => {
+    expect(previewImpact(recs, withPhase(config(), 'FACE_MATCH', { autoPass: 88 }))).toEqual({ total: 3, APPROVED: 1, PENDING_REVIEW: 1, REJECTED: 1 })
+  })
 })

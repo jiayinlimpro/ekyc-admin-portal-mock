@@ -5,8 +5,10 @@
 //   PUT    /merchants/{id}/config/draft           saveDraft  → 422 VALIDATION
 //   DELETE /merchants/{id}/config/draft           discardDraft
 //   POST   /merchants/{id}/config/deploy          deploy     → 422 VALIDATION (no draft / no changes / invalid)
+//   GET    /merchants/{id}/config/versions        listVersions
+//   POST   /merchants/{id}/config/preview         previewImpact (what-if on recent sessions; read-only)
 import { makeAudit } from '@/domain/audit'
-import { bumpMinor, diffConfig, validateConfig } from '@/domain/configRules'
+import { bumpMinor, diffConfig, previewImpact, validateConfig, type ImpactCounts } from '@/domain/configRules'
 import { can, canAccessMerchant } from '@/domain/permissions'
 import type { Actor, MerchantConfig } from '@/domain/types'
 import { now } from '@/lib/clock'
@@ -23,6 +25,10 @@ export interface ConfigService {
   saveDraft(merchantId: string, input: ConfigDraftInput, actor: Actor): Promise<MerchantConfig>
   discardDraft(merchantId: string, actor: Actor): Promise<void>
   deploy(merchantId: string, actor: Actor): Promise<MerchantConfig>
+  /** Deployed versions, newest first. */
+  listVersions(merchantId: string, actor: Actor): Promise<MerchantConfig[]>
+  /** SYSTEM outcomes of the merchant's finished sessions under the baseline vs the given draft. */
+  previewImpact(merchantId: string, input: ConfigDraftInput, actor: Actor): Promise<{ baseline: ImpactCounts; draft: ImpactCounts }>
 }
 
 function record(merchantId: string, actor: Actor) {
@@ -116,6 +122,19 @@ export const mockConfigService: ConfigService = {
     writeRecord(merchantId, { deployed, draft: undefined, history: [...rec.history, deployed] })
     audit(actor, 'CONFIG_DEPLOY', merchantId, at, { fromVersion: rec.deployed.version, toVersion: deployed.version, changes })
     return wire(deployed)
+  },
+
+  async listVersions(merchantId, actor) {
+    await simulateNetwork('list config versions')
+    return wire([...record(merchantId, actor).history].reverse())
+  },
+
+  async previewImpact(merchantId, input, actor) {
+    await simulateNetwork('preview config')
+    const rec = record(merchantId, actor)
+    const sessions = db.state().verifications.filter((v) => v.merchantId === merchantId)
+    const draft = { ...rec.deployed, ...input, risk: rec.deployed.workflowVersion === 'V4' ? input.risk : undefined }
+    return { baseline: previewImpact(sessions, rec.deployed), draft: previewImpact(sessions, draft) }
   },
 }
 
