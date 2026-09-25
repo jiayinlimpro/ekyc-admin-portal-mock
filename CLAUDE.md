@@ -56,10 +56,22 @@ docs/           DECISIONS.md, OPEN_QUESTIONS.md, SCENARIOS.md
 ```
 
 ## Build status
-- Done: scaffold, domain rules + tests, seeded mock data (S01–S15), service layer + tests. **No UI screens yet.**
-- Next (one prompt each): App shell (sidebar, top bar, tab strip, dev menu: Switch user / Time warp / Reset demo data)
-  → Verifications List → Detail (read) → Claim bar + Decision overlay → eKYC Configuration (per phase) → Audit Logs.
-- shadcn components: add as needed with `npx shadcn@latest add <name>`.
+- Done: scaffold, domain rules + tests, seeded mock data (S01–S15), service layer + tests, **app shell**
+  (sidebar, top bar, tab strip, dev menu, Home with scenario links, placeholders for unbuilt screens).
+- Next (one prompt each): Verifications List → Detail (read) → Claim bar + Decision overlay → eKYC Configuration
+  (per phase) → Audit Logs.
+
+## UI conventions
+- Routes, menu, breadcrumb and tab titles all come from `src/app/nav.ts`. To ship a screen: create the page, register it
+  in `PAGES` in `src/app/routes.tsx`, set `built: true` in `nav.ts`.
+- shadcn here is the **base-nova** style on Base UI (not Radix): use the `render` prop instead of `asChild`, e.g.
+  `<DropdownMenuTrigger render={<Button />} />`; `DropdownMenuLabel` must sit inside `DropdownMenuGroup`.
+  Add components with `npx shadcn@latest add <name>`.
+- Pages fetch through services in effects keyed on `actor` (switching user must refetch). Use `useNow()` for anything
+  time-based (claim countdowns) so the time warp applies.
+- Status/role labels: `src/lib/labels.ts`. Dates: `formatMyt()` in `src/lib/format.ts`. Toasts: `sonner` (bottom-right).
+- Session and tabs live in sessionStorage (per browser tab); demo data, dev flags and UI prefs in localStorage.
+- UAT deep links: `?as=USR-2026-0031` signs in as that user.
 
 ## Working style
 - One feature per task. Show a plan first, list files to change, then implement.

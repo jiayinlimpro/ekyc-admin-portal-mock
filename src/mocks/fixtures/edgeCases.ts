@@ -9,6 +9,9 @@ import { userById } from './users'
 
 export interface EdgeCaseExpectation {
   id: string
+  title: string
+  /** Suggested user to open it as (docs/SCENARIOS.md). */
+  asUserId: string
   referenceNo: string
   status: VerificationStatus
   reason?: string
@@ -18,20 +21,20 @@ export interface EdgeCaseExpectation {
 }
 
 export const EDGE_CASES: EdgeCaseExpectation[] = [
-  { id: 'S01', referenceNo: 'KYC-260901-900001', status: 'APPROVED', lastUpdatedBy: 'SYSTEM' },
-  { id: 'S02', referenceNo: 'KYC-260901-900002', status: 'PENDING_REVIEW', reason: 'Risk Assessment not passed' },
-  { id: 'S03', referenceNo: 'KYC-260901-900003', status: 'PENDING_REVIEW', reason: 'Between thresholds' },
-  { id: 'S04', referenceNo: 'KYC-260901-900004', status: 'REJECTED', reason: 'Below Auto-Reject', lastUpdatedBy: 'SYSTEM' },
-  { id: 'S05', referenceNo: 'KYC-260901-900005', status: 'PROCESSING' },
-  { id: 'S06', referenceNo: 'KYC-260901-900006', status: 'PENDING_REVIEW', reason: 'Attempt limit reached – Liveness' },
-  { id: 'S07', referenceNo: 'KYC-260901-900007', status: 'PENDING_REVIEW', claimedByUserId: 'USR-2026-0012' },
-  { id: 'S08', referenceNo: 'KYC-260901-900008', status: 'PENDING_REVIEW', claimedByUserId: 'USR-2026-0012' },
-  { id: 'S09', referenceNo: 'KYC-260901-900009', status: 'PENDING_REVIEW', claimedByUserId: 'USR-2026-0031' },
-  { id: 'S10', referenceNo: 'KYC-260901-900010', status: 'PENDING_REVIEW' },
-  { id: 'S11', referenceNo: 'KYC-260901-900011', status: 'APPROVED', lastUpdatedBy: 'USER' },
-  { id: 'S12', referenceNo: 'KYC-260901-900012', status: 'PROCESSING', configVersion: 'v1.0.0' },
-  { id: 'S13', referenceNo: 'KYC-260901-900013', status: 'APPROVED', lastUpdatedBy: 'SYSTEM' },
-  { id: 'S15', referenceNo: 'KYC-260901-900015', status: 'APPROVED', lastUpdatedBy: 'SYSTEM' },
+  { id: 'S01', title: 'V1, all phases ≥ Auto-Pass', asUserId: 'USR-2026-0044', referenceNo: 'KYC-260901-900001', status: 'APPROVED', lastUpdatedBy: 'SYSTEM' },
+  { id: 'S02', title: 'V4, all pass but risk HIGH', asUserId: 'USR-2026-0012', referenceNo: 'KYC-260901-900002', status: 'PENDING_REVIEW', reason: 'Risk Assessment not passed' },
+  { id: 'S03', title: 'Face Match 83.5, between thresholds', asUserId: 'USR-2026-0012', referenceNo: 'KYC-260901-900003', status: 'PENDING_REVIEW', reason: 'Between thresholds' },
+  { id: 'S04', title: 'Liveness below Auto-Reject', asUserId: 'USR-2026-0012', referenceNo: 'KYC-260901-900004', status: 'REJECTED', reason: 'Below Auto-Reject', lastUpdatedBy: 'SYSTEM' },
+  { id: 'S05', title: 'Aborted run, attempts left (read-only)', asUserId: 'USR-2026-0012', referenceNo: 'KYC-260901-900005', status: 'PROCESSING' },
+  { id: 'S06', title: 'Attempt limit reached on Liveness', asUserId: 'USR-2026-0012', referenceNo: 'KYC-260901-900006', status: 'PENDING_REVIEW', reason: 'Attempt limit reached – Liveness' },
+  { id: 'S07', title: 'Claimed by Ali, ~2 min left', asUserId: 'USR-2026-0012', referenceNo: 'KYC-260901-900007', status: 'PENDING_REVIEW', claimedByUserId: 'USR-2026-0012' },
+  { id: 'S08', title: 'Claimed by Ali, expires mid-review (time warp)', asUserId: 'USR-2026-0012', referenceNo: 'KYC-260901-900008', status: 'PENDING_REVIEW', claimedByUserId: 'USR-2026-0012' },
+  { id: 'S09', title: 'Claimed by Siti; Ali can only view', asUserId: 'USR-2026-0012', referenceNo: 'KYC-260901-900009', status: 'PENDING_REVIEW', claimedByUserId: 'USR-2026-0031' },
+  { id: 'S10', title: 'Unclaimed: two reviewers race', asUserId: 'USR-2026-0031', referenceNo: 'KYC-260901-900010', status: 'PENDING_REVIEW' },
+  { id: 'S11', title: 'Manually approved (final)', asUserId: 'USR-2026-0012', referenceNo: 'KYC-260901-900011', status: 'APPROVED', lastUpdatedBy: 'USER' },
+  { id: 'S12', title: 'In flight on old config v1.0.0', asUserId: 'USR-2026-0001', referenceNo: 'KYC-260901-900012', status: 'PROCESSING', configVersion: 'v1.0.0' },
+  { id: 'S13', title: 'Two user retakes, then approved', asUserId: 'USR-2026-0044', referenceNo: 'KYC-260901-900013', status: 'APPROVED', lastUpdatedBy: 'SYSTEM' },
+  { id: 'S15', title: 'Passport (non-MyKad)', asUserId: 'USR-2026-0044', referenceNo: 'KYC-260901-900015', status: 'APPROVED', lastUpdatedBy: 'SYSTEM' },
 ]
 
 const ALL_PASS: Record<CapturePhase, number> = { DOCUMENT: 94.2, SELFIE: 91.8, FACE_MATCH: 96.1, LIVENESS: 97.4 }
