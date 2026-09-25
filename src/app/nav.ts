@@ -64,7 +64,7 @@ export const NAV_ITEMS: NavItem[] = [
     group: 'eKYC',
     inMenu: true,
     priority: 'P0',
-    built: false,
+    built: true,
     notes: [
       'Filters: Reference No, Full Name, Status (4 only), Merchant, Submitted date range, Risk Level, Claimed By, Last Updated By (SYSTEM / Manual).',
       'Columns include Claimed By with countdown; claim is not a status (DEC-20).',

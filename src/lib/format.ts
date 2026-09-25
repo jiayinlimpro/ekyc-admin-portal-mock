@@ -18,3 +18,16 @@ export function formatOffset(ms: number): string {
   const m = totalMin % 60
   return `${sign}${h ? `${h} h` : ''}${h && m ? ' ' : ''}${m || !h ? `${m} min` : ''}`
 }
+
+/** MYT calendar date "yyyy-MM-dd" → ISO UTC at the start (or end) of that MYT day. */
+export function mytDateToUtcIso(date: string, endOfDay = false): string {
+  const start = Date.parse(`${date}T00:00:00.000Z`) - MYT_OFFSET_MS
+  return new Date(endOfDay ? start + 86_400_000 - 1 : start).toISOString()
+}
+
+/** Claim countdown: "12 min left", "45 s left". */
+export function formatRemaining(ms: number): string {
+  if (ms <= 0) return 'expired'
+  if (ms < 60_000) return `${Math.ceil(ms / 1000)} s left`
+  return `${Math.floor(ms / 60_000)} min left`
+}

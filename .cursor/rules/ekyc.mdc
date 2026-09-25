@@ -65,9 +65,9 @@ docs/           DECISIONS.md, OPEN_QUESTIONS.md, SCENARIOS.md
 
 ## Build status
 - Done: scaffold, domain rules + tests, seeded mock data (S01–S15), service layer + tests, **app shell**
-  (sidebar, top bar, tab strip, dev menu, Home with scenario links, placeholders for unbuilt screens).
-- Next (one prompt each): Verifications List → Detail (read) → Claim bar + Decision overlay → eKYC Configuration
-  (per phase) → Audit Logs.
+  (sidebar, top bar, tab strip, dev menu, Home with scenario links, placeholders for unbuilt screens),
+  **Verifications List** (URL-driven filters, Claimed By countdown, pagination, empty/error states).
+- Next (one prompt each): Detail (read) → Claim bar + Decision overlay → eKYC Configuration (per phase) → Audit Logs.
 
 ## UI conventions
 - Routes, menu, breadcrumb and tab titles all come from `src/app/nav.ts`. To ship a screen: create the page, register it
@@ -77,6 +77,9 @@ docs/           DECISIONS.md, OPEN_QUESTIONS.md, SCENARIOS.md
   Add components with `npx shadcn@latest add <name>`.
 - Pages fetch through services in effects keyed on `actor` (switching user must refetch). Use `useNow()` for anything
   time-based (claim countdowns) so the time warp applies.
+- List filters live in the URL (see `src/pages/verifications/listQuery.ts`); apply on Search, not per keystroke.
+  Forms with custom validation use `noValidate` so our message shows instead of the browser tooltip.
+- Shared UI: `components/common/` (StatusBadge, RiskBadge, NativeSelect, ToggleChips, Pagination, States).
 - Status/role labels: `src/lib/labels.ts`. Dates: `formatMyt()` in `src/lib/format.ts`. Toasts: `sonner` (bottom-right).
 - Session and tabs live in sessionStorage (per browser tab); demo data, dev flags and UI prefs in localStorage.
 - UAT deep links: `?as=USR-2026-0031` signs in as that user.
