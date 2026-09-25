@@ -13,6 +13,7 @@ import { PhaseMetrics, RiskPanel } from '@/components/verification/PhaseMetrics'
 import { ClientMetadataCard, PiiSection } from '@/components/verification/PiiSection'
 import { formatUpdatedBy } from '@/domain/audit'
 import { isClaimActive } from '@/domain/claimRules'
+import { can } from '@/domain/permissions'
 import type { Actor, Decision, MerchantConfig, VerificationDetail } from '@/domain/types'
 import { useNow } from '@/hooks/useNow'
 import { formatMyt } from '@/lib/format'
@@ -191,6 +192,14 @@ export function VerificationDetailPage() {
         </p>
         <p className="text-sm text-muted-foreground">
           Last updated by <span className="text-foreground">{formatUpdatedBy(v.lastUpdatedBy)}</span> · {formatMyt(v.lastUpdatedAt)} MYT
+          {can(actor, 'canViewAudit') && (
+            <>
+              {' · '}
+              <Link to={`/audit?ref=${v.referenceNo}`} className="text-blue-700 hover:underline dark:text-blue-400">
+                Audit trail
+              </Link>
+            </>
+          )}
         </p>
       </header>
 

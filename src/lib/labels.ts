@@ -1,4 +1,4 @@
-import type { AttemptOutcome, DocumentType, RiskLevel, RoleType, VerificationStatus } from '@/domain/types'
+import type { AttemptOutcome, AuditAction, DocumentType, RiskLevel, RoleType, VerificationStatus } from '@/domain/types'
 
 // OQ-09: role display names still to be confirmed against the FRS.
 export const ROLE_LABELS: Record<RoleType, string> = {
@@ -29,4 +29,17 @@ export const OUTCOME_LABELS: Record<AttemptOutcome, string> = {
   ABORTED: 'Aborted',
   TIMED_OUT: 'Timed out',
   FAILED_RETAKE: 'Failed – retake',
+}
+
+export const AUDIT_ACTION_LABELS: Record<AuditAction, string> = {
+  PII_VIEW: 'PII viewed',
+  CLAIM: 'Claimed',
+  CLAIM_RELEASE: 'Claim cancelled',
+  CLAIM_TIMEOUT: 'Claim timed out',
+  DECISION: 'Decision saved',
+  OWNERSHIP_CONFLICT: 'Ownership conflict',
+  CONFIG_DRAFT_SAVE: 'Config draft saved',
+  CONFIG_DISCARD: 'Config draft discarded',
+  CONFIG_DEPLOY: 'Config deployed',
+  CREDENTIAL_ROTATION: 'API key rotated',
 }

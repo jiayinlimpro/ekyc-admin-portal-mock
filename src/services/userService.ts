@@ -10,6 +10,8 @@ export type UserSummary = ClaimHolder & Pick<Actor, 'role' | 'merchantId'>
 export interface UserService {
   /** Users who can claim/decide, limited to merchants the actor can see (Platform Admins included per OQ-08). */
   listReviewers(actor: Actor): Promise<UserSummary[]>
+  /** Everyone the actor may see: all users for admins; own-merchant users (and admins, as audit actors) for reviewers. */
+  list(actor: Actor): Promise<UserSummary[]>
 }
 
 export const mockUserService: UserService = {
@@ -19,6 +21,16 @@ export const mockUserService: UserService = {
       db
         .state()
         .users.filter((u) => can(u, 'canReview') && (u.role === 'PLATFORM_ADMIN' || (u.merchantId && canAccessMerchant(actor, u.merchantId))))
+        .map(({ userId, fullName, role, merchantId }) => ({ userId, fullName, role, merchantId })),
+    )
+  },
+
+  async list(actor) {
+    await simulateNetwork('list users')
+    return wire(
+      db
+        .state()
+        .users.filter((u) => u.role === 'PLATFORM_ADMIN' || (u.merchantId && canAccessMerchant(actor, u.merchantId)))
         .map(({ userId, fullName, role, merchantId }) => ({ userId, fullName, role, merchantId })),
     )
   },

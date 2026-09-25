@@ -109,7 +109,7 @@ export const NAV_ITEMS: NavItem[] = [
     inMenu: true,
     permission: 'canViewAllMerchants',
     priority: 'P1',
-    built: false,
+    built: true,
     notes: ['Links each merchant to its workflow version; V4 adds the Risk Assessment phase.'],
   },
   {
@@ -120,7 +120,7 @@ export const NAV_ITEMS: NavItem[] = [
     inMenu: true,
     permission: 'canViewAudit',
     priority: 'P1',
-    built: false,
+    built: true,
     notes: ['Events: PII_VIEW, CLAIM, CLAIM_RELEASE, CLAIM_TIMEOUT, DECISION, OWNERSHIP_CONFLICT, CONFIG_DRAFT_SAVE, CONFIG_DISCARD, CONFIG_DEPLOY, CREDENTIAL_ROTATION (DEC-42).'],
   },
   {
