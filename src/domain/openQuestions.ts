@@ -38,7 +38,12 @@ export const DEFAULT_CLAIM_WARNING_MIN = 5
 export const DEFAULT_RISK_MAX_ALLOWED: RiskLevel = 'MEDIUM'
 
 /** OQ-10: mock reason codes. */
-export const REASON_CODES = {
+export interface ReasonCode {
+  code: string
+  label: string
+}
+
+export const REASON_CODES: Record<'APPROVE' | 'REJECT', readonly ReasonCode[]> = {
   APPROVE: [
     { code: 'DOC_VERIFIED_MANUALLY', label: 'Document verified manually' },
     { code: 'FACE_MATCH_CONFIRMED', label: 'Face match confirmed by reviewer' },
@@ -50,7 +55,7 @@ export const REASON_CODES = {
     { code: 'SPOOF_SUSPECTED', label: 'Liveness spoof suspected' },
     { code: 'HIGH_RISK', label: 'Risk too high' },
   ],
-} as const
+}
 
 export function reasonLabel(code: string): string | undefined {
   return [...REASON_CODES.APPROVE, ...REASON_CODES.REJECT].find((r) => r.code === code)?.label
