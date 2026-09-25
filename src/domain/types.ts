@@ -203,3 +203,18 @@ export interface Paged<T> {
   pageSize: number
   total: number
 }
+
+/** Stored user (UAM). The session only needs the Actor part. */
+export interface UserRecord extends Actor {
+  active: boolean
+  createdAt: string
+}
+
+/** Merchant API credential. The secret is mock-only (sk_mock_…) and never real. */
+export interface ApiCredential {
+  merchantId: string
+  keyId: string
+  secret: string
+  createdAt: string
+  createdBy: string // fullName, or SYSTEM
+}

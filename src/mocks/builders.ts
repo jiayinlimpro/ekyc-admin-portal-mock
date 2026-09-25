@@ -141,3 +141,26 @@ export function refNo(date: Date, seq: number): string {
   const yymmdd = myt.toISOString().slice(2, 10).replaceAll('-', '')
   return `KYC-${yymmdd}-${String(seq).padStart(6, '0')}`
 }
+
+/** First config for a merchant created in UAM: defaults, v1.0.0, deployed now. */
+export function initialConfig(merchant: Merchant, now: Date, by: { userId: string; fullName: string }): MerchantConfig {
+  return {
+    merchantId: merchant.merchantId,
+    version: 'v1.0.0',
+    state: 'DEPLOYED',
+    workflowVersion: merchant.workflowVersion,
+    phases: CAPTURE_PHASES.map((phase) => ({ phase, enabled: true, ...DEFAULT_PHASE_THRESHOLDS[phase] })),
+    risk: merchant.workflowVersion === 'V4' ? { enabled: true, maxAllowedLevel: DEFAULT_RISK_MAX_ALLOWED } : undefined,
+    claimTimeoutMin: DEFAULT_CLAIM_TIMEOUT_MIN,
+    claimWarningMin: DEFAULT_CLAIM_WARNING_MIN,
+    updatedAt: now.toISOString(),
+    updatedBy: by,
+    deployedAt: now.toISOString(),
+  }
+}
+
+/** Mock secret: never a real key. */
+export function mockSecret(): string {
+  const bytes = crypto.getRandomValues(new Uint8Array(16))
+  return `sk_mock_${[...bytes].map((b) => b.toString(16).padStart(2, '0')).join('')}`
+}

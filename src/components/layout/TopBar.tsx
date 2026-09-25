@@ -46,7 +46,7 @@ function Breadcrumb() {
   const { pathname } = useLocation()
   const meta = routeMetaFor(pathname)
   if (!meta || meta.item.path === '/') return <span className="text-sm font-medium">Home</span>
-  const parts = [meta.item.group, meta.item.path === '/verifications/:referenceNo' ? 'Verifications' : undefined, meta.title].filter(Boolean)
+  const parts = [meta.item.group !== meta.title ? meta.item.group : undefined, meta.item.path === '/verifications/:referenceNo' ? 'Verifications' : undefined, meta.title].filter(Boolean)
   return (
     <nav aria-label="Breadcrumb" className="min-w-0">
       <ol className="flex items-center gap-1 text-sm text-muted-foreground">
@@ -152,6 +152,7 @@ function useFullscreen() {
 }
 
 export function TopBar() {
+  const navigate = useNavigate()
   const toggleSidebar = useUi((s) => s.toggleSidebar)
   const theme = useUi((s) => s.theme)
   const toggleTheme = useUi((s) => s.toggleTheme)
@@ -210,7 +211,7 @@ export function TopBar() {
             </DropdownMenuLabel>
           </DropdownMenuGroup>
           <DropdownMenuSeparator />
-          <DropdownMenuItem onClick={() => toast.info('No real login in the mock. Use Dev → Switch user.')}>
+          <DropdownMenuItem onClick={() => navigate('/login')}>
             <UserRound aria-hidden />
             Sign out (mock)
           </DropdownMenuItem>

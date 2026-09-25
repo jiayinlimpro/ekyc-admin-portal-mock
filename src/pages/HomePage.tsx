@@ -11,10 +11,12 @@ import { useSession } from '@/stores/sessionStore'
 export function HomePage() {
   const actor = useSession((s) => s.actor)
   const [scenarios, setScenarios] = useState<ScenarioSummary[]>([])
+  const [coverage, setCoverage] = useState<Awaited<ReturnType<typeof devService.coverage>>>()
   const users = useUsers()
 
   useEffect(() => {
     void devService.listScenarios().then(setScenarios)
+    void devService.coverage().then(setCoverage)
   }, [])
 
   const userName = (id: string) => users.find((u) => u.userId === id)?.fullName ?? id
@@ -85,6 +87,44 @@ export function HomePage() {
         </div>
       </section>
 
+      {coverage && (
+        <section aria-labelledby="coverage-heading" className="rounded-lg border bg-card">
+          <div className="border-b p-4">
+            <h2 id="coverage-heading" className="font-medium">
+              Data coverage
+            </h2>
+            <p className="text-sm text-muted-foreground">{coverage.total} records across all merchants. Every status appears for V1 and V4, with manual and system decisions.</p>
+          </div>
+          <div className="overflow-x-auto p-4">
+            <table className="w-full text-sm">
+              <thead className="text-left text-xs text-muted-foreground">
+                <tr>
+                  {['Status', 'V1', 'V4', 'Claimed now', 'Last updated by SYSTEM', 'Last updated by a reviewer'].map((h, i) => (
+                    <th key={h} scope="col" className={i ? 'py-1.5 pr-4 text-right font-medium' : 'py-1.5 pr-4 font-medium'}>
+                      {h}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {coverage.rows.map((r) => (
+                  <tr key={r.status} className="border-t">
+                    <td className="py-1.5 pr-4">
+                      <StatusBadge status={r.status} />
+                    </td>
+                    {[r.byVersion.V1 ?? 0, r.byVersion.V4 ?? 0, r.claimed, r.system, r.manual].map((n, i) => (
+                      <td key={i} className="py-1.5 pr-4 text-right tabular-nums">
+                        {n}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
+
       <section aria-labelledby="status-heading" className="rounded-lg border bg-card p-4">
         <h2 id="status-heading" className="mb-3 font-medium">
           Build status
@@ -92,7 +132,9 @@ export function HomePage() {
         <ul className="grid gap-2 text-sm sm:grid-cols-2 lg:grid-cols-3">
           {screens.map((i) => (
             <li key={i.path} className="flex items-center gap-2">
-              {i.built ? <CheckCircle2 className="size-4 text-green-600" aria-label="Built" /> : <CircleDashed className="size-4 text-muted-foreground" aria-label="Not built" />}
+              <span role="img" aria-label={i.built ? 'Built' : 'Not built'} className="inline-flex">
+                {i.built ? <CheckCircle2 className="size-4 text-green-600" aria-hidden /> : <CircleDashed className="size-4 text-muted-foreground" aria-hidden />}
+              </span>
               <span>{i.label}</span>
               <span className="text-xs text-muted-foreground">{i.priority}</span>
             </li>

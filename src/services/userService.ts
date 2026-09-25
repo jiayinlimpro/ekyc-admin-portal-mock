@@ -20,7 +20,7 @@ export const mockUserService: UserService = {
     return wire(
       db
         .state()
-        .users.filter((u) => can(u, 'canReview') && (u.role === 'PLATFORM_ADMIN' || (u.merchantId && canAccessMerchant(actor, u.merchantId))))
+        .users.filter((u) => u.active && can(u, 'canReview') && (u.role === 'PLATFORM_ADMIN' || (u.merchantId && canAccessMerchant(actor, u.merchantId))))
         .map(({ userId, fullName, role, merchantId }) => ({ userId, fullName, role, merchantId })),
     )
   },

@@ -142,7 +142,7 @@ export const NAV_ITEMS: NavItem[] = [
     inMenu: true,
     permission: 'canManageUAM',
     priority: 'P3',
-    built: false,
+    built: true,
     notes: ['Standard CRUD.'],
   },
   {
@@ -153,7 +153,7 @@ export const NAV_ITEMS: NavItem[] = [
     inMenu: true,
     permission: 'canManageUAM',
     priority: 'P3',
-    built: false,
+    built: true,
     notes: ['2 roles only: Platform Admin and Merchant Reviewer (DEC-70).'],
   },
   {
@@ -164,7 +164,7 @@ export const NAV_ITEMS: NavItem[] = [
     inMenu: true,
     permission: 'canManageUAM',
     priority: 'P3',
-    built: false,
+    built: true,
     notes: ['Standard CRUD.'],
   },
   {
@@ -175,7 +175,7 @@ export const NAV_ITEMS: NavItem[] = [
     inMenu: true,
     permission: 'canRotateKeys',
     priority: 'P3',
-    built: false,
+    built: true,
     notes: ['Masked fake API key (sk_mock_…) with reveal / copy / rotate; rotation writes CREDENTIAL_ROTATION.', 'Webhooks: "On hold" placeholder (DEC-82).'],
   },
 ]

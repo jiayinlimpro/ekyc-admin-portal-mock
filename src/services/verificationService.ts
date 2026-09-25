@@ -72,6 +72,12 @@ function audit(actor: Actor, action: Parameters<typeof makeAudit>[0]['action'], 
   db.appendAudit(makeAudit({ id: '', now: at, action, actor, ip: clientIpFor(actor), merchantId: v.merchantId, referenceNo: v.referenceNo, details }))
 }
 
+// Deactivated users (UAM) cannot claim or decide, even with a stale session.
+function requireActive(actor: Actor) {
+  const u = db.state().users.find((x) => x.userId === actor.userId)
+  if (u && !u.active) throw new ServiceError('FORBIDDEN', 'Your account is inactive.')
+}
+
 const loggedPiiViews = new Set<string>()
 
 const includes = (hay: string, needle?: string) => !needle?.trim() || hay.toLowerCase().includes(needle.trim().toLowerCase())
@@ -129,6 +135,7 @@ export const mockVerificationService: VerificationService = {
 
   async claim(ref, actor) {
     await simulateNetwork('claim')
+    requireActive(actor)
     const at = now()
     sweepExpiredClaims(at)
     const v = load(ref, actor)
@@ -142,6 +149,7 @@ export const mockVerificationService: VerificationService = {
 
   async release(ref, actor) {
     await simulateNetwork('release claim')
+    requireActive(actor)
     const at = now()
     sweepExpiredClaims(at)
     const v = load(ref, actor)
@@ -155,6 +163,7 @@ export const mockVerificationService: VerificationService = {
   // REQ: DEC-24 / DEC-30 / DEC-31
   async decide(ref, actor, d) {
     await simulateNetwork('save decision')
+    requireActive(actor)
     const valid = validateDecision(d)
     if (!valid.ok) throw new ServiceError(valid.code, valid.message)
     const at = now()

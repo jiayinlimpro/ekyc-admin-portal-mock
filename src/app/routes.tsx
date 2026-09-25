@@ -7,7 +7,12 @@ import { IntelligencePage } from '@/pages/dashboard/IntelligencePage'
 import { OverviewPage } from '@/pages/dashboard/OverviewPage'
 import { WorkflowConfigPage } from '@/pages/config/WorkflowConfigPage'
 import { WorkflowDirectoryPage } from '@/pages/directory/WorkflowDirectoryPage'
+import { DevelopersPage } from '@/pages/developers/DevelopersPage'
 import { HomePage } from '@/pages/HomePage'
+import { LoginPage } from '@/pages/LoginPage'
+import { MerchantsPage } from '@/pages/uam/MerchantsPage'
+import { RolesPage } from '@/pages/uam/RolesPage'
+import { UsersPage } from '@/pages/uam/UsersPage'
 import { NotFoundPage, RouteErrorPage } from '@/pages/StatusPages'
 import { VerificationDetailPage } from '@/pages/verifications/VerificationDetailPage'
 import { VerificationsListPage } from '@/pages/verifications/VerificationsListPage'
@@ -24,9 +29,14 @@ const PAGES: Partial<Record<string, ComponentType>> = {
   '/dashboard': OverviewPage,
   '/intelligence': IntelligencePage,
   '/billing': BillingPage,
+  '/uam/merchants': MerchantsPage,
+  '/uam/roles': RolesPage,
+  '/uam/users': UsersPage,
+  '/developers': DevelopersPage,
 }
 
 export const routes: RouteObject[] = [
+  { path: '/login', element: <LoginPage />, errorElement: <RouteErrorPage /> },
   {
     path: '/',
     element: <AppShell />,

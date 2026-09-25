@@ -4,7 +4,7 @@ import { makeAudit } from '@/domain/audit'
 import { applyDecision } from '@/domain/claimRules'
 import { REASON_CODES } from '@/domain/openQuestions'
 import { REASONS } from '@/domain/statusRules'
-import { CAPTURE_PHASES, type Actor, type Attempt, type AuditEntry, type CapturePhase, type Merchant, type MerchantConfig, type PhaseConfig, type Verification } from '@/domain/types'
+import { CAPTURE_PHASES, type ApiCredential, type Attempt, type UserRecord, type AuditEntry, type CapturePhase, type Merchant, type MerchantConfig, type PhaseConfig, type Verification } from '@/domain/types'
 import { buildVerification, configAt, makeConfigs, refNo, type ConfigRecord } from './builders'
 import { buildEdgeCases } from './fixtures/edgeCases'
 import { MERCHANT_WEIGHTS, MERCHANTS } from './fixtures/merchants'
@@ -14,13 +14,14 @@ import { clientMetadata, fakeIp, person } from './malaysia'
 export const SEED = 2026
 export const BACKGROUND_COUNT = 300
 /** Bump when the shape of MockDbState changes: persisted demo data is then re-seeded. */
-export const DB_VERSION = 1
+export const DB_VERSION = 2
 
 export interface MockDbState {
   dbVersion: number
   seededAt: string
   merchants: Merchant[]
-  users: Actor[]
+  users: UserRecord[]
+  apiKeys: Record<string, ApiCredential>
   configs: Record<string, ConfigRecord>
   verifications: Verification[]
   audit: AuditEntry[] // append-only, oldest first
@@ -205,7 +206,19 @@ export function seedDatabase(now: Date): MockDbState {
     }
   }
 
-  audit.push(makeAudit({ id: '', now: new Date(now.getTime() - 7 * DAY), action: 'CREDENTIAL_ROTATION', actor: admin, ip: fakeIp(f), merchantId: 'MER-0001', details: { keyId: 'key_mock_atoz_01' } }))
+  // API keys: Atoz rotated once, 7 days ago (its key is _02).
+  const apiKeys: Record<string, ApiCredential> = {}
+  for (const m of MERCHANTS) {
+    const rotated = m.merchantId === 'MER-0001'
+    apiKeys[m.merchantId] = {
+      merchantId: m.merchantId,
+      keyId: `key_mock_${m.merchantId.toLowerCase()}_${rotated ? '02' : '01'}`,
+      secret: `sk_mock_${f.string.hexadecimal({ length: 32, casing: 'lower', prefix: '' })}`,
+      createdAt: new Date(now.getTime() - (rotated ? 7 : 120) * DAY).toISOString(),
+      createdBy: admin.fullName,
+    }
+  }
+  audit.push(makeAudit({ id: '', now: new Date(now.getTime() - 7 * DAY), action: 'CREDENTIAL_ROTATION', actor: admin, ip: fakeIp(f), merchantId: 'MER-0001', details: { fromKeyId: 'key_mock_mer-0001_01', keyId: 'key_mock_mer-0001_02' } }))
 
   const edge = buildEdgeCases({ now, merchants: MERCHANTS, configs })
   const allAudit = [...audit, ...edge.audit].sort((a, b) => a.at.localeCompare(b.at)).map((e, i) => ({ ...e, id: `AUD-${String(i + 1).padStart(6, '0')}` }))
@@ -214,7 +227,8 @@ export function seedDatabase(now: Date): MockDbState {
     dbVersion: DB_VERSION,
     seededAt: now.toISOString(),
     merchants: MERCHANTS,
-    users: USERS,
+    users: USERS.map((u) => ({ ...u, active: true, createdAt: new Date(now.getTime() - 150 * DAY).toISOString() })),
+    apiKeys,
     configs,
     verifications: [...verifications, ...edge.verifications],
     audit: allAudit,
