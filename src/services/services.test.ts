@@ -82,6 +82,15 @@ describe('verificationService.get (DEC-41)', () => {
     expect((await auditFor(S(10), ['PII_VIEW'])).length).toBe(before + 2)
   })
 
+  it('Given the same request id on two different records, then each record gets its own PII_VIEW', async () => {
+    const a = (await auditFor(S(3), ['PII_VIEW'])).length
+    const b = (await auditFor(S(4), ['PII_VIEW'])).length
+    await svc.get(S(3), ALI, { requestId: 'page-1' })
+    await svc.get(S(4), ALI, { requestId: 'page-1' })
+    expect((await auditFor(S(3), ['PII_VIEW'])).length).toBe(a + 1)
+    expect((await auditFor(S(4), ['PII_VIEW'])).length).toBe(b + 1)
+  })
+
   it("Given another merchant's record, then NOT_FOUND", async () => {
     await expectError(svc.get(S(1), ALI), 'NOT_FOUND') // S01 belongs to Vantage
   })

@@ -118,6 +118,9 @@ export function DevMenu() {
         <DropdownMenuCheckboxItem checked={flags.simulateErrors} onCheckedChange={(v) => flags.setFlags({ simulateErrors: v })}>
           Simulate errors ({Math.round(flags.errorRate * 100)}% of calls)
         </DropdownMenuCheckboxItem>
+        <DropdownMenuCheckboxItem checked={!flags.uiClaimChecks} onCheckedChange={(v) => flags.setFlags({ uiClaimChecks: !v })}>
+          Skip UI claim checks (test server-side check)
+        </DropdownMenuCheckboxItem>
 
         <DropdownMenuSeparator />
         <DropdownMenuItem variant="destructive" onClick={onReset}>

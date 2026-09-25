@@ -119,7 +119,7 @@ export const mockVerificationService: VerificationService = {
     sweepExpiredClaims(at)
     const v = load(ref, actor)
     if (!can(actor, 'canViewPII')) throw new ServiceError('FORBIDDEN', 'You do not have permission to view personal data.')
-    const key = opts?.requestId ? `${actor.userId}:${opts.requestId}` : undefined
+    const key = opts?.requestId ? `${actor.userId}:${ref}:${opts.requestId}` : undefined
     if (!key || !loggedPiiViews.has(key)) {
       if (key) loggedPiiViews.add(key)
       audit(actor, 'PII_VIEW', v, at, { requestId: opts?.requestId })

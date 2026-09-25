@@ -31,3 +31,15 @@ export function formatRemaining(ms: number): string {
   if (ms < 60_000) return `${Math.ceil(ms / 1000)} s left`
   return `${Math.floor(ms / 60_000)} min left`
 }
+
+/** "12:05" (mm:ss) for a live countdown. */
+export function formatClock(ms: number): string {
+  const s = Math.max(0, Math.ceil(ms / 1000))
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`
+}
+
+/** MyKad-style date: "1990-04-15" → "15 Apr 1990". */
+export function formatDate(isoDate: string): string {
+  const [y, m, d] = isoDate.split('-').map(Number)
+  return `${String(d).padStart(2, '0')} ${MONTHS[m - 1]} ${y}`
+}

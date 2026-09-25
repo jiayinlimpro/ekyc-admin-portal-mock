@@ -78,7 +78,7 @@ export const NAV_ITEMS: NavItem[] = [
     group: 'eKYC',
     inMenu: false,
     priority: 'P0',
-    built: false,
+    built: true,
     notes: [
       'Opening writes a PII_VIEW audit entry; full unmasked PII + client metadata (DEC-41).',
       'Claim bar: Assign to me / Cancel / countdown. Viewing is never blocked (DEC-25).',

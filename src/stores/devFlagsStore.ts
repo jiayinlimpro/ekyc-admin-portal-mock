@@ -8,6 +8,8 @@ export interface DevFlags {
   simulateErrors: boolean
   errorRate: number // 0–1
   timeOffsetMs: number // added to the real clock
+  /** Off = the UI no longer pre-checks claims, so saves reach the service and its save-time ownership check (S08). */
+  uiClaimChecks: boolean
 }
 
 export const DEFAULT_DEV_FLAGS: DevFlags = {
@@ -16,6 +18,7 @@ export const DEFAULT_DEV_FLAGS: DevFlags = {
   simulateErrors: false,
   errorRate: 0.1,
   timeOffsetMs: 0,
+  uiClaimChecks: true,
 }
 
 interface DevFlagsStore extends DevFlags {
