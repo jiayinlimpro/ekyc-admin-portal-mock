@@ -1,0 +1,218 @@
+// @vitest-environment jsdom
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import type { AuditAction } from '@/domain/types'
+import { ADMIN, ALI, NOW, SITI, minutes } from '@/test/factories'
+import { auditService } from './auditService'
+import { configService } from './configService'
+import { devService } from './devService'
+import { isServiceError } from './errors'
+import { merchantService } from './merchantService'
+import { verificationService as svc } from './verificationService'
+
+const S = (n: number) => `KYC-260901-${900000 + n}`
+
+beforeEach(async () => {
+  vi.useFakeTimers({ toFake: ['Date'] })
+  vi.setSystemTime(NOW)
+  await devService.resetDemoData()
+})
+afterEach(() => vi.useRealTimers())
+
+async function auditFor(ref: string, actions?: AuditAction[]) {
+  return (await auditService.list({ referenceNo: ref, actions, pageSize: 500 }, ADMIN)).items.map((e) => e.action).reverse()
+}
+
+async function expectError(p: Promise<unknown>, code: string, message?: string) {
+  const e = await p.then(
+    () => undefined,
+    (err: unknown) => err,
+  )
+  expect(isServiceError(e), 'expected a ServiceError').toBe(true)
+  expect(e).toMatchObject({ code, ...(message ? { message } : {}) })
+}
+
+describe('verificationService.list', () => {
+  it('Given a list page, then rows contain no NRIC, passport, address or client metadata (DEC-40)', async () => {
+    const page = await svc.list({ pageSize: 500 }, ADMIN)
+    expect(page.total).toBeGreaterThan(300)
+    for (const row of page.items) {
+      expect(Object.keys(row)).not.toEqual(expect.arrayContaining(['pii']))
+      const json = JSON.stringify(row)
+      for (const leak of ['nric', 'passportNo', 'address', 'clientMetadata', 'ip', 'dob']) expect(json).not.toContain(`"${leak}"`)
+    }
+  })
+
+  it('Given a Merchant Reviewer, then only their merchant is visible, even when another merchant is requested', async () => {
+    const own = await svc.list({ pageSize: 500 }, ALI)
+    expect(own.items.every((r) => r.merchantId === 'MER-0001')).toBe(true)
+    expect((await svc.list({ merchantId: 'MER-0002' }, ALI)).total).toBe(0)
+  })
+
+  it('filters by status, Last Updated By, claim and name', async () => {
+    const manual = await svc.list({ lastUpdatedBy: 'MANUAL', pageSize: 500 }, ADMIN)
+    expect(manual.items.every((r) => r.lastUpdatedBy.kind === 'USER')).toBe(true)
+    const pending = await svc.list({ statuses: ['PENDING_REVIEW'], pageSize: 500 }, ADMIN)
+    expect(pending.items.every((r) => r.status === 'PENDING_REVIEW')).toBe(true)
+    const mine = await svc.list({ claimedBy: ALI.userId }, ALI)
+    expect(mine.items.map((r) => r.referenceNo).sort()).toEqual(expect.arrayContaining([S(7), S(8)]))
+    const target = (await svc.get(S(3), ALI)).pii.fullName
+    expect((await svc.list({ fullName: target.toLowerCase() }, ALI)).items.map((r) => r.referenceNo)).toContain(S(3))
+  })
+
+  it('Given Empty Demo Merchant, then no rows (S14)', async () => {
+    expect((await svc.list({ merchantId: 'MER-0006' }, ADMIN)).total).toBe(0)
+  })
+
+  it('paginates', async () => {
+    const p2 = await svc.list({ page: 2, pageSize: 10 }, ADMIN)
+    expect(p2.items).toHaveLength(10)
+    expect(p2.page).toBe(2)
+  })
+})
+
+describe('verificationService.get (DEC-41)', () => {
+  it('Given a detail open, then full PII is returned and one PII_VIEW is written per request id', async () => {
+    const before = (await auditFor(S(10), ['PII_VIEW'])).length
+    const d = await svc.get(S(10), ALI, { requestId: 'r-1' })
+    await svc.get(S(10), ALI, { requestId: 'r-1' }) // StrictMode double effect
+    expect(d.pii.nric).toMatch(/999\d$/)
+    expect(d.clientMetadata.ip).toMatch(/^(192\.0\.2|198\.51\.100|203\.0\.113)\./)
+    expect((await auditFor(S(10), ['PII_VIEW'])).length).toBe(before + 1)
+    await svc.get(S(10), ALI, { requestId: 'r-2' })
+    expect((await auditFor(S(10), ['PII_VIEW'])).length).toBe(before + 2)
+  })
+
+  it("Given another merchant's record, then NOT_FOUND", async () => {
+    await expectError(svc.get(S(1), ALI), 'NOT_FOUND') // S01 belongs to Vantage
+  })
+})
+
+describe('claim and release', () => {
+  it('Given S10 unclaimed, when Ali then Siti click Assign, then Ali wins and Siti gets ALREADY_CLAIMED (S10)', async () => {
+    const d = await svc.claim(S(10), ALI)
+    expect(d.claimedBy?.userId).toBe(ALI.userId)
+    await expectError(svc.claim(S(10), SITI), 'ALREADY_CLAIMED', 'Already claimed by Ali Bin Ahmad.')
+    expect(await auditFor(S(10), ['CLAIM'])).toEqual(['CLAIM'])
+  })
+
+  it('Given a claim, then status, lastUpdatedBy and lastUpdatedAt are unchanged (DEC-03, DEC-20)', async () => {
+    const before = await svc.get(S(10), ALI)
+    const after = await svc.claim(S(10), ALI)
+    expect(after.status).toBe('PENDING_REVIEW')
+    expect(after.lastUpdatedBy).toEqual(before.lastUpdatedBy)
+    expect(after.lastUpdatedAt).toBe(before.lastUpdatedAt)
+  })
+
+  it('Given a PROCESSING record, then it cannot be claimed (S05)', async () => {
+    await expectError(svc.claim(S(5), ALI), 'NOT_CLAIMABLE')
+  })
+
+  it("Given Siti's claim, when Ali cancels, then NOT_CLAIM_OWNER; when Siti cancels, then CLAIM_RELEASE", async () => {
+    await expectError(svc.release(S(9), ALI), 'NOT_CLAIM_OWNER')
+    const d = await svc.release(S(9), SITI)
+    expect(d.claimedBy).toBeUndefined()
+    expect(await auditFor(S(9), ['CLAIM_RELEASE'])).toEqual(['CLAIM_RELEASE'])
+  })
+
+  it("Given time passes the claim expiry, then the claim disappears and one CLAIM_TIMEOUT is written", async () => {
+    vi.setSystemTime(NOW.getTime() + minutes(3)) // S07 had ~2 min left
+    await svc.list({}, ALI)
+    await svc.list({}, ALI) // idempotent
+    expect((await svc.get(S(7), ALI)).claimedBy).toBeUndefined()
+    expect(await auditFor(S(7), ['CLAIM_TIMEOUT'])).toEqual(['CLAIM_TIMEOUT'])
+  })
+})
+
+describe('decide (DEC-24, DEC-30)', () => {
+  const approve = { outcome: 'APPROVE' as const, reasonCode: 'FACE_MATCH_CONFIRMED', comment: 'Matches.' }
+
+  it('Given Ali holds the S07 claim, when he approves, then APPROVED by Ali and a DECISION entry', async () => {
+    vi.setSystemTime(NOW.getTime() + minutes(1))
+    const d = await svc.decide(S(7), ALI, approve)
+    expect(d).toMatchObject({ status: 'APPROVED', lastUpdatedBy: { kind: 'USER', userId: ALI.userId }, statusReason: 'Face match confirmed by reviewer', claimedBy: undefined })
+    expect(d.lastUpdatedAt).toBe(new Date(NOW.getTime() + minutes(1)).toISOString())
+    expect((await auditFor(S(7))).at(-1)).toBe('DECISION')
+    await expectError(svc.decide(S(7), ALI, approve), 'OWNERSHIP_CONFLICT', 'This record has already been decided. No changes saved.')
+  })
+
+  it("Given Ali's S08 claim expires while he types, when he saves, then nothing is saved and CLAIM_TIMEOUT + OWNERSHIP_CONFLICT are audited (S08)", async () => {
+    vi.setSystemTime(NOW.getTime() + minutes(11)) // S08 had ~10 min left
+    await expectError(svc.decide(S(8), ALI, approve), 'OWNERSHIP_CONFLICT', 'Your claim expired. No changes saved.')
+    const d = await svc.get(S(8), ALI)
+    expect(d.status).toBe('PENDING_REVIEW')
+    expect(d.lastUpdatedBy.kind).toBe('SYSTEM')
+    expect((await auditFor(S(8), ['CLAIM_TIMEOUT', 'OWNERSHIP_CONFLICT']))).toEqual(['CLAIM_TIMEOUT', 'OWNERSHIP_CONFLICT'])
+  })
+
+  it('Given Siti holds the claim, when Ali saves, then OWNERSHIP_CONFLICT (S09)', async () => {
+    await expectError(svc.decide(S(9), ALI, approve), 'OWNERSHIP_CONFLICT')
+  })
+
+  it('Given no audit comment, then VALIDATION and nothing is written', async () => {
+    await expectError(svc.decide(S(7), ALI, { ...approve, comment: '' }), 'VALIDATION')
+    expect(await auditFor(S(7), ['DECISION', 'OWNERSHIP_CONFLICT'])).toEqual([])
+  })
+
+  it('Given S11 manually approved, then any save is refused (decisions are final)', async () => {
+    await expectError(svc.decide(S(11), ALI, approve), 'OWNERSHIP_CONFLICT')
+  })
+})
+
+describe('configService (DEC-50 … DEC-53)', () => {
+  it('Given a valid change, when admin saves a draft and deploys, then the version bumps and both steps are audited; old records keep their version (S12)', async () => {
+    const active = await configService.getActive('MER-0001', ADMIN)
+    expect(active.version).toBe('v1.1.0')
+    const phases = active.phases.map((p) => (p.phase === 'FACE_MATCH' ? { ...p, autoPass: 88 } : p))
+    const draft = await configService.saveDraft('MER-0001', { ...active, phases }, ADMIN)
+    expect(draft).toMatchObject({ state: 'DRAFT', version: 'v1.2.0' })
+    const deployed = await configService.deploy('MER-0001', ADMIN)
+    expect(deployed).toMatchObject({ state: 'DEPLOYED', version: 'v1.2.0' })
+    expect(await configService.getDraft('MER-0001', ADMIN)).toBeNull()
+
+    const log = (await auditService.list({ merchantId: 'MER-0001', actions: ['CONFIG_DRAFT_SAVE', 'CONFIG_DEPLOY'] }, ADMIN)).items
+    expect(log[0]).toMatchObject({ action: 'CONFIG_DEPLOY', details: { fromVersion: 'v1.1.0', toVersion: 'v1.2.0', changes: [{ field: 'phases.FACE_MATCH.autoPass', from: 85, to: 88 }] } })
+    expect(log[1].action).toBe('CONFIG_DRAFT_SAVE')
+    expect((await svc.get(S(12), ADMIN)).configVersion).toBe('v1.0.0')
+  })
+
+  it('Given an invalid draft, then VALIDATION with field errors', async () => {
+    const active = await configService.getActive('MER-0001', ADMIN)
+    const phases = active.phases.map((p) => (p.phase === 'LIVENESS' ? { ...p, autoReject: 95 } : p))
+    await expectError(configService.saveDraft('MER-0001', { ...active, phases }, ADMIN), 'VALIDATION')
+  })
+
+  it('Given no changes, then deploy is refused', async () => {
+    const active = await configService.getActive('MER-0001', ADMIN)
+    await configService.saveDraft('MER-0001', active, ADMIN)
+    await expectError(configService.deploy('MER-0001', ADMIN), 'VALIDATION', 'The draft has no changes to deploy.')
+  })
+
+  it('Given a Merchant Reviewer, then they can read but not change config', async () => {
+    const active = await configService.getActive('MER-0001', ALI)
+    await expectError(configService.saveDraft('MER-0001', active, ALI), 'FORBIDDEN')
+    await expectError(configService.getActive('MER-0002', ALI), 'NOT_FOUND')
+  })
+
+  it('Given a V1 merchant, then risk settings are dropped from the draft', async () => {
+    const active = await configService.getActive('MER-0002', ADMIN)
+    const draft = await configService.saveDraft('MER-0002', { ...active, risk: { enabled: true, maxAllowedLevel: 'LOW' }, claimTimeoutMin: 20 }, ADMIN)
+    expect(draft.risk).toBeUndefined()
+  })
+
+  it('Given a discard, then the draft is gone and CONFIG_DISCARD is audited', async () => {
+    const active = await configService.getActive('MER-0001', ADMIN)
+    await configService.saveDraft('MER-0001', { ...active, claimTimeoutMin: 45 }, ADMIN)
+    await configService.discardDraft('MER-0001', ADMIN)
+    expect(await configService.getDraft('MER-0001', ADMIN)).toBeNull()
+    expect((await auditService.list({ actions: ['CONFIG_DISCARD'] }, ADMIN)).total).toBe(1)
+  })
+})
+
+describe('auditService and merchantService scoping', () => {
+  it('Given a Merchant Reviewer, then audit entries and merchants are limited to their merchant', async () => {
+    const log = await auditService.list({ pageSize: 500 }, ALI)
+    expect(log.items.every((e) => e.merchantId === 'MER-0001')).toBe(true)
+    expect((await merchantService.list(ALI)).map((m) => m.merchantId)).toEqual(['MER-0001'])
+    expect((await merchantService.list(ADMIN)).length).toBe(6)
+  })
+})

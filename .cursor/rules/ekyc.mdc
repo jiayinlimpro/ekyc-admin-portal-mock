@@ -54,12 +54,20 @@ UAT scenarios: `docs/SCENARIOS.md`.
 ## Layout
 ```
 src/domain/     types.ts, openQuestions.ts, statusRules.ts, claimRules.ts, permissions.ts, configRules.ts, audit.ts (+ tests)
-src/mocks/      malaysia.ts, seed.ts, mockDb.ts, delay.ts, fixtures/ (merchants, users, edgeCases)
-src/services/   verificationService, configService, auditService, merchantService, userService, errors
-src/stores/     sessionStore (current actor, merchant), devFlagsStore (latency, errors, time warp)
-src/lib/        clock.ts, utils.ts
+src/mocks/      malaysia.ts, builders.ts, seed.ts, mockDb.ts, fixtures/ (merchants, users, edgeCases)
+src/services/   verificationService, configService, auditService, merchantService, devService (dev-only),
+                claimSweep, network (latency/errors), errors (ServiceError + HTTP status map)
+src/stores/     sessionStore (current actor, merchant; sessionStorage = per tab), devFlagsStore (latency, errors, time warp)
+src/lib/        clock.ts, utils.ts (shadcn)
+src/test/       factories.ts (unit-test builders, independent of src/mocks)
 docs/           DECISIONS.md, OPEN_QUESTIONS.md, SCENARIOS.md
 ```
+
+## Build status
+- Done: scaffold, domain rules + tests, seeded mock data (S01–S15), service layer + tests. **No UI screens yet.**
+- Next (one prompt each): App shell (sidebar, top bar, tab strip, dev menu: Switch user / Time warp / Reset demo data)
+  → Verifications List → Detail (read) → Claim bar + Decision overlay → eKYC Configuration (per phase) → Audit Logs.
+- shadcn components: add as needed with `npx shadcn@latest add <name>`.
 
 ## Working style
 - One feature per task. Show a plan first, list files to change, then implement.
