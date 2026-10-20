@@ -1,5 +1,5 @@
 import { Suspense, type ComponentType } from 'react'
-import { ErrorState } from '@/components/common/States'
+import { EmptyState, ErrorState } from '@/components/common/States'
 import { PlaceholderPage } from '@/pages/PlaceholderPage'
 import { ForbiddenPage } from '@/pages/StatusPages'
 import { useAccess } from './access'
@@ -14,6 +14,10 @@ export function Guarded({ item, page: Page }: { item: NavItem; page?: ComponentT
   const waits = !!rule && !access.ready // rules need the account
   if (waits) return <Loading label={item.label} />
   if (rule && access.error) return <ErrorState message={access.error} onRetry={access.retry} />
+  // REQ: DEC-73 — signed in, but no assignment covers any project yet.
+  if (rule && access.account?.level === 'MERCHANT_USER' && !access.projects.length) {
+    return <EmptyState title="You don’t have access to any project yet">Ask your Merchant Owner to give you a role on the Users screen.</EmptyState>
+  }
   if (!access.allows(rule)) return <ForbiddenPage page={item.label} />
   if (!Page) return <PlaceholderPage item={item} />
   return (

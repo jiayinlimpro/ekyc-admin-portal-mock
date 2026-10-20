@@ -95,3 +95,33 @@ describe('Project Settings (DEC-54, DEC-96)', () => {
     expect(p.queryByRole('button')).toBeNull()
   })
 })
+
+describe('Project Settings › Members (DEC-77)', () => {
+  it('Given Hafiz (Project Admin of SME app), then inherited All projects users are marked and he adds Siti as Reviewer', async () => {
+    useSession.getState().switchUser(HAFIZ)
+    renderAt('/project-settings?tab=members')
+    const p = await panel()
+    const owner = (await p.findByRole('rowheader', { name: 'Tan Mei Ling' })).closest('tr')!
+    expect(owner.textContent).toContain('Merchant Owner· inherited')
+    expect(within(owner).queryByRole('button')).toBeNull()
+    expect(p.getByRole('button', { name: 'Remove Viewer for Ali Bin Ahmad' })).toBeTruthy()
+    const user = p.getByLabelText('User')
+    await waitFor(() => expect(within(user).getAllByRole('option').length).toBeGreaterThan(1))
+    fireEvent.change(user, { target: { value: 'USR-2026-0031' } })
+    const role = p.getByLabelText('Role')
+    await waitFor(() => expect(within(role).getAllByRole('option').map((o) => o.textContent)).not.toContain('Merchant Owner'))
+    fireEvent.change(role, { target: { value: 'ROL-2026-0003' } })
+    fireEvent.click(p.getByRole('button', { name: /Add member/ }))
+    expect((await p.findByRole('rowheader', { name: 'Siti Aminah Binti Yusof' })).closest('tr')!.textContent).toContain('Reviewer')
+  })
+})
+
+describe('No access yet (DEC-73)', () => {
+  it('Given a user whose only assignment was removed, then they see "You don’t have access to any project yet"', async () => {
+    const pei = db.state().accounts.find((a) => a.userId === 'USR-2026-0035')!
+    db.setState((st) => ({ accounts: st.accounts.map((a) => (a.userId === pei.userId ? { ...a, status: 'ACTIVE' as const, assignments: [] } : a)) }))
+    useSession.getState().switchUser({ userId: pei.userId, fullName: pei.fullName })
+    renderAt('/')
+    expect(await screen.findByText('You don’t have access to any project yet')).toBeTruthy()
+  })
+})

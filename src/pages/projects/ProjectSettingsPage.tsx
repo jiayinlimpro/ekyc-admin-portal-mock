@@ -20,6 +20,7 @@ import { flowService } from '@/services/flowService'
 import { projectService, type MyProject } from '@/services/projectService'
 import { useSession } from '@/stores/sessionStore'
 import { IntegrationTab } from './IntegrationTab'
+import { MembersTab } from './MembersTab'
 import { Card } from './settingsUi'
 
 const TABS = [
@@ -27,6 +28,7 @@ const TABS = [
   { value: 'integration', label: 'Integration' },
   { value: 'review', label: 'Review operations' },
   { value: 'routing', label: 'Routing' },
+  { value: 'members', label: 'Members' },
 ] as const
 type Tab = (typeof TABS)[number]['value']
 
@@ -206,13 +208,14 @@ function Settings({ selected }: { selected: MyProject }) {
             ))}
           {tab === 'review' && <ReviewTab key={p.projectId} project={p} canEdit={may('manageProjectSettings')} onSaved={project.reload} />}
           {tab === 'routing' && <RoutingTab project={p} />}
+          {tab === 'members' && (may('manageMembers') ? <MembersTab project={p} /> : <ReadOnlyNote>Members are managed by users with the Manage project members permission (DEC-77).</ReadOnlyNote>)}
         </div>
       )}
     </div>
   )
 }
 
-// REQ: DEC-54 / DEC-96 — one selected project; tabs General, Integration, Review operations, Routing.
+// REQ: DEC-54 / DEC-77 / DEC-96 — one selected project; tabs General, Integration, Review operations, Routing, Members.
 export function ProjectSettingsPage() {
   return <RequireProject action="manageFlows" title="Project Settings">{(p) => <Settings key={p.projectId} selected={p} />}</RequireProject>
 }

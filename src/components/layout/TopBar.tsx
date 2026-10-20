@@ -101,7 +101,9 @@ function ProjectOption({ p, showRole }: { p: MyProject; showRole: boolean }) {
 
 // REQ: DEC-73 — the user's projects plus "All my projects" (only with more than one); the current project is always visible.
 function ProjectSwitcher() {
-  const { ready, account, projects, selected } = useAccess()
+  const { ready, account, projects: all, selected } = useAccess()
+  // REQ: DEC-77 — archived projects leave the switcher (still on the Projects screen); the current one stays visible.
+  const projects = all.filter((p) => p.status !== 'ARCHIVED' || p.projectId === selected?.projectId)
   const selectProject = useSession((s) => s.selectProject)
   const merchantName = useMerchantNames()
   if (!ready) return <span className="h-8 w-40 animate-pulse rounded-md bg-muted" aria-hidden />

@@ -27,6 +27,7 @@ Each question is a **parameter**, not a fact. The mock uses the default below. I
 | OQ-24 | Does the claim timeout run from claim time or from the last activity? (FRS TBC) | From claim time | `claimRules.ts` |
 | OQ-25 | Risk components shown on Verification Detail (DEC-44: "each component's 0–100 score and reason codes"): which components, and which reason codes? | Overall risk score and level only; the components area is labelled OPEN QUESTION | Verification Detail › Risk |
 | OQ-26 | A case in review only because Risk Assessment did not pass (DEC-13): which reason does a reviewer give to Reject it? The DEC-35 catalogue has no risk condition | Any catalogue condition may be chosen | `conditions.REJECT_REASONS` |
+| OQ-27 | On a project's Members tab (DEC-77), can a user with Manage project members invite someone new, or only add existing users of the merchant? | Existing users only; new people are invited on the Users screen (Manage users and roles) | `userAdminService.addMember` |
 
 ## Answered (kept for traceability)
 | ID | Question | Answer |
