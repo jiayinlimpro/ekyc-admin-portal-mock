@@ -8,6 +8,11 @@ export const ALI: Actor = { userId: 'USR-2026-0012', fullName: 'Ali Bin Ahmad', 
 export const SITI: Actor = { userId: 'USR-2026-0031', fullName: 'Siti Aminah Binti Yusof', role: 'MERCHANT_REVIEWER', merchantId: 'MER-0001' }
 export const OTHER_MERCHANT_REVIEWER: Actor = { userId: 'USR-2026-0044', fullName: 'Kavitha A/P Subramaniam', role: 'MERCHANT_REVIEWER', merchantId: 'MER-0002' }
 export const ADMIN: Actor = { userId: 'USR-2026-0001', fullName: 'Lim Wei Jie', role: 'PLATFORM_ADMIN' }
+// Per-project personas (seeded accounts). Services read their rights from the account, not from `role`.
+export const OWNER: Actor = { userId: 'USR-2026-0002', fullName: 'Tan Mei Ling', role: 'MERCHANT_REVIEWER', merchantId: 'MER-0001' } // Merchant Owner, Atoz
+export const HAFIZ: Actor = { userId: 'USR-2026-0020', fullName: 'Hafiz Bin Rahman', role: 'MERCHANT_REVIEWER', merchantId: 'MER-0001' } // Project Admin, SME app
+export const NURUL: Actor = { userId: 'USR-2026-0033', fullName: 'Nurul Huda Binti Kamaruddin', role: 'MERCHANT_REVIEWER', merchantId: 'MER-0001' } // Reviewer, SME app
+export const EMPTY_OWNER: Actor = { userId: 'USR-2026-0080', fullName: 'Rajesh A/L Muthu', role: 'MERCHANT_REVIEWER', merchantId: 'MER-0006' } // Owner, Empty Demo Merchant
 
 export function config(overrides: Partial<MerchantConfig> = {}): MerchantConfig {
   return {

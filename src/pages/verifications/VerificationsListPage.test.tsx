@@ -6,8 +6,8 @@ import { RouterProvider } from 'react-router/dom'
 import { routes } from '@/app/routes'
 import { devService } from '@/services/devService'
 import { DEFAULT_DEV_FLAGS, useDevFlags } from '@/stores/devFlagsStore'
-import { ALL_MERCHANTS, useSession } from '@/stores/sessionStore'
-import { ADMIN, ALI } from '@/test/factories'
+import { useSession } from '@/stores/sessionStore'
+import { ADMIN, ALI, EMPTY_OWNER } from '@/test/factories'
 
 function renderAt(path: string) {
   const router = createMemoryRouter(routes, { initialEntries: [path] })
@@ -72,23 +72,16 @@ describe('Verifications List', () => {
     expect((await dataRows()).length).toBe(20)
   })
 
-  it('Given the top-bar merchant is Empty Demo Merchant, then "No verifications yet" (S14)', async () => {
-    useSession.getState().switchUser(ADMIN)
-    useSession.getState().selectMerchant('MER-0006')
+  it('Given the Owner of Empty Demo Merchant, then "No verifications yet" (S14)', async () => {
+    useSession.getState().switchUser(EMPTY_OWNER)
     renderAt('/verifications')
     await screen.findByText('No verifications yet')
   })
 
-  it('Given an admin picks Merchant = Vantage, then every row is Vantage', async () => {
+  it('Given the Platform Admin, then no cases are listed: no case access by default (OQ-20, DEC-72)', async () => {
     useSession.getState().switchUser(ADMIN)
-    expect(useSession.getState().merchantId).toBe(ALL_MERCHANTS)
     renderAt('/verifications')
-    await dataRows()
-    await waitFor(() => expect(within(screen.getByLabelText('Merchant')).getByRole('option', { name: 'Vantage (V1)' })).toBeTruthy())
-    fireEvent.change(screen.getByLabelText('Merchant'), { target: { value: 'MER-0002' } })
-    search()
-    await waitFor(() => expect(table().textContent).not.toContain('Atoz'))
-    for (const r of await dataRows()) expect(r.textContent).toContain('Vantage')
+    await screen.findByText('No verifications yet')
   })
 
   it('Given the service fails, then an error with Try again; when it recovers, then rows load', async () => {

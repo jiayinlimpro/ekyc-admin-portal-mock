@@ -36,7 +36,7 @@ export const EDGE_CASES: EdgeCaseExpectation[] = [
   { id: 'S09', title: 'Claimed by Siti; Ali can only view', asUserId: 'USR-2026-0012', referenceNo: 'KYC-260901-900009', flowId: 'FLW-0001', status: 'PENDING_REVIEW', claimedByUserId: 'USR-2026-0031' },
   { id: 'S10', title: 'Unclaimed: two reviewers race', asUserId: 'USR-2026-0031', referenceNo: 'KYC-260901-900010', flowId: 'FLW-0001', status: 'PENDING_REVIEW' },
   { id: 'S11', title: 'Manually approved (final)', asUserId: 'USR-2026-0012', referenceNo: 'KYC-260901-900011', flowId: 'FLW-0001', status: 'APPROVED', lastUpdatedBy: 'USER' },
-  { id: 'S12', title: 'In flight on the previous flow revision (V4-R1)', asUserId: 'USR-2026-0001', referenceNo: 'KYC-260901-900012', flowId: 'FLW-0001', status: 'PROCESSING', configVersion: 'v1.0.0', configRevision: 1 },
+  { id: 'S12', title: 'In flight on the previous flow revision (V4-R1)', asUserId: 'USR-2026-0012', referenceNo: 'KYC-260901-900012', flowId: 'FLW-0001', status: 'PROCESSING', configVersion: 'v1.0.0', configRevision: 1 },
   { id: 'S13', title: 'Two liveness retries, then approved', asUserId: 'USR-2026-0044', referenceNo: 'KYC-260901-900013', flowId: 'FLW-0005', status: 'APPROVED', lastUpdatedBy: 'SYSTEM' },
   { id: 'S15', title: 'Passport (non-MyKad)', asUserId: 'USR-2026-0044', referenceNo: 'KYC-260901-900015', flowId: 'FLW-0005', status: 'APPROVED', lastUpdatedBy: 'SYSTEM' },
   { id: 'S16', title: 'SME app project (V3): Ali may only view', asUserId: 'USR-2026-0012', referenceNo: 'KYC-260901-900016', flowId: 'FLW-0004', status: 'PENDING_REVIEW', reason: 'Face not live (Retry Not Allowed)' },
@@ -86,7 +86,7 @@ export function buildEdgeCases(ctx: { now: Date; merchants: Merchant[]; configs:
   const passes = (n: number) => Array.from({ length: n }, (_, i) => 95.5 + i * 0.4)
 
   const claimFor = (v: Verification, actor: Actor, claimedMinAgo: number): Verification => {
-    const cfg = ctx.configs[v.merchantId].deployed
+    const timeoutMin = catalog.projects.find((p) => p.projectId === v.projectId)!.claimTimeoutMin // REQ: DEC-22
     const claimedAt = ago(claimedMinAgo)
     audit.push(makeAudit({ id: '', now: new Date(claimedAt.getTime() - MIN), action: 'PII_VIEW', actor, ip: fakeIp(f), merchantId: v.merchantId, referenceNo: v.referenceNo }))
     audit.push(
@@ -98,14 +98,14 @@ export function buildEdgeCases(ctx: { now: Date; merchants: Merchant[]; configs:
         ip: fakeIp(f),
         merchantId: v.merchantId,
         referenceNo: v.referenceNo,
-        details: { claimExpiresAt: new Date(claimedAt.getTime() + cfg.claimTimeoutMin * MIN).toISOString() },
+        details: { claimExpiresAt: new Date(claimedAt.getTime() + timeoutMin * MIN).toISOString() },
       }),
     )
     return {
       ...v,
       claimedBy: { userId: actor.userId, fullName: actor.fullName },
       claimedAt: claimedAt.toISOString(),
-      claimExpiresAt: new Date(claimedAt.getTime() + cfg.claimTimeoutMin * MIN).toISOString(),
+      claimExpiresAt: new Date(claimedAt.getTime() + timeoutMin * MIN).toISOString(),
     }
   }
 

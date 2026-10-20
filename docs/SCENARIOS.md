@@ -2,8 +2,9 @@
 
 Each scenario is a fixture in `src/mocks/fixtures/edgeCases.ts` with a fixed Reference No, so deep links stay stable
 (the `260901` date part is fixed on purpose; see MOCK-05). Default users: **Ali Bin Ahmad (USR-2026-0012)** and
-**Siti Aminah Binti Yusof (USR-2026-0031)**, both Reviewers in Atoz Software Tech's Default project; admin
-**Lim Wei Jie (USR-2026-0001)**.
+**Siti Aminah Binti Yusof (USR-2026-0031)**, both Reviewers in Atoz Software Tech's Default project; Merchant Owner
+**Tan Mei Ling (USR-2026-0002)** sees every Atoz project. The Platform Admin **Lim Wei Jie (USR-2026-0001)** has no case
+access by default (OQ-20): cases return "not found" for him, as for anyone outside the case's project (DEC-72).
 
 Thresholds come from each case's flow revision and the presets (OQ-02). Atoz "Malaysian onboarding" (FLW-0001, V4-R2):
 face match reject < 85 / approve ≥ 95, liveness reject < 70 / approve ≥ 85, 3 retries (up to 4 submissions). A result
@@ -29,7 +30,7 @@ data** before a UAT run.
 | S13 | KYC-260901-900013 | Vantage Default › Standard onboarding (V1) | Liveness 55.0 → 66.2 → 90.1 | APPROVED · SYSTEM; 2 retries counted |
 | S14 | — | Empty Demo Merchant | Merchant with 0 records / filter with no results | Empty state |
 | S15 | KYC-260901-900015 | Vantage Default › Standard onboarding (V1) | Passport (non-MyKad) | OCR panel shows passport fields; no NRIC |
-| S16 | KYC-260901-900016 | Atoz SME app › SME director check (V3) | Liveness retries used up (2 retries), last 72.3 | PENDING_REVIEW. Ali is a **Viewer** in SME app: may view, may not claim (from Phase 4); Nurul Huda (Reviewer) may claim |
+| S16 | KYC-260901-900016 | Atoz SME app › SME director check (V3) | Liveness retries used up (2 retries), last 72.3 | PENDING_REVIEW. Ali is a **Viewer** in SME app: may view, may not claim; Nurul Huda (Reviewer) may claim, with SME app's 45-min claim timeout |
 | S17 | KYC-260901-900017 | Boring Default › Express (pilot) (V3, **Retiring**) | First liveness failed, retry pending | PROCESSING; the flow stays Retiring until this case is decided |
 | S18 | KYC-260901-900018 | Atoz Default › Foreigner onboarding (V4, High face match) | Face match below 90 on all 4 submissions | REJECTED · SYSTEM; 120-min cooldown: same end user may start a new case only 2 h after rejection (DEC-26) |
 | S19 | KYC-260901-900019 | Vantage Default › Standard onboarding (V1, Advanced face match 82/93) | Face match (ID vs selfie) 70.0, retry pending | PROCESSING; selfie retakes are free and unlimited |

@@ -192,7 +192,7 @@ export function seedDatabase(now: Date): MockDbState {
     const v = verifications[i]
     if (v.status !== 'PENDING_REVIEW') continue
     const actor = f.helpers.arrayElement(reviewersOf(v))
-    const cfg = configs[v.merchantId].deployed
+    const timeoutMin = catalog.projects.find((p) => p.projectId === v.projectId)!.claimTimeoutMin // REQ: DEC-22
     const age = now.getTime() - Date.parse(v.lastUpdatedAt)
     const ip = fakeIp(f)
     const ref = { merchantId: v.merchantId, referenceNo: v.referenceNo, ip }
@@ -205,9 +205,9 @@ export function seedDatabase(now: Date): MockDbState {
       audit.push(makeAudit({ id: '', now: decidedAt, action: 'DECISION', actor, ...ref, details: { ...decision, fromStatus: v.status, toStatus: decision.outcome === 'APPROVE' ? 'APPROVED' : 'REJECTED' } }))
       verifications[i] = applyDecision(v, actor, decision, label, decidedAt)
     } else if (f.number.float({ min: 0, max: 1 }) < 0.2) {
-      const claimedAt = new Date(now.getTime() - f.number.int({ min: 1, max: cfg.claimTimeoutMin - 1 }) * MIN)
+      const claimedAt = new Date(now.getTime() - f.number.int({ min: 1, max: timeoutMin - 1 }) * MIN)
       if (claimedAt.getTime() <= Date.parse(v.lastUpdatedAt)) continue
-      const claimExpiresAt = new Date(claimedAt.getTime() + cfg.claimTimeoutMin * MIN).toISOString()
+      const claimExpiresAt = new Date(claimedAt.getTime() + timeoutMin * MIN).toISOString()
       audit.push(makeAudit({ id: '', now: new Date(claimedAt.getTime() - MIN), action: 'PII_VIEW', actor, ...ref }))
       audit.push(makeAudit({ id: '', now: claimedAt, action: 'CLAIM', actor, ...ref, details: { claimExpiresAt } }))
       verifications[i] = { ...v, claimedBy: { userId: actor.userId, fullName: actor.fullName }, claimedAt: claimedAt.toISOString(), claimExpiresAt }

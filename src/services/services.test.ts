@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { AuditAction } from '@/domain/types'
-import { ADMIN, ALI, NOW, SITI, minutes } from '@/test/factories'
+import { ADMIN, ALI, EMPTY_OWNER, HAFIZ, NOW, NURUL, OTHER_MERCHANT_REVIEWER, OWNER, SITI, minutes } from '@/test/factories'
 import { auditService } from './auditService'
 import { configService } from './configService'
 import { devService } from './devService'
@@ -33,8 +33,8 @@ async function expectError(p: Promise<unknown>, code: string, message?: string) 
 
 describe('verificationService.list', () => {
   it('Given a list page, then rows contain no NRIC, passport, address or client metadata (DEC-40)', async () => {
-    const page = await svc.list({ pageSize: 500 }, ADMIN)
-    expect(page.total).toBeGreaterThan(300)
+    const page = await svc.list({ pageSize: 500 }, OWNER)
+    expect(page.total).toBeGreaterThan(50)
     for (const row of page.items) {
       expect(Object.keys(row)).not.toEqual(expect.arrayContaining(['pii']))
       const json = JSON.stringify(row)
@@ -49,9 +49,9 @@ describe('verificationService.list', () => {
   })
 
   it('filters by status, Last Updated By, claim and name', async () => {
-    const manual = await svc.list({ lastUpdatedBy: 'MANUAL', pageSize: 500 }, ADMIN)
+    const manual = await svc.list({ lastUpdatedBy: 'MANUAL', pageSize: 500 }, OWNER)
     expect(manual.items.every((r) => r.lastUpdatedBy.kind === 'USER')).toBe(true)
-    const pending = await svc.list({ statuses: ['PENDING_REVIEW'], pageSize: 500 }, ADMIN)
+    const pending = await svc.list({ statuses: ['PENDING_REVIEW'], pageSize: 500 }, OWNER)
     expect(pending.items.every((r) => r.status === 'PENDING_REVIEW')).toBe(true)
     const mine = await svc.list({ claimedBy: ALI.userId }, ALI)
     expect(mine.items.map((r) => r.referenceNo).sort()).toEqual(expect.arrayContaining([S(7), S(8)]))
@@ -60,13 +60,50 @@ describe('verificationService.list', () => {
   })
 
   it('Given Empty Demo Merchant, then no rows (S14)', async () => {
-    expect((await svc.list({ merchantId: 'MER-0006' }, ADMIN)).total).toBe(0)
+    expect((await svc.list({}, EMPTY_OWNER)).total).toBe(0)
   })
 
   it('paginates', async () => {
-    const p2 = await svc.list({ page: 2, pageSize: 10 }, ADMIN)
+    const p2 = await svc.list({ page: 2, pageSize: 10 }, OWNER)
     expect(p2.items).toHaveLength(10)
     expect(p2.page).toBe(2)
+  })
+})
+
+describe('per-project case access (DEC-70, DEC-72)', () => {
+  it('Given Ali (Reviewer in Default, Viewer in SME app), then he sees cases from both projects and nothing else', async () => {
+    const refs = (await svc.list({ pageSize: 1000 }, ALI)).items.map((r) => r.referenceNo)
+    expect(refs).toEqual(expect.arrayContaining([S(2), S(16), S(18)])) // Default › Malaysian, SME app, Default › Foreigner
+    expect(refs).not.toContain(S(1)) // Vantage
+  })
+
+  it('Given Hafiz (Project Admin of SME app only), then Default cases are "not found", not "forbidden"', async () => {
+    expect((await svc.list({ pageSize: 1000 }, HAFIZ)).items.map((r) => r.referenceNo)).toEqual(expect.arrayContaining([S(16)]))
+    await expectError(svc.get(S(2), HAFIZ), 'NOT_FOUND', `Verification ${S(2)} not found.`)
+    await expectError(svc.claim(S(10), HAFIZ), 'NOT_FOUND')
+  })
+
+  it('Given a reviewer from another merchant, then NOT_FOUND', async () => {
+    await expectError(svc.get(S(2), OTHER_MERCHANT_REVIEWER), 'NOT_FOUND')
+  })
+
+  it('Given the Platform Admin, then no case access by default (OQ-20)', async () => {
+    expect((await svc.list({}, ADMIN)).total).toBe(0)
+    await expectError(svc.get(S(2), ADMIN), 'NOT_FOUND')
+  })
+
+  it('Given the Merchant Owner, then cases from every Atoz project are visible; a one-project admin sees fewer', async () => {
+    const owner = (await svc.list({}, OWNER)).total
+    expect(owner).toBe((await svc.list({}, ALI)).total) // Ali is a member of both Atoz projects
+    expect((await svc.list({}, HAFIZ)).total).toBeLessThan(owner)
+    expect((await svc.get(S(16), OWNER)).projectId).toBe('PRJ-0002')
+  })
+
+  it('Given S16 in SME app, when Ali (Viewer) tries to claim, then FORBIDDEN; Nurul (Reviewer) gets the 45-min project timeout (S16, DEC-22)', async () => {
+    await expect(svc.get(S(16), ALI)).resolves.toBeTruthy()
+    await expectError(svc.claim(S(16), ALI), 'FORBIDDEN', 'You do not have review permission for this project.')
+    const v = await svc.claim(S(16), NURUL)
+    expect(Date.parse(v.claimExpiresAt!) - Date.parse(v.claimedAt!)).toBe(minutes(45))
   })
 })
 
@@ -181,7 +218,7 @@ describe('configService (DEC-50 … DEC-53)', () => {
     const log = (await auditService.list({ merchantId: 'MER-0001', actions: ['CONFIG_DRAFT_SAVE', 'CONFIG_DEPLOY'] }, ADMIN)).items
     expect(log[0]).toMatchObject({ action: 'CONFIG_DEPLOY', details: { fromVersion: 'v1.1.0', toVersion: 'v1.2.0', changes: [{ field: 'phases.FACE_MATCH.autoPass', from: 85, to: 88 }] } })
     expect(log[1].action).toBe('CONFIG_DRAFT_SAVE')
-    expect((await svc.get(S(12), ADMIN)).configVersion).toBe('v1.0.0')
+    expect((await svc.get(S(12), ALI)).configVersion).toBe('v1.0.0')
   })
 
   it('Given an invalid draft, then VALIDATION with field errors', async () => {

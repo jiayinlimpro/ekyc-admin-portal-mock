@@ -15,6 +15,7 @@ import {
 import type { Verification } from './types'
 
 const cfg = config()
+const ctx = { mayClaim: true, claimTimeoutMin: 30 }
 
 function claimedBy(actor: typeof ALI, minutesLeft: number, base: Partial<Verification> = {}): Verification {
   return verification({
@@ -27,7 +28,7 @@ function claimedBy(actor: typeof ALI, minutesLeft: number, base: Partial<Verific
 
 describe('claim (DEC-20 … DEC-22)', () => {
   it('Given an unclaimed PENDING_REVIEW record, when Ali claims, then he owns it until now + timeout', () => {
-    const r = claim(verification(), ALI, cfg, NOW)
+    const r = claim(verification(), ALI, ctx, NOW)
     expect(r).toEqual({
       ok: true,
       value: { claimedBy: { userId: ALI.userId, fullName: ALI.fullName }, claimedAt: NOW.toISOString(), claimExpiresAt: at(minutes(30)).toISOString() },
@@ -35,28 +36,29 @@ describe('claim (DEC-20 … DEC-22)', () => {
   })
 
   it('Given Siti holds an active claim, when Ali claims, then ALREADY_CLAIMED (S10)', () => {
-    const r = claim(claimedBy(SITI, 10), ALI, cfg, NOW)
+    const r = claim(claimedBy(SITI, 10), ALI, ctx, NOW)
     expect(r).toMatchObject({ ok: false, code: 'ALREADY_CLAIMED', message: 'Already claimed by Siti Aminah Binti Yusof.' })
   })
 
   it("Given Siti's claim has expired, when Ali claims, then he gets it", () => {
-    expect(claim(claimedBy(SITI, -1), ALI, cfg, NOW).ok).toBe(true)
+    expect(claim(claimedBy(SITI, -1), ALI, ctx, NOW).ok).toBe(true)
   })
 
   it('Given Ali just timed out, when he claims again, then he gets it (OQ-12)', () => {
-    expect(claim(claimedBy(ALI, 0), ALI, cfg, NOW).ok).toBe(true)
+    expect(claim(claimedBy(ALI, 0), ALI, ctx, NOW).ok).toBe(true)
   })
 
   it.each(['PROCESSING', 'APPROVED', 'REJECTED'] as const)('Given a %s record, then it cannot be claimed', (status) => {
-    expect(claim(verification({ status }), ALI, cfg, NOW)).toMatchObject({ ok: false, code: 'NOT_CLAIMABLE' })
+    expect(claim(verification({ status }), ALI, ctx, NOW)).toMatchObject({ ok: false, code: 'NOT_CLAIMABLE' })
   })
 
-  it("Given a reviewer from another merchant, then FORBIDDEN", () => {
-    expect(claim(verification(), OTHER_MERCHANT_REVIEWER, cfg, NOW)).toMatchObject({ ok: false, code: 'FORBIDDEN' })
+  it("Given a user without the claim right in the case's project (Viewer, Platform Admin, other merchant), then FORBIDDEN", () => {
+    expect(claim(verification(), OTHER_MERCHANT_REVIEWER, { ...ctx, mayClaim: false }, NOW)).toMatchObject({ ok: false, code: 'FORBIDDEN' })
   })
 
-  it('Given a Platform Admin and adminCanReview = true (OQ-08), then the admin can claim any merchant', () => {
-    expect(claim(verification(), ADMIN, cfg, NOW).ok).toBe(true)
+  it("Given the project's claim timeout is 45 min, then the claim expires 45 min after claiming (DEC-22)", () => {
+    const r = claim(verification(), ALI, { mayClaim: true, claimTimeoutMin: 45 }, NOW)
+    expect(r.ok && r.value.claimExpiresAt).toBe(at(minutes(45)).toISOString())
   })
 })
 

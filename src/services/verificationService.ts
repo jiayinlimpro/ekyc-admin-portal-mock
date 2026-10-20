@@ -7,11 +7,10 @@
 import { makeAudit } from '@/domain/audit'
 import { applyDecision, checkOwnershipAtSave, claim as claimRule, isClaimActive, release as releaseRule, validateDecision } from '@/domain/claimRules'
 import { reasonLabel } from '@/domain/openQuestions'
-import { can, canAccessMerchant } from '@/domain/permissions'
 import type { Actor, Decision, Paged, RiskLevel, Verification, VerificationDetail, VerificationStatus, VerificationSummary } from '@/domain/types'
 import { now } from '@/lib/clock'
 import { db } from '@/mocks/mockDb'
-import { requireActive } from './accessGuard'
+import { mayInProject, projectById, projectIdsWhere, requireActive } from './accessGuard'
 import { sweepExpiredClaims } from './claimSweep'
 import { ServiceError } from './errors'
 import { clientIpFor, simulateNetwork, wire } from './network'
@@ -62,10 +61,10 @@ function toSummary(v: Verification, at: Date): VerificationSummary {
 
 const toDetail = (v: Verification): VerificationDetail => wire({ ...v, merchantName: merchantName(v.merchantId) })
 
+// REQ: DEC-72 — the same response for "not found" and "not in your projects", so references can't be probed.
 function load(ref: string, actor: Actor): Verification {
   const v = db.findVerification(ref)
-  // Same response for "not found" and "other merchant's record" so references can't be probed.
-  if (!v || !canAccessMerchant(actor, v.merchantId)) throw new ServiceError('NOT_FOUND', `Verification ${ref} not found.`)
+  if (!v || !mayInProject(actor, 'viewCases', v.projectId)) throw new ServiceError('NOT_FOUND', `Verification ${ref} not found.`)
   return v
 }
 
@@ -82,11 +81,12 @@ export const mockVerificationService: VerificationService = {
     await simulateNetwork('list verifications')
     const at = now()
     sweepExpiredClaims(at)
-    const scope = can(actor, 'canViewAllMerchants') ? undefined : actor.merchantId
+    // REQ: DEC-72 — only cases in projects where the user may view cases (Platform Admin: none by default, OQ-20).
+    const scope = projectIdsWhere(actor, 'viewCases')
     const rows = db
       .state()
       .verifications.filter((v) => {
-        if (scope && v.merchantId !== scope) return false
+        if (!scope.has(v.projectId)) return false
         if (q.merchantId && v.merchantId !== q.merchantId) return false
         if (!includes(v.referenceNo, q.referenceNo) || !includes(v.pii.fullName, q.fullName)) return false
         if (q.statuses?.length && !q.statuses.includes(v.status)) return false
@@ -118,8 +118,7 @@ export const mockVerificationService: VerificationService = {
     await simulateNetwork('get verification')
     const at = now()
     sweepExpiredClaims(at)
-    const v = load(ref, actor)
-    if (!can(actor, 'canViewPII')) throw new ServiceError('FORBIDDEN', 'You do not have permission to view personal data.')
+    const v = load(ref, actor) // REQ: DEC-25 / DEC-41 — every project member who can view the case sees its full detail
     const key = opts?.requestId ? `${actor.userId}:${ref}:${opts.requestId}` : undefined
     if (!key || !loggedPiiViews.has(key)) {
       if (key) loggedPiiViews.add(key)
@@ -134,7 +133,7 @@ export const mockVerificationService: VerificationService = {
     const at = now()
     sweepExpiredClaims(at)
     const v = load(ref, actor)
-    const r = claimRule(v, actor, db.state().configs[v.merchantId].deployed, at)
+    const r = claimRule(v, actor, { mayClaim: mayInProject(actor, 'claimCase', v.projectId), claimTimeoutMin: projectById(v.projectId)!.claimTimeoutMin }, at)
     if (!r.ok) throw new ServiceError(r.code, r.message)
     // REQ: DEC-03 — claiming does not touch lastUpdatedBy / lastUpdatedAt.
     const updated = db.updateVerification(ref, (x) => ({ ...x, ...r.value }))
@@ -164,6 +163,7 @@ export const mockVerificationService: VerificationService = {
     const at = now()
     // Re-read at save time. Check ownership BEFORE sweeping, so an expired claim of the actor's own is recognised.
     const v = load(ref, actor)
+    if (!mayInProject(actor, 'decideCase', v.projectId)) throw new ServiceError('FORBIDDEN', 'You do not have review permission for this project.')
     const owner = checkOwnershipAtSave(v, actor, at)
     if (!owner.ok) {
       sweepExpiredClaims(at) // writes CLAIM_TIMEOUT first if the claim just expired

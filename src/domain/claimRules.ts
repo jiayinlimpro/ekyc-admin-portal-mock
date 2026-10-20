@@ -38,16 +38,15 @@ export function isClaimInWarningWindow(v: ClaimFields, cfg: Pick<MerchantConfig,
 
 export const CLEARED_CLAIM: ClaimFields = { claimedBy: undefined, claimedAt: undefined, claimExpiresAt: undefined }
 
+/** What the claimer may do in the case's project (access.canInProject 'claimCase') and that project's timeout. */
+export interface ClaimContext {
+  mayClaim: boolean
+  claimTimeoutMin: number // REQ: DEC-22 — per project (OQ-04)
+}
+
 // REQ: DEC-21 / DEC-22
-export function claim(
-  v: Verification,
-  actor: Actor,
-  cfg: Pick<MerchantConfig, 'claimTimeoutMin'>,
-  now: Date,
-): RuleResult<ClaimFields> {
-  if (!can(actor, 'canReview') || !canAccessMerchant(actor, v.merchantId)) {
-    return fail('FORBIDDEN', 'You do not have review permission for this merchant.')
-  }
+export function claim(v: Verification, actor: Pick<Actor, 'userId' | 'fullName'>, ctx: ClaimContext, now: Date): RuleResult<ClaimFields> {
+  if (!ctx.mayClaim) return fail('FORBIDDEN', 'You do not have review permission for this project.')
   if (v.status !== 'PENDING_REVIEW') return fail('NOT_CLAIMABLE', 'Only Pending Review records can be claimed.')
   if (isClaimActive(v, now)) {
     if (v.claimedBy!.userId === actor.userId) return fail('ALREADY_CLAIMED', 'You already hold this claim.')
@@ -58,7 +57,7 @@ export function claim(
     value: {
       claimedBy: { userId: actor.userId, fullName: actor.fullName },
       claimedAt: now.toISOString(),
-      claimExpiresAt: new Date(now.getTime() + cfg.claimTimeoutMin * 60_000).toISOString(),
+      claimExpiresAt: new Date(now.getTime() + ctx.claimTimeoutMin * 60_000).toISOString(),
     },
   }
 }
