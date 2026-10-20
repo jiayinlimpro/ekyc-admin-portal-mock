@@ -5,11 +5,14 @@
 //   POST  /merchants/{id}/projects    create   → 201 Project | 403 | 422 VALIDATION
 //   PATCH /projects/{id}              rename   → 200 Project | 403 | 422 VALIDATION
 //   POST  /projects/{id}/archive      archive  → 200 Project | 403 | 422 VALIDATION
+//   PATCH /projects/{id}/general      updateGeneral    → 200 Project (branding, language)
+//   PATCH /projects/{id}/review-ops   updateClaimTimeout → 200 Project
 import { canInMerchant, canInProject, roleInProject, type ProjectAction } from '@/domain/access'
 import { makeAudit } from '@/domain/audit'
 import { createFlow } from '@/domain/flowSettings'
 import { archiveError, IN_FLIGHT_STATUSES, validateProjectName } from '@/domain/flowRules'
 import { DEFAULT_CLAIM_TIMEOUT_MIN } from '@/domain/openQuestions'
+import { claimTimeoutError, diffSettings, PROJECT_SETTING_DEFAULTS, validateGeneral, type GeneralSettings } from '@/domain/projectSettings'
 import { defaultVersion } from '@/domain/registryRules'
 import type { Actor, AuditAction, EffectiveRole, Project, RuleError } from '@/domain/types'
 import { now } from '@/lib/clock'
@@ -42,6 +45,9 @@ export interface ProjectService {
   create(merchantId: string, input: { name: string }, actor: Actor): Promise<Project>
   rename(projectId: string, name: string, actor: Actor): Promise<Project>
   archive(projectId: string, actor: Actor): Promise<Project>
+  updateGeneral(projectId: string, input: GeneralSettings, actor: Actor): Promise<Project>
+  /** REQ: DEC-22 / DEC-53 — applies to claims made from now on. */
+  updateClaimTimeout(projectId: string, claimTimeoutMin: number, actor: Actor): Promise<Project>
 }
 
 export function nextId(prefix: string, ids: readonly string[], width = 4): string {
@@ -81,6 +87,15 @@ export function auditProject(actor: Actor | 'SYSTEM', action: AuditAction, p: Pi
 }
 
 const by = (actor: Actor) => ({ userId: actor.userId, fullName: actor.fullName })
+
+/** Saves a settings patch and audits PROJECT_SETTING_CHANGED with old and new values; no change, no entry. */
+export function saveSettings(actor: Actor, p: Project, patch: Partial<Project>): Project {
+  const changes = diffSettings(p, patch)
+  if (!changes.length) return wire(p)
+  db.setState((st) => ({ projects: st.projects.map((x) => (x.projectId === p.projectId ? { ...x, ...patch } : x)) }))
+  auditProject(actor, 'PROJECT_SETTING_CHANGED', p, { changes })
+  return wire(projectById(p.projectId)!)
+}
 
 export const mockProjectService: ProjectService = {
   async listMine(actor) {
@@ -156,6 +171,7 @@ export const mockProjectService: ProjectService = {
       claimTimeoutMin: DEFAULT_CLAIM_TIMEOUT_MIN,
       createdAt: at.toISOString(),
       createdBy: actor.fullName,
+      ...structuredClone(PROJECT_SETTING_DEFAULTS),
     }
     const flow = createFlow({ flowId, project }, { name: 'Default flow', description: 'Created with the project' }, entry, at, by(actor))
     db.setState((st) => ({ projects: [...st.projects, project], flows: [...st.flows, flow] }))
@@ -188,6 +204,30 @@ export const mockProjectService: ProjectService = {
     db.setState((st) => ({ projects: st.projects.map((x) => (x.projectId === projectId ? { ...x, status: 'ARCHIVED' } : x)) }))
     auditProject(actor, 'PROJECT_ARCHIVED', p, { changes: [{ field: 'Status', from: 'Active', to: 'Archived' }] })
     return wire(projectById(projectId)!)
+  },
+
+  async updateGeneral(projectId, input, actor) {
+    await simulateNetwork('update project general')
+    requireActive(actor)
+    const p = loadProject(actor, projectId)
+    requireInProject(actor, 'manageProjectSettings', p, 'change project settings')
+    const next: GeneralSettings = {
+      branding: { primaryColor: input.branding.primaryColor?.trim() || undefined, logoUrl: input.branding.logoUrl?.trim() || undefined },
+      language: input.language || undefined,
+    }
+    const errors = validateGeneral(next)
+    if (errors.length) throw validation(errors)
+    return saveSettings(actor, p, next)
+  },
+
+  async updateClaimTimeout(projectId, claimTimeoutMin, actor) {
+    await simulateNetwork('update claim timeout')
+    requireActive(actor)
+    const p = loadProject(actor, projectId)
+    requireInProject(actor, 'manageProjectSettings', p, 'change project settings')
+    const error = claimTimeoutError(claimTimeoutMin)
+    if (error) throw validation([{ field: 'claimTimeoutMin', message: error }])
+    return saveSettings(actor, p, { claimTimeoutMin })
   },
 }
 

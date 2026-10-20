@@ -282,6 +282,35 @@ export interface Project {
   claimTimeoutMin: number // REQ: DEC-22 — OQ-04
   createdAt: string
   createdBy: string // fullName, or SYSTEM
+  // REQ: DEC-54 — Project Settings › General (blank = the merchant default) and › Integration.
+  branding: { primaryColor?: string; logoUrl?: string }
+  language?: 'en' | 'ms'
+  redirectUrls: string[]
+  allowedOrigins: string[]
+  ipAllowlist: string[] // IPv4 or CIDR
+}
+
+/** REQ: DEC-54 — an API key of one project. The secret is shown once, when created or rotated; only a hint is kept. */
+export interface ProjectApiKey {
+  keyId: string
+  projectId: string
+  name: string
+  secretHint: string // e.g. "sk_mock_…3f9a"
+  status: 'ACTIVE' | 'REVOKED'
+  createdAt: string
+  createdBy: string
+  lastUsedAt?: string
+  revokedAt?: string
+}
+
+/** REQ: DEC-54 / DEC-55 — the project's webhook. Deliveries are simulated in the mock (MOCK-11). */
+export interface ProjectWebhook {
+  projectId: string
+  url: string
+  events: 'verification.status_changed'[]
+  secretHint: string
+  updatedAt: string
+  updatedBy: string
 }
 
 // REQ: DEC-94

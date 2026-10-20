@@ -29,6 +29,10 @@ const project = (overrides: Partial<Project> = {}): Project => ({
   claimTimeoutMin: 30,
   createdAt: NOW.toISOString(),
   createdBy: 'SYSTEM',
+  branding: {},
+  redirectUrls: [],
+  allowedOrigins: [],
+  ipAllowlist: [],
   ...overrides,
 })
 

@@ -13,6 +13,7 @@ export const PROJECT_ACTIONS = [
   'manageProjects', // create, rename, archive
   'manageMembers', // invite users, assign project roles
   'manageIntegration', // API keys, webhook, redirect URLs, IP allowlist
+  'manageProjectSettings', // General and Review operations (DEC-54); not in the DEC-70 table: same roles as flows
   'manageFlows', // create, edit, activate, retire
   'setAdvancedThresholds', // DEC-19
   'viewRouting',
@@ -33,6 +34,7 @@ const ALLOWED: Record<ProjectAction, readonly EffectiveRole[]> = {
   manageProjects: ['PLATFORM_ADMIN', 'MERCHANT_OWNER'],
   manageMembers: ['PLATFORM_ADMIN', 'MERCHANT_OWNER', 'PROJECT_ADMIN'],
   manageIntegration: ['MERCHANT_OWNER', 'PROJECT_ADMIN'], // merchant secrets: never Platform Admin
+  manageProjectSettings: ['PLATFORM_ADMIN', 'MERCHANT_OWNER', 'PROJECT_ADMIN'],
   manageFlows: ['PLATFORM_ADMIN', 'MERCHANT_OWNER', 'PROJECT_ADMIN'],
   setAdvancedThresholds: ['PLATFORM_ADMIN'],
   viewRouting: ['PLATFORM_ADMIN', 'MERCHANT_OWNER', 'PROJECT_ADMIN'],

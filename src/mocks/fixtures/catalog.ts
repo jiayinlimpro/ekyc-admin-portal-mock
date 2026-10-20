@@ -3,6 +3,7 @@
 // an archived project, and a merchant with two projects.
 import { diffFlow, newFlowSettings } from '@/domain/flowSettings'
 import { DEFAULT_RISK_MAX_ALLOWED } from '@/domain/openQuestions'
+import { PROJECT_SETTING_DEFAULTS } from '@/domain/projectSettings'
 import type { DocumentType, Flow, FlowRevision, FlowRouting, FlowSettings, FlowStatus, Project, RegistryEntry, ThresholdChoice } from '@/domain/types'
 
 const HOUR = 3_600_000
@@ -61,14 +62,18 @@ function settings(o: { fm?: ThresholdChoice; l?: ThresholdChoice; retries?: numb
   }
 }
 
-interface ProjectSpec extends Omit<Project, 'createdAt' | 'createdBy'> {
+interface ProjectSpec extends Omit<Project, 'createdAt' | 'createdBy' | keyof typeof PROJECT_SETTING_DEFAULTS>, Partial<Pick<Project, keyof typeof PROJECT_SETTING_DEFAULTS>> {
   createdDaysAgo: number
   createdBy: string
 }
 
 // Owners per merchant (see fixtures/users.ts). Default projects are created by SYSTEM with the merchant (DEC-92).
 const PROJECTS: ProjectSpec[] = [
-  { projectId: 'PRJ-0001', merchantId: 'MER-0001', name: 'Default', status: 'ACTIVE', isDefault: true, defaultFlowId: 'FLW-0001', claimTimeoutMin: 30, createdDaysAgo: 400, createdBy: 'SYSTEM' },
+  {
+    projectId: 'PRJ-0001', merchantId: 'MER-0001', name: 'Default', status: 'ACTIVE', isDefault: true, defaultFlowId: 'FLW-0001', claimTimeoutMin: 30, createdDaysAgo: 400, createdBy: 'SYSTEM',
+    branding: { primaryColor: '#1D4ED8' }, language: 'en',
+    redirectUrls: ['https://app.atoz.example/kyc/done'], allowedOrigins: ['https://app.atoz.example'], ipAllowlist: ['203.0.113.0/24'],
+  },
   { projectId: 'PRJ-0002', merchantId: 'MER-0001', name: 'SME app', status: 'ACTIVE', isDefault: false, defaultFlowId: 'FLW-0004', claimTimeoutMin: 45, createdDaysAgo: 60, createdBy: 'Tan Mei Ling' },
   { projectId: 'PRJ-0003', merchantId: 'MER-0002', name: 'Default', status: 'ACTIVE', isDefault: true, defaultFlowId: 'FLW-0005', claimTimeoutMin: 30, createdDaysAgo: 400, createdBy: 'SYSTEM' },
   { projectId: 'PRJ-0004', merchantId: 'MER-0003', name: 'Default', status: 'ACTIVE', isDefault: true, defaultFlowId: 'FLW-0006', claimTimeoutMin: 30, createdDaysAgo: 300, createdBy: 'SYSTEM' },
@@ -153,7 +158,7 @@ export interface Catalog {
 
 export function buildCatalog(now: Date): Catalog {
   const at = (hoursAgo: number) => new Date(now.getTime() - hoursAgo * HOUR).toISOString()
-  const projects: Project[] = PROJECTS.map(({ createdDaysAgo, ...p }) => ({ ...p, createdAt: at(createdDaysAgo * 24) }))
+  const projects: Project[] = PROJECTS.map(({ createdDaysAgo, ...p }) => ({ ...structuredClone(PROJECT_SETTING_DEFAULTS), ...p, createdAt: at(createdDaysAgo * 24) }))
   const flowRevisions: FlowRevision[] = []
   const flows: Flow[] = FLOWS.map((s) => {
     const project = projects.find((p) => p.projectId === s.projectId)!
