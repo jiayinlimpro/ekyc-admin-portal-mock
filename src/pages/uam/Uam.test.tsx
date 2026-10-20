@@ -116,7 +116,7 @@ describe('Developers', () => {
     fireEvent.click(key.getByRole('button', { name: /Rotate/ }))
     fireEvent.click(await screen.findByRole('button', { name: 'Rotate key' }))
     await waitFor(() => expect(key.getByText('key_mock_mer-0002_02')).toBeTruthy())
-    const log = await auditService.list({ merchantId: 'MER-0002', actions: ['CREDENTIAL_ROTATION'] }, ADMIN)
+    const log = await auditService.list({ merchantId: 'MER-0002', actions: ['API_KEY_ROTATED'] }, ADMIN)
     expect(log.items[0].details).toMatchObject({ fromKeyId: 'key_mock_mer-0002_01', keyId: 'key_mock_mer-0002_02' })
     expect((await region('Webhooks')).getByText('On hold')).toBeTruthy()
   })

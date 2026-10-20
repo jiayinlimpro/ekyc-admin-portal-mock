@@ -1,7 +1,7 @@
 // Developer credentials API (mock). Secrets are fake (sk_mock_…); everything in a front-end bundle is public anyway.
 //   GET  /merchants/{id}/credentials          → masked
 //   POST /merchants/{id}/credentials/reveal   → secret (real API: step-up auth, short-lived)
-//   POST /merchants/{id}/credentials/rotate   → new key; audited CREDENTIAL_ROTATION
+//   POST /merchants/{id}/credentials/rotate   → new key; audited API_KEY_ROTATED
 import { makeAudit } from '@/domain/audit'
 import { can, canAccessMerchant } from '@/domain/permissions'
 import type { Actor, ApiCredential } from '@/domain/types'
@@ -48,7 +48,7 @@ export const mockDeveloperService: DeveloperService = {
     const at = now()
     const next: ApiCredential = { merchantId, keyId: `${old.keyId.split('_').slice(0, -1).join('_')}_${String(n).padStart(2, '0')}`, secret: mockSecret(), createdAt: at.toISOString(), createdBy: actor.fullName }
     db.setState((s) => ({ apiKeys: { ...s.apiKeys, [merchantId]: next } }))
-    db.appendAudit(makeAudit({ id: '', now: at, action: 'CREDENTIAL_ROTATION', actor, ip: clientIpFor(actor), merchantId, details: { fromKeyId: old.keyId, keyId: next.keyId } }))
+    db.appendAudit(makeAudit({ id: '', now: at, action: 'API_KEY_ROTATED', actor, ip: clientIpFor(actor), merchantId, details: { fromKeyId: old.keyId, keyId: next.keyId } }))
     return wire(masked(next))
   },
 }

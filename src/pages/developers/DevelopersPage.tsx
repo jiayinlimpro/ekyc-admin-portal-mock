@@ -140,7 +140,7 @@ export function DevelopersPage() {
                 <RefreshCw aria-hidden /> Rotate…
               </Button>
             </div>
-            <p className="text-xs text-muted-foreground">Rotation is recorded in the audit log (CREDENTIAL_ROTATION). A real portal would require re-authentication before reveal.</p>
+            <p className="text-xs text-muted-foreground">Rotation is recorded in the audit log (API_KEY_ROTATED). A real portal would require re-authentication before reveal.</p>
           </>
         )}
       </Card>

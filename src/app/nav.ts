@@ -122,7 +122,7 @@ export const NAV_ITEMS: NavItem[] = [
     permission: 'canViewAudit',
     priority: 'P1',
     built: true,
-    notes: ['Events: DEC-42 names (cases, flows, projects, integration, users, registry, merchants), with the actor role and project; CONFIG_* and CREDENTIAL_ROTATION remain for the legacy screens.'],
+    notes: ['Events: DEC-42 names (cases, flows, projects, integration, users, registry, merchants), with the actor role and project; CONFIG_* remain for the legacy eKYC Workflow screen.'],
   },
   {
     path: '/billing',
@@ -177,7 +177,7 @@ export const NAV_ITEMS: NavItem[] = [
     permission: 'canRotateKeys',
     priority: 'P3',
     built: true,
-    notes: ['Masked fake API key (sk_mock_…) with reveal / copy / rotate; rotation writes CREDENTIAL_ROTATION.', 'Webhooks: "On hold" placeholder (DEC-82).'],
+    notes: ['Masked fake API key (sk_mock_…) with reveal / copy / rotate; rotation writes API_KEY_ROTATED.', 'Webhooks: "On hold" placeholder (DEC-82).'],
   },
 ]
 

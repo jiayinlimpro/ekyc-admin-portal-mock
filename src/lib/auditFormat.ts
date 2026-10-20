@@ -39,7 +39,7 @@ export function summarizeAudit(e: AuditEntry): string {
       const n = (d.changes as ConfigChange[] | undefined)?.length ?? 0
       return d.fromVersion ? `${str(d.fromVersion)} → ${str(d.toVersion)} · ${n} change(s)` : `Initial deployment ${str(d.toVersion)}`
     }
-    case 'CREDENTIAL_ROTATION':
+    case 'API_KEY_ROTATED':
       return `API key rotated${str(d.keyId) ? ` (${str(d.keyId)})` : ''}`
     default: {
       // Events whose details carry the changed fields (DEC-42 "old and new value").

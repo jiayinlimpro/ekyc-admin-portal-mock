@@ -190,8 +190,8 @@ export const AUDIT_ACTION_GROUPS = {
   Users: ['USER_INVITED', 'USER_ROLE_CHANGED', 'USER_REMOVED', 'USER_DEACTIVATED'],
   Registry: ['WORKFLOW_REGISTERED', 'WORKFLOW_UPDATED', 'WORKFLOW_STATUS_CHANGED', 'WORKFLOW_DEFAULT_CHANGED'],
   Merchants: ['MERCHANT_CREATED', 'MERCHANT_UPDATED', 'MERCHANT_STATUS_CHANGED'],
-  // Legacy: the merchant-level eKYC Workflow and Developers screens, until Flows and Project Settings replace them.
-  Legacy: ['CONFIG_DRAFT_SAVE', 'CONFIG_DISCARD', 'CONFIG_DEPLOY', 'CREDENTIAL_ROTATION'],
+  // Legacy: the merchant-level eKYC Workflow screen, until Flows List and Flow Detail replace it.
+  Legacy: ['CONFIG_DRAFT_SAVE', 'CONFIG_DISCARD', 'CONFIG_DEPLOY'],
 } as const
 export type AuditAction = (typeof AUDIT_ACTION_GROUPS)[keyof typeof AUDIT_ACTION_GROUPS][number]
 export const AUDIT_ACTIONS: readonly AuditAction[] = Object.values(AUDIT_ACTION_GROUPS).flat()

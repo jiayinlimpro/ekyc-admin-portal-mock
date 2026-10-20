@@ -68,7 +68,6 @@ export const AUDIT_ACTION_LABELS: Record<AuditAction, string> = {
   CONFIG_DRAFT_SAVE: 'Config draft saved (legacy)',
   CONFIG_DISCARD: 'Config draft discarded (legacy)',
   CONFIG_DEPLOY: 'Config deployed (legacy)',
-  CREDENTIAL_ROTATION: 'API key rotated (legacy)',
 }
 
 export const PERMISSION_LABELS: Record<Permission, { label: string; description: string }> = {

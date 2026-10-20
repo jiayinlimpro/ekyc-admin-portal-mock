@@ -227,7 +227,7 @@ export function seedDatabase(now: Date): MockDbState {
       createdBy: admin.fullName,
     }
   }
-  audit.push(makeAudit({ id: '', now: new Date(now.getTime() - 7 * DAY), action: 'CREDENTIAL_ROTATION', actor: admin, ip: fakeIp(f), merchantId: 'MER-0001', details: { fromKeyId: 'key_mock_mer-0001_01', keyId: 'key_mock_mer-0001_02' } }))
+  audit.push(makeAudit({ id: '', now: new Date(now.getTime() - 7 * DAY), action: 'API_KEY_ROTATED', actor: admin, ip: fakeIp(f), merchantId: 'MER-0001', details: { fromKeyId: 'key_mock_mer-0001_01', keyId: 'key_mock_mer-0001_02' } }))
 
   const edge = buildEdgeCases({ now, merchants: MERCHANTS, configs, catalog })
   const allAudit = [...audit, ...edge.audit].sort((a, b) => a.at.localeCompare(b.at)).map((e, i) => ({ ...e, id: `AUD-${String(i + 1).padStart(6, '0')}` }))
