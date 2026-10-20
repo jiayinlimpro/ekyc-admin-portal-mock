@@ -1,5 +1,5 @@
 // Score distribution for one phase, 5-point bins, with the two threshold lines (Auto-Reject, Auto-Pass).
-import { HISTOGRAM_BIN } from '@/domain/analytics'
+import { HISTOGRAM_BIN } from '@/domain/dashboards'
 import { HoverTip } from './ChartKit'
 import { fmtInt } from './numbers'
 import { useVizTokens } from './vizTokens'

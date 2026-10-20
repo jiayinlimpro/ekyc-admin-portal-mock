@@ -370,7 +370,8 @@ describe('analyticsService scoping (DEC-86)', () => {
 
   it('Given a Reviewer, then Billing is available with their projects only', async () => {
     const report = await analyticsService.billing({ period: NOW.toISOString().slice(0, 7) }, ALI)
-    expect(report.byMerchant.every((m) => m.merchantId === 'MER-0001')).toBe(true)
+    expect(report.byMerchant.every((m) => m.key === 'MER-0001')).toBe(true)
+    expect(report.byProject.every((p) => ['PRJ-0001', 'PRJ-0002'].includes(p.key))).toBe(true)
   })
 
   it("Given another merchant's id, then NOT_FOUND for merchant users; Platform Admin may filter any merchant", async () => {

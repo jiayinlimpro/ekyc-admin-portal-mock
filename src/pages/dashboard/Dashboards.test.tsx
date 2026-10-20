@@ -8,7 +8,7 @@ import { analyticsService } from '@/services/analyticsService'
 import { devService } from '@/services/devService'
 import { DEFAULT_DEV_FLAGS, useDevFlags } from '@/stores/devFlagsStore'
 import { useSession } from '@/stores/sessionStore'
-import { ADMIN, ALI } from '@/test/factories'
+import { ADMIN, ALI, OWNER } from '@/test/factories'
 
 function renderAt(path: string) {
   const router = createMemoryRouter(routes, { initialEntries: [path] })
@@ -61,35 +61,62 @@ describe('Overview', () => {
   })
 })
 
-describe('System Intelligence', () => {
-  it('Given a reviewer (one merchant), then histograms carry that merchant’s threshold lines and the Retry KPI counts user retakes', async () => {
-    renderAt('/intelligence?days=90')
-    const card = within(await screen.findByRole('region', { name: 'Score distribution by phase' }))
-    await waitFor(() => expect(card.getAllByText('Reject < 70')).toHaveLength(2)) // Face Match + Liveness, Atoz v1.1.0
-    expect(card.getByText('Pass ≥ 85')).toBeTruthy()
-    const stats = await analyticsService.intelligence({ days: 90 }, ALI)
-    expect(tile('User retakes').textContent).toContain(String(stats.userRetakes))
+describe('Overview by project and flow (DEC-86)', () => {
+  it('Given the Merchant Owner, then By project shows both Atoz projects with pass rate and waiting time', async () => {
+    useSession.getState().switchUser(OWNER)
+    renderAt('/dashboard?days=90')
+    const table = within(await screen.findByRole('region', { name: 'By project' }))
+    expect(table.getByText('SME app')).toBeTruthy()
+    expect(table.getAllByRole('columnheader').map((h) => h.textContent)).toEqual(expect.arrayContaining(['Pass rate', 'Oldest waiting']))
   })
 
-  it('Given an admin on all merchants, then no threshold lines (they differ per merchant)', async () => {
-    useSession.getState().switchUser(ADMIN)
-    renderAt('/intelligence')
-    const card = within(await screen.findByRole('region', { name: 'Score distribution by phase' }))
-    expect(card.getByText(/pick one merchant in the top bar/)).toBeTruthy()
-    expect(card.queryByText(/Reject </)).toBeNull()
+  it('Given a flow is picked, then the URL carries it and the totals narrow to that flow', async () => {
+    useSession.getState().switchUser(OWNER)
+    const router = renderAt('/dashboard?days=90')
+    await screen.findByRole('region', { name: 'By flow' })
+    const all = await analyticsService.overview({ days: 90 }, OWNER)
+    const one = await analyticsService.overview({ days: 90, flowId: 'FLW-0002' }, OWNER)
+    fireEvent.change(await screen.findByLabelText('Flow'), { target: { value: 'FLW-0002' } })
+    await waitFor(() => expect(router.state.location.search).toContain('flow=FLW-0002'))
+    await waitFor(() => expect(tile('Total verifications').textContent).toContain(String(one.total)))
+    expect(one.total).toBeLessThan(all.total)
+    expect(screen.queryByRole('region', { name: 'By flow' })).toBeNull()
   })
 })
 
-describe('Billing', () => {
-  it('Given retake charging off, then Cost of Retries is RM 0.00; switching OQ-07 on adds it (DEC-60)', async () => {
+describe('System Intelligence (DEC-18, DEC-86)', () => {
+  it('Given one flow, then the histograms carry its threshold lines and the retry KPIs match the service', async () => {
+    renderAt('/intelligence?days=90&flow=FLW-0001')
+    const card = within(await screen.findByRole('region', { name: 'Score distribution' }))
+    await waitFor(() => expect(card.getByText('Reject < 85')).toBeTruthy()) // face match, Standard
+    expect(card.getByText('Reject < 70')).toBeTruthy() // liveness, Standard
+    const stats = await analyticsService.intelligence({ days: 90, flowId: 'FLW-0001' }, ALI)
+    expect(tile('Average retries').textContent).toContain(`${stats.retries} face match and liveness retries`)
+  })
+
+  it('Given all flows, then no threshold lines (they differ per flow) and a By flow table with drop-off', async () => {
+    useSession.getState().switchUser(ADMIN)
+    renderAt('/intelligence?days=90')
+    const card = within(await screen.findByRole('region', { name: 'Score distribution' }))
+    expect(card.getByText(/pick one flow/)).toBeTruthy()
+    expect(card.queryByText(/Reject </)).toBeNull()
+    const byFlow = within(await screen.findByRole('region', { name: 'By flow' }))
+    expect(byFlow.getAllByRole('columnheader').map((h) => h.textContent)).toEqual(expect.arrayContaining(['Not finished: ID capture', 'Not finished: selfie', 'Not finished: liveness']))
+  })
+})
+
+describe('Billing (DEC-60, DEC-86)', () => {
+  it('Given the Platform Admin, then tokens per liveness submission, cost of retries, and tables by project and flow', async () => {
     useSession.getState().switchUser(ADMIN)
     renderAt('/billing')
-    await waitFor(() => expect(tile('Cost of Retries').textContent).toContain('RM 0.00'))
-    expect(tile('Cost of Retries').textContent).toContain('not charged (OQ-07 = no)')
-    fireEvent.click(screen.getByRole('switch', { name: 'Charge user retakes per attempt' }))
-    await waitFor(() => expect(tile('Cost of Retries').textContent).toMatch(/RM [1-9][\d,]*\.\d\d/))
+    const periods = await analyticsService.billingPeriods(ADMIN)
+    const report = await analyticsService.billing({ period: periods[0] }, ADMIN)
+    await waitFor(() => expect(tile('Tokens').textContent).toContain(report.totals.tokens.toLocaleString('en-MY')))
+    expect(tile('Cost of Retries').textContent).toContain('liveness submissions after the first')
+    expect(await screen.findByRole('region', { name: 'By project' })).toBeTruthy()
+    expect(screen.getByRole('region', { name: 'By flow' })).toBeTruthy()
     const lines = within(screen.getByRole('region', { name: 'Line items' }))
-    expect(lines.getAllByRole('columnheader').map((h) => h.textContent)).toContain('Verification Status')
+    expect(lines.getAllByRole('columnheader').map((h) => h.textContent)).toEqual(['Reference No', 'Project', 'Flow', 'Created (MYT)', 'Verification Status', 'Tokens', 'Retry tokens', 'Cost'])
   })
 
   it('Given a Reviewer, then Billing opens with their own projects only (DEC-86)', async () => {
