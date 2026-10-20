@@ -4,9 +4,7 @@ import type { Actor } from '@/domain/types'
 import { db } from '@/mocks/mockDb'
 import { ADMIN, ALI, NOW } from '@/test/factories'
 import { accountOf, mayInProject, projectIdsWhere, requireActive } from './accessGuard'
-import { auditService } from './auditService'
 import { devService } from './devService'
-import { uamService } from './uamService'
 import { userService } from './userService'
 
 beforeEach(async () => {
@@ -16,7 +14,6 @@ beforeEach(async () => {
 })
 
 const ids = (rows: { userId: string }[]) => rows.map((r) => r.userId).sort()
-const account = (userId: string) => db.state().accounts.find((a) => a.userId === userId)!
 
 describe('accessGuard (DEC-71, DEC-72)', () => {
   it('Given a session for a user with no account, then FORBIDDEN', () => {
@@ -58,41 +55,5 @@ describe('userService', () => {
     expect(users.every((u) => u.merchantId === 'MER-0001' || u.role === 'PLATFORM_ADMIN')).toBe(true)
     expect(ids(users)).toContain('USR-2026-0001')
     expect((await userService.list(ADMIN)).length).toBe(db.state().accounts.length)
-  })
-})
-
-describe('legacy UAM screen mirrored onto accounts (until Phase 11)', () => {
-  it('Given a new Merchant Reviewer, then an account is created as Reviewer in the merchant Default project', async () => {
-    const u = await uamService.createUser({ fullName: 'Aishah Binti Omar', role: 'MERCHANT_REVIEWER', merchantId: 'MER-0002' }, ADMIN)
-    expect(u.userId).toBe('USR-2026-0081')
-    expect(account(u.userId)).toMatchObject({ level: 'MEMBER', merchantId: 'MER-0002', status: 'ACTIVE', memberships: [{ projectId: 'PRJ-0003', role: 'REVIEWER' }] })
-  })
-
-  it('Given a rename, then the account keeps its level and project roles; deactivation follows', async () => {
-    await uamService.updateUser('USR-2026-0002', { fullName: 'Tan Mei Ling Binti Abdullah', role: 'MERCHANT_REVIEWER', merchantId: 'MER-0001' }, ADMIN)
-    expect(account('USR-2026-0002')).toMatchObject({ fullName: 'Tan Mei Ling Binti Abdullah', level: 'MERCHANT_OWNER' })
-    await uamService.updateUser('USR-2026-0035', { fullName: 'Chong Pei Shan', role: 'MERCHANT_REVIEWER', merchantId: 'MER-0001' }, ADMIN)
-    expect(account('USR-2026-0035').status).toBe('INVITED')
-    await uamService.setUserActive('USR-2026-0012', false, ADMIN)
-    expect(account('USR-2026-0012').status).toBe('DEACTIVATED')
-  })
-
-  it('Given user and merchant changes, then each is audited with its DEC-42 event as Platform Admin (OQ-16)', async () => {
-    const m = await uamService.createMerchant({ name: 'Nusantara Pay', workflowVersion: 'V4' }, ADMIN)
-    await uamService.renameMerchant(m.merchantId, 'Nusantara Pay Sdn Bhd', ADMIN)
-    const u = await uamService.createUser({ fullName: 'Aishah Binti Omar', role: 'MERCHANT_REVIEWER', merchantId: 'MER-0001' }, ADMIN)
-    await uamService.updateUser(u.userId, { fullName: 'Aishah Binti Omar', role: 'PLATFORM_ADMIN' }, ADMIN)
-    await uamService.setUserActive(u.userId, false, ADMIN)
-    await uamService.deleteMerchant(m.merchantId, ADMIN)
-    const actions = ['MERCHANT_CREATED', 'MERCHANT_UPDATED', 'MERCHANT_STATUS_CHANGED', 'USER_INVITED', 'USER_ROLE_CHANGED', 'USER_DEACTIVATED'] as const
-    const log = (await auditService.list({ actions: [...actions] }, ADMIN)).items.reverse()
-    expect(log.map((e) => e.action)).toEqual(['MERCHANT_CREATED', 'MERCHANT_UPDATED', 'USER_INVITED', 'USER_ROLE_CHANGED', 'USER_DEACTIVATED', 'MERCHANT_STATUS_CHANGED'])
-    expect(log.every((e) => e.actorRole === 'PLATFORM_ADMIN')).toBe(true)
-    expect(log[3].details.changes).toEqual([{ field: 'Role', from: 'Merchant Reviewer', to: 'Platform Admin' }, { field: 'Merchant', from: 'MER-0001', to: '—' }])
-  })
-
-  it('Given a session that claims Platform Admin for a Reviewer account, then UAM refuses (DEC-71)', async () => {
-    const spoofed: Actor = { ...ALI, role: 'PLATFORM_ADMIN' }
-    await expect(uamService.listUsers(spoofed)).rejects.toMatchObject({ code: 'FORBIDDEN' })
   })
 })

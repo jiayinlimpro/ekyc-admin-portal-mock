@@ -160,7 +160,7 @@ export const NAV_ITEMS: NavItem[] = [
     notes: ['Every verification is charged on entry; column "Verification Status" (DEC-60).', '"Cost of Retries" depends on OQ-07 (per-attempt charging).'],
   },
   {
-    path: '/uam/merchants',
+    path: '/merchants',
     label: 'Merchants',
     icon: Building2,
     group: 'Platform',
@@ -168,7 +168,7 @@ export const NAV_ITEMS: NavItem[] = [
     access: { platform: 'manageMerchants' },
     priority: 'P3',
     built: true,
-    notes: ['Standard CRUD.'],
+    notes: ['Create (Default project, default flow, first user as Merchant Owner; DEC-92), rename, delete while it has no cases.'],
   },
   {
     path: '/access',

@@ -24,7 +24,7 @@ const PAGES: Partial<Record<string, ComponentType>> = {
   '/dashboard': page(() => import('@/pages/dashboard/OverviewPage'), 'OverviewPage'),
   '/intelligence': page(() => import('@/pages/dashboard/IntelligencePage'), 'IntelligencePage'),
   '/billing': page(() => import('@/pages/billing/BillingPage'), 'BillingPage'),
-  '/uam/merchants': page(() => import('@/pages/uam/MerchantsPage'), 'MerchantsPage'),
+  '/merchants': page(() => import('@/pages/merchants/MerchantsPage'), 'MerchantsPage'),
   '/uat': page(() => import('@/pages/dev/UatPage'), 'UatPage'),
 }
 
