@@ -1,5 +1,6 @@
 // Projects API (mock). DEC-90 … DEC-93, DEC-96.
 //   GET   /projects/mine              listMine → 200 MyProject[] (project switcher, "All my projects")
+//   GET   /projects                   listRows → 200 ProjectRow[] (Projects screen)
 //   GET   /projects/{id}              get      → 200 Project | 404
 //   POST  /merchants/{id}/projects    create   → 201 Project | 403 | 422 VALIDATION
 //   PATCH /projects/{id}              rename   → 200 Project | 403 | 422 VALIDATION
@@ -7,7 +8,7 @@
 import { canInMerchant, canInProject, roleInProject, type ProjectAction } from '@/domain/access'
 import { makeAudit } from '@/domain/audit'
 import { createFlow } from '@/domain/flowSettings'
-import { archiveError, validateProjectName } from '@/domain/flowRules'
+import { archiveError, IN_FLIGHT_STATUSES, validateProjectName } from '@/domain/flowRules'
 import { DEFAULT_CLAIM_TIMEOUT_MIN } from '@/domain/openQuestions'
 import { defaultVersion } from '@/domain/registryRules'
 import type { Actor, AuditAction, EffectiveRole, Project, RuleError } from '@/domain/types'
@@ -20,8 +21,23 @@ import { clientIpFor, simulateNetwork, wire } from './network'
 /** A project the user can reach, with their role in it (DEC-73: switcher and "role in the current project"). */
 export type MyProject = Project & { role: EffectiveRole }
 
+/** A row on the Projects screen: the project, the user's role, and what it holds. */
+export type ProjectRow = MyProject & {
+  merchantName: string
+  flows: number
+  activeFlows: number
+  defaultFlowName: string
+  members: number // project members (not counting Merchant Owners and Platform Admins), Invited or Active
+  inFlightCases: number // PROCESSING + PENDING_REVIEW
+  /** The user may rename and archive it (DEC-70: Platform Admin, Merchant Owner). */
+  canManage: boolean
+}
+
 export interface ProjectService {
   listMine(actor: Actor): Promise<MyProject[]>
+  listRows(actor: Actor): Promise<ProjectRow[]>
+  /** Merchants where the user may create projects (Platform Admin: all; Merchant Owner: theirs). */
+  creatableMerchants(actor: Actor): Promise<{ merchantId: string; name: string }[]>
   get(projectId: string, actor: Actor): Promise<Project>
   create(merchantId: string, input: { name: string }, actor: Actor): Promise<Project>
   rename(projectId: string, name: string, actor: Actor): Promise<Project>
@@ -76,6 +92,37 @@ export const mockProjectService: ProjectService = {
       .filter((p): p is MyProject => !!p.role)
       .sort((a, b) => a.merchantId.localeCompare(b.merchantId) || Number(b.isDefault) - Number(a.isDefault) || a.name.localeCompare(b.name))
     return wire(rows)
+  },
+
+  async listRows(actor) {
+    await simulateNetwork('list projects')
+    const me = accountOf(actor)
+    const s = db.state()
+    const rows = s.projects
+      .map((p) => ({ p, role: roleInProject(me, p) }))
+      .filter((x): x is { p: Project; role: EffectiveRole } => !!x.role)
+      .map(({ p, role }): ProjectRow => {
+        const flows = s.flows.filter((f) => f.projectId === p.projectId)
+        return {
+          ...p,
+          role,
+          merchantName: s.merchants.find((m) => m.merchantId === p.merchantId)?.name ?? p.merchantId,
+          flows: flows.length,
+          activeFlows: flows.filter((f) => f.status === 'ACTIVE').length,
+          defaultFlowName: flows.find((f) => f.flowId === p.defaultFlowId)?.name ?? p.defaultFlowId,
+          members: s.accounts.filter((a) => a.status !== 'DEACTIVATED' && a.memberships.some((m) => m.projectId === p.projectId)).length,
+          inFlightCases: s.verifications.filter((v) => v.projectId === p.projectId && IN_FLIGHT_STATUSES.includes(v.status)).length,
+          canManage: canInProject(me, 'manageProjects', p),
+        }
+      })
+      .sort((a, b) => a.merchantName.localeCompare(b.merchantName) || Number(b.isDefault) - Number(a.isDefault) || a.name.localeCompare(b.name))
+    return wire(rows)
+  },
+
+  async creatableMerchants(actor) {
+    await simulateNetwork('creatable merchants')
+    const me = accountOf(actor)
+    return wire(db.state().merchants.filter((m) => canInMerchant(me, 'manageProjects', m.merchantId)).map(({ merchantId, name }) => ({ merchantId, name })))
   },
 
   async get(projectId, actor) {

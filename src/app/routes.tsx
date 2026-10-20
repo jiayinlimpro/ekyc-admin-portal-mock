@@ -12,6 +12,7 @@ const page = <K extends string>(load: () => Promise<Record<K, ComponentType>>, n
 
 /** Built screens by route pattern. Anything missing here renders its placeholder. */
 const PAGES: Partial<Record<string, ComponentType>> = {
+  '/projects': page(() => import('@/pages/projects/ProjectsPage'), 'ProjectsPage'),
   '/verifications': page(() => import('@/pages/verifications/VerificationsListPage'), 'VerificationsListPage'),
   '/verifications/:referenceNo': page(() => import('@/pages/verifications/VerificationDetailPage'), 'VerificationDetailPage'),
   '/workflow': page(() => import('@/pages/config/WorkflowConfigPage'), 'WorkflowConfigPage'),

@@ -9,7 +9,12 @@ import {
   Code,
   FileSearch,
   FlaskConical,
+  FolderKanban,
+  GitBranch,
   KeyRound,
+  Library,
+  Settings2,
+  ShieldCheck,
   LayoutDashboard,
   ReceiptText,
   ScanFace,
@@ -19,7 +24,7 @@ import {
 } from 'lucide-react'
 import type { AccessRule } from './access'
 
-export const NAV_GROUPS = ['Dashboards', 'eKYC', 'Governance', 'Access Management', 'Developers'] as const
+export const NAV_GROUPS = ['Dashboards', 'eKYC', 'Projects & Flows', 'Governance', 'Access Management', 'Platform', 'Developers'] as const
 export type NavGroup = (typeof NAV_GROUPS)[number]
 
 export interface NavItem {
@@ -92,6 +97,51 @@ export const NAV_ITEMS: NavItem[] = [
       'Sections per DEC-44: end-user data, ID capture, Selfie (V1), Face match, Liveness, Risk (V4/V5), Rules applied, Activity.',
     ],
   },
+  // REQ: DEC-85 — Projects, Project Settings, Flows List, Flow Detail. Settings pages work on the header's project (DEC-96).
+  {
+    path: '/projects',
+    label: 'Projects',
+    icon: FolderKanban,
+    group: 'Projects & Flows',
+    inMenu: true,
+    access: { project: 'manageFlows' },
+    priority: 'P1',
+    built: true,
+    notes: ['Create, rename, archive (Platform Admin, Merchant Owner; DEC-93). Archived = no new sessions; cases stay reviewable.'],
+  },
+  {
+    path: '/project-settings',
+    label: 'Project Settings',
+    icon: Settings2,
+    group: 'Projects & Flows',
+    inMenu: true,
+    access: { project: 'manageFlows' },
+    priority: 'P1',
+    built: false,
+    notes: ['Tabs: General · Integration (API keys, webhook, redirect URLs, origins, IP allowlist) · Review operations (claim timeout) · Routing (read-only) (DEC-54).'],
+  },
+  {
+    path: '/flows',
+    label: 'Flows',
+    icon: GitBranch,
+    group: 'Projects & Flows',
+    inMenu: true,
+    access: { project: 'manageFlows' },
+    priority: 'P0',
+    built: false,
+    notes: ['Draft, Active, Retiring, Inactive; one default per project; create, duplicate, set default, activate, retire (DEC-94).'],
+  },
+  {
+    path: '/flows/:flowId',
+    label: 'Flow Detail',
+    icon: GitBranch,
+    group: 'Projects & Flows',
+    inMenu: false,
+    access: { project: 'manageFlows' },
+    priority: 'P0',
+    built: false,
+    notes: ['Low / Standard / High presets with a 0–100 band bar; Advanced for Platform Admin only; retries allowed 1–5 (DEC-18, DEC-19, DEC-50).'],
+  },
   {
     path: '/workflow',
     label: 'eKYC Workflow',
@@ -144,7 +194,7 @@ export const NAV_ITEMS: NavItem[] = [
     path: '/uam/merchants',
     label: 'Merchants',
     icon: Building2,
-    group: 'Access Management',
+    group: 'Platform',
     inMenu: true,
     access: { platform: 'manageMerchants' },
     priority: 'P3',
@@ -172,6 +222,28 @@ export const NAV_ITEMS: NavItem[] = [
     priority: 'P3',
     built: true,
     notes: ['Standard CRUD.'],
+  },
+  {
+    path: '/access',
+    label: 'Users and Access',
+    icon: ShieldCheck,
+    group: 'Access Management',
+    inMenu: true,
+    access: { project: 'manageMembers' },
+    priority: 'P1',
+    built: false,
+    notes: ['Users belong to the merchant; one role per project; invite, change role, remove access, deactivate (DEC-74).'],
+  },
+  {
+    path: '/registry',
+    label: 'Workflow Registry',
+    icon: Library,
+    group: 'Platform',
+    inMenu: true,
+    access: { platform: 'manageRegistry' },
+    priority: 'P1',
+    built: false,
+    notes: ['Draft → Active → Deprecated; default for new merchants; flows using each version (DEC-56 … DEC-58).'],
   },
   {
     path: '/developers',
