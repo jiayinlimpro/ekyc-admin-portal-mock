@@ -6,7 +6,6 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Textarea } from '@/components/ui/textarea'
 import { decisionOverlayState, validateDecision, type OverlayState } from '@/domain/claimRules'
 import { REASON_CODES } from '@/domain/openQuestions'
-import { can, canAccessMerchant } from '@/domain/permissions'
 import type { Actor, Decision, VerificationDetail } from '@/domain/types'
 import { cn } from '@/lib/utils'
 import { OpenQuestionTag } from '@/components/common/OpenQuestionTag'
@@ -21,9 +20,9 @@ const OUTCOMES: { value: Outcome; label: string; result: string; icon: typeof Ch
 const COMMENT_MAX = 500
 
 /** With dev "Skip UI claim checks" on, the form opens whenever the record is reviewable, so the save hits the service check. */
-function overlayState(v: VerificationDetail, actor: Actor, now: Date, uiClaimChecks: boolean): OverlayState & { devBypass?: boolean } {
-  const s = decisionOverlayState(v, actor, now)
-  if (uiClaimChecks || s.enabled || v.status !== 'PENDING_REVIEW' || !can(actor, 'canReview') || !canAccessMerchant(actor, v.merchantId)) return s
+function overlayState(v: VerificationDetail, actor: Actor, now: Date, uiClaimChecks: boolean, mayDecide: boolean): OverlayState & { devBypass?: boolean } {
+  const s = decisionOverlayState(v, actor, now, mayDecide)
+  if (uiClaimChecks || s.enabled || v.status !== 'PENDING_REVIEW' || !mayDecide) return s
   return { enabled: true, devBypass: true, showClaim: s.showClaim }
 }
 
@@ -33,6 +32,7 @@ export function DecisionOverlay({
   actor,
   now,
   uiClaimChecks,
+  mayDecide,
   busy,
   onSave,
 }: {
@@ -40,10 +40,12 @@ export function DecisionOverlay({
   actor: Actor
   now: Date
   uiClaimChecks: boolean
+  /** The user's role in the case's project may decide (DEC-70); the claim decides the rest. */
+  mayDecide: boolean
   busy: boolean
   onSave: (d: Decision) => Promise<boolean>
 }) {
-  const state = overlayState(v, actor, now, uiClaimChecks)
+  const state = overlayState(v, actor, now, uiClaimChecks, mayDecide)
   // Kept when the overlay disables (e.g. claim expired mid-typing, OQ-13), so nothing typed is lost.
   const [outcome, setOutcome] = useState<Outcome>()
   const [reasonCode, setReasonCode] = useState('')

@@ -1,5 +1,4 @@
 // Claim lifecycle and decision rules. Pure functions: every rule takes `now` explicitly.
-import { can, canAccessMerchant } from './permissions'
 import type { Actor, Decision, MerchantConfig, Verification } from './types'
 
 export type ClaimErrorCode =
@@ -77,12 +76,11 @@ export interface OverlayState {
 }
 
 // REQ: DEC-25 / DEC-30 / DEC-32 / DEC-33 — viewing is never blocked; only the overlay changes.
-export function decisionOverlayState(v: Verification, actor: Actor, now: Date): OverlayState {
+// `mayDecide` = the user's role in the case's project allows claiming and deciding (access.canInProject 'decideCase').
+export function decisionOverlayState(v: Verification, actor: Pick<Actor, 'userId'>, now: Date, mayDecide: boolean): OverlayState {
   if (v.status === 'PROCESSING') return { enabled: false, why: 'Record is still processing (read-only)' }
   if (v.status !== 'PENDING_REVIEW') return { enabled: false, why: 'Decision is final' }
-  if (!can(actor, 'canReview') || !canAccessMerchant(actor, v.merchantId)) {
-    return { enabled: false, why: 'No review permission' }
-  }
+  if (!mayDecide) return { enabled: false, why: 'No review permission' }
   if (!isClaimActive(v, now)) return { enabled: false, why: 'Assign to me to review', showClaim: true }
   if (v.claimedBy!.userId !== actor.userId) return { enabled: false, why: `Claimed by ${v.claimedBy!.fullName}` }
   return { enabled: true, showCancel: true }

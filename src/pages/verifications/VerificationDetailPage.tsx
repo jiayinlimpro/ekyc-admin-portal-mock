@@ -13,8 +13,9 @@ import { PhaseMetrics, RiskPanel } from '@/components/verification/PhaseMetrics'
 import { ClientMetadataCard, PiiSection } from '@/components/verification/PiiSection'
 import { formatUpdatedBy } from '@/domain/audit'
 import { isClaimActive } from '@/domain/claimRules'
-import { can } from '@/domain/permissions'
+import { canInProject, type ProjectAction } from '@/domain/access'
 import type { Actor, Decision, MerchantConfig, VerificationDetail } from '@/domain/types'
+import { useMyAccount } from '@/hooks/useMyAccount'
 import { useNow } from '@/hooks/useNow'
 import { formatMyt } from '@/lib/format'
 import { DOCUMENT_TYPE_LABELS } from '@/lib/labels'
@@ -51,10 +52,8 @@ function ReasonBanner({ v }: { v: VerificationDetail }) {
 
 /** Dev-only: make another reviewer claim this record, to demo the "claimed by someone else" and race cases in one tab. */
 function SimulateOtherClaim({ v, actor, reviewers, onDone }: { v: VerificationDetail; actor: Actor; reviewers: UserSummary[]; onDone: (d: VerificationDetail) => void }) {
-  // Same-merchant reviewers first; Platform Admins last.
-  const others = reviewers
-    .filter((r) => r.userId !== actor.userId && (r.role === 'PLATFORM_ADMIN' || r.merchantId === v.merchantId))
-    .sort((a, b) => Number(a.role === 'PLATFORM_ADMIN') - Number(b.role === 'PLATFORM_ADMIN'))
+  // Reviewers come from the case's project only (userService.listReviewers).
+  const others = reviewers.filter((r) => r.userId !== actor.userId)
   const [who, setWho] = useState('')
   if (v.status !== 'PENDING_REVIEW' || !others.length) return null
   const pick = others.find((o) => o.userId === who) ?? others[0]
@@ -95,6 +94,7 @@ export function VerificationDetailPage() {
   const { referenceNo = '' } = useParams()
   const actor = useSession((s) => s.actor)
   const uiClaimChecks = useDevFlags((s) => s.uiClaimChecks)
+  const me = useMyAccount()
   const now = useNow(1000)
   // One id per page visit: StrictMode's double effect and live refreshes don't log extra PII_VIEWs (DEC-41).
   const [requestId] = useState(() => crypto.randomUUID())
@@ -123,16 +123,24 @@ export function VerificationDetailPage() {
   const detail = loaded.key === key ? loaded.detail : undefined
   const merchantId = detail?.merchantId
   const configVersion = detail?.configVersion
+  const projectId = detail?.projectId
   useEffect(() => {
     if (!merchantId || !configVersion) return
     let live = true
     configService.getActive(merchantId, actor).then((c) => live && setActiveConfig(c), () => live && setActiveConfig(undefined))
     configService.getVersion(merchantId, configVersion, actor).then((c) => live && setEvalConfig(c), () => live && setEvalConfig(undefined))
-    userService.listReviewers(actor).then((r) => live && setReviewers(r), () => live && setReviewers([]))
     return () => {
       live = false
     }
   }, [merchantId, configVersion, actor])
+  useEffect(() => {
+    if (!projectId) return
+    let live = true
+    userService.listReviewers(actor, projectId).then((r) => live && setReviewers(r), () => live && setReviewers([]))
+    return () => {
+      live = false
+    }
+  }, [projectId, actor])
 
   const apply = useCallback((d: VerificationDetail) => setLoaded({ key, detail: d }), [key])
 
@@ -151,7 +159,7 @@ export function VerificationDetailPage() {
     }
   }
 
-  if (loaded.key !== key) {
+  if (loaded.key !== key || !me.ready) {
     return (
       <div className="mx-auto max-w-[1400px] space-y-4" aria-busy>
         <div className="h-8 w-80 animate-pulse rounded bg-muted" />
@@ -166,7 +174,7 @@ export function VerificationDetailPage() {
   if (loaded.error) {
     return loaded.error.notFound ? (
       <EmptyState title={`${referenceNo} not found`} action={<Link to="/verifications" className="text-sm text-blue-700 hover:underline dark:text-blue-400">Back to Verifications</Link>}>
-        It doesn’t exist, or it belongs to a merchant you can’t access.
+        It doesn’t exist, or it belongs to a project you can’t access.
       </EmptyState>
     ) : (
       <ErrorState message={loaded.error.message} onRetry={() => setRefresh((n) => n + 1)} />
@@ -175,6 +183,8 @@ export function VerificationDetailPage() {
 
   const v = detail!
   const claimActive = isClaimActive(v, now)
+  // REQ: DEC-70 / DEC-71 — what the buttons offer follows the user's role in this case's project; services check again.
+  const may = (action: ProjectAction) => !!me.account && canInProject(me.account, action, v)
 
   return (
     <div className="mx-auto max-w-[1400px] space-y-4">
@@ -192,7 +202,7 @@ export function VerificationDetailPage() {
         </p>
         <p className="text-sm text-muted-foreground">
           Last updated by <span className="text-foreground">{formatUpdatedBy(v.lastUpdatedBy)}</span> · {formatMyt(v.lastUpdatedAt)} MYT
-          {can(actor, 'canViewAudit') && (
+          {may('viewAudit') && (
             <>
               {' · '}
               <Link to={`/audit?ref=${v.referenceNo}`} className="text-blue-700 hover:underline dark:text-blue-400">
@@ -208,6 +218,7 @@ export function VerificationDetailPage() {
         actor={actor}
         now={now}
         warningMin={activeConfig?.claimWarningMin}
+        mayClaim={may('claimCase')}
         busy={busy}
         onClaim={() => void run(() => verificationService.claim(v.referenceNo, actor), 'Assigned to you')}
         onRelease={() => void run(() => verificationService.release(v.referenceNo, actor), 'Claim cancelled')}
@@ -229,6 +240,7 @@ export function VerificationDetailPage() {
             actor={actor}
             now={now}
             uiClaimChecks={uiClaimChecks}
+            mayDecide={may('decideCase')}
             busy={busy}
             onSave={(d: Decision) => run(() => verificationService.decide(v.referenceNo, actor, d), `Decision saved: ${d.outcome === 'APPROVE' ? 'Approved' : 'Rejected'}`)}
           />

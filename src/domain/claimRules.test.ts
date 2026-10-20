@@ -96,31 +96,31 @@ describe('release (Cancel)', () => {
 
 describe('decisionOverlayState (DEC-25, DEC-30, DEC-32, DEC-33)', () => {
   it('Given PROCESSING, then disabled as read-only (S05)', () => {
-    expect(decisionOverlayState(verification({ status: 'PROCESSING' }), ALI, NOW)).toEqual({ enabled: false, why: 'Record is still processing (read-only)' })
+    expect(decisionOverlayState(verification({ status: 'PROCESSING' }), ALI, NOW, true)).toEqual({ enabled: false, why: 'Record is still processing (read-only)' })
   })
 
   it.each(['APPROVED', 'REJECTED'] as const)('Given %s, then disabled "Decision is final" (S11)', (status) => {
-    expect(decisionOverlayState(verification({ status }), ALI, NOW)).toEqual({ enabled: false, why: 'Decision is final' })
+    expect(decisionOverlayState(verification({ status }), ALI, NOW, true)).toEqual({ enabled: false, why: 'Decision is final' })
   })
 
   it('Given unclaimed, then disabled with an "Assign to me" prompt', () => {
-    expect(decisionOverlayState(verification(), ALI, NOW)).toEqual({ enabled: false, why: 'Assign to me to review', showClaim: true })
+    expect(decisionOverlayState(verification(), ALI, NOW, true)).toEqual({ enabled: false, why: 'Assign to me to review', showClaim: true })
   })
 
   it('Given claimed by Siti, when Ali views, then disabled "Claimed by Siti…" (S09)', () => {
-    expect(decisionOverlayState(claimedBy(SITI, 10), ALI, NOW)).toEqual({ enabled: false, why: 'Claimed by Siti Aminah Binti Yusof' })
+    expect(decisionOverlayState(claimedBy(SITI, 10), ALI, NOW, true)).toEqual({ enabled: false, why: 'Claimed by Siti Aminah Binti Yusof' })
   })
 
   it('Given claimed by Ali, when Ali views, then enabled with Cancel (S07)', () => {
-    expect(decisionOverlayState(claimedBy(ALI, 2), ALI, NOW)).toEqual({ enabled: true, showCancel: true })
+    expect(decisionOverlayState(claimedBy(ALI, 2), ALI, NOW, true)).toEqual({ enabled: true, showCancel: true })
   })
 
   it("Given Ali's claim has just expired, then disabled and claimable again", () => {
-    expect(decisionOverlayState(claimedBy(ALI, 0), ALI, NOW)).toMatchObject({ enabled: false, showClaim: true })
+    expect(decisionOverlayState(claimedBy(ALI, 0), ALI, NOW, true)).toMatchObject({ enabled: false, showClaim: true })
   })
 
-  it('Given a reviewer from another merchant, then disabled "No review permission"', () => {
-    expect(decisionOverlayState(verification(), OTHER_MERCHANT_REVIEWER, NOW)).toEqual({ enabled: false, why: 'No review permission' })
+  it('Given a Viewer in the project of the case (S16), then disabled "No review permission"', () => {
+    expect(decisionOverlayState(verification(), ALI, NOW, false)).toEqual({ enabled: false, why: 'No review permission' })
   })
 })
 

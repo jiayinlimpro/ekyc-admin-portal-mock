@@ -4,7 +4,6 @@ import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { formatUpdatedBy } from '@/domain/audit'
 import { claimRemainingMs, isClaimActive, isClaimInWarningWindow } from '@/domain/claimRules'
-import { can, canAccessMerchant } from '@/domain/permissions'
 import type { Actor, VerificationDetail } from '@/domain/types'
 import { formatClock, formatRemaining } from '@/lib/format'
 import { cn } from '@/lib/utils'
@@ -22,6 +21,7 @@ export function ClaimBar({
   actor,
   now,
   warningMin,
+  mayClaim,
   busy,
   onClaim,
   onRelease,
@@ -30,6 +30,8 @@ export function ClaimBar({
   actor: Actor
   now: Date
   warningMin?: number
+  /** The user's role in the case's project may claim it (DEC-70). */
+  mayClaim: boolean
   busy: boolean
   onClaim: () => void
   onRelease: () => void
@@ -82,9 +84,8 @@ export function ClaimBar({
       </>
     )
   } else {
-    const canClaim = can(actor, 'canReview') && canAccessMerchant(actor, v.merchantId)
-    body = canClaim ? 'Unclaimed. Assign it to yourself to review — nobody else can decide while you hold it.' : 'Unclaimed. Your role can view this record but not review it.'
-    if (canClaim)
+    body = mayClaim ? 'Unclaimed. Assign it to yourself to review — nobody else can decide while you hold it.' : 'Unclaimed. Your role in this project can view this record but not review it.'
+    if (mayClaim)
       action = (
         <Button size="sm" disabled={busy} onClick={onClaim}>
           Assign to me

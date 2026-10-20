@@ -9,7 +9,7 @@ import { auditService } from '@/services/auditService'
 import { devService } from '@/services/devService'
 import { DEFAULT_DEV_FLAGS, useDevFlags } from '@/stores/devFlagsStore'
 import { useSession } from '@/stores/sessionStore'
-import { ADMIN, ALI, OTHER_MERCHANT_REVIEWER, minutes } from '@/test/factories'
+import { ADMIN, ALI, NURUL, OTHER_MERCHANT_REVIEWER, minutes } from '@/test/factories'
 
 const S = (n: number) => `KYC-260901-${900000 + n}`
 
@@ -73,6 +73,20 @@ describe('Verification Detail', () => {
     expect(decision().getByRole('status').textContent).toBe('Claimed by Siti Aminah Binti Yusof')
     expect(screen.queryByRole('button', { name: 'Assign to me' })).toBeNull()
     expect(screen.getByText('NRIC')).toBeTruthy() // viewing is never blocked (DEC-25)
+  })
+
+  it('Given S16 in SME app, where Ali is a Viewer, then he can view but not assign or decide (S16, DEC-70)', async () => {
+    await open(S(16))
+    expect(decision().getByRole('status').textContent).toBe('No review permission')
+    expect(screen.queryByRole('button', { name: 'Assign to me' })).toBeNull()
+    expect(screen.getByText(/Your role in this project can view this record but not review it/)).toBeTruthy()
+    expect(screen.queryByRole('link', { name: 'Audit trail' })).toBeNull() // Reviewers and Viewers have no Audit Log (DEC-70)
+  })
+
+  it('Given S16, when Nurul (Reviewer in SME app) opens it, then she can assign it', async () => {
+    useSession.getState().switchUser(NURUL)
+    await open(S(16))
+    expect(screen.getByRole('button', { name: 'Assign to me' })).toBeTruthy()
   })
 
   it('Given S05 PROCESSING, then read-only (S05)', async () => {

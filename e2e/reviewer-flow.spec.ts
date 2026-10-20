@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test'
 
-// List filter → open detail → claim → approve → audit entry exists.
+// List filter → open detail → claim → approve → audit entry exists (seen by the Merchant Owner).
 test('reviewer finds an unclaimed pending record, claims it, approves it, and the decision is audited', async ({ page }) => {
   await page.goto('/verifications?as=USR-2026-0012')
   await page.getByRole('group', { name: 'Status' }).getByRole('button', { name: 'Pending Review' }).click()
@@ -26,7 +26,9 @@ test('reviewer finds an unclaimed pending record, claims it, approves it, and th
   await page.getByRole('button', { name: 'Confirm Approved' }).click()
   await expect(page.getByText(/Decision is final — Ali Bin Ahmad \(USR-2026-0012\)/)).toBeVisible()
 
-  await page.getByRole('link', { name: 'Audit trail' }).click()
+  // Reviewers have no Audit Log (DEC-70): the Merchant Owner checks the trail.
+  await expect(page.getByRole('link', { name: 'Audit trail' })).toHaveCount(0)
+  await page.goto('/audit?ref=KYC-260901-900003&as=USR-2026-0002')
   const rows = page.locator('section[aria-label="Audit entries"] tbody tr')
   await expect(rows.first()).toContainText('DECISION')
   await expect(rows.first()).toContainText('E2E: selfie matches MyKad photo.')
