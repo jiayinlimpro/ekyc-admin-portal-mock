@@ -46,17 +46,6 @@ export type UpdatedBy = { kind: 'SYSTEM' } | { kind: 'USER'; userId: string; ful
 // REQ: DEC-50 — accepted documents: MyKad, Passport, Driving License.
 export type DocumentType = 'MYKAD' | 'PASSPORT' | 'DRIVING_LICENSE'
 
-export type MetricResult = 'PASS' | 'REVIEW' | 'FAIL'
-
-// Display-only (DEC-10). The phase score, not individual metrics, drives the status.
-export interface PhaseMetric {
-  phase: Phase
-  name: string
-  detected: number | string
-  threshold?: string // e.g. "Pass ≥ 85 · Reject < 70"
-  result: MetricResult
-}
-
 export type AttemptOutcome = 'COMPLETED' | 'ABORTED' | 'TIMED_OUT' | 'FAILED_RETAKE'
 
 export interface Attempt {
@@ -99,7 +88,6 @@ export interface Verification {
   referenceNo: string // KYC-YYMMDD-NNNNNN, unchanged across retries (DEC-17)
   merchantId: string
   workflowVersion: WorkflowVersion
-  configVersion: string // config the record was evaluated with (DEC-52)
   status: VerificationStatus
   statusReason?: string // e.g. "Attempt limit reached – Liveness"
   lastUpdatedBy: UpdatedBy // changes ONLY when status changes (DEC-03)
@@ -114,11 +102,10 @@ export interface Verification {
   documentType: DocumentType
   pii: Pii
   clientMetadata: ClientMetadata
-  metrics: PhaseMetric[]
   images: { docFront: string; selfie: string }
   charged: true // REQ: DEC-60 — every verification is charged
   // Projects & Flows (DEC-44, DEC-52). `status` and `statusReason` come from checkRules.evaluateCase over `submissions`
-  // with the settings of `configRevision`; `attempts`, `metrics` and `configVersion` remain for the current screens.
+  // with the settings of `configRevision`.
   projectId: string
   flowId: string
   configRevision: number // the flow revision live when the session started ("Rules applied")
@@ -170,38 +157,15 @@ export type VerificationDetail = Verification & {
   activity: CaseActivity[]
 }
 
-export interface PhaseConfig {
-  phase: CapturePhase
-  enabled: boolean
-  autoPass: number // score >= autoPass → pass
-  autoReject: number // score < autoReject → reject; between → review
-  maxAttempts: number // OQ-03
-  cooldownSec: number // OQ-03
-}
-
 export interface RiskConfig {
   enabled: boolean
   maxAllowedLevel: RiskLevel // OQ-05
 }
 
-export interface MerchantConfig {
-  merchantId: string
-  version: string // e.g. v1.2.0
-  state: 'DRAFT' | 'DEPLOYED'
-  workflowVersion: WorkflowVersion
-  phases: PhaseConfig[]
-  risk?: RiskConfig // V4 only
-  claimTimeoutMin: number // OQ-04
-  claimWarningMin: number // OQ-04
-  updatedAt: string
-  updatedBy: ClaimHolder | { userId: 'SYSTEM'; fullName: 'SYSTEM' }
-  deployedAt?: string
-}
-
+/** REQ: DEC-90 — the top level. Workflow versions are chosen per flow, not per merchant. */
 export interface Merchant {
   merchantId: string
   name: string
-  workflowVersion: WorkflowVersion
 }
 
 // REQ: DEC-30 / DEC-31 — "Confirm Manual Pass" needs no reason code; "Reject" needs one or more DEC-35 failure conditions
@@ -217,8 +181,6 @@ export const AUDIT_ACTION_GROUPS = {
   Users: ['USER_INVITED', 'USER_ROLE_CHANGED', 'USER_REMOVED', 'USER_DEACTIVATED'],
   Registry: ['WORKFLOW_REGISTERED', 'WORKFLOW_UPDATED', 'WORKFLOW_STATUS_CHANGED', 'WORKFLOW_DEFAULT_CHANGED'],
   Merchants: ['MERCHANT_CREATED', 'MERCHANT_UPDATED', 'MERCHANT_STATUS_CHANGED'],
-  // Legacy: the merchant-level eKYC Workflow screen, until Flows List and Flow Detail replace it.
-  Legacy: ['CONFIG_DRAFT_SAVE', 'CONFIG_DISCARD', 'CONFIG_DEPLOY'],
 } as const
 export type AuditAction = (typeof AUDIT_ACTION_GROUPS)[keyof typeof AUDIT_ACTION_GROUPS][number]
 export const AUDIT_ACTIONS: readonly AuditAction[] = Object.values(AUDIT_ACTION_GROUPS).flat()
@@ -249,17 +211,8 @@ export interface UserRecord extends Actor {
   createdAt: string
 }
 
-/** Merchant API credential. The secret is mock-only (sk_mock_…) and never real. */
-export interface ApiCredential {
-  merchantId: string
-  keyId: string
-  secret: string
-  createdAt: string
-  createdBy: string // fullName, or SYSTEM
-}
-
 // ---------------------------------------------------------------------------------------------------------------------
-// Projects & Flows (DEC-90 … DEC-96). Added alongside the merchant-level model above; services move over in Phase 4.
+// Projects & Flows (DEC-90 … DEC-96).
 // ---------------------------------------------------------------------------------------------------------------------
 
 /** Registry code, e.g. "V4". A string because Platform Admin can register new codes (DEC-56). */

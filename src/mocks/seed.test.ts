@@ -138,7 +138,6 @@ describe('named scenarios (docs/SCENARIOS.md)', () => {
     if (e.reason) expect(v.statusReason).toBe(e.reason)
     if (e.claimedByUserId) expect(v.claimedBy?.userId).toBe(e.claimedByUserId)
     if (e.lastUpdatedBy) expect(v.lastUpdatedBy.kind).toBe(e.lastUpdatedBy)
-    if (e.configVersion) expect(v.configVersion).toBe(e.configVersion)
     if (e.configRevision) expect(v.configRevision).toBe(e.configRevision)
     expect(v.flowId).toBe(e.flowId)
   })
@@ -178,10 +177,10 @@ describe('named scenarios (docs/SCENARIOS.md)', () => {
     expect(v.pii.nric).toBeUndefined()
   })
 
-  it('S01 (V1) has no risk metrics; S02 (V4) does', () => {
-    const phases = (ref: string) => db.verifications.find((v) => v.referenceNo === ref)!.metrics.map((m) => m.phase)
-    expect(phases('KYC-260901-900001')).not.toContain('RISK_ASSESSMENT')
-    expect(phases('KYC-260901-900002')).toContain('RISK_ASSESSMENT')
+  it('S01 (V1) has no risk result; S02 (V4) does', () => {
+    const risk = (ref: string) => db.verifications.find((v) => v.referenceNo === ref)!.riskLevel
+    expect(risk('KYC-260901-900001')).toBeUndefined()
+    expect(risk('KYC-260901-900002')).toBe('HIGH')
   })
 })
 

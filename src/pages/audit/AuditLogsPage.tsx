@@ -30,7 +30,7 @@ const ACTION_TONE: Partial<Record<AuditAction, string>> = {
   CASE_DECISION_REJECTED: 'bg-green-100 text-green-800 dark:bg-green-500/20 dark:text-green-200',
   CASE_DECISION_BLOCKED: 'bg-red-100 text-red-800 dark:bg-red-500/20 dark:text-red-200',
   CASE_CLAIM_EXPIRED: 'bg-amber-100 text-amber-800 dark:bg-amber-500/20 dark:text-amber-200',
-  CONFIG_DEPLOY: 'bg-blue-100 text-blue-800 dark:bg-blue-500/20 dark:text-blue-200',
+  FLOW_SETTING_CHANGED: 'bg-blue-100 text-blue-800 dark:bg-blue-500/20 dark:text-blue-200',
   API_KEY_ROTATED: 'bg-violet-100 text-violet-800 dark:bg-violet-500/20 dark:text-violet-200',
 }
 

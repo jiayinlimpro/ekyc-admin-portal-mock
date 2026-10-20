@@ -1,6 +1,6 @@
 // Every value in this file is an OPEN QUESTION (docs/OPEN_QUESTIONS.md), not a signed-off requirement.
 // The UI must label anything read from here "OPEN QUESTION".
-import type { CapturePhase, Check, PhaseConfig, RiskLevel, ThresholdPreset } from './types'
+import type { Check, RiskLevel, ThresholdPreset } from './types'
 
 export type PhaseCombination = 'REJECT_WINS' | 'REVIEW_WINS'
 
@@ -20,14 +20,6 @@ export const POLICY: Policy = {
   riskBands: { mediumFrom: 40, highFrom: 70 },
   platformAdminCaseAccess: false,
   adminCanReview: true,
-}
-
-/** OQ-02 / OQ-03 */
-export const DEFAULT_PHASE_THRESHOLDS: Record<CapturePhase, Omit<PhaseConfig, 'phase' | 'enabled'>> = {
-  DOCUMENT: { autoPass: 80, autoReject: 60, maxAttempts: 3, cooldownSec: 30 },
-  SELFIE: { autoPass: 80, autoReject: 50, maxAttempts: 3, cooldownSec: 30 },
-  FACE_MATCH: { autoPass: 85, autoReject: 70, maxAttempts: 3, cooldownSec: 30 },
-  LIVENESS: { autoPass: 90, autoReject: 70, maxAttempts: 3, cooldownSec: 30 },
 }
 
 /** OQ-02: preset values per check (DEC-19). Low = lenient, High = strict. */

@@ -1,6 +1,5 @@
 // Minimal builders for unit tests. Independent of src/mocks so domain tests don't depend on seed data.
-import { DEFAULT_PHASE_THRESHOLDS } from '@/domain/openQuestions'
-import { CAPTURE_PHASES, type Actor, type Attempt, type MerchantConfig, type Verification } from '@/domain/types'
+import type { Actor, Attempt, Verification } from '@/domain/types'
 
 export const NOW = new Date('2026-09-25T02:00:00.000Z')
 
@@ -13,22 +12,6 @@ export const OWNER: Actor = { userId: 'USR-2026-0002', fullName: 'Tan Mei Ling',
 export const HAFIZ: Actor = { userId: 'USR-2026-0020', fullName: 'Hafiz Bin Rahman', role: 'MERCHANT_REVIEWER', merchantId: 'MER-0001' } // Project Admin, SME app
 export const NURUL: Actor = { userId: 'USR-2026-0033', fullName: 'Nurul Huda Binti Kamaruddin', role: 'MERCHANT_REVIEWER', merchantId: 'MER-0001' } // Reviewer, SME app
 export const EMPTY_OWNER: Actor = { userId: 'USR-2026-0080', fullName: 'Rajesh A/L Muthu', role: 'MERCHANT_REVIEWER', merchantId: 'MER-0006' } // Owner, Empty Demo Merchant
-
-export function config(overrides: Partial<MerchantConfig> = {}): MerchantConfig {
-  return {
-    merchantId: 'MER-0001',
-    version: 'v1.1.0',
-    state: 'DEPLOYED',
-    workflowVersion: 'V4',
-    phases: CAPTURE_PHASES.map((phase) => ({ phase, enabled: true, ...DEFAULT_PHASE_THRESHOLDS[phase] })),
-    risk: { enabled: true, maxAllowedLevel: 'MEDIUM' },
-    claimTimeoutMin: 30,
-    claimWarningMin: 5,
-    updatedAt: NOW.toISOString(),
-    updatedBy: { userId: 'SYSTEM', fullName: 'SYSTEM' },
-    ...overrides,
-  }
-}
 
 export function completed(scores: Attempt['phaseScores'], attemptNo = 1): Attempt {
   return { attemptNo, phase: 'LIVENESS', startedAt: NOW.toISOString(), outcome: 'COMPLETED', isUserRetake: attemptNo > 1, phaseScores: scores }
@@ -45,7 +28,6 @@ export function verification(overrides: Partial<Verification> = {}): Verificatio
     referenceNo: 'KYC-260925-000001',
     merchantId: 'MER-0001',
     workflowVersion: 'V4',
-    configVersion: 'v1.1.0',
     status: 'PENDING_REVIEW',
     lastUpdatedBy: { kind: 'SYSTEM' },
     lastUpdatedAt: NOW.toISOString(),
@@ -62,7 +44,6 @@ export function verification(overrides: Partial<Verification> = {}): Verificatio
       address: 'No. 1, Jalan Ujian 1/1, 40000 Shah Alam, Selangor',
     },
     clientMetadata: { sdk: 'ekyc-web-sdk 3.4.1', os: 'Windows 11', device: 'Chrome 140', ip: '192.0.2.10' },
-    metrics: [],
     images: { docFront: '/mock/mykad-front.svg', selfie: '/mock/selfie.svg' },
     charged: true,
     projectId: 'PRJ-0001',

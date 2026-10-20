@@ -8,7 +8,7 @@ import { devService } from '@/services/devService'
 import { verificationService } from '@/services/verificationService'
 import { DEFAULT_DEV_FLAGS, useDevFlags } from '@/stores/devFlagsStore'
 import { useSession } from '@/stores/sessionStore'
-import { ADMIN, ALI, OWNER, minutes } from '@/test/factories'
+import { ALI, OWNER, minutes } from '@/test/factories'
 
 function renderAt(path: string) {
   const router = createMemoryRouter(routes, { initialEntries: [path] })
@@ -53,18 +53,17 @@ describe('Audit Logs', () => {
     expect(r[0].textContent).toContain('PENDING_REVIEW → Approved · “Liveness frame and MyKad photo compared side by side; same person.”')
   })
 
-  it('Given the Event filter = Config deployed, when Search, then only CONFIG_DEPLOY rows', async () => {
-    useSession.getState().switchUser(ADMIN)
+  it('Given the Event filter = Case claimed, when Search, then only CASE_CLAIMED rows', async () => {
     const router = renderAt('/audit')
     await rows('Audit entries')
-    fireEvent.click(within(screen.getByRole('group', { name: 'Event' })).getByRole('button', { name: 'Config deployed (legacy)' }))
+    fireEvent.click(screen.getByText(/^Event \(/))
+    fireEvent.click(within(screen.getByRole('group', { name: 'Cases events' })).getByRole('button', { name: 'Case claimed' }))
     fireEvent.click(screen.getByRole('button', { name: 'Search' }))
-    await waitFor(() => expect(router.state.location.search).toBe('?action=CONFIG_DEPLOY'))
+    await waitFor(() => expect(router.state.location.search).toBe('?action=CASE_CLAIMED'))
     const r = await rows('Audit entries')
-    expect(r).toHaveLength(12) // 6 merchants × v1.0.0 + v1.1.0
-    for (const row of r) expect(row.textContent).toContain('CONFIG_DEPLOY')
+    expect(r.length).toBeGreaterThan(0)
+    for (const row of r) expect(row.textContent).toContain('CASE_CLAIMED')
   })
-
   it('Given claims expire (time warp), then SYSTEM CASE_CLAIM_EXPIRED entries name whose claim ended', async () => {
     act(() => useDevFlags.getState().advanceTime(minutes(31)))
     renderAt('/audit?actor=SYSTEM')

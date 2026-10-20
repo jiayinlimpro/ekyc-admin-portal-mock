@@ -81,9 +81,6 @@ export const AUDIT_ACTION_LABELS: Record<AuditAction, string> = {
   MERCHANT_CREATED: 'Merchant created',
   MERCHANT_UPDATED: 'Merchant updated',
   MERCHANT_STATUS_CHANGED: 'Merchant status changed',
-  CONFIG_DRAFT_SAVE: 'Config draft saved (legacy)',
-  CONFIG_DISCARD: 'Config draft discarded (legacy)',
-  CONFIG_DEPLOY: 'Config deployed (legacy)',
 }
 
 export const PERMISSION_LABELS: Record<Permission, { label: string; description: string }> = {

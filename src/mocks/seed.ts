@@ -6,8 +6,8 @@ import { RISK_NOT_PASSED } from '@/domain/checkRules'
 import { applyDecision } from '@/domain/claimRules'
 import { CONDITIONS, REJECT_REASONS } from '@/domain/conditions'
 import { resolveThreshold, type Thresholds } from '@/domain/thresholds'
-import type { Actor, ApiCredential, AuditEntry, Check, Decision, Flow, ProjectApiKey, ProjectWebhook, FlowRevision, Merchant, Project, RegistryEntry, UserAccount, UserRecord, Verification } from '@/domain/types'
-import { buildCase, makeConfigs, refNo, type ConfigRecord } from './builders'
+import type { Actor, AuditEntry, Check, Decision, Flow, ProjectApiKey, ProjectWebhook, FlowRevision, Merchant, Project, RegistryEntry, UserAccount, UserRecord, Verification } from '@/domain/types'
+import { buildCase, refNo } from './builders'
 import { buildCatalog, revisionAt } from './fixtures/catalog'
 import { buildEdgeCases } from './fixtures/edgeCases'
 import { MERCHANTS } from './fixtures/merchants'
@@ -17,25 +17,23 @@ import { clientMetadata, fakeIp, person } from './malaysia'
 export const SEED = 2026
 export const BACKGROUND_COUNT = 300
 /** Bump when the shape of MockDbState changes: persisted demo data is then re-seeded. */
-export const DB_VERSION = 7
+export const DB_VERSION = 8
 
 export interface MockDbState {
   dbVersion: number
   seededAt: string
   merchants: Merchant[]
-  users: UserRecord[] // legacy two-role view of `accounts`, for the UAM screens until Phase 11
-  apiKeys: Record<string, ApiCredential>
-  configs: Record<string, ConfigRecord>
+  users: UserRecord[] // legacy two-role view of `accounts`
   verifications: Verification[]
   audit: AuditEntry[] // append-only, oldest first
   auditSeq: number
-  // Projects & Flows model (DEC-90 …). Read by services from Phase 4; the merchant-level data above stays until then.
+  // Projects & Flows (DEC-90 …)
   registry: RegistryEntry[]
   projects: Project[]
   flows: Flow[]
   flowRevisions: FlowRevision[]
   accounts: UserAccount[]
-  // REQ: DEC-54 — per-project integration (replaces the merchant-level apiKeys above with Project Settings › Integration).
+  // REQ: DEC-54 — per-project integration (Project Settings › Integration).
   projectKeys: ProjectApiKey[]
   webhooks: ProjectWebhook[]
 }
@@ -117,7 +115,6 @@ function decisionFor(f: Faker, reason: string | undefined): Decision {
 export function seedDatabase(now: Date): MockDbState {
   const f = new Faker({ locale: [en] })
   f.seed(SEED)
-  const configs = makeConfigs(MERCHANTS, now)
   const catalog = buildCatalog(now)
   const audit: AuditEntry[] = []
   const accounts = buildAccounts(now)
@@ -127,26 +124,7 @@ export function seedDatabase(now: Date): MockDbState {
       .filter((a) => a.status === 'ACTIVE' && canInProject(a, 'claimCase', { projectId: v.projectId, merchantId: v.merchantId }))
       .map(legacyActor)
   const roleOf = (a: Actor, v: Verification) => roleInProject(accounts.find((x) => x.userId === a.userId)!, v)
-  const admin = legacyActor(accounts.find((a) => a.level === 'PLATFORM_ADMIN')!)
-  const merchantOf = (id: string) => MERCHANTS.find((m) => m.merchantId === id)!
   const entryOf = (code: string) => catalog.registry.find((e) => e.code === code)!
-
-  // Legacy config deployment history (current eKYC Workflow screen).
-  for (const rec of Object.values(configs)) {
-    rec.history.forEach((c, i) =>
-      audit.push(
-        makeAudit({
-          id: '',
-          now: new Date(c.deployedAt!),
-          action: 'CONFIG_DEPLOY',
-          actor: admin,
-          ip: fakeIp(f),
-          merchantId: c.merchantId,
-          details: { fromVersion: i === 0 ? null : rec.history[i - 1].version, toVersion: c.version, changes: [] },
-        }),
-      ),
-    )
-  }
 
   // Session start times first, sorted, so Reference Nos increase with time.
   const starts = Array.from({ length: BACKGROUND_COUNT }, () => {
@@ -177,8 +155,6 @@ export function seedDatabase(now: Date): MockDbState {
     const p = person(f, now, documentType)
     return buildCase({
       referenceNo: refNo(start, i + 1),
-      merchant: merchantOf(flow.merchantId),
-      merchantConfigs: configs[flow.merchantId],
       flow,
       revisions: catalog.flowRevisions,
       entry,
@@ -220,21 +196,13 @@ export function seedDatabase(now: Date): MockDbState {
     }
   }
 
-  // API keys: Atoz rotated once, 7 days ago (its key is _02).
-  const apiKeys: Record<string, ApiCredential> = {}
-  for (const m of MERCHANTS) {
-    const rotated = m.merchantId === 'MER-0001'
-    apiKeys[m.merchantId] = {
-      merchantId: m.merchantId,
-      keyId: `key_mock_${m.merchantId.toLowerCase()}_${rotated ? '02' : '01'}`,
-      secret: `sk_mock_${f.string.hexadecimal({ length: 32, casing: 'lower', prefix: '' })}`,
-      createdAt: new Date(now.getTime() - (rotated ? 7 : 120) * DAY).toISOString(),
-      createdBy: admin.fullName,
-    }
-  }
-  audit.push(makeAudit({ id: '', now: new Date(now.getTime() - 7 * DAY), action: 'API_KEY_ROTATED', actor: admin, ip: fakeIp(f), merchantId: 'MER-0001', details: { fromKeyId: 'key_mock_mer-0001_01', keyId: 'key_mock_mer-0001_02' } }))
+  // Atoz Default's production key was rotated by the Merchant Owner a week ago (DEC-54).
+  const owner = accounts.find((a) => a.userId === 'USR-2026-0002')!
+  audit.push(
+    makeAudit({ id: '', now: new Date(now.getTime() - 7 * DAY), action: 'API_KEY_ROTATED', actor: owner, actorRole: 'MERCHANT_OWNER', ip: fakeIp(f), merchantId: 'MER-0001', projectId: 'PRJ-0001', details: { keyId: 'key_mock_prj-0001_01' } }),
+  )
 
-  const edge = buildEdgeCases({ now, merchants: MERCHANTS, configs, catalog })
+  const edge = buildEdgeCases({ now, catalog })
   const allAudit = [...audit, ...edge.audit].sort((a, b) => a.at.localeCompare(b.at)).map((e, i) => ({ ...e, id: `AUD-${String(i + 1).padStart(6, '0')}` }))
 
   return {
@@ -242,8 +210,6 @@ export function seedDatabase(now: Date): MockDbState {
     seededAt: now.toISOString(),
     merchants: MERCHANTS,
     users: accounts.map((a) => ({ ...legacyActor(a), active: a.status === 'ACTIVE', createdAt: a.invitedAt })),
-    apiKeys,
-    configs,
     verifications: [...verifications, ...edge.verifications],
     audit: allAudit,
     auditSeq: allAudit.length,

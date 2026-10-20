@@ -30,11 +30,6 @@ describe('summarizeAudit', () => {
     )
   })
 
-  it('CONFIG_DEPLOY shows the version bump and change count; the first deployment is labelled', () => {
-    expect(summarizeAudit(e('CONFIG_DEPLOY', { fromVersion: 'v1.1.0', toVersion: 'v1.2.0', changes: [{}, {}] }))).toBe('v1.1.0 → v1.2.0 · 2 change(s)')
-    expect(summarizeAudit(e('CONFIG_DEPLOY', { fromVersion: null, toVersion: 'v1.0.0', changes: [] }))).toBe('Initial deployment v1.0.0')
-  })
-
   it('CASE_DECISION_BLOCKED carries the refusal reason', () => {
     expect(summarizeAudit(e('CASE_DECISION_BLOCKED', { attempted: 'REJECT', reason: 'Your claim expired. No changes saved.' }))).toBe('Save refused (reject): Your claim expired. No changes saved.')
   })

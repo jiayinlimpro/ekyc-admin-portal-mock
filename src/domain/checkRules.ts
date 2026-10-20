@@ -1,4 +1,4 @@
-// SYSTEM status for a case in a flow (DEC-11 … DEC-16). Replaces statusRules.deriveStatus once services move over (Phase 4).
+// SYSTEM status for a case in a flow (DEC-11 … DEC-16).
 // Manual decisions are not derived; they are applied by claimRules.
 import { checkCondition } from './conditions'
 import { POLICY, type PhaseCombination } from './openQuestions'

@@ -3,8 +3,8 @@
 import { Faker, en } from '@faker-js/faker'
 import { makeAudit } from '@/domain/audit'
 import { applyDecision } from '@/domain/claimRules'
-import type { Actor, AuditEntry, Check, DocumentType, Merchant, UpdatedBy, Verification, VerificationStatus } from '@/domain/types'
-import { buildCase, type ConfigRecord } from '../builders'
+import type { Actor, AuditEntry, Check, DocumentType, UpdatedBy, Verification, VerificationStatus } from '@/domain/types'
+import { buildCase } from '../builders'
 import { clientMetadata, fakeIp, person } from '../malaysia'
 import type { Catalog } from './catalog'
 import { userById } from './users'
@@ -20,7 +20,6 @@ export interface EdgeCaseExpectation {
   reason?: string
   claimedByUserId?: string
   lastUpdatedBy?: UpdatedBy['kind']
-  configVersion?: string
   configRevision?: number
 }
 
@@ -36,7 +35,7 @@ export const EDGE_CASES: EdgeCaseExpectation[] = [
   { id: 'S09', title: 'Claimed by Siti; Ali can only view', asUserId: 'USR-2026-0012', referenceNo: 'KYC-260901-900009', flowId: 'FLW-0001', status: 'PENDING_REVIEW', claimedByUserId: 'USR-2026-0031' },
   { id: 'S10', title: 'Unclaimed: two reviewers race', asUserId: 'USR-2026-0031', referenceNo: 'KYC-260901-900010', flowId: 'FLW-0001', status: 'PENDING_REVIEW' },
   { id: 'S11', title: 'Manually approved (final)', asUserId: 'USR-2026-0012', referenceNo: 'KYC-260901-900011', flowId: 'FLW-0001', status: 'APPROVED', lastUpdatedBy: 'USER' },
-  { id: 'S12', title: 'In flight on the previous flow revision (V4-R1)', asUserId: 'USR-2026-0012', referenceNo: 'KYC-260901-900012', flowId: 'FLW-0001', status: 'PROCESSING', configVersion: 'v1.0.0', configRevision: 1 },
+  { id: 'S12', title: 'In flight on the previous flow revision (V4-R1)', asUserId: 'USR-2026-0012', referenceNo: 'KYC-260901-900012', flowId: 'FLW-0001', status: 'PROCESSING', configRevision: 1 },
   { id: 'S13', title: 'Two liveness retries, then approved', asUserId: 'USR-2026-0044', referenceNo: 'KYC-260901-900013', flowId: 'FLW-0005', status: 'APPROVED', lastUpdatedBy: 'SYSTEM' },
   { id: 'S15', title: 'Passport (non-MyKad)', asUserId: 'USR-2026-0044', referenceNo: 'KYC-260901-900015', flowId: 'FLW-0005', status: 'APPROVED', lastUpdatedBy: 'SYSTEM' },
   { id: 'S16', title: 'SME app project (V3): Ali may only view', asUserId: 'USR-2026-0012', referenceNo: 'KYC-260901-900016', flowId: 'FLW-0004', status: 'PENDING_REVIEW', reason: 'Face not live (Retry Not Allowed)' },
@@ -48,7 +47,7 @@ export const EDGE_CASES: EdgeCaseExpectation[] = [
 
 const MIN = 60_000
 
-export function buildEdgeCases(ctx: { now: Date; merchants: Merchant[]; configs: Record<string, ConfigRecord>; catalog: Catalog }): {
+export function buildEdgeCases(ctx: { now: Date; catalog: Catalog }): {
   verifications: Verification[]
   audit: AuditEntry[]
 } {
@@ -71,8 +70,6 @@ export function buildEdgeCases(ctx: { now: Date; merchants: Merchant[]; configs:
     const p = person(f, now, opts.documentType ?? 'MYKAD')
     return buildCase({
       referenceNo: `KYC-260901-${String(900000 + seq)}`,
-      merchant: ctx.merchants.find((m) => m.merchantId === flow.merchantId)!,
-      merchantConfigs: ctx.configs[flow.merchantId],
       flow,
       revisions: catalog.flowRevisions,
       entry: catalog.registry.find((e) => e.code === flow.workflowVersion)!,
@@ -139,6 +136,10 @@ export function buildEdgeCases(ctx: { now: Date; merchants: Merchant[]; configs:
     // Vantage FLW-0005 R2 accepts Driving License: face match < 82 / ≥ 93, 3 retries used, last 88.0 → review; liveness passes.
     make(20, 'FLW-0005', 20, { FACE_MATCH: [80.1, 84.0, 86.2, 88.0], LIVENESS: [96.2] }, { documentType: 'DRIVING_LICENSE' }),
   ]
+
+  // S16: Nurul (Reviewer, SME app) looked at it a few minutes ago without claiming it.
+  const s16 = out.find((v) => v.referenceNo === 'KYC-260901-900016')!
+  audit.push(makeAudit({ id: '', now: ago(5), action: 'SENSITIVE_PII_VIEW', actor: { userId: 'USR-2026-0033', fullName: 'Nurul Huda Binti Kamaruddin' }, actorRole: 'REVIEWER', ip: fakeIp(f), merchantId: s16.merchantId, projectId: s16.projectId, referenceNo: s16.referenceNo }))
 
   // S11: manually approved by Ali 10 minutes ago.
   const s11 = out.findIndex((v) => v.referenceNo === 'KYC-260901-900011')

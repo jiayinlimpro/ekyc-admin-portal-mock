@@ -1,6 +1,6 @@
 // Claim lifecycle and decision rules. Pure functions: every rule takes `now` explicitly.
 import { REJECT_REASONS } from './conditions'
-import type { Actor, Decision, MerchantConfig, Verification } from './types'
+import type { Actor, Decision, Verification } from './types'
 
 export type ClaimErrorCode =
   | 'FORBIDDEN'
@@ -31,7 +31,7 @@ export function claimRemainingMs(v: ClaimFields, now: Date): number {
   return Date.parse(v.claimExpiresAt!) - now.getTime()
 }
 
-export function isClaimInWarningWindow(v: ClaimFields, cfg: Pick<MerchantConfig, 'claimWarningMin'>, now: Date): boolean {
+export function isClaimInWarningWindow(v: ClaimFields, cfg: { claimWarningMin: number }, now: Date): boolean {
   const left = claimRemainingMs(v, now)
   return left > 0 && left <= cfg.claimWarningMin * 60_000
 }

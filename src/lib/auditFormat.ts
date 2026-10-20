@@ -1,5 +1,4 @@
 // Human-readable one-line summary of an audit entry's details, per action. Pure (unit-tested).
-import type { ConfigChange } from '@/domain/configRules'
 import type { AuditEntry, ClaimHolder, SettingChange } from '@/domain/types'
 import { formatMyt } from './format'
 
@@ -28,16 +27,6 @@ export function summarizeAudit(e: AuditEntry): string {
     }
     case 'CASE_DECISION_BLOCKED':
       return `Save refused (${d.attempted === 'APPROVE' ? 'approve' : d.attempted === 'REJECT' ? 'reject' : 'decision'}): ${str(d.reason) ?? 'claim not held'}`
-    case 'CONFIG_DRAFT_SAVE': {
-      const n = (d.changes as ConfigChange[] | undefined)?.length ?? 0
-      return `Draft ${str(d.draftVersion) ?? ''} saved · ${n} change(s) vs production`
-    }
-    case 'CONFIG_DISCARD':
-      return `Draft ${str(d.draftVersion) ?? ''} discarded`
-    case 'CONFIG_DEPLOY': {
-      const n = (d.changes as ConfigChange[] | undefined)?.length ?? 0
-      return d.fromVersion ? `${str(d.fromVersion)} → ${str(d.toVersion)} · ${n} change(s)` : `Initial deployment ${str(d.toVersion)}`
-    }
     case 'API_KEY_ROTATED':
       return `API key rotated${str(d.keyId) ? ` (${str(d.keyId)})` : ''}`
     default: {

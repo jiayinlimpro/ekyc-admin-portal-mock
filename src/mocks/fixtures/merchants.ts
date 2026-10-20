@@ -1,12 +1,12 @@
 import type { Merchant } from '@/domain/types'
 
 export const MERCHANTS: Merchant[] = [
-  { merchantId: 'MER-0001', name: 'Atoz Software Tech', workflowVersion: 'V4' },
-  { merchantId: 'MER-0002', name: 'Vantage', workflowVersion: 'V1' },
-  { merchantId: 'MER-0003', name: 'Tesla', workflowVersion: 'V4' },
-  { merchantId: 'MER-0004', name: 'The Boring Company', workflowVersion: 'V1' },
-  { merchantId: 'MER-0005', name: '3Nova', workflowVersion: 'V4' },
-  { merchantId: 'MER-0006', name: 'Empty Demo Merchant', workflowVersion: 'V1' }, // S14: no records
+  { merchantId: 'MER-0001', name: 'Atoz Software Tech' },
+  { merchantId: 'MER-0002', name: 'Vantage' },
+  { merchantId: 'MER-0003', name: 'Tesla' },
+  { merchantId: 'MER-0004', name: 'The Boring Company' },
+  { merchantId: 'MER-0005', name: '3Nova' },
+  { merchantId: 'MER-0006', name: 'Empty Demo Merchant' }, // S14: no records
 ]
 
 /** Share of background records per merchant (MER-0006 intentionally absent). */

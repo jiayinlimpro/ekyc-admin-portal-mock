@@ -92,7 +92,7 @@ export const mockMerchantAdminService: MerchantAdminService = {
     if (!entry) throw validation([{ field: 'form', message: 'No default workflow version is set in the registry.' }])
 
     const at = now()
-    const merchant: Merchant = { merchantId: nextId('MER-', s.merchants.map((m) => m.merchantId)), name, workflowVersion: entry.code as Merchant['workflowVersion'] }
+    const merchant: Merchant = { merchantId: nextId('MER-', s.merchants.map((m) => m.merchantId)), name }
     const flowId = nextId('FLW-', s.flows.map((f) => f.flowId))
     const project: Project = {
       projectId: nextId('PRJ-', s.projects.map((p) => p.projectId)),

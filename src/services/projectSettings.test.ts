@@ -50,7 +50,7 @@ describe('Project Settings › Integration (DEC-54, DEC-75)', () => {
     expect((await svc.revokeKey(key.keyId, OWNER)).status).toBe('REVOKED')
     await expect(svc.rotateKey(key.keyId, OWNER)).rejects.toMatchObject({ code: 'VALIDATION' })
     const actions = (await auditService.list({ projectId: 'PRJ-0001', actions: ['API_KEY_CREATED', 'API_KEY_ROTATED', 'API_KEY_REVOKED'] }, ADMIN)).items.map((e) => e.action)
-    expect(actions.reverse()).toEqual(['API_KEY_CREATED', 'API_KEY_ROTATED', 'API_KEY_REVOKED'])
+    expect(actions.reverse().slice(-3)).toEqual(['API_KEY_CREATED', 'API_KEY_ROTATED', 'API_KEY_REVOKED']) // after the seeded rotation
   })
 
   it('Given a webhook, then HTTPS only; a new one returns its signing secret once; changes are audited', async () => {

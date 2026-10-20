@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { ADMIN, ALI, OTHER_MERCHANT_REVIEWER, SITI, NOW, at, config, minutes, verification } from '@/test/factories'
+import { ADMIN, ALI, OTHER_MERCHANT_REVIEWER, SITI, NOW, at, minutes, verification } from '@/test/factories'
 import {
   applyDecision,
   checkOwnershipAtSave,
@@ -14,7 +14,7 @@ import {
 } from './claimRules'
 import type { Verification } from './types'
 
-const cfg = config()
+const cfg = { claimWarningMin: 5 }
 const ctx = { mayClaim: true, claimTimeoutMin: 30 }
 
 function claimedBy(actor: typeof ALI, minutesLeft: number, base: Partial<Verification> = {}): Verification {
