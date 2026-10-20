@@ -14,9 +14,13 @@ const e = (action: AuditEntry['action'], details: Record<string, unknown> = {}):
 })
 
 describe('summarizeAudit', () => {
-  it('CASE_DECISION_APPROVED shows from → to, the reason label and the comment', () => {
-    expect(summarizeAudit(e('CASE_DECISION_APPROVED', { outcome: 'APPROVE', reasonCode: 'FACE_MATCH_CONFIRMED', comment: 'Same person', fromStatus: 'PENDING_REVIEW' }))).toBe(
-      'PENDING_REVIEW → Approved · Face match confirmed by reviewer · “Same person”',
+  it('CASE_DECISION_APPROVED shows from → to and the note', () => {
+    expect(summarizeAudit(e('CASE_DECISION_APPROVED', { outcome: 'APPROVE', note: 'Same person', fromStatus: 'PENDING_REVIEW' }))).toBe('PENDING_REVIEW → Approved · “Same person”')
+  })
+
+  it('CASE_DECISION_REJECTED shows the chosen reasons; no note, no quote', () => {
+    expect(summarizeAudit(e('CASE_DECISION_REJECTED', { outcome: 'REJECT', reasonIds: ['NOT_LIVE'], reasons: 'Face not live (Retry Not Allowed)', fromStatus: 'PENDING_REVIEW' }))).toBe(
+      'PENDING_REVIEW → Rejected · Face not live (Retry Not Allowed)',
     )
   })
 
@@ -42,7 +46,7 @@ describe('summarizeAudit', () => {
 
 describe('auditCsv', () => {
   it('escapes commas and quotes', () => {
-    const csv = auditCsv([e('CASE_DECISION_REJECTED', { outcome: 'REJECT', reasonCode: 'X', comment: 'He said "no", twice', fromStatus: 'PENDING_REVIEW' })], () => 'Atoz Software Tech')
+    const csv = auditCsv([e('CASE_DECISION_REJECTED', { outcome: 'REJECT', reasons: 'X', note: 'He said "no", twice', fromStatus: 'PENDING_REVIEW' })], () => 'Atoz Software Tech')
     const [header, row] = csv.split('\n')
     expect(header).toBe('Audit ID,Time (MYT),Action,Actor,Actor ID,Merchant,Reference No,IP,Summary')
     expect(row).toContain('"PENDING_REVIEW → Rejected · X · “He said ""no"", twice”"')

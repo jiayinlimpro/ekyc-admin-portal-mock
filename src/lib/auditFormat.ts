@@ -1,6 +1,5 @@
 // Human-readable one-line summary of an audit entry's details, per action. Pure (unit-tested).
 import type { ConfigChange } from '@/domain/configRules'
-import { reasonLabel } from '@/domain/openQuestions'
 import type { AuditEntry, ClaimHolder, SettingChange } from '@/domain/types'
 import { formatMyt } from './format'
 
@@ -24,8 +23,8 @@ export function summarizeAudit(e: AuditEntry): string {
     case 'CASE_DECISION_APPROVED':
     case 'CASE_DECISION_REJECTED': {
       const outcome = d.outcome === 'APPROVE' ? 'Approved' : d.outcome === 'REJECT' ? 'Rejected' : String(d.outcome)
-      const reason = reasonLabel(str(d.reasonCode) ?? '') ?? str(d.reasonCode) ?? '—'
-      return `${str(d.fromStatus) ?? '?'} → ${outcome} · ${reason}${str(d.comment) ? ` · “${str(d.comment)}”` : ''}`
+      const reasons = str(d.reasons) // REJECT only (DEC-31)
+      return `${str(d.fromStatus) ?? '?'} → ${outcome}${reasons ? ` · ${reasons}` : ''}${str(d.note) ? ` · “${str(d.note)}”` : ''}`
     }
     case 'CASE_DECISION_BLOCKED':
       return `Save refused (${d.attempted === 'APPROVE' ? 'approve' : d.attempted === 'REJECT' ? 'reject' : 'decision'}): ${str(d.reason) ?? 'claim not held'}`

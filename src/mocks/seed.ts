@@ -4,9 +4,9 @@ import { canInProject, roleInProject } from '@/domain/access'
 import { makeAudit } from '@/domain/audit'
 import { RISK_NOT_PASSED } from '@/domain/checkRules'
 import { applyDecision } from '@/domain/claimRules'
-import { REASON_CODES } from '@/domain/openQuestions'
+import { CONDITIONS, REJECT_REASONS } from '@/domain/conditions'
 import { resolveThreshold, type Thresholds } from '@/domain/thresholds'
-import type { Actor, ApiCredential, AuditEntry, Check, Flow, FlowRevision, Merchant, Project, RegistryEntry, UserAccount, UserRecord, Verification } from '@/domain/types'
+import type { Actor, ApiCredential, AuditEntry, Check, Decision, Flow, FlowRevision, Merchant, Project, RegistryEntry, UserAccount, UserRecord, Verification } from '@/domain/types'
 import { buildCase, makeConfigs, refNo, type ConfigRecord } from './builders'
 import { buildCatalog, revisionAt } from './fixtures/catalog'
 import { buildEdgeCases } from './fixtures/edgeCases'
@@ -17,7 +17,7 @@ import { clientMetadata, fakeIp, person } from './malaysia'
 export const SEED = 2026
 export const BACKGROUND_COUNT = 300
 /** Bump when the shape of MockDbState changes: persisted demo data is then re-seeded. */
-export const DB_VERSION = 5
+export const DB_VERSION = 6
 
 export interface MockDbState {
   dbVersion: number
@@ -101,13 +101,14 @@ function riskScore(f: Faker): number {
   return f.number.int({ min: band[0], max: band[1] })
 }
 
-function decisionFor(f: Faker, reason: string | undefined) {
+// REQ: DEC-31 — a reviewer rejecting keeps the condition that sent the case to review; risk-only cases have no matching
+// condition in the catalogue (OQ-26), so one is picked.
+function decisionFor(f: Faker, reason: string | undefined): Decision {
   const approve = f.number.float({ min: 0, max: 1 }) < (reason === RISK_NOT_PASSED ? 0.5 : 0.6)
-  const r = f.helpers.arrayElement(approve ? REASON_CODES.APPROVE : REASON_CODES.REJECT)
-  return {
-    decision: { outcome: approve ? ('APPROVE' as const) : ('REJECT' as const), reasonCode: r.code, comment: approve ? 'Checked document and liveness manually; consistent.' : 'Inconsistencies found during manual review.' },
-    label: r.label,
-  }
+  const withNote = f.number.float({ min: 0, max: 1 }) < 0.5
+  if (approve) return { outcome: 'APPROVE', note: withNote ? 'Checked document and liveness manually; consistent.' : undefined }
+  const matching = CONDITIONS.find((c) => c.label === reason && REJECT_REASONS.includes(c))
+  return { outcome: 'REJECT', reasonIds: [(matching ?? f.helpers.arrayElement(REJECT_REASONS)).id], note: withNote ? 'Inconsistencies found during manual review.' : undefined }
 }
 
 export function seedDatabase(now: Date): MockDbState {
@@ -200,11 +201,11 @@ export function seedDatabase(now: Date): MockDbState {
 
     if (age > DAY && f.number.float({ min: 0, max: 1 }) < 0.7) {
       const decidedAt = new Date(Math.min(Date.parse(v.lastUpdatedAt) + f.number.int({ min: 30, max: 2880 }) * MIN, now.getTime() - 10 * MIN))
-      const { decision, label } = decisionFor(f, v.statusReason)
+      const decision = decisionFor(f, v.statusReason)
       audit.push(makeAudit({ id: '', now: new Date(decidedAt.getTime() - 4 * MIN), action: 'SENSITIVE_PII_VIEW', actor, ...ref }))
       audit.push(makeAudit({ id: '', now: new Date(decidedAt.getTime() - 3 * MIN), action: 'CASE_CLAIMED', actor, ...ref }))
       audit.push(makeAudit({ id: '', now: decidedAt, action: decision.outcome === 'APPROVE' ? 'CASE_DECISION_APPROVED' : 'CASE_DECISION_REJECTED', actor, ...ref, details: { ...decision, fromStatus: v.status, toStatus: decision.outcome === 'APPROVE' ? 'APPROVED' : 'REJECTED' } }))
-      verifications[i] = applyDecision(v, actor, decision, label, decidedAt)
+      verifications[i] = applyDecision(v, actor, decision, decidedAt)
     } else if (f.number.float({ min: 0, max: 1 }) < 0.2) {
       const claimedAt = new Date(now.getTime() - f.number.int({ min: 1, max: timeoutMin - 1 }) * MIN)
       if (claimedAt.getTime() <= Date.parse(v.lastUpdatedAt)) continue

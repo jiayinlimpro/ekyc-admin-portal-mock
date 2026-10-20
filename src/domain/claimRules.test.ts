@@ -147,20 +147,28 @@ describe('save-time ownership check (DEC-24)', () => {
 })
 
 describe('decisions (DEC-03, DEC-30, DEC-31)', () => {
-  it('Given a missing comment, then VALIDATION', () => {
-    expect(validateDecision({ outcome: 'APPROVE', reasonCode: 'FACE_MATCH_CONFIRMED', comment: '  ' })).toMatchObject({ ok: false, code: 'VALIDATION' })
+  it('Given Approve with no reason and no note, then valid: Approve needs no reason code and the note is optional', () => {
+    expect(validateDecision({ outcome: 'APPROVE' }).ok).toBe(true)
   })
 
-  it('Given a missing reason code, then VALIDATION', () => {
-    expect(validateDecision({ outcome: 'REJECT', reasonCode: '', comment: 'x' }).ok).toBe(false)
+  it('Given Reject without a reason, or with one outside the catalogue, then VALIDATION', () => {
+    expect(validateDecision({ outcome: 'REJECT', reasonIds: [] })).toMatchObject({ ok: false, message: 'Choose at least one reason for the rejection.' })
+    expect(validateDecision({ outcome: 'REJECT', reasonIds: ['NOT_LIVE_RETRY'] })).toMatchObject({ ok: false, message: 'Unknown rejection reason.' }) // never ends a case
+    expect(validateDecision({ outcome: 'REJECT', reasonIds: ['EXISTING_USER'] }).ok).toBe(false) // record-only
+    expect(validateDecision({ outcome: 'REJECT', reasonIds: ['NOT_LIVE', 'PASSPORT_MRZ'] }).ok).toBe(true)
+  })
+
+  it('Given a note over 500 characters, then VALIDATION', () => {
+    expect(validateDecision({ outcome: 'APPROVE', note: 'x'.repeat(501) }).ok).toBe(false)
   })
 
   it('When Ali approves, then APPROVED, lastUpdatedBy = Ali, lastUpdatedAt = now, claim cleared', () => {
     const later = at(minutes(5))
-    const v = applyDecision(claimedBy(ALI, 10), ALI, { outcome: 'APPROVE', reasonCode: 'FACE_MATCH_CONFIRMED', comment: 'ok' }, 'Face match confirmed by reviewer', later)
+    const v = applyDecision(claimedBy(ALI, 10, { statusDetail: 'Auto-Reject < 70 · Auto-Pass ≥ 85 · Actual 78' }), ALI, { outcome: 'APPROVE' }, later)
     expect(v).toMatchObject({
       status: 'APPROVED',
-      statusReason: 'Face match confirmed by reviewer',
+      statusReason: 'Confirmed manual pass by reviewer',
+      statusDetail: undefined,
       lastUpdatedBy: { kind: 'USER', userId: ALI.userId, fullName: ALI.fullName },
       lastUpdatedAt: later.toISOString(),
       claimedBy: undefined,
@@ -168,7 +176,8 @@ describe('decisions (DEC-03, DEC-30, DEC-31)', () => {
     })
   })
 
-  it('When Ali rejects, then REJECTED', () => {
-    expect(applyDecision(claimedBy(ALI, 10), ALI, { outcome: 'REJECT', reasonCode: 'FACE_MISMATCH', comment: 'x' }, 'x', NOW).status).toBe('REJECTED')
+  it('When Ali rejects, then REJECTED with the chosen conditions as the reason (DEC-35)', () => {
+    const v = applyDecision(claimedBy(ALI, 10), ALI, { outcome: 'REJECT', reasonIds: ['NOT_LIVE', 'PASSPORT_MRZ'] }, NOW)
+    expect(v).toMatchObject({ status: 'REJECTED', statusReason: 'Face not live (Retry Not Allowed); Unable to detect the 2 lines MRZ field in passport image' })
   })
 })

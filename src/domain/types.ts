@@ -181,9 +181,9 @@ export interface Merchant {
   workflowVersion: WorkflowVersion
 }
 
-export type Decision =
-  | { outcome: 'APPROVE'; reasonCode: string; comment: string } // "Confirm Manual Pass"
-  | { outcome: 'REJECT'; reasonCode: string; comment: string } // "Maintain Automated Rejection"
+// REQ: DEC-30 / DEC-31 — "Confirm Manual Pass" needs no reason code; "Reject" needs one or more DEC-35 failure conditions
+// (ids from conditions.REJECT_REASONS). The note is optional for both.
+export type Decision = { outcome: 'APPROVE'; note?: string } | { outcome: 'REJECT'; reasonIds: string[]; note?: string }
 
 // REQ: DEC-42 — event names, grouped as in DECISIONS.md.
 export const AUDIT_ACTION_GROUPS = {

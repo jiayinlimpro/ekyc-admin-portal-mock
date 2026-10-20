@@ -141,7 +141,7 @@ describe('flowService settings and lifecycle (DEC-51 … DEC-53, DEC-94)', () =>
     }))
     expect((await flowService.retire('FLW-0002', OWNER)).status).toBe('RETIRING')
     await verificationService.claim(ref, SITI)
-    await verificationService.decide(ref, SITI, { outcome: 'APPROVE', reasonCode: 'FACE_MATCH_CONFIRMED', comment: 'Same person.' })
+    await verificationService.decide(ref, SITI, { outcome: 'APPROVE', note: 'Same person.' })
     expect(db.state().flows.find((f) => f.flowId === 'FLW-0002')!.status).toBe('INACTIVE')
     expect(await lastAudit('FLOW_RETIRED')).toMatchObject({ actor: { kind: 'SYSTEM' }, details: { changes: [{ field: 'Status', from: 'RETIRING', to: 'INACTIVE' }] } })
   })

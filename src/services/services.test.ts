@@ -212,12 +212,12 @@ describe('claim and release', () => {
 })
 
 describe('decide (DEC-24, DEC-30)', () => {
-  const approve = { outcome: 'APPROVE' as const, reasonCode: 'FACE_MATCH_CONFIRMED', comment: 'Matches.' }
+  const approve = { outcome: 'APPROVE' as const, note: 'Matches.' }
 
   it('Given Ali holds the S07 claim, when he approves, then APPROVED by Ali and a CASE_DECISION_APPROVED entry with his project role', async () => {
     vi.setSystemTime(NOW.getTime() + minutes(1))
     const d = await svc.decide(S(7), ALI, approve)
-    expect(d).toMatchObject({ status: 'APPROVED', lastUpdatedBy: { kind: 'USER', userId: ALI.userId }, statusReason: 'Face match confirmed by reviewer', claimedBy: undefined })
+    expect(d).toMatchObject({ status: 'APPROVED', lastUpdatedBy: { kind: 'USER', userId: ALI.userId }, statusReason: 'Confirmed manual pass by reviewer', claimedBy: undefined })
     expect(d.lastUpdatedAt).toBe(new Date(NOW.getTime() + minutes(1)).toISOString())
     expect((await auditFor(S(7))).at(-1)).toBe('CASE_DECISION_APPROVED')
     const [entry] = (await auditService.list({ referenceNo: S(7), actions: ['CASE_DECISION_APPROVED'] }, ADMIN)).items
@@ -238,8 +238,8 @@ describe('decide (DEC-24, DEC-30)', () => {
     await expectError(svc.decide(S(9), ALI, approve), 'OWNERSHIP_CONFLICT')
   })
 
-  it('Given no audit comment, then VALIDATION and nothing is written', async () => {
-    await expectError(svc.decide(S(7), ALI, { ...approve, comment: '' }), 'VALIDATION')
+  it('Given Reject without a reason, then VALIDATION and nothing is written (DEC-31)', async () => {
+    await expectError(svc.decide(S(7), ALI, { outcome: 'REJECT', reasonIds: [] }), 'VALIDATION', 'Choose at least one reason for the rejection.')
     expect(await auditFor(S(7), ['CASE_DECISION_APPROVED', 'CASE_DECISION_REJECTED', 'CASE_DECISION_BLOCKED'])).toEqual([])
   })
 

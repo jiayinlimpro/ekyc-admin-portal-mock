@@ -141,8 +141,8 @@ export function buildEdgeCases(ctx: { now: Date; merchants: Merchant[]; configs:
   const s11 = out.findIndex((v) => v.referenceNo === 'KYC-260901-900011')
   const decidedAt = ago(10)
   const claimed = claimFor(out[s11], ali, 14)
-  const decision = { outcome: 'APPROVE' as const, reasonCode: 'FACE_MATCH_CONFIRMED', comment: 'Liveness frame and MyKad photo compared side by side; same person.' }
-  out[s11] = applyDecision(claimed, ali, decision, 'Face match confirmed by reviewer', decidedAt)
+  const decision = { outcome: 'APPROVE' as const, note: 'Liveness frame and MyKad photo compared side by side; same person.' }
+  out[s11] = applyDecision(claimed, ali, decision, decidedAt)
   audit.push(
     makeAudit({
       id: '',

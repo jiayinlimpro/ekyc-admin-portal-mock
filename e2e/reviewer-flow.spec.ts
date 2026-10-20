@@ -19,8 +19,7 @@ test('reviewer finds an unclaimed pending record, claims it, approves it, and th
 
   const decision = page.getByRole('region', { name: 'Decision' })
   await decision.getByText('Confirm Manual Pass').click()
-  await decision.getByLabel(/Reason Code/).selectOption('FACE_MATCH_CONFIRMED')
-  await decision.getByLabel('Audit Comment').fill('E2E: selfie matches MyKad photo.')
+  await decision.getByLabel(/Note/).fill('E2E: selfie matches MyKad photo.')
   await decision.getByRole('button', { name: 'Save decision' }).click()
   await page.getByRole('button', { name: 'Confirm Approved' }).click()
   await expect(page.getByText(/Decision is final — Ali Bin Ahmad \(USR-2026-0012\)/)).toBeVisible()

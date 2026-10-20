@@ -6,8 +6,7 @@
 //   DELETE /verifications/{ref}/claim release → 200 | 409 NOT_CLAIM_OWNER
 //   POST /verifications/{ref}/decision decide  → 200 | 409 OWNERSHIP_CONFLICT | 422 VALIDATION
 import { makeAudit } from '@/domain/audit'
-import { applyDecision, checkOwnershipAtSave, claim as claimRule, isClaimActive, release as releaseRule, validateDecision } from '@/domain/claimRules'
-import { reasonLabel } from '@/domain/openQuestions'
+import { applyDecision, checkOwnershipAtSave, decisionReason, claim as claimRule, isClaimActive, release as releaseRule, validateDecision } from '@/domain/claimRules'
 import { hasRisk } from '@/domain/registryRules'
 import type { Actor, Decision, Flow, Paged, Project, RiskLevel, Verification, VerificationDetail, VerificationStatus, VerificationSummary } from '@/domain/types'
 import { now } from '@/lib/clock'
@@ -213,9 +212,14 @@ export const mockVerificationService: VerificationService = {
       audit(actor, 'CASE_DECISION_BLOCKED', v, at, { attempted: d.outcome, reason: owner.message })
       throw new ServiceError(owner.code, owner.message)
     }
-    const label = reasonLabel(d.reasonCode) ?? d.reasonCode
-    const updated = db.updateVerification(ref, (x) => applyDecision(x, actor, d, label, at))
-    audit(actor, d.outcome === 'APPROVE' ? 'CASE_DECISION_APPROVED' : 'CASE_DECISION_REJECTED', updated, at, { ...d, fromStatus: v.status, toStatus: updated.status, fromReason: v.statusReason })
+    const updated = db.updateVerification(ref, (x) => applyDecision(x, actor, d, at))
+    audit(actor, d.outcome === 'APPROVE' ? 'CASE_DECISION_APPROVED' : 'CASE_DECISION_REJECTED', updated, at, {
+      ...d,
+      reasons: d.outcome === 'REJECT' ? decisionReason(d) : undefined,
+      fromStatus: v.status,
+      toStatus: updated.status,
+      fromReason: v.statusReason,
+    })
     settleRetiringFlow(v.flowId, at) // REQ: DEC-94 — a Retiring flow goes Inactive with its last in-flight case
     return toDetail(updated)
   },

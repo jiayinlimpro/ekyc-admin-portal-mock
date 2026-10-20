@@ -15,7 +15,7 @@ What the mock gives engineering, and what the real backend must do that a mock c
 | | `GET /verifications/{ref}` | Full PII + client metadata; the **server** writes `SENSITIVE_PII_VIEW` for every open (DEC-41) |
 | | `POST /verifications/{ref}/claim` | 409 `ALREADY_CLAIMED` / `NOT_CLAIMABLE`; claim is not a status (DEC-20) |
 | | `DELETE /verifications/{ref}/claim` | Owner only; 409 `NOT_CLAIM_OWNER`; no supervisor release (DEC-23) |
-| | `POST /verifications/{ref}/decision` | Re-checks ownership at save; 409 `OWNERSHIP_CONFLICT`, audited `CASE_DECISION_BLOCKED` (DEC-24); 422 without reason + comment (DEC-31) |
+| | `POST /verifications/{ref}/decision` | Re-checks ownership at save; 409 `OWNERSHIP_CONFLICT`, audited `CASE_DECISION_BLOCKED` (DEC-24); 422 for a Reject without a catalogue reason (DEC-31); Approve needs no reason; the note is optional |
 | Config | `GET/PUT/DELETE /merchants/{id}/config/draft`, `POST …/deploy`, `GET …/versions` | Per phase (DEC-50); deploy bumps minor version and applies to new sessions only (DEC-52) |
 | | `POST /merchants/{id}/config/preview` | What-if on finished sessions, read-only |
 | Audit | `GET /audit?…` | Append-only; scoped to own merchant for reviewers |

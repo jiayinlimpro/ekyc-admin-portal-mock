@@ -26,10 +26,10 @@ async function audit(ref: string, actions: AuditAction[]) {
 
 const decision = () => within(screen.getByRole('region', { name: 'Decision' }))
 
-function fillDecision(outcome: RegExp, reason: string, comment: string) {
+function fillDecision(outcome: RegExp, reasons: string[], note: string) {
   fireEvent.click(decision().getByLabelText(outcome))
-  fireEvent.change(decision().getByLabelText(/Reason Code/), { target: { value: reason } })
-  fireEvent.change(decision().getByLabelText('Audit Comment'), { target: { value: comment } })
+  for (const r of reasons) fireEvent.click(decision().getByLabelText(r))
+  fireEvent.change(decision().getByLabelText(/Note/), { target: { value: note } })
   fireEvent.click(decision().getByRole('button', { name: 'Save decision' }))
 }
 
@@ -49,7 +49,7 @@ describe('Verification Detail', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Assign to me' }))
     await screen.findByText('You are reviewing this record.')
 
-    fillDecision(/Confirm Manual Pass/, 'FACE_MATCH_CONFIRMED', 'Compared selfie with MyKad photo.')
+    fillDecision(/Confirm Manual Pass/, [], 'Compared selfie with MyKad photo.')
     fireEvent.click(await screen.findByRole('button', { name: 'Confirm Approved' }))
 
     await screen.findByText(/Decision is final — Ali Bin Ahmad \(USR-2026-0012\)/)
@@ -62,10 +62,18 @@ describe('Verification Detail', () => {
     await open(S(7)) // Ali already holds the claim
     fireEvent.click(decision().getByRole('button', { name: 'Save decision' }))
     expect(decision().getByText('Choose an outcome.')).toBeTruthy()
-    fireEvent.click(decision().getByLabelText(/Maintain Automated Rejection/))
-    expect(decision().getByText('Reason Code is required.')).toBeTruthy()
-    expect(decision().getByText('Audit Comment is required.')).toBeTruthy()
+    fireEvent.click(decision().getByLabelText(/^Reject/))
+    expect(decision().getByText('Choose at least one reason.')).toBeTruthy()
     expect(screen.queryByRole('dialog')).toBeNull()
+  })
+
+  it('Given Reject with two catalogue reasons and no note, then REJECTED with those reasons, audited (DEC-31, DEC-35)', async () => {
+    await open(S(7))
+    fillDecision(/^Reject/, ['Face not live (Retry Not Allowed)', 'No word detected'], '')
+    fireEvent.click(await screen.findByRole('button', { name: 'Confirm Rejected' }))
+    await screen.findByText(/Decision is final — Ali Bin Ahmad/)
+    expect(await audit(S(7), ['CASE_DECISION_REJECTED'])).toEqual(['CASE_DECISION_REJECTED'])
+    expect(screen.getAllByText(/Face not live \(Retry Not Allowed\); No word detected/).length).toBeGreaterThan(0)
   })
 
   it('Given S09 is claimed by Siti, then Ali can view but the overlay says who holds it and there is no Assign button (S09)', async () => {
@@ -145,7 +153,7 @@ describe('Verification Detail', () => {
     useDevFlags.setState({ uiClaimChecks: false })
     await open(S(8))
     act(() => useDevFlags.getState().advanceTime(minutes(11)))
-    fillDecision(/Confirm Manual Pass/, 'DOC_VERIFIED_MANUALLY', 'Looks fine.')
+    fillDecision(/Confirm Manual Pass/, [], 'Looks fine.')
     fireEvent.click(await screen.findByRole('button', { name: 'Confirm Approved' }))
     await screen.findByText('Your claim expired. No changes saved.')
     expect(screen.getAllByText('Pending Review').length).toBeGreaterThan(0)

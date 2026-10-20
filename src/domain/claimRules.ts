@@ -1,4 +1,5 @@
 // Claim lifecycle and decision rules. Pure functions: every rule takes `now` explicitly.
+import { REJECT_REASONS } from './conditions'
 import type { Actor, Decision, MerchantConfig, Verification } from './types'
 
 export type ClaimErrorCode =
@@ -86,10 +87,24 @@ export function decisionOverlayState(v: Verification, actor: Pick<Actor, 'userId
   return { enabled: true, showCancel: true }
 }
 
+export const NOTE_MAX = 500
+
+// REQ: DEC-31 — Reject needs at least one reason from the condition catalogue; Approve none; the note is optional.
 export function validateDecision(d: Decision): RuleResult<Decision> {
-  if (!d.reasonCode.trim()) return fail('VALIDATION', 'Reason Code is required.')
-  if (!d.comment.trim()) return fail('VALIDATION', 'Audit Comment is required.')
+  if ((d.note?.length ?? 0) > NOTE_MAX) return fail('VALIDATION', `The note can be at most ${NOTE_MAX} characters.`)
+  if (d.outcome === 'REJECT') {
+    if (!d.reasonIds.length) return fail('VALIDATION', 'Choose at least one reason for the rejection.')
+    if (d.reasonIds.some((id) => !REJECT_REASONS.some((r) => r.id === id))) return fail('VALIDATION', 'Unknown rejection reason.')
+  }
   return { ok: true, value: d }
+}
+
+export const MANUAL_PASS_REASON = 'Confirmed manual pass by reviewer'
+
+/** The case's reason after a manual decision: the chosen conditions for a Reject (DEC-35). */
+export function decisionReason(d: Decision): string {
+  if (d.outcome === 'APPROVE') return MANUAL_PASS_REASON
+  return d.reasonIds.map((id) => REJECT_REASONS.find((r) => r.id === id)?.label ?? id).join('; ')
 }
 
 // REQ: DEC-24 — re-checked against the record as it is at save time.
@@ -107,12 +122,13 @@ export function checkOwnershipAtSave(v: Verification, actor: Actor, now: Date): 
 }
 
 // REQ: DEC-30 / DEC-03 — a decision changes status, so lastUpdatedBy/At change; the claim ends.
-export function applyDecision(v: Verification, actor: Actor, d: Decision, reasonText: string, now: Date): Verification {
+export function applyDecision(v: Verification, actor: Pick<Actor, 'userId' | 'fullName'>, d: Decision, now: Date): Verification {
   return {
     ...v,
     ...CLEARED_CLAIM,
     status: d.outcome === 'APPROVE' ? 'APPROVED' : 'REJECTED',
-    statusReason: reasonText,
+    statusReason: decisionReason(d),
+    statusDetail: undefined, // the automated detail no longer explains the status
     lastUpdatedBy: { kind: 'USER', userId: actor.userId, fullName: actor.fullName },
     lastUpdatedAt: now.toISOString(),
   }

@@ -52,30 +52,6 @@ export const DEFAULT_CLAIM_WARNING_MIN = 5
 /** OQ-05 */
 export const DEFAULT_RISK_MAX_ALLOWED: RiskLevel = 'MEDIUM'
 
-/** OQ-10: mock reason codes. */
-export interface ReasonCode {
-  code: string
-  label: string
-}
-
-export const REASON_CODES: Record<'APPROVE' | 'REJECT', readonly ReasonCode[]> = {
-  APPROVE: [
-    { code: 'DOC_VERIFIED_MANUALLY', label: 'Document verified manually' },
-    { code: 'FACE_MATCH_CONFIRMED', label: 'Face match confirmed by reviewer' },
-    { code: 'RISK_ACCEPTED', label: 'Risk reviewed and accepted' },
-  ],
-  REJECT: [
-    { code: 'DOC_TAMPERED', label: 'Document appears tampered' },
-    { code: 'FACE_MISMATCH', label: 'Selfie does not match document' },
-    { code: 'SPOOF_SUSPECTED', label: 'Liveness spoof suspected' },
-    { code: 'HIGH_RISK', label: 'Risk too high' },
-  ],
-}
-
-export function reasonLabel(code: string): string | undefined {
-  return [...REASON_CODES.APPROVE, ...REASON_CODES.REJECT].find((r) => r.code === code)?.label
-}
-
 export function riskLevelFromScore(score: number, bands = POLICY.riskBands): RiskLevel {
   if (score >= bands.highFrom) return 'HIGH'
   if (score >= bands.mediumFrom) return 'MEDIUM'

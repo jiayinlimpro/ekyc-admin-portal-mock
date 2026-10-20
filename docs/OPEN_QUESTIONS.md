@@ -25,6 +25,8 @@ Each question is a **parameter**, not a fact. The mock uses the default below. I
 | OQ-21 | Project data retention period | Not set; shown as a placeholder | Project Settings › General |
 | OQ-22 | Cooldown after a rejection (DEC-26): how is the "same end user" identified, and does the wait apply to this flow only or the whole project? | Same ID document number (NRIC / passport no.), same flow | Flow `cooldownMin`, `flowRules.ts` |
 | OQ-24 | Does the claim timeout run from claim time or from the last activity? (FRS TBC) | From claim time | `claimRules.ts` |
+| OQ-25 | Risk components shown on Verification Detail (DEC-44: "each component's 0–100 score and reason codes"): which components, and which reason codes? | Overall risk score and level only; the components area is labelled OPEN QUESTION | Verification Detail › Risk |
+| OQ-26 | A case in review only because Risk Assessment did not pass (DEC-13): which reason does a reviewer give to Reject it? The DEC-35 catalogue has no risk condition | Any catalogue condition may be chosen | `conditions.REJECT_REASONS` |
 
 ## Answered (kept for traceability)
 | ID | Question | Answer |

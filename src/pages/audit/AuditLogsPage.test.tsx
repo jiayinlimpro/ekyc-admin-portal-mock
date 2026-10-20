@@ -40,7 +40,7 @@ describe('Audit Logs', () => {
     renderAt('/audit?ref=KYC-260901-900011')
     const r = await rows('Audit entries')
     expect(r.map((x) => within(x).getAllByRole('cell')[1].textContent)).toEqual(['Case approvedCASE_DECISION_APPROVED', 'Case claimedCASE_CLAIMED', 'Personal data viewedSENSITIVE_PII_VIEW'])
-    expect(r[0].textContent).toContain('PENDING_REVIEW → Approved · Face match confirmed by reviewer')
+    expect(r[0].textContent).toContain('PENDING_REVIEW → Approved · “Liveness frame and MyKad photo compared side by side; same person.”')
   })
 
   it('Given the Event filter = Config deployed, when Search, then only CONFIG_DEPLOY rows', async () => {
