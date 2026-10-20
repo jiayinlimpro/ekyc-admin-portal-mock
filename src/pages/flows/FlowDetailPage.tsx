@@ -83,6 +83,8 @@ function Editor({ detail, onSaved }: { detail: FlowDetail; onSaved: () => void }
   const { flow, entry } = detail
   const project = projects.find((p) => p.projectId === flow.projectId)
   const canSetAdvanced = !!account && !!project && canInProject(account, 'setAdvancedThresholds', project)
+  // REQ: DEC-70 — thresholds, retries and risk level need Change verification level and retries.
+  const canChangeLevel = !!account && !!project && canInProject(account, 'changeVerificationLevel', project)
   const editable = flow.status === 'DRAFT' || flow.status === 'ACTIVE'
   const [draft, setDraft] = useState<FlowEdit>({ name: flow.name, description: flow.description, settings: structuredClone(flow.settings) })
   const [reason, setReason] = useState('')
@@ -137,9 +139,12 @@ function Editor({ detail, onSaved }: { detail: FlowDetail; onSaved: () => void }
         </fieldset>
       </Card>
 
+      {editable && !canChangeLevel && (
+        <p className="rounded-md bg-muted px-3 py-2 text-sm">Thresholds, retries and the risk level are read-only for you: they need the “Change verification level and retries” permission.</p>
+      )}
       <section aria-label="Thresholds and retries" className="grid gap-4 lg:grid-cols-2">
         {entry.configurableChecks.map((c) => (
-          <ThresholdCard key={c} check={c} value={s.checks[c]} onChange={(v) => set({ checks: { ...s.checks, [c]: v } })} canSetAdvanced={canSetAdvanced} disabled={!editable} errors={errors} />
+          <ThresholdCard key={c} check={c} value={s.checks[c]} onChange={(v) => set({ checks: { ...s.checks, [c]: v } })} canSetAdvanced={canSetAdvanced} disabled={!editable || !canChangeLevel} errors={errors} />
         ))}
       </section>
 
@@ -178,7 +183,7 @@ function Editor({ detail, onSaved }: { detail: FlowDetail; onSaved: () => void }
           {entry.code === 'V5' ? (
             <p className="text-sm text-muted-foreground">V5 per-component risk thresholds are not defined yet.</p>
           ) : (
-            <fieldset disabled={!editable} className="max-w-sm">
+            <fieldset disabled={!editable || !canChangeLevel} className="max-w-sm">
               <legend className="sr-only">Risk</legend>
               <FormField id="fl-risk" label="Maximum allowed risk level" hint="Above it, a case that passed every check goes to Pending Review. Risk never auto-rejects.">
                 <NativeSelect id="fl-risk" value={s.risk?.maxAllowedLevel ?? 'MEDIUM'} onChange={(e) => set({ risk: { enabled: true, maxAllowedLevel: e.target.value as RiskLevel } })}>

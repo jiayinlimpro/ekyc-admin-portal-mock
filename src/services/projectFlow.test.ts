@@ -8,6 +8,8 @@ import { devService } from './devService'
 import { isServiceError } from './errors'
 import { flowService } from './flowService'
 import { projectService } from './projectService'
+import { roleService } from './roleService'
+import { userAdminService } from './userAdminService'
 import { verificationService } from './verificationService'
 
 const VANTAGE_OWNER: Actor = { userId: 'USR-2026-0045', fullName: 'Ahmad Faiz Bin Zulkifli' }
@@ -104,6 +106,15 @@ describe('flowService settings and lifecycle (DEC-51 … DEC-53, DEC-94)', () =>
       details: { flowId: 'FLW-0001', revision: 3, changes: [{ field: 'checks.LIVENESS.threshold', from: 'Standard (reject < 70, approve ≥ 85)', to: 'High (reject < 80, approve ≥ 92)' }] },
     })
     expect((await verificationService.get('KYC-260901-900012', ALI)).configRevision).toBe(1) // DEC-52
+  })
+
+  it('Given a Custom role with Manage flows but not Change verification level, then only the other settings save (DEC-70)', async () => {
+    const editor = await roleService.create('MER-0001', { name: 'Flow editor', permissions: ['MANAGE_FLOWS'] }, OWNER)
+    await userAdminService.addAssignment(SITI.userId, { roleId: editor.roleId, scope: { kind: 'PROJECTS', projectIds: ['PRJ-0001'] } }, OWNER)
+    const { flow } = await flowService.get('FLW-0001', SITI)
+    const base = { name: flow.name, description: flow.description }
+    await expectError(flowService.save('FLW-0001', { ...base, settings: withLiveness(flow.settings, 'HIGH') }, 'Raise liveness after review', SITI), 'FORBIDDEN', /verification level/)
+    expect((await flowService.save('FLW-0001', { ...base, settings: { ...flow.settings, cooldownMin: 30 } }, 'Shorter cooldown for retries', SITI)).settings.cooldownMin).toBe(30)
   })
 
   it('Given Advanced values, then only the Platform Admin may set them (DEC-19)', async () => {

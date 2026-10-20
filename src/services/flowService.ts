@@ -144,6 +144,9 @@ export const mockFlowService: FlowService = {
     await simulateNetwork('save flow')
     requireActive(actor)
     const { flow, project } = loadFlow(actor, flowId)
+    // REQ: DEC-70 — thresholds, retries allowed and risk level need Change verification level and retries.
+    const levelChanged = JSON.stringify(flow.settings.checks) !== JSON.stringify(next.settings.checks) || JSON.stringify(flow.settings.risk) !== JSON.stringify(next.settings.risk)
+    if (levelChanged) requireInProject(actor, 'changeVerificationLevel', project, 'change the verification level and retries')
     const canSetAdvanced = canInProject(accountOf(actor), 'setAdvancedThresholds', project)
     const at = now()
     const r = saveFlow(flow, next, { entry: entryOf(flow.workflowVersion)!, canSetAdvanced, reason }, at, by(actor))

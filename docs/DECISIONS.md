@@ -216,7 +216,8 @@ Rules changed on 2026-10-20 (Projects & Flows restructure) are marked **(changed
     | | View audit log |
 
   - A role with any merchant-level permission can only be assigned to **All projects**. Claim and Approve / reject need
-    View cases, so the Roles screen ticks it automatically.
+    View cases, so the Roles screen ticks it automatically. Change verification level and retries works on the flow
+    screens, so it is used together with Manage flows; without it those fields are read-only.
   - **System Default roles** (locked, the same for every merchant): **Merchant Owner** (every permission), **Project Admin**
     (every project-level permission), **Reviewer** (view, claim, approve / reject, project reports), **Viewer** (view cases,
     project reports). Merchants add **Custom** roles. Role names are OQ-09.
