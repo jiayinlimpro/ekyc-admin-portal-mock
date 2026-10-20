@@ -50,13 +50,15 @@ export function toAuditSearch(p: AuditParams): URLSearchParams {
   return sp
 }
 
-export function toAuditQuery(p: AuditParams, scopeMerchantId?: string): AuditQuery {
+/** `projectId` = the header's selected project (DEC-73); under "All my projects" the service scopes by role (DEC-70). */
+export function toAuditQuery(p: AuditParams, projectId?: string): AuditQuery {
   const f = p.filters
   return {
     actions: f.actions.length ? f.actions : undefined,
     referenceNo: f.referenceNo ? f.referenceNo.toUpperCase() : undefined,
     actorUserId: f.actorUserId || undefined,
-    merchantId: scopeMerchantId ?? (f.merchantId || undefined),
+    merchantId: projectId ? undefined : f.merchantId || undefined,
+    projectId,
     from: f.from ? mytDateToUtcIso(f.from) : undefined,
     to: f.to ? mytDateToUtcIso(f.to, true) : undefined,
     page: p.page,

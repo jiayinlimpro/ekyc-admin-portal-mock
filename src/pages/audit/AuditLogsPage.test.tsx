@@ -29,11 +29,21 @@ beforeEach(async () => {
 afterEach(cleanup)
 
 describe('Audit Logs', () => {
-  it('Given the Merchant Owner, then only their merchant’s entries are listed', async () => {
+  it('Given the Merchant Owner, then only Atoz entries, with project and actor role and no Merchant column', async () => {
     renderAt('/audit?size=100')
     const r = await rows('Audit entries')
     expect(r.length).toBeGreaterThan(0)
-    for (const row of r) expect(row.textContent).toContain('Atoz Software Tech')
+    expect(screen.queryByRole('columnheader', { name: 'Merchant' })).toBeNull()
+    for (const row of r) expect(['Default', 'SME app', '—']).toContain(within(row).getAllByRole('cell')[3].textContent)
+    expect(r.some((x) => /· Reviewer/.test(x.textContent!))).toBe(true)
+  })
+
+  it('Given SME app in the header, then only that project’s entries', async () => {
+    useSession.getState().selectProject('PRJ-0002', 'MER-0001')
+    renderAt('/audit?size=100')
+    const r = await rows('Audit entries')
+    expect(r.length).toBeGreaterThan(0)
+    for (const row of r) expect(within(row).getAllByRole('cell')[3].textContent).toBe('SME app')
   })
 
   it('Given ref=S11, then its trail reads PII view → claim → decision with a readable summary', async () => {

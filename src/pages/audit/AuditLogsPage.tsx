@@ -2,26 +2,27 @@ import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { Link, useSearchParams } from 'react-router'
 import { Download, RotateCcw, Search } from 'lucide-react'
 import { toast } from 'sonner'
+import { useAccess } from '@/app/access'
 import { NativeSelect } from '@/components/common/NativeSelect'
 import { Pagination } from '@/components/common/Pagination'
 import { EmptyState, ErrorState } from '@/components/common/States'
 import { ToggleChips } from '@/components/common/ToggleChips'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { can } from '@/domain/permissions'
-import { AUDIT_ACTIONS, type AuditAction, type AuditEntry, type Merchant, type Paged } from '@/domain/types'
+import { AUDIT_ACTION_GROUPS, type AuditAction, type AuditEntry, type Merchant, type Paged } from '@/domain/types'
 import { auditCsv, summarizeAudit } from '@/lib/auditFormat'
 import { formatMyt } from '@/lib/format'
-import { AUDIT_ACTION_LABELS } from '@/lib/labels'
+import { AUDIT_ACTION_LABELS, PROJECT_ROLE_LABELS } from '@/lib/labels'
 import { cn } from '@/lib/utils'
 import { auditService } from '@/services/auditService'
 import { isServiceError } from '@/services/errors'
 import { merchantService } from '@/services/merchantService'
 import { userService, type UserSummary } from '@/services/userService'
-import { ALL_MERCHANTS, useSession } from '@/stores/sessionStore'
+import { useSession } from '@/stores/sessionStore'
 import { AUDIT_PAGE_SIZES, EMPTY_AUDIT_FILTERS, parseAuditParams, toAuditQuery, toAuditSearch, type AuditFilters, type AuditParams } from './auditQuery'
 
-const ACTION_OPTIONS = AUDIT_ACTIONS.map((a) => ({ value: a, label: AUDIT_ACTION_LABELS[a] }))
+// REQ: DEC-42 — events grouped as in DECISIONS.md.
+const ACTION_GROUPS = (Object.entries(AUDIT_ACTION_GROUPS) as [string, readonly AuditAction[]][]).map(([group, actions]) => ({ group, options: actions.map((a) => ({ value: a, label: AUDIT_ACTION_LABELS[a] })) }))
 
 const ACTION_TONE: Partial<Record<AuditAction, string>> = {
   SENSITIVE_PII_VIEW: 'bg-slate-100 text-slate-700 dark:bg-slate-500/20 dark:text-slate-200',
@@ -86,10 +87,22 @@ function Filters({ initial, onSearch, onReset, merchants, users, showMerchant }:
           <Input id="a-to" type="date" value={f.to} onChange={(e) => set('to', e.target.value)} aria-invalid={!!error} />
         </div>
       </div>
-      <div>
-        <div className="mb-1 text-xs font-medium text-muted-foreground">Event</div>
-        <ToggleChips label="Event" options={ACTION_OPTIONS} value={f.actions} onChange={(v) => set('actions', v)} />
-      </div>
+      <details open={f.actions.length > 0} className="rounded-md border px-3 py-2">
+        <summary className="cursor-pointer text-xs font-medium text-muted-foreground select-none">Event {f.actions.length ? `(${f.actions.length} selected)` : '(all)'}</summary>
+        <div role="group" aria-label="Event" className="mt-2 space-y-2">
+          {ACTION_GROUPS.map((g) => (
+            <div key={g.group} className="flex flex-wrap items-center gap-2">
+              <span className="w-24 shrink-0 text-xs text-muted-foreground">{g.group}</span>
+              <ToggleChips
+                label={`${g.group} events`}
+                options={g.options}
+                value={f.actions.filter((a) => g.options.some((o) => o.value === a))}
+                onChange={(v) => set('actions', [...f.actions.filter((a) => !g.options.some((o) => o.value === a)), ...v])}
+              />
+            </div>
+          ))}
+        </div>
+      </details>
       <div className="flex flex-wrap items-center justify-end gap-2">
         {error && <p role="alert" className="mr-auto text-sm text-destructive">{error}</p>}
         <Button type="button" variant="outline" onClick={() => { setF(EMPTY_AUDIT_FILTERS); setError(undefined); onReset() }}>
@@ -118,13 +131,15 @@ function DetailsCell({ e }: { e: AuditEntry }) {
   )
 }
 
+// REQ: DEC-42 / DEC-70 — Platform Admin: everything; Merchant Owner: the merchant; Project Admin: their projects.
 export function AuditLogsPage() {
   const actor = useSession((s) => s.actor)
-  const selectedMerchant = useSession((s) => s.merchantId)
+  const { selected, projects, account } = useAccess()
   const [sp, setSp] = useSearchParams()
   const key = sp.toString()
   const params = useMemo(() => parseAuditParams(new URLSearchParams(key)), [key])
-  const scope = can(actor, 'canViewAllMerchants') && selectedMerchant !== ALL_MERCHANTS ? selectedMerchant : undefined
+  const scope = selected?.projectId
+  const isAdmin = account?.level === 'PLATFORM_ADMIN'
   const [retry, setRetry] = useState(0)
   const request = JSON.stringify([key, scope, actor.userId, retry])
   const [result, setResult] = useState<Result>({ request: '' })
@@ -162,6 +177,7 @@ export function AuditLogsPage() {
   const data = loading || error ? lastData : result.data
   const go = (p: AuditParams) => setSp(toAuditSearch(p))
   const merchantName = (id?: string) => (id ? (merchants.find((m) => m.merchantId === id)?.name ?? id) : '—')
+  const projectName = (id?: string) => (id ? (projects.find((p) => p.projectId === id)?.name ?? id) : '—')
   const filtersKey = JSON.stringify(params.filters)
 
   const exportCsv = async () => {
@@ -187,14 +203,14 @@ export function AuditLogsPage() {
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold">Audit Logs</h1>
-          <p className="text-sm text-muted-foreground">Append-only. Every PII view, claim, decision and config change is recorded here; entries can’t be edited or deleted.</p>
+          <p className="text-sm text-muted-foreground">{selected ? `${selected.name} · ` : ''}Append-only. Every personal-data view, claim, decision and settings change is recorded with the actor’s role; entries can’t be edited or deleted.</p>
         </div>
         <Button variant="outline" disabled={exporting || !data?.total} onClick={() => void exportCsv()}>
           <Download aria-hidden /> {exporting ? 'Exporting…' : 'Export CSV'}
         </Button>
       </header>
 
-      <Filters key={filtersKey} initial={params.filters} onSearch={(filters) => go({ filters, page: 1, pageSize: params.pageSize })} onReset={() => go({ filters: EMPTY_AUDIT_FILTERS, page: 1, pageSize: params.pageSize })} merchants={merchants} users={users} showMerchant={can(actor, 'canViewAllMerchants') && !scope} />
+      <Filters key={filtersKey} initial={params.filters} onSearch={(filters) => go({ filters, page: 1, pageSize: params.pageSize })} onReset={() => go({ filters: EMPTY_AUDIT_FILTERS, page: 1, pageSize: params.pageSize })} merchants={merchants} users={users} showMerchant={isAdmin && !scope} />
 
       <section aria-label="Audit entries" className="rounded-lg border bg-card">
         {error && !data ? (
@@ -206,7 +222,7 @@ export function AuditLogsPage() {
             <table className={cn('w-full text-sm', loading && data && 'opacity-60')} aria-busy={loading}>
               <thead className="bg-muted/50 text-left text-xs text-muted-foreground">
                 <tr>
-                  {['Time (MYT)', 'Event', 'Actor', 'Merchant', 'Reference No', 'IP', 'Details'].map((h) => (
+                  {['Time (MYT)', 'Event', 'Actor', 'Project', ...(isAdmin ? ['Merchant'] : []), 'Reference No', 'IP', 'Details'].map((h) => (
                     <th key={h} scope="col" className="px-3 py-2 font-medium whitespace-nowrap">
                       {h}
                     </th>
@@ -217,7 +233,7 @@ export function AuditLogsPage() {
                 {!data &&
                   Array.from({ length: 8 }, (_, i) => (
                     <tr key={i} className="border-t" aria-hidden>
-                      <td colSpan={7} className="px-3 py-3">
+                      <td colSpan={8} className="px-3 py-3">
                         <div className="h-3.5 animate-pulse rounded bg-muted" />
                       </td>
                     </tr>
@@ -238,11 +254,15 @@ export function AuditLogsPage() {
                       ) : (
                         <>
                           {e.actor.fullName}
-                          <div className="text-xs text-muted-foreground">{e.actor.userId}</div>
+                          <div className="text-xs text-muted-foreground">
+                            {e.actor.userId}
+                            {e.actorRole && ` · ${PROJECT_ROLE_LABELS[e.actorRole]}`}
+                          </div>
                         </>
                       )}
                     </td>
-                    <td className="px-3 py-2 whitespace-nowrap">{merchantName(e.merchantId)}</td>
+                    <td className="px-3 py-2 whitespace-nowrap">{projectName(e.projectId)}</td>
+                    {isAdmin && <td className="px-3 py-2 whitespace-nowrap">{merchantName(e.merchantId)}</td>}
                     <td className="px-3 py-2">
                       {e.referenceNo ? (
                         <Link to={`/verifications/${e.referenceNo}`} className="font-mono text-xs whitespace-nowrap text-blue-700 hover:underline dark:text-blue-400">
