@@ -2,7 +2,7 @@
 import { hasRisk } from './registryRules'
 import { DEFAULT_COOLDOWN_MIN, DEFAULT_RISK_MAX_ALLOWED, RETRY_LIMITS } from './openQuestions'
 import { PRESET_LABELS, resolveThreshold } from './thresholds'
-import { CHECKS, type Check, type Flow, type FlowSettings, type Project, type RegistryEntry, type RuleError, type ThresholdChoice } from './types'
+import { CHECKS, type Check, type Flow, type FlowSettings, type Project, type RegistryEntry, type RuleError, type SettingChange, type ThresholdChoice } from './types'
 
 type By = Flow['updatedBy']
 
@@ -93,11 +93,7 @@ export function advancedErrors(base: Pick<FlowSettings, 'checks'>, next: Pick<Fl
   })
 }
 
-export interface FlowChange {
-  field: string
-  from: string
-  to: string
-}
+export type FlowChange = SettingChange
 
 const show = {
   threshold: (c: Check, t: ThresholdChoice) => {

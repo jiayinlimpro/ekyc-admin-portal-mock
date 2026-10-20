@@ -341,3 +341,34 @@ export interface RuleError {
   field: string
   message: string
 }
+
+/** One field's old and new value, worded for History and audit (DEC-42, DEC-50). */
+export interface SettingChange {
+  field: string
+  from: string
+  to: string
+}
+
+// REQ: DEC-51 — every saved revision of an active flow, oldest first. A case's "Rules applied" is its revision's settings.
+export interface FlowRevision {
+  flowId: string
+  revision: number // 1, 2, …
+  savedAt: string
+  savedBy: ClaimHolder | { userId: 'SYSTEM'; fullName: 'SYSTEM' }
+  reason: string // "Reason for change"; the first revision records the activation
+  settings: FlowSettings
+  changes: SettingChange[]
+}
+
+// REQ: DEC-74
+export const USER_STATUSES = ['INVITED', 'ACTIVE', 'DEACTIVATED'] as const
+export type UserStatus = (typeof USER_STATUSES)[number]
+
+/** A portal account under the per-project model. Replaces UserRecord once services move over (Phase 4). */
+export interface UserAccount extends UserAccess {
+  fullName: string
+  email: string
+  status: UserStatus
+  invitedAt: string
+  lastActiveAt?: string
+}

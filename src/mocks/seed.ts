@@ -4,17 +4,18 @@ import { makeAudit } from '@/domain/audit'
 import { applyDecision } from '@/domain/claimRules'
 import { REASON_CODES } from '@/domain/openQuestions'
 import { REASONS } from '@/domain/statusRules'
-import { CAPTURE_PHASES, type ApiCredential, type Attempt, type UserRecord, type AuditEntry, type CapturePhase, type Merchant, type MerchantConfig, type PhaseConfig, type Verification } from '@/domain/types'
+import { CAPTURE_PHASES, type ApiCredential, type Attempt, type UserRecord, type AuditEntry, type CapturePhase, type Flow, type FlowRevision, type Merchant, type MerchantConfig, type PhaseConfig, type Project, type RegistryEntry, type UserAccount, type Verification } from '@/domain/types'
 import { buildVerification, configAt, makeConfigs, refNo, type ConfigRecord } from './builders'
 import { buildEdgeCases } from './fixtures/edgeCases'
 import { MERCHANT_WEIGHTS, MERCHANTS } from './fixtures/merchants'
-import { USERS } from './fixtures/users'
+import { buildCatalog } from './fixtures/catalog'
+import { USERS, buildAccounts } from './fixtures/users'
 import { clientMetadata, fakeIp, person } from './malaysia'
 
 export const SEED = 2026
 export const BACKGROUND_COUNT = 300
 /** Bump when the shape of MockDbState changes: persisted demo data is then re-seeded. */
-export const DB_VERSION = 2
+export const DB_VERSION = 3
 
 export interface MockDbState {
   dbVersion: number
@@ -26,6 +27,12 @@ export interface MockDbState {
   verifications: Verification[]
   audit: AuditEntry[] // append-only, oldest first
   auditSeq: number
+  // Projects & Flows model (DEC-90 …). Read by services from Phase 4; the merchant-level data above stays until then.
+  registry: RegistryEntry[]
+  projects: Project[]
+  flows: Flow[]
+  flowRevisions: FlowRevision[]
+  accounts: UserAccount[]
 }
 
 type Band = 'PASS' | 'REVIEW' | 'REJECT'
@@ -233,5 +240,7 @@ export function seedDatabase(now: Date): MockDbState {
     verifications: [...verifications, ...edge.verifications],
     audit: allAudit,
     auditSeq: allAudit.length,
+    ...buildCatalog(now),
+    accounts: buildAccounts(now),
   }
 }
