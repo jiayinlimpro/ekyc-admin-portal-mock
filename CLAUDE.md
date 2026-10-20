@@ -54,7 +54,7 @@ UAT scenarios: `docs/SCENARIOS.md`.
 ```
 src/domain/     types, openQuestions, statusRules, claimRules, permissions, configRules, audit, analytics, billing (+ tests)
 src/mocks/      malaysia.ts, builders.ts, seed.ts, mockDb.ts, fixtures/ (merchants, users, edgeCases)
-src/services/   verification, config, audit, merchant, user, uam, developer, analytics, liveUpdates, devService
+src/services/   verification, project, flow, config, audit, merchant, user, uam, developer, analytics, liveUpdates, devService
                 (dev-only), claimSweep, network (latency/errors), errors (ServiceError + HTTP status map),
                 accessGuard (the account behind the session decides access, never the session's role)
 src/stores/     sessionStore (current actor, merchant; sessionStorage = per tab), devFlagsStore (latency, errors, time warp)

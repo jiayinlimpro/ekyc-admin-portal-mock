@@ -12,6 +12,7 @@ import { now } from '@/lib/clock'
 import { db } from '@/mocks/mockDb'
 import { mayInProject, projectById, projectIdsWhere, requireActive, roleIn } from './accessGuard'
 import { sweepExpiredClaims } from './claimSweep'
+import { settleRetiringFlow } from './flowService'
 import { ServiceError } from './errors'
 import { clientIpFor, simulateNetwork, wire } from './network'
 
@@ -176,6 +177,7 @@ export const mockVerificationService: VerificationService = {
     const label = reasonLabel(d.reasonCode) ?? d.reasonCode
     const updated = db.updateVerification(ref, (x) => applyDecision(x, actor, d, label, at))
     audit(actor, d.outcome === 'APPROVE' ? 'CASE_DECISION_APPROVED' : 'CASE_DECISION_REJECTED', updated, at, { ...d, fromStatus: v.status, toStatus: updated.status, fromReason: v.statusReason })
+    settleRetiringFlow(v.flowId, at) // REQ: DEC-94 — a Retiring flow goes Inactive with its last in-flight case
     return toDetail(updated)
   },
 }

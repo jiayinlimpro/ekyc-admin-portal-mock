@@ -271,6 +271,8 @@ These keep the mock runnable. They are not signed-off requirements; change them 
 - **MOCK-10** **(changed)** Flow Detail's what-if preview re-runs the status rules over the flow's finished sessions. It is
   read-only and never changes decided records.
 - **MOCK-11** **(new)** Login, portal login security and webhook delivery are simulated; no real auth or HTTP calls.
+- **MOCK-12** **(new)** A new project (DEC-93) starts with one Draft flow, "Default flow", on the registry's default version
+  (DEC-57) as its default flow. The project takes sessions once that flow is completed and activated.
 
 ## Superseded (kept so old `REQ:` tags can be traced)
 | Old rule | Was | Now |
