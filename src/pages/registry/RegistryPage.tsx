@@ -17,7 +17,7 @@ import { cn } from '@/lib/utils'
 import { isServiceError } from '@/services/errors'
 import { registryService, type RegistryRow } from '@/services/registryService'
 import { useSession } from '@/stores/sessionStore'
-import { FLOW_STATUS_LABELS } from '../flows/FlowsListPage'
+import { FLOW_STATUS_LABELS } from '@/lib/labels'
 
 const PHASE_TEXT: Record<OnboardingPhase, string> = { ID_CAPTURE: 'ID Capture', SELFIE_CAPTURE: 'Selfie Capture', LIVENESS_CHECK: 'Liveness Check', RISK_ASSESSMENT: 'Risk Assessment' }
 const METHOD_TEXT: Record<FaceMatchMethod, string> = { ID_VS_SELFIE: 'ID vs selfie', ID_VS_LIVENESS: 'ID vs liveness face' }

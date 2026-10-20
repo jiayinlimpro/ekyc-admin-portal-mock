@@ -1,4 +1,4 @@
-// Per-project access (DEC-70, DEC-72, DEC-75, DEC-86). Replaces the two-role permissions.ts once services move over (Phase 4).
+// Per-project access (DEC-70, DEC-72, DEC-75, DEC-86): five working roles, checked per project.
 // REQ: DEC-71 — UI-only checks. The real backend must enforce the same table.
 import { POLICY, type Policy } from './openQuestions'
 import type { EffectiveRole, Project, UserAccess } from './types'

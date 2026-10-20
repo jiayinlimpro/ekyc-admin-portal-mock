@@ -72,7 +72,7 @@ export function IdCaptureSection({ v }: { v: VerificationDetail }) {
         </figure>
         <Fields
           items={[
-            ['Result', reached ? <span className="font-medium text-green-700 dark:text-green-400">Passed</span> : <span className="text-muted-foreground">Not completed yet</span>],
+            ['Result', reached ? <span key="r" className="font-medium text-green-700 dark:text-green-400">Passed</span> : <span key="r" className="text-muted-foreground">Not completed yet</span>],
             ['Soft rejects', `${v.idCaptureSoftRejects} retake(s) · free, not counted as retries`],
           ]}
         />
@@ -92,7 +92,7 @@ export function SelfieSection({ v }: { v: VerificationDetail }) {
           <img src={v.images.selfie} alt="Selfie (sample image, not real)" className="w-full rounded-md border" />
           <figcaption className="mt-1 text-xs text-muted-foreground">Selfie</figcaption>
         </figure>
-        <Fields items={[['Result', taken ? <span className="font-medium text-green-700 dark:text-green-400">Captured</span> : <span className="text-muted-foreground">Not captured yet</span>]]} />
+        <Fields items={[['Result', taken ? <span key="r" className="font-medium text-green-700 dark:text-green-400">Captured</span> : <span key="r" className="text-muted-foreground">Not captured yet</span>]]} />
       </div>
     </Section>
   )
@@ -112,7 +112,7 @@ export function RiskSection({ v }: { v: VerificationDetail }) {
           items={[
             ['Overall', <span key="o" className="flex items-center gap-2"><RiskBadge level={v.riskLevel} /><span className="tabular-nums">{v.riskScore} / 100</span></span>],
             ['Maximum allowed', max ? <RiskBadge key="m" level={max} /> : '—'],
-            ['Result', passes ? <span className="font-medium text-green-700 dark:text-green-400">Pass</span> : <span className="font-medium text-amber-700 dark:text-amber-300">Not passed · sent to review</span>],
+            ['Result', passes ? <span key="r" className="font-medium text-green-700 dark:text-green-400">Pass</span> : <span key="r" className="font-medium text-amber-700 dark:text-amber-300">Not passed · sent to review</span>],
             ['Components', <span key="c" className="flex flex-wrap items-center gap-2 text-muted-foreground">Component scores and reason codes not defined yet <OpenQuestionTag id="OQ-25" /></span>],
           ]}
         />

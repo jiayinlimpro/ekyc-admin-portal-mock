@@ -272,7 +272,16 @@ These keep the mock runnable. They are not signed-off requirements; change them 
   read-only and never changes decided records.
 - **MOCK-11** **(new)** Login, portal login security and webhook delivery are simulated; no real auth or HTTP calls.
 - **MOCK-12** **(new)** A new project (DEC-93) starts with one Draft flow, "Default flow", on the registry's default version
-  (DEC-57) as its default flow. The project takes sessions once that flow is completed and activated.
+  (DEC-57) as its default flow. The project takes sessions once that flow is completed and activated. A new merchant
+  (DEC-92) gets the same, plus its first user as an Invited Merchant Owner.
+- **MOCK-13** **(new)** Calls made where the decisions are silent [Claude, 2026-10-20]:
+  - Project Settings › General and Review operations are edited by the roles that manage flows (Platform Admin, Merchant
+    Owner, the project's Project Admin); Integration stays merchant-only (DEC-75).
+  - Flows List / Flow Detail: members without the manage-flows right get "No access"; outside the project, "not found".
+  - Users and Access: nobody changes their own access; Merchant Owners are not changed there; only Platform Admin or the
+    Merchant Owner deactivates (account-wide). Becoming Viewer also releases the user's claims in that project.
+  - Dashboards count sessions by `createdAt`; pass rate = Approved / (Approved + Rejected); drop-off = sessions still
+    Processing, by the last phase reached.
 
 ## Superseded (kept so old `REQ:` tags can be traced)
 | Old rule | Was | Now |

@@ -1,4 +1,6 @@
-import type { AccessLevel, AttemptOutcome, AuditAction, DocumentType, EffectiveRole, RiskLevel, VerificationStatus } from '@/domain/types'
+import type { AccessLevel, AttemptOutcome, AuditAction, DocumentType, EffectiveRole, FlowStatus, RiskLevel, VerificationStatus } from '@/domain/types'
+
+export const FLOW_STATUS_LABELS: Record<FlowStatus, string> = { DRAFT: 'Draft', ACTIVE: 'Active', RETIRING: 'Retiring', INACTIVE: 'Inactive' }
 
 // REQ: DEC-70 — the five working roles (names are OQ-09).
 export const PROJECT_ROLE_LABELS: Record<EffectiveRole, string> = {

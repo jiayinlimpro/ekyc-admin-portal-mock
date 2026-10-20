@@ -22,7 +22,7 @@ npm run dev          # http://localhost:5173
 | Command | What it does |
 |---|---|
 | `npm run dev` | Start the app with hot reload |
-| `npm test` | Vitest: business rules, mock data, services and screens (230 tests) |
+| `npm test` | Vitest: business rules, mock data, services and screens |
 | `npm run e2e` | Playwright: two-reviewer claim race and the reviewer flow. Uses installed Microsoft Edge; elsewhere run `npx playwright install chromium` and set `PW_CHANNEL=chromium` |
 | `npm run typecheck` | TypeScript check |
 | `npm run build` | Production build into `dist/` |
@@ -35,12 +35,18 @@ If `npm` scripts are blocked in PowerShell: `Set-ExecutionPolicy -Scope CurrentU
 **Who you are.** There is no real login. Open `/login` and pick a user, use **Dev → Switch user**, or add
 `?as=USR-2026-0031` to any link.
 
-| User | Role | Merchant |
+| User | Access | Merchant |
 |---|---|---|
-| Lim Wei Jie (USR-2026-0001) | Platform Admin | all merchants |
-| Ali Bin Ahmad (USR-2026-0012) | Merchant Reviewer | Atoz Software Tech (V4) |
-| Siti Aminah Binti Yusof (USR-2026-0031) | Merchant Reviewer | Atoz Software Tech (V4) |
-| Kavitha A/P Subramaniam (USR-2026-0044) | Merchant Reviewer | Vantage (V1) |
+| Lim Wei Jie (USR-2026-0001) | Platform Admin: all merchants; no case access by default (OQ-20) | — |
+| Tan Mei Ling (USR-2026-0002) | Merchant Owner: every project | Atoz Software Tech |
+| Ali Bin Ahmad (USR-2026-0012) | Reviewer in Default, Viewer in SME app | Atoz Software Tech |
+| Siti Aminah Binti Yusof (USR-2026-0031) | Reviewer in Default | Atoz Software Tech |
+| Hafiz Bin Rahman (USR-2026-0020) | Project Admin of SME app | Atoz Software Tech |
+| Nurul Huda Binti Kamaruddin (USR-2026-0033) | Reviewer in SME app | Atoz Software Tech |
+| Kavitha A/P Subramaniam (USR-2026-0044) | Reviewer in Default | Vantage |
+
+Access is **per project** (DEC-70): the header's project switcher picks one project or "All my projects", and the menu
+follows your role in it.
 
 **The Dev menu** (top right, amber) is mock-only:
 - **Switch user.**
@@ -49,7 +55,7 @@ If `npm` scripts are blocked in PowerShell: `Set-ExecutionPolicy -Scope CurrentU
 - **Skip UI claim checks:** lets a save reach the service's ownership check (S08).
 - **Reset demo data:** run this before every UAT session. Claim timers count from when the data was seeded.
 
-**Scenarios.** Dev menu → "UAT scenarios & data coverage" lists S01–S15 with "Open as" links that sign in as the right user. To show the two-reviewer race
+**Scenarios.** Dev menu → "UAT scenarios & data coverage" lists S01–S20 with "Open as" links that sign in as the right user. To show the two-reviewer race
 (S10), open the same record in two tabs of the same browser, one with `?as=USR-2026-0012` and one with
 `?as=USR-2026-0031`, then click **Assign to me** in both.
 
@@ -57,11 +63,14 @@ If `npm` scripts are blocked in PowerShell: `Set-ExecutionPolicy -Scope CurrentU
 
 | Screen | What it demonstrates |
 |---|---|
-| Verifications | 4 statuses only; Claimed By with a live countdown; no PII beyond name; filters in the URL |
-| Verification detail | Claim bar, decision overlay (claim owner only), unmasked PII (every open is audited), results by phase, V4 risk panel |
-| eKYC Workflow | Settings **per phase**; baseline vs staging canvas; draft → deploy; what-if preview |
-| Audit Logs | Every PII view, claim, timeout, decision, conflict, config change and key rotation |
-| Overview / System Intelligence / Billing | 3 KPIs, Auto-Clear, retries (user retakes only), threshold lines, every verification charged |
+| Overview / System Intelligence / Billing | Every role, data scoped; by project, flow and version; retry KPIs and drop-off; tokens per liveness submission |
+| Verifications | Pending Review in your projects, oldest first; project / flow / claim-state filters; no PII beyond name |
+| Verification detail | Claim bar, Reject with catalogue reasons, rules applied (revision), checks with retries, activity timeline |
+| Projects / Project Settings | Create, rename, archive; branding, API keys (shown once), webhook, claim timeout, read-only routing |
+| Flows / Flow Detail | Low / Standard / High with a 0–100 band bar, Advanced for Platform Admin, retries 1–5, what-if, revisions |
+| Users and Access | Invite, one role per project, remove access (releases claims), deactivate; the fixed role table |
+| Audit Log | DEC-42 events with project and actor role |
+| Merchants / Workflow Registry | Platform Admin only: new merchant = Default project + owner; versions and flows using them |
 
 Values tagged **OPEN QUESTION** are placeholders, not signed-off requirements.
 
@@ -70,7 +79,7 @@ Values tagged **OPEN QUESTION** are placeholders, not signed-off requirements.
 React 19 + TypeScript (strict) + Vite + Tailwind v4 + shadcn/ui (Base UI) + React Router + Zustand + Recharts.
 
 ```
-src/domain/     Pure business rules (no React, no clock): statusRules, claimRules, configRules, permissions, analytics, billing
+src/domain/     Pure business rules (no React, no clock): access, checkRules, claimRules, flowSettings, flowRules, dashboards …
 src/services/   API-shaped async functions: the only way screens reach data
 src/mocks/      Seeded Malaysian fake data (deterministic), the in-memory DB (persisted to localStorage)
 src/pages/      Screens              src/components/  Shared UI, layout, charts

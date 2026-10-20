@@ -146,7 +146,7 @@ export const NAV_ITEMS: NavItem[] = [
     access: { project: 'viewAudit' },
     priority: 'P1',
     built: true,
-    notes: ['Events: DEC-42 names (cases, flows, projects, integration, users, registry, merchants), with the actor role and project; CONFIG_* remain for the legacy eKYC Workflow screen.'],
+    notes: ['Events: DEC-42 names (cases, flows, projects, integration, users, registry, merchants), with the actor role and project.'],
   },
   {
     path: '/billing',

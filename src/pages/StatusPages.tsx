@@ -6,7 +6,7 @@ function Message({ title, children }: { title: string; children: React.ReactNode
       <h1 className="text-2xl font-semibold">{title}</h1>
       <div className="text-sm text-muted-foreground">{children}</div>
       <Link to="/" className="inline-block text-sm text-blue-700 underline-offset-2 hover:underline dark:text-blue-400">
-        Back to Home
+        Back to Overview
       </Link>
     </div>
   )

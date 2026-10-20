@@ -15,13 +15,13 @@ import { revisionLabel } from '@/domain/flowRules'
 import type { FlowStatus } from '@/domain/types'
 import { errorMessage, useLoad } from '@/hooks/useLoad'
 import { formatMyt } from '@/lib/format'
+import { FLOW_STATUS_LABELS } from '@/lib/labels'
 import { cn } from '@/lib/utils'
 import { flowService, type FlowRow } from '@/services/flowService'
 import type { MyProject } from '@/services/projectService'
 import { registryService } from '@/services/registryService'
 import { useSession } from '@/stores/sessionStore'
 
-export const FLOW_STATUS_LABELS: Record<FlowStatus, string> = { DRAFT: 'Draft', ACTIVE: 'Active', RETIRING: 'Retiring', INACTIVE: 'Inactive' }
 const STATUS_TONE: Record<FlowStatus, string> = {
   DRAFT: 'bg-slate-100 text-slate-700 dark:bg-slate-500/20 dark:text-slate-200',
   ACTIVE: 'bg-green-100 text-green-800 dark:bg-green-500/20 dark:text-green-200',

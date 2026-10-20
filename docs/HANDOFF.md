@@ -4,8 +4,9 @@ What the mock gives engineering, and what the real backend must do that a mock c
 
 ## 1. Draft contract
 
-- **Types:** `src/domain/types.ts`. Verification, VerificationSummary (list: no PII), VerificationDetail, MerchantConfig
-  (per phase), AuditEntry, Decision, Paged. Treat it as a first draft of the API/DB schema (convert to OpenAPI).
+- **Types:** `src/domain/types.ts`. Merchant → Project → Flow (FlowSettings, FlowRevision) → Verification
+  (VerificationSummary for lists: no PII; VerificationDetail), UserAccount (level + one role per project), RegistryEntry,
+  ProjectApiKey, ProjectWebhook, AuditEntry, Decision, Paged. Treat it as a first draft of the API/DB schema.
 - **Endpoints:** each file in `src/services/` starts with the REST shape it stands in for. Error codes map to HTTP
   status in `src/services/errors.ts`.
 
@@ -16,24 +17,28 @@ What the mock gives engineering, and what the real backend must do that a mock c
 | | `POST /verifications/{ref}/claim` | 409 `ALREADY_CLAIMED` / `NOT_CLAIMABLE`; claim is not a status (DEC-20) |
 | | `DELETE /verifications/{ref}/claim` | Owner only; 409 `NOT_CLAIM_OWNER`; no supervisor release (DEC-23) |
 | | `POST /verifications/{ref}/decision` | Re-checks ownership at save; 409 `OWNERSHIP_CONFLICT`, audited `CASE_DECISION_BLOCKED` (DEC-24); 422 for a Reject without a catalogue reason (DEC-31); Approve needs no reason; the note is optional |
-| Config | `GET/PUT/DELETE /merchants/{id}/config/draft`, `POST …/deploy`, `GET …/versions` | Per phase (DEC-50); deploy bumps minor version and applies to new sessions only (DEC-52) |
-| | `POST /merchants/{id}/config/preview` | What-if on finished sessions, read-only |
-| Audit | `GET /audit?…` | Append-only; scoped to own merchant for reviewers |
-| Analytics | `GET /analytics/overview`, `GET /analytics/intelligence`, `GET /billing` | Aggregate server-side |
-| UAM | `/merchants`, `/users` | 2 roles (DEC-70); UAM auditing is OQ-16 |
-| Credentials | `GET/POST /merchants/{id}/credentials[/reveal|/rotate]` | Rotation audited as `API_KEY_ROTATED` |
+| Projects | `GET /projects/mine`, `GET /projects`, `POST /merchants/{id}/projects`, `PATCH /projects/{id}`, `POST …/archive` | Per-project roles; "not found" outside the user's projects (DEC-72) |
+| | `PATCH /projects/{id}/general`, `PATCH …/review-ops` | Branding, language; claim timeout >= 1 min (DEC-53, DEC-54) |
+| Integration | `GET /projects/{id}/integration`, `POST …/api-keys`, `POST /api-keys/{id}/rotate`, `DELETE /api-keys/{id}`, `PUT …/webhook`, `PUT …/access-lists` | Merchant-only (DEC-75); secrets returned once, only a hint stored |
+| Flows | `GET /projects/{id}/flows`, `GET /flows/{id}`, `POST …/flows`, `PUT /flows/{id}`, `POST /flows/{id}/activate | retire | default | duplicate | preview` | Saving an Active flow needs a reason and creates `<Version>-R<n>` for new sessions only (DEC-51, DEC-52) |
+| Registry | `GET /registry`, `GET /registry/selectable`, `POST /registry`, `PUT /registry/{code}`, `POST …/status`, `POST …/default`, `GET …/flows` | Platform Admin; only Active versions selectable (DEC-56, DEC-57) |
+| Users and Access | `GET /merchants/{id}/users`, `POST …/users`, `PUT /users/{id}/projects/{p}`, `DELETE …`, `POST /users/{id}/deactivate` | One role per project; removal releases claims (DEC-74) |
+| Merchants | `GET/POST /merchants`, `PATCH/DELETE /merchants/{id}` | Platform Admin; a new merchant gets a Default project, default flow and owner (DEC-92) |
+| Audit | `GET /audit?…` | Append-only; Platform Admin all, Merchant Owner the merchant, Project Admin own projects (DEC-70) |
+| Analytics | `GET /analytics/filters`, `/analytics/overview`, `/analytics/intelligence`, `GET /billing` | Every role, data scoped (DEC-86); tokens per liveness submission (DEC-60) |
 
 ## 2. Executable business rules
 
 `src/domain/*Rules.ts` plus their Vitest files are the rules as code. The backend must **re-implement them
 server-side**. The tests (Given/When/Then names) are a shared spec; port or mirror them.
 
-- `statusRules.ts`: per-phase thresholds, phase combination (OQ-01), V4 risk gate, attempt limit.
-- `claimRules.ts`: claim, cancel, expiry, overlay enablement, save-time ownership check.
-- `configRules.ts`: validation, diff, version bump, what-if.
-- `permissions.ts`: role → permission flags.
-- `analytics.ts`, `billing.ts`: KPI definitions (Auto-Clear = SYSTEM approvals; Retry KPI = user retakes only; every
-  verification charged).
+- `access.ts`: the DEC-70 role table per project; `roleInProject`, `canInProject`.
+- `checkRules.ts`: per-check thresholds, retries, the last attempt decides (DEC-15, DEC-16), V4 risk gate.
+- `claimRules.ts`: claim, cancel, expiry, overlay enablement, save-time ownership check, decisions (DEC-31).
+- `flowSettings.ts`, `flowRules.ts`, `thresholds.ts`: presets / Advanced, validation, revisions, lifecycle, cooldown.
+- `registryRules.ts`, `projectSettings.ts`, `conditions.ts`: registry lifecycle, settings validation, reason catalogue.
+- `dashboards.ts`: KPI definitions (Auto-Clear = SYSTEM approvals; retries = face match + liveness only; tokens =
+  liveness submissions).
 
 ## 3. What the mock cannot prove — backend must do
 
@@ -41,11 +46,11 @@ server-side**. The tests (Given/When/Then names) are a shared spec; port or mirr
 |---|---|---|
 | Claim concurrency | Tabs share data through localStorage; last writer wins, so two tabs can briefly both "win" | Atomic conditional write (e.g. `UPDATE … WHERE claimed_by IS NULL OR claim_expires_at < now()`), one winner, 409 for the other |
 | Claim expiry | Swept lazily on each call | Server time is authoritative; the client countdown is display only |
-| Permissions | UI hides actions; services check `can()` | Enforce on every endpoint; merchant scoping in queries |
+| Permissions | UI hides actions; services check the account's project roles (`accessGuard`) | Enforce on every endpoint; project scoping in queries |
 | PII view logging | Written by the mock service | Server writes `SENSITIVE_PII_VIEW` itself; audit store is immutable |
 | Session | Pick a user; sessionStorage | Real authentication; `Secure; HttpOnly; SameSite` cookie |
 | Secrets | Fake `sk_mock_…` in the bundle | Secrets never reach the browser except a one-time reveal after step-up auth |
-| Config "new sessions only" | Each record stores `configVersion` | Same: evaluate with the version active when the session started |
+| Settings "new sessions only" | Each case stores its flow and `configRevision` | Same: evaluate with the revision active when the session started |
 
 ## 4. Also hand over
 

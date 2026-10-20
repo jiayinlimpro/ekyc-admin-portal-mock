@@ -1,4 +1,4 @@
-// User directory API (mock), read-only part used by filters. Users and Access CRUD comes with its screen (Phase 11).
+// User directory API (mock), read-only: the signed-in account and the names used by filters. Managing access: accessAdminService.
 //   GET /me                            → 200 UserAccount (the signed-in user's level and project roles)
 //   GET /users                         → 200 UserSummary[]
 //   GET /users?canClaim=true&project=… → 200 UserSummary[]

@@ -52,29 +52,32 @@ UAT scenarios: `docs/SCENARIOS.md`.
 
 ## Layout
 ```
-src/domain/     types, openQuestions, statusRules, claimRules, permissions, configRules, audit, analytics, billing (+ tests)
-src/mocks/      malaysia.ts, builders.ts, seed.ts, mockDb.ts, fixtures/ (merchants, users, edgeCases)
-src/services/   verification, project, flow, registry, config, audit, merchant, user, uam, developer, analytics, liveUpdates, devService
-                (dev-only), claimSweep, network (latency/errors), errors (ServiceError + HTTP status map),
-                accessGuard (the account behind the session decides access, never the session's role)
-src/stores/     sessionStore (current actor, merchant; sessionStorage = per tab), devFlagsStore (latency, errors, time warp)
+src/domain/     types, openQuestions, access (5 roles per project), checkRules (status), claimRules, conditions,
+                thresholds, flowSettings, flowRules, flowImpact (what-if), registryRules, projectSettings, dashboards, audit
+src/mocks/      malaysia.ts, builders.ts, seed.ts, mockDb.ts, fixtures/ (catalog: registry/projects/flows, merchants,
+                users: accounts, edgeCases: S01–S20)
+src/services/   verification, project, flow, registry, integration, accessAdmin (Users and Access), merchantAdmin,
+                merchant, user, audit, analytics, liveUpdates, devService (dev-only), claimSweep, network
+                (latency/errors), errors (ServiceError + HTTP status map), accessGuard (the account behind the session
+                decides access; the session is only who you are)
+src/app/        nav.ts (menu + access rule per screen), routes.tsx, access.tsx (account, my projects, selected project)
+src/stores/     sessionStore (current actor + selected project; sessionStorage = per tab), devFlagsStore (latency, errors,
+                time warp)
 src/lib/        clock.ts, utils.ts (shadcn)
 src/test/       factories.ts (unit-test builders, independent of src/mocks)
 docs/           DECISIONS.md, OPEN_QUESTIONS.md, SCENARIOS.md
 ```
 
 ## Build status
-- **All screens built** (P0–P3): Verifications List + Detail (claim, decision), eKYC Workflow (per phase, draft →
-  deploy, what-if), Audit Logs, Merchant Workflow Directory, Overview, System Intelligence, Billing, Merchants, Roles,
-  Users, Developers, mock Login. No Home page: `/` opens Overview; UAT scenario links and data coverage are
-  on the mock-only `/uat` page (Dev menu).
+- **Projects & Flows restructure done** (DEC-85 screens): Overview, System Intelligence, Billing (every role, scoped),
+  Verifications List + Detail, Projects, Project Settings (General, Integration, Review operations, Routing), Flows List,
+  Flow Detail (presets, band bar, retries, Advanced for Platform Admin, what-if, history), Users and Access, Audit Log;
+  Platform Admin: Merchants, Workflow Registry. Header: project switcher + role in the current project. Mock Login.
+  No Home page: `/` opens Overview; UAT scenario links and data coverage are on the mock-only `/uat` page (Dev menu).
+- Retired (DEC-85): eKYC Workflow, Developers, legacy Users / Roles, Merchant Workflow Directory, the merchant-level
+  config and the two-role model.
 - Tests: Vitest (`npm test`) for rules, data, services and screens; Playwright (`npm run e2e`) for the claim race and the
   reviewer flow.
-- **In progress: Projects & Flows restructure.** The decision docs are updated (Phase 0); the code still follows the old
-  merchant-level model and 2 roles until each phase lands: domain → mock data → services → global header → Verifications
-  → Projects → Project Settings → Flows List → Flow Detail → Users and Access → Overview / System Intelligence /
-  Billing (project and flow data) and Audit Log → Workflow Registry
-  → retire replaced screens.
 - Next work comes from answered OPEN QUESTIONS (update `docs/DECISIONS.md` first) and stakeholder feedback.
 
 ## UI conventions
@@ -83,8 +86,10 @@ docs/           DECISIONS.md, OPEN_QUESTIONS.md, SCENARIOS.md
 - shadcn here is the **base-nova** style on Base UI (not Radix): use the `render` prop instead of `asChild`, e.g.
   `<DropdownMenuTrigger render={<Button />} />`; `DropdownMenuLabel` must sit inside `DropdownMenuGroup`.
   Add components with `npx shadcn@latest add <name>`.
-- Pages fetch through services in effects keyed on `actor` (switching user must refetch). Use `useNow()` for anything
-  time-based (claim countdowns) so the time warp applies.
+- Pages fetch through services with `useLoad` keyed on the actor (switching user must refetch). Use `useNow()` for
+  anything time-based (claim countdowns) so the time warp applies.
+- Every screen declares an access rule in `nav.ts` (project or platform action from `src/domain/access.ts`); the menu and
+  `Guarded` use it, and the service checks again. Settings pages work on the header's project (`RequireProject`).
 - List filters live in the URL (see `src/pages/verifications/listQuery.ts`); apply on Search, not per keystroke.
   Forms with custom validation use `noValidate` so our message shows instead of the browser tooltip.
 - Shared UI: `components/common/` (StatusBadge, RiskBadge, NativeSelect, ToggleChips, Pagination, States, Switch,

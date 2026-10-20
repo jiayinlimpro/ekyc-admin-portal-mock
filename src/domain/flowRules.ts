@@ -1,4 +1,4 @@
-// Project and flow lifecycle (DEC-26, DEC-51, DEC-92 … DEC-94). Settings validation and threshold presets: Phase 2b.
+// Project and flow lifecycle (DEC-26, DEC-51, DEC-92 … DEC-94). Settings validation and presets: flowSettings.ts.
 import type { Flow, Project, RegistryEntry, RuleError, VerificationStatus } from './types'
 
 type By = Flow['updatedBy']
@@ -36,7 +36,7 @@ export function versionLocked(flow: Pick<Flow, 'revision'>): boolean {
   return flow.revision > 0
 }
 
-/** Settings validity (Phase 2b) is checked separately by the service before activating. */
+/** Settings validity (flowSettings.validateFlow) is checked separately by the service before activating. */
 export function activateError(
   flow: Pick<Flow, 'status'>,
   project: Pick<Project, 'status'>,

@@ -17,7 +17,7 @@ Each question is a **parameter**, not a fact. The mock uses the default below. I
 | OQ-11 | Does a claim end when the reviewer logs out or closes the tab? | No: only Release, timeout, decision or removal from the project | `claimRules.ts` |
 | OQ-12 | Can a reviewer re-claim straight after their own claim times out? | Yes | `claimRules.ts` |
 | OQ-13 | What does the page show if the claim expires while the reviewer is typing? | Buttons disable; save fails with "This case is no longer assigned to you"; typed text is kept | Detail page |
-| OQ-14 | Price per token (by contract tier) | RM 0.50 per liveness submission | `PRICING` |
+| OQ-14 | Price per token (by contract tier) | RM 0.50 per liveness submission | `TOKEN_PRICE` |
 | OQ-17 | Is Reference ID unique per merchant or per project? (MS OQ-1) | Per project; the Project column makes duplicates across projects clear | Project setting (shown read-only) |
 | OQ-18 | Are routing rules and percentage splits set only through the API, or also edited in the portal? (MS OQ-2) | API only; portal shows them read-only | Project Settings › Routing |
 | OQ-19 | Default session expiry and accepted documents for a new flow (MS OQ-4) | Required fields with no default on a new flow; seeded flows use 30 min and MyKad + Passport | Flow Detail |
