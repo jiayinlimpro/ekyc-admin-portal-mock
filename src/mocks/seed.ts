@@ -6,7 +6,7 @@ import { RISK_NOT_PASSED } from '@/domain/checkRules'
 import { applyDecision } from '@/domain/claimRules'
 import { CONDITIONS, REJECT_REASONS } from '@/domain/conditions'
 import { resolveThreshold, type Thresholds } from '@/domain/thresholds'
-import type { Actor, ApiCredential, AuditEntry, Check, Decision, Flow, FlowRevision, Merchant, Project, RegistryEntry, UserAccount, UserRecord, Verification } from '@/domain/types'
+import type { Actor, ApiCredential, AuditEntry, Check, Decision, Flow, ProjectApiKey, ProjectWebhook, FlowRevision, Merchant, Project, RegistryEntry, UserAccount, UserRecord, Verification } from '@/domain/types'
 import { buildCase, makeConfigs, refNo, type ConfigRecord } from './builders'
 import { buildCatalog, revisionAt } from './fixtures/catalog'
 import { buildEdgeCases } from './fixtures/edgeCases'
@@ -17,7 +17,7 @@ import { clientMetadata, fakeIp, person } from './malaysia'
 export const SEED = 2026
 export const BACKGROUND_COUNT = 300
 /** Bump when the shape of MockDbState changes: persisted demo data is then re-seeded. */
-export const DB_VERSION = 6
+export const DB_VERSION = 7
 
 export interface MockDbState {
   dbVersion: number
@@ -35,6 +35,9 @@ export interface MockDbState {
   flows: Flow[]
   flowRevisions: FlowRevision[]
   accounts: UserAccount[]
+  // REQ: DEC-54 — per-project integration (replaces the merchant-level apiKeys above with Project Settings › Integration).
+  projectKeys: ProjectApiKey[]
+  webhooks: ProjectWebhook[]
 }
 
 type Profile = 'CLEAN' | 'RETAKE_THEN_CLEAN' | 'REVIEW' | 'REJECT' | 'ABANDONED' | 'RETRYING'
@@ -246,5 +249,17 @@ export function seedDatabase(now: Date): MockDbState {
     auditSeq: allAudit.length,
     ...catalog,
     accounts,
+    // One production key per project (mock hints only, never real secrets); Atoz Default also has a webhook.
+    projectKeys: catalog.projects.map((p) => ({
+      keyId: `key_mock_${p.projectId.toLowerCase()}_01`,
+      projectId: p.projectId,
+      name: 'Production',
+      secretHint: `sk_mock_…${f.string.hexadecimal({ length: 4, casing: 'lower', prefix: '' })}`,
+      status: 'ACTIVE' as const,
+      createdAt: p.createdAt,
+      createdBy: p.createdBy,
+      lastUsedAt: p.status === 'ACTIVE' ? new Date(now.getTime() - f.number.int({ min: 5, max: 600 }) * MIN).toISOString() : undefined,
+    })),
+    webhooks: [{ projectId: 'PRJ-0001', url: 'https://hooks.atoz.example/ekyc', events: ['verification.status_changed'], secretHint: 'whsec_mock_…a1b2', updatedAt: new Date(now.getTime() - 30 * DAY).toISOString(), updatedBy: 'Tan Mei Ling' }],
   }
 }
