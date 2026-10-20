@@ -21,7 +21,8 @@ export const PHASE_LABELS: Record<Phase, string> = {
   RISK_ASSESSMENT: 'Risk Assessment',
 }
 
-export const WORKFLOW_VERSIONS = ['V1', 'V2', 'V3', 'V4'] as const
+// REQ: DEC-58 — known registry codes (no V2). Version-dependent behaviour comes from the registry entry, not this list.
+export const WORKFLOW_VERSIONS = ['V1', 'V3', 'V4', 'V5'] as const
 export type WorkflowVersion = (typeof WORKFLOW_VERSIONS)[number]
 
 export const RISK_LEVELS = ['LOW', 'MEDIUM', 'HIGH'] as const
@@ -217,4 +218,126 @@ export interface ApiCredential {
   secret: string
   createdAt: string
   createdBy: string // fullName, or SYSTEM
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+// Projects & Flows (DEC-90 … DEC-96). Added alongside the merchant-level model above; services move over in Phase 4.
+// ---------------------------------------------------------------------------------------------------------------------
+
+/** Registry code, e.g. "V4". A string because Platform Admin can register new codes (DEC-56). */
+export type WorkflowCode = string
+
+// REQ: DEC-10 — the only checks with configurable thresholds.
+export const CHECKS = ['FACE_MATCH', 'LIVENESS'] as const
+export type Check = (typeof CHECKS)[number]
+
+export const PROJECT_STATUSES = ['ACTIVE', 'ARCHIVED'] as const
+export type ProjectStatus = (typeof PROJECT_STATUSES)[number]
+
+export interface Project {
+  projectId: string // PRJ-0001
+  merchantId: string
+  name: string
+  status: ProjectStatus
+  isDefault: boolean // the merchant's Default project (DEC-92)
+  defaultFlowId: string // exactly one default flow per project (DEC-94)
+  claimTimeoutMin: number // REQ: DEC-22 — OQ-04
+  createdAt: string
+  createdBy: string // fullName, or SYSTEM
+}
+
+// REQ: DEC-94
+export const FLOW_STATUSES = ['DRAFT', 'ACTIVE', 'RETIRING', 'INACTIVE'] as const
+export type FlowStatus = (typeof FLOW_STATUSES)[number]
+
+// REQ: DEC-19 — a preset, or custom values set by Platform Admin.
+export const THRESHOLD_PRESETS_ORDER = ['LOW', 'STANDARD', 'HIGH'] as const
+export type ThresholdPreset = (typeof THRESHOLD_PRESETS_ORDER)[number]
+export type ThresholdChoice = { preset: ThresholdPreset } | { preset: 'ADVANCED'; autoReject: number; autoPass: number }
+
+export interface CheckSettings {
+  threshold: ThresholdChoice
+  retriesAllowed: number // REQ: DEC-18 — retries after the first submission
+}
+
+export interface FlowSettings {
+  checks: Record<Check, CheckSettings>
+  cooldownMin: number // REQ: DEC-26
+  acceptedDocuments: DocumentType[]
+  sessionExpiryMin: number
+  risk?: RiskConfig // V4 (V5 is OQ-05)
+}
+
+/**
+ * How sessions reach this flow besides being the project default (DEC-95). Set by the merchant through the API; read-only
+ * in the portal. "Default" is not stored here: it comes from `Project.defaultFlowId`.
+ */
+export type FlowRouting = { kind: 'NONE' } | { kind: 'RULE'; priority: number; summary: string } | { kind: 'SHARE'; percent: number }
+
+export interface Flow {
+  flowId: string // FLW-0001
+  projectId: string
+  merchantId: string
+  name: string
+  description: string // who this flow is for
+  workflowVersion: WorkflowCode // locked once the flow has been active (DEC-94)
+  status: FlowStatus
+  settings: FlowSettings
+  revision: number // REQ: DEC-51 — 0 until first activated; shown as `${workflowVersion}-R${revision}`
+  routing: FlowRouting
+  createdAt: string
+  updatedAt: string
+  updatedBy: ClaimHolder | { userId: 'SYSTEM'; fullName: 'SYSTEM' }
+}
+
+// REQ: DEC-70 — per-project roles. Merchant Owner and Platform Admin are not project roles: they apply to all projects.
+export const PROJECT_ROLES = ['PROJECT_ADMIN', 'REVIEWER', 'VIEWER'] as const
+export type ProjectRole = (typeof PROJECT_ROLES)[number]
+export type AccessLevel = 'PLATFORM_ADMIN' | 'MERCHANT_OWNER' | 'MEMBER'
+
+export interface ProjectMembership {
+  projectId: string
+  role: ProjectRole // one role per project (DEC-74)
+}
+
+/** What a user may reach: their level, their merchant, and (for members) one role per project. */
+export interface UserAccess {
+  userId: string
+  level: AccessLevel
+  merchantId?: string // required unless PLATFORM_ADMIN
+  memberships: ProjectMembership[] // only used for MEMBER
+}
+
+// REQ: DEC-56 / DEC-58
+export const REGISTRY_STATUSES = ['DRAFT', 'ACTIVE', 'DEPRECATED'] as const
+export type RegistryStatus = (typeof REGISTRY_STATUSES)[number]
+export const ONBOARDING_PHASES = ['ID_CAPTURE', 'SELFIE_CAPTURE', 'LIVENESS_CHECK', 'RISK_ASSESSMENT'] as const
+export type OnboardingPhase = (typeof ONBOARDING_PHASES)[number]
+export type FaceMatchMethod = 'ID_VS_SELFIE' | 'ID_VS_LIVENESS'
+export type SessionInput = 'EMAIL'
+
+export interface RegistryEntry {
+  code: WorkflowCode
+  name: string
+  description: string // purpose, e.g. "V3 + risk assessment"
+  phases: OnboardingPhase[] // ordered; ID_CAPTURE first
+  faceMatchMethod: FaceMatchMethod
+  requiredInputs: SessionInput[]
+  configurableChecks: Check[]
+  stateMachineSandbox?: string // record only, never called
+  stateMachineProduction?: string
+  releaseNotes: { at: string; by: string; text: string }[] // append-only
+  status: RegistryStatus
+  isDefault: boolean // REQ: DEC-57 — "Default for new merchants"
+  activatedAt?: string // set the first time it becomes Active; locks most fields
+  registeredAt: string
+  registeredBy: string
+  updatedAt: string
+  updatedBy: string
+}
+
+/** A validation or rule failure, shown next to `field` (or as a toast when the field is not on screen). */
+export interface RuleError {
+  field: string
+  message: string
 }

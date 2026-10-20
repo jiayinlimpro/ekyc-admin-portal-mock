@@ -11,6 +11,8 @@ export interface Policy {
   riskBands: { mediumFrom: number; highFrom: number }
   /** OQ-07: are user retakes charged per attempt? */
   chargePerAttempt: boolean
+  /** OQ-20: can Platform Admin (internal support) view merchant cases? */
+  platformAdminCaseAccess: boolean
   /** OQ-08: can Platform Admin claim and decide? */
   adminCanReview: boolean
 }
@@ -19,6 +21,7 @@ export const POLICY: Policy = {
   phaseCombination: 'REJECT_WINS',
   riskBands: { mediumFrom: 40, highFrom: 70 },
   chargePerAttempt: false,
+  platformAdminCaseAccess: false,
   adminCanReview: true,
 }
 
@@ -70,6 +73,6 @@ export function riskLevelFromScore(score: number, bands = POLICY.riskBands): Ris
 /** OQ-14: mock unit prices (RM). Every verification is charged on entry (DEC-60); retakes only if chargePerAttempt (OQ-07). */
 export const PRICING = {
   currency: 'MYR',
-  perVerification: { V1: 1.5, V2: 1.8, V3: 2.0, V4: 2.5 },
+  perVerification: { V1: 1.5, V3: 2.0, V4: 2.5, V5: 2.5 },
   perRetake: 0.5,
 } as const
