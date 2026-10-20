@@ -85,7 +85,7 @@ export function DevMenu() {
                     <div className="truncate">{u.fullName}</div>
                     <div className="truncate text-xs text-muted-foreground">
                       {u.access}
-                      {u.status !== 'ACTIVE' && ` · ${u.status === 'INVITED' ? 'invited' : 'deactivated'}`}
+                      {u.status !== 'ACTIVE' && ` · ${u.status === 'PENDING' ? 'pending' : 'suspended'}`}
                     </div>
                   </div>
                 </DropdownMenuRadioItem>

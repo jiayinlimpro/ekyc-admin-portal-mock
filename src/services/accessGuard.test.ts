@@ -19,10 +19,10 @@ describe('accessGuard (DEC-71, DEC-72)', () => {
     expect(() => accountOf({ userId: 'USR-2026-9999' })).toThrow(expect.objectContaining({ code: 'FORBIDDEN' }))
   })
 
-  it('Given an Invited or Deactivated account, then it may not change anything', () => {
-    expect(() => requireActive({ userId: 'USR-2026-0035' })).toThrow('Your account is inactive.') // Chong Pei Shan, Invited
-    expect(() => requireActive({ userId: 'USR-2026-0039' })).toThrow('Your account is inactive.') // Yap Li Wen, Deactivated
-    expect(requireActive(ALI).level).toBe('MEMBER')
+  it('Given a Pending or Suspended account, then it may not change anything', () => {
+    expect(() => requireActive({ userId: 'USR-2026-0035' })).toThrow('Your account is inactive.') // Chong Pei Shan, Pending
+    expect(() => requireActive({ userId: 'USR-2026-0039' })).toThrow('Your account is inactive.') // Yap Li Wen, Suspended
+    expect(requireActive(ALI).level).toBe('MERCHANT_USER')
   })
 
   it('Given Ali (Reviewer in Default, Viewer in SME app), then rights come from his project roles, not the session role', () => {
@@ -41,7 +41,7 @@ describe('accessGuard (DEC-71, DEC-72)', () => {
 
 describe('userService', () => {
   it('Given Ali, then reviewers are the active users who may claim in his projects', async () => {
-    // Tan Mei Ling (owner), Hafiz (Project Admin SME app), Siti and Nurul (Reviewers). Not Yap (deactivated), not Lim (admin).
+    // Tan Mei Ling (owner), Hafiz (Project Admin SME app), Siti and Nurul (Reviewers). Not Yap (suspended), not Lim (admin).
     expect(ids(await userService.listReviewers(ALI))).toEqual(['USR-2026-0002', 'USR-2026-0012', 'USR-2026-0020', 'USR-2026-0031', 'USR-2026-0033'])
     expect(ids(await userService.listReviewers(ALI, 'PRJ-0001'))).toEqual(['USR-2026-0002', 'USR-2026-0012', 'USR-2026-0031'])
   })

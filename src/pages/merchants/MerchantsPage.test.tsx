@@ -29,7 +29,7 @@ afterEach(() => {
 })
 
 describe('Merchants (DEC-92)', () => {
-  it('Given a new merchant, then it gets a Default project, a Draft default flow and an invited Merchant Owner; it can be deleted while it has no cases', async () => {
+  it('Given a new merchant, then it gets a Default project, a Draft default flow and a Pending Merchant Owner; it can be deleted while it has no cases', async () => {
     renderAt('/merchants')
     await row('Atoz Software Tech')
     fireEvent.click(screen.getByRole('button', { name: /New merchant/ }))
@@ -39,7 +39,7 @@ describe('Merchants (DEC-92)', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Create merchant' }))
     const r = await row('Nusantara Pay')
     expect(r.textContent).toContain('MER-0007')
-    expect(r.textContent).toContain('aminah@nusantara.example · Invited')
+    expect(r.textContent).toContain('aminah@nusantara.example · Pending')
     const project = db.state().projects.find((p) => p.merchantId === 'MER-0007')!
     expect(project).toMatchObject({ name: 'Default', isDefault: true })
     expect(db.state().flows.find((f) => f.flowId === project.defaultFlowId)).toMatchObject({ status: 'DRAFT', workflowVersion: 'V1' })

@@ -31,15 +31,15 @@ async function expectError(p: Promise<unknown>, code: string, message?: string |
 const lastAudit = async (action: AuditAction) => (await auditService.list({ actions: [action] }, ADMIN)).items[0]
 
 describe('projectService (DEC-92, DEC-93, DEC-96)', () => {
-  it('Given each user, then "my projects" lists the projects they can reach with their role in each', async () => {
-    expect((await projectService.listMine(ALI)).map((p) => [p.projectId, p.role])).toEqual([
-      ['PRJ-0001', 'REVIEWER'],
-      ['PRJ-0002', 'VIEWER'],
+  it('Given each user, then "my projects" lists the projects they can reach with their roles in each', async () => {
+    expect((await projectService.listMine(ALI)).map((p) => [p.projectId, p.roles])).toEqual([
+      ['PRJ-0001', ['Reviewer']],
+      ['PRJ-0002', ['Viewer']],
     ])
     expect((await projectService.listMine(HAFIZ)).map((p) => p.projectId)).toEqual(['PRJ-0002'])
     const admin = await projectService.listMine(ADMIN)
     expect(admin).toHaveLength(db.state().projects.length)
-    expect(admin.every((p) => p.role === 'PLATFORM_ADMIN')).toBe(true)
+    expect(admin.every((p) => p.roles.join() === 'Platform Admin')).toBe(true)
   })
 
   it('Given the Merchant Owner creates a project, then it starts with a Draft default flow on the registry default (MOCK-12), audited', async () => {
@@ -47,7 +47,7 @@ describe('projectService (DEC-92, DEC-93, DEC-96)', () => {
     expect(p).toMatchObject({ projectId: 'PRJ-0010', merchantId: 'MER-0001', status: 'ACTIVE', isDefault: false, defaultFlowId: 'FLW-0014', claimTimeoutMin: 30 })
     const flow = db.state().flows.find((f) => f.flowId === 'FLW-0014')!
     expect(flow).toMatchObject({ projectId: 'PRJ-0010', status: 'DRAFT', workflowVersion: 'V1', revision: 0 })
-    expect(await lastAudit('PROJECT_CREATED')).toMatchObject({ actorRole: 'MERCHANT_OWNER', projectId: 'PRJ-0010', details: { name: 'Branch kiosks' } })
+    expect(await lastAudit('PROJECT_CREATED')).toMatchObject({ actorRole: 'Merchant Owner', projectId: 'PRJ-0010', details: { name: 'Branch kiosks' } })
     expect((await projectService.listMine(OWNER)).map((x) => x.projectId)).toContain('PRJ-0010')
   })
 
@@ -59,7 +59,7 @@ describe('projectService (DEC-92, DEC-93, DEC-96)', () => {
 
   it('Given a rename, then old and new names are audited; a Project Admin may not rename', async () => {
     await projectService.rename('PRJ-0002', 'SME onboarding', ADMIN)
-    expect(await lastAudit('PROJECT_RENAMED')).toMatchObject({ actorRole: 'PLATFORM_ADMIN', details: { changes: [{ field: 'Name', from: 'SME app', to: 'SME onboarding' }] } })
+    expect(await lastAudit('PROJECT_RENAMED')).toMatchObject({ actorRole: 'Platform Admin', details: { changes: [{ field: 'Name', from: 'SME app', to: 'SME onboarding' }] } })
     await expectError(projectService.rename('PRJ-0002', 'Mine now', HAFIZ), 'FORBIDDEN')
     await expectError(projectService.get('PRJ-0001', HAFIZ), 'NOT_FOUND')
   })
@@ -100,7 +100,7 @@ describe('flowService settings and lifecycle (DEC-51 … DEC-53, DEC-94)', () =>
     expect(detail.revisions.map((r) => r.revision)).toEqual([1, 2, 3])
     expect(detail.revisions[2]).toMatchObject({ reason: 'Raise liveness after review', savedBy: { userId: OWNER.userId } })
     expect(await lastAudit('FLOW_SETTING_CHANGED')).toMatchObject({
-      actorRole: 'MERCHANT_OWNER',
+      actorRole: 'Merchant Owner',
       details: { flowId: 'FLW-0001', revision: 3, changes: [{ field: 'checks.LIVENESS.threshold', from: 'Standard (reject < 70, approve ≥ 85)', to: 'High (reject < 80, approve ≥ 92)' }] },
     })
     expect((await verificationService.get('KYC-260901-900012', ALI)).configRevision).toBe(1) // DEC-52

@@ -1,11 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { canInProject, roleInProject } from '@/domain/access'
+import { canInProject, roleNamesInProject } from '@/domain/access'
 import { evaluateCase } from '@/domain/checkRules'
 import { isClaimActive } from '@/domain/claimRules'
 import { inCooldown, revisionLabel, validateProjectName } from '@/domain/flowRules'
 import { validateFlow } from '@/domain/flowSettings'
 import { hasRisk, validateRegistryInput } from '@/domain/registryRules'
-import { VERIFICATION_STATUSES } from '@/domain/types'
+import { grantsOf, SYSTEM_ROLE_IDS } from '@/domain/roles'
+import { VERIFICATION_STATUSES, type UserAccount } from '@/domain/types'
 import { NOW } from '@/test/factories'
 import { EDGE_CASES } from './fixtures/edgeCases'
 import { seedDatabase } from './seed'
@@ -15,6 +16,7 @@ const flowOf = (id: string) => db.flows.find((f) => f.flowId === id)!
 const entryOf = (code: string) => db.registry.find((e) => e.code === code)!
 const revisionOf = (flowId: string, revision: number) => db.flowRevisions.find((r) => r.flowId === flowId && r.revision === revision)!
 const byRef = (ref: string) => db.verifications.find((v) => v.referenceNo === ref)!
+const accessOf = (a: UserAccount) => ({ ...a, grants: grantsOf(a.assignments, db.roles) })
 
 describe('seedDatabase', () => {
   it('Given the same now, then the data is identical (deterministic)', () => {
@@ -65,7 +67,7 @@ describe('seedDatabase', () => {
     for (const v of db.verifications) {
       const userId = v.claimedBy?.userId ?? (v.lastUpdatedBy.kind === 'USER' ? v.lastUpdatedBy.userId : undefined)
       if (!userId) continue
-      const account = db.accounts.find((a) => a.userId === userId)!
+      const account = accessOf(db.accounts.find((a) => a.userId === userId)!)
       expect(canInProject(account, 'claimCase', { projectId: v.projectId, merchantId: v.merchantId }), `${v.referenceNo} ${userId}`).toBe(true)
     }
   })
@@ -156,7 +158,7 @@ describe('named scenarios (docs/SCENARIOS.md)', () => {
 
   it('S16 is in the SME app project, where Ali is only a Viewer', () => {
     const v = byRef('KYC-260901-900016')
-    const ali = db.accounts.find((a) => a.userId === 'USR-2026-0012')!
+    const ali = accessOf(db.accounts.find((a) => a.userId === 'USR-2026-0012')!)
     expect(v.projectId).toBe('PRJ-0002')
     expect(canInProject(ali, 'viewCases', { projectId: v.projectId, merchantId: v.merchantId })).toBe(true)
     expect(canInProject(ali, 'claimCase', { projectId: v.projectId, merchantId: v.merchantId })).toBe(false)
@@ -236,26 +238,37 @@ describe('accounts (DEC-70, DEC-74)', () => {
   const account = (id: string) => db.accounts.find((a) => a.userId === id)!
   const project = (id: string) => db.projects.find((p) => p.projectId === id)!
 
-  it('Given members, then every membership is a project of their own merchant, one role per project', () => {
-    for (const a of db.accounts.filter((x) => x.level === 'MEMBER')) {
-      expect(a.memberships.length, a.userId).toBeGreaterThan(0)
-      expect(new Set(a.memberships.map((m) => m.projectId)).size, a.userId).toBe(a.memberships.length)
-      for (const m of a.memberships) expect(project(m.projectId).merchantId, a.userId).toBe(a.merchantId)
+  it('Given merchant users, then each has an assignment, every selected project is of their own merchant, and roles exist', () => {
+    for (const a of db.accounts.filter((x) => x.level === 'MERCHANT_USER')) {
+      expect(a.assignments.length, a.userId).toBeGreaterThan(0)
+      for (const x of a.assignments) {
+        const role = db.roles.find((r) => r.roleId === x.roleId)
+        expect(role && (!role.merchantId || role.merchantId === a.merchantId), `${a.userId} ${x.roleId}`).toBe(true)
+        if (x.scope.kind === 'PROJECTS') for (const id of x.scope.projectIds) expect(project(id).merchantId, a.userId).toBe(a.merchantId)
+      }
     }
+    expect(db.accounts.filter((x) => x.level === 'PLATFORM_ADMIN').every((a) => a.assignments.length === 0)).toBe(true)
   })
 
-  it('Given every merchant, then at least one Merchant Owner or Project Admin can manage it', () => {
+  it('Given assignment ids, then they are unique', () => {
+    const ids = db.accounts.flatMap((a) => a.assignments.map((x) => x.assignmentId))
+    expect(new Set(ids).size).toBe(ids.length)
+  })
+
+  it('Given every merchant with users, then a Merchant Owner (All projects) or a Project Admin can manage it', () => {
+    const managers = [SYSTEM_ROLE_IDS.MERCHANT_OWNER, SYSTEM_ROLE_IDS.PROJECT_ADMIN] as string[]
     for (const m of db.merchants) {
-      expect(db.accounts.some((a) => a.merchantId === m.merchantId && (a.level === 'MERCHANT_OWNER' || a.memberships.some((x) => x.role === 'PROJECT_ADMIN'))), m.merchantId).toBe(true)
+      expect(db.accounts.some((a) => a.merchantId === m.merchantId && a.assignments.some((x) => managers.includes(x.roleId))), m.merchantId).toBe(true)
     }
   })
 
-  it('covers all five roles, different roles per project, and Invited and Deactivated users', () => {
-    const roles = new Set(db.accounts.flatMap((a) => (a.level === 'MEMBER' ? a.memberships.map((m) => m.role) : [a.level])))
-    expect(roles).toEqual(new Set(['PLATFORM_ADMIN', 'MERCHANT_OWNER', 'PROJECT_ADMIN', 'REVIEWER', 'VIEWER']))
-    expect(roleInProject(account('USR-2026-0012'), project('PRJ-0001'))).toBe('REVIEWER')
-    expect(roleInProject(account('USR-2026-0012'), project('PRJ-0002'))).toBe('VIEWER')
-    expect(db.accounts.map((a) => a.status)).toEqual(expect.arrayContaining(['INVITED', 'DEACTIVATED']))
+  it('covers every System Default role, a Custom role, different roles per project, and Pending and Suspended users', () => {
+    const held = new Set(db.accounts.flatMap((a) => a.assignments.map((x) => x.roleId)))
+    for (const r of db.roles) expect(held.has(r.roleId), r.name).toBe(true)
+    expect(db.roles.some((r) => r.type === 'CUSTOM')).toBe(true)
+    expect(roleNamesInProject(accessOf(account('USR-2026-0012')), project('PRJ-0001'))).toEqual(['Reviewer'])
+    expect(roleNamesInProject(accessOf(account('USR-2026-0012')), project('PRJ-0002'))).toEqual(['Viewer'])
+    expect(db.accounts.map((a) => a.status)).toEqual(expect.arrayContaining(['PENDING', 'SUSPENDED']))
   })
 
   it('Given the scenario personas, then each exists as an account', () => {

@@ -250,7 +250,7 @@ describe('decide (DEC-24, DEC-30)', () => {
     expect(d.lastUpdatedAt).toBe(new Date(NOW.getTime() + minutes(1)).toISOString())
     expect((await auditFor(S(7))).at(-1)).toBe('CASE_DECISION_APPROVED')
     const [entry] = (await auditService.list({ referenceNo: S(7), actions: ['CASE_DECISION_APPROVED'] }, ADMIN)).items
-    expect(entry).toMatchObject({ actorRole: 'REVIEWER', projectId: 'PRJ-0001', details: { fromStatus: 'PENDING_REVIEW', toStatus: 'APPROVED' } })
+    expect(entry).toMatchObject({ actorRole: 'Reviewer', projectId: 'PRJ-0001', details: { fromStatus: 'PENDING_REVIEW', toStatus: 'APPROVED' } })
     await expectError(svc.decide(S(7), ALI, approve), 'OWNERSHIP_CONFLICT', 'This record has already been decided. No changes saved.')
   })
 

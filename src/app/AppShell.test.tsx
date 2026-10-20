@@ -46,8 +46,8 @@ describe('AppShell', () => {
     useSession.getState().switchUser(ADMIN)
     renderAt('/')
     await mainNav().findByRole('link', { name: /Merchants/ })
-    for (const shown of ['Users and Access', /Billing/, /Audit Logs/, 'Workflow Registry', 'Projects', 'Flows', 'Merchants']) expect(mainNav().getByRole('link', { name: shown })).toBeTruthy()
-    for (const retired of [/eKYC Workflow/, /Developers/, 'Roles', 'Users', /Merchant Workflow Directory/]) expect(mainNav().queryByRole('link', { name: retired })).toBeNull()
+    for (const shown of ['Users', 'Roles', /Billing/, /Audit Logs/, 'Workflow Registry', 'Projects', 'Flows', 'Merchants']) expect(mainNav().getByRole('link', { name: shown })).toBeTruthy()
+    for (const retired of [/eKYC Workflow/, /Developers/, 'Users and Access', /Merchant Workflow Directory/]) expect(mainNav().queryByRole('link', { name: retired })).toBeNull()
     expect(mainNav().queryByRole('link', { name: 'Verifications' })).toBeNull()
   })
 

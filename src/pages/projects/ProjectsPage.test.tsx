@@ -54,7 +54,7 @@ describe('Projects (DEC-90, DEC-93)', () => {
     expect(row.textContent).toContain('0 active / 1')
     expect(row.textContent).toContain('Default flow')
     fireEvent.click(screen.getByRole('button', { name: /Switch project/ }))
-    expect((await screen.findAllByRole('menuitemradio')).map((o) => o.textContent)).toContain('Branch kiosks')
+    expect((await screen.findAllByRole('menuitemradio')).map((o) => o.textContent)).toContain('Branch kiosksMerchant Owner')
   })
 
   it('Given a duplicate name, then the error shows on the field', async () => {

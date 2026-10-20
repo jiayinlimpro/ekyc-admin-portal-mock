@@ -11,10 +11,11 @@ import { createFlow } from '@/domain/flowSettings'
 import { DEFAULT_CLAIM_TIMEOUT_MIN } from '@/domain/openQuestions'
 import { PROJECT_SETTING_DEFAULTS } from '@/domain/projectSettings'
 import { defaultVersion } from '@/domain/registryRules'
+import { SYSTEM_ROLE_IDS } from '@/domain/roles'
 import type { Actor, AuditAction, Merchant, Project, UserAccount } from '@/domain/types'
 import { now } from '@/lib/clock'
 import { db } from '@/mocks/mockDb'
-import { accountOf, requireActive } from './accessGuard'
+import { accountOf, nextAssignmentId, requireActive } from './accessGuard'
 import { ServiceError } from './errors'
 import { clientIpFor, simulateNetwork, wire } from './network'
 import { auditProject, nextId, validation } from './projectService'
@@ -47,7 +48,7 @@ function requirePlatform(actor: Actor) {
 }
 
 function audit(actor: Actor, action: AuditAction, merchantId: string, details: Record<string, unknown>) {
-  db.appendAudit(makeAudit({ id: '', now: now(), action, actor, actorRole: 'PLATFORM_ADMIN', ip: clientIpFor(actor), merchantId, details }))
+  db.appendAudit(makeAudit({ id: '', now: now(), action, actor, actorRole: 'Platform Admin', ip: clientIpFor(actor), merchantId, details }))
 }
 
 const nameTaken = (name: string, except?: string) => db.state().merchants.some((m) => m.merchantId !== except && m.name.trim().toLowerCase() === name.trim().toLowerCase())
@@ -59,7 +60,7 @@ export const mockMerchantAdminService: MerchantAdminService = {
     const s = db.state()
     return wire(
       s.merchants.map((m) => {
-        const owner = s.accounts.find((a) => a.merchantId === m.merchantId && a.level === 'MERCHANT_OWNER')
+        const owner = s.accounts.find((a) => a.merchantId === m.merchantId && a.assignments.some((x) => x.roleId === SYSTEM_ROLE_IDS.MERCHANT_OWNER))
         const cases = s.verifications.filter((v) => v.merchantId === m.merchantId).length
         return {
           ...m,
@@ -111,10 +112,11 @@ export const mockMerchantAdminService: MerchantAdminService = {
       userId: nextId('USR-2026-', s.accounts.map((a) => a.userId)),
       fullName: input.ownerName.trim(),
       email,
-      level: 'MERCHANT_OWNER',
+      level: 'MERCHANT_USER',
       merchantId: merchant.merchantId,
-      memberships: [],
-      status: 'INVITED',
+      // REQ: DEC-92 — the first user is Merchant Owner for All projects.
+      assignments: [{ assignmentId: nextAssignmentId(), roleId: SYSTEM_ROLE_IDS.MERCHANT_OWNER, scope: { kind: 'ALL_PROJECTS' }, addedBy: { userId: actor.userId, fullName: actor.fullName }, addedAt: at.toISOString() }],
+      status: 'PENDING',
       invitedAt: at.toISOString(),
     }
     db.setState((st) => ({ merchants: [...st.merchants, merchant], projects: [...st.projects, project], flows: [...st.flows, flow], accounts: [...st.accounts, owner] }))
@@ -157,6 +159,7 @@ export const mockMerchantAdminService: MerchantAdminService = {
       projectKeys: st.projectKeys.filter((k) => !projectIds.has(k.projectId)),
       webhooks: st.webhooks.filter((w) => !projectIds.has(w.projectId)),
       accounts: st.accounts.filter((a) => a.merchantId !== merchantId),
+      roles: st.roles.filter((r) => r.merchantId !== merchantId),
     }))
     audit(actor, 'MERCHANT_STATUS_CHANGED', merchantId, { changes: [{ field: 'Status', from: 'Active', to: 'Deleted (no cases)' }] })
   },

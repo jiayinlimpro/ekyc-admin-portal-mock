@@ -19,7 +19,6 @@ import {
 import { Input } from '@/components/ui/input'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import type { Merchant } from '@/domain/types'
-import { PROJECT_ROLE_LABELS } from '@/lib/labels'
 import { merchantService } from '@/services/merchantService'
 import type { MyProject } from '@/services/projectService'
 import { ALL_PROJECTS, useSession } from '@/stores/sessionStore'
@@ -89,13 +88,13 @@ function useMerchantNames() {
   return (id: string) => merchants.find((m) => m.merchantId === id)?.name ?? id
 }
 
-/** The role is shown only for project members: Platform Admin and Merchant Owner have the same role everywhere. */
+/** Role names per project; not for Platform Admin, who has the same rights everywhere. */
 function ProjectOption({ p, showRole }: { p: MyProject; showRole: boolean }) {
   return (
     <span className="flex min-w-0 flex-1 items-center gap-2">
       <span className="truncate">{p.name}</span>
       {p.status === 'ARCHIVED' && <span className="rounded bg-muted px-1 text-[10px] uppercase text-muted-foreground">Archived</span>}
-      {showRole && <span className="ml-auto shrink-0 text-xs text-muted-foreground">{PROJECT_ROLE_LABELS[p.role]}</span>}
+      {showRole && <span className="ml-auto shrink-0 text-xs text-muted-foreground">{p.roles.join(', ')}</span>}
     </span>
   )
 }
@@ -157,7 +156,7 @@ function ProjectSwitcher() {
                 .filter((p) => p.merchantId === m)
                 .map((p) => (
                   <DropdownMenuRadioItem key={p.projectId} value={p.projectId} closeOnClick>
-                    <ProjectOption p={p} showRole={account?.level === 'MEMBER'} />
+                    <ProjectOption p={p} showRole={account?.level === 'MERCHANT_USER'} />
                   </DropdownMenuRadioItem>
                 ))}
             </DropdownMenuRadioGroup>
@@ -168,16 +167,16 @@ function ProjectSwitcher() {
   )
 }
 
-/** REQ: DEC-73 — role in the current project; under "All my projects", the role in each. */
+/** REQ: DEC-73 — roles in the current project; under "All my projects", the roles in each. */
 function RoleLines() {
   const { account, projects, selected } = useAccess()
   if (!account) return null
-  if (selected) return <div>{`${PROJECT_ROLE_LABELS[selected.role]} · ${selected.name}`}</div>
-  if (account.level !== 'MEMBER') return <div>{`${PROJECT_ROLE_LABELS[account.level]} · all projects`}</div>
+  if (account.level === 'PLATFORM_ADMIN') return <div>Platform Admin · all projects</div>
+  if (selected) return <div>{`${selected.roles.join(', ')} · ${selected.name}`}</div>
   return (
     <>
       {projects.map((p) => (
-        <div key={p.projectId}>{`${PROJECT_ROLE_LABELS[p.role]} · ${p.name}`}</div>
+        <div key={p.projectId}>{`${p.roles.join(', ')} · ${p.name}`}</div>
       ))}
     </>
   )

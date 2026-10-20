@@ -5,6 +5,7 @@ import {
   PERMISSIONS,
   PROJECT_PERMISSIONS,
   type AssignmentScope,
+  type Grant,
   type Permission,
   type Role,
   type RoleAssignment,
@@ -50,13 +51,7 @@ export function withImpliedPermissions(permissions: readonly Permission[]): Perm
   return PERMISSIONS.filter((p) => set.has(p))
 }
 
-/** A user's assignment joined with its role: what the access checks work from. */
-export interface Grant {
-  roleId: string
-  roleName: string
-  permissions: readonly Permission[]
-  scope: AssignmentScope
-}
+export type { Grant }
 
 /** Assignments with their roles; an inactive or unknown role grants nothing. */
 export function grantsOf(assignments: readonly RoleAssignment[], roles: readonly Role[]): Grant[] {

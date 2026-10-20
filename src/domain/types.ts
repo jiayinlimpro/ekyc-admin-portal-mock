@@ -173,7 +173,8 @@ export const AUDIT_ACTION_GROUPS = {
   Flows: ['FLOW_CREATED', 'FLOW_ACTIVATED', 'FLOW_RETIRED', 'FLOW_DEFAULT_CHANGED', 'FLOW_SETTING_CHANGED'],
   Projects: ['PROJECT_CREATED', 'PROJECT_RENAMED', 'PROJECT_ARCHIVED', 'PROJECT_SETTING_CHANGED'],
   Integration: ['API_KEY_CREATED', 'API_KEY_ROTATED', 'API_KEY_REVOKED', 'WEBHOOK_CHANGED'],
-  Users: ['USER_INVITED', 'USER_ROLE_CHANGED', 'USER_REMOVED', 'USER_DEACTIVATED'],
+  Users: ['USER_INVITED', 'USER_INVITATION_RESENT', 'USER_ACCESS_ADDED', 'USER_ACCESS_CHANGED', 'USER_ACCESS_REMOVED', 'USER_SUSPENDED', 'USER_REACTIVATED'],
+  Roles: ['ROLE_CREATED', 'ROLE_UPDATED', 'ROLE_STATUS_CHANGED'],
   Registry: ['WORKFLOW_REGISTERED', 'WORKFLOW_UPDATED', 'WORKFLOW_STATUS_CHANGED', 'WORKFLOW_DEFAULT_CHANGED'],
   Merchants: ['MERCHANT_CREATED', 'MERCHANT_UPDATED', 'MERCHANT_STATUS_CHANGED'],
 } as const
@@ -185,7 +186,7 @@ export interface AuditEntry {
   at: string // ISO UTC
   action: AuditAction
   actor: UpdatedBy
-  actorRole?: EffectiveRole // REQ: DEC-42 — the actor's role in the project (or Platform Admin); absent for SYSTEM
+  actorRole?: string // REQ: DEC-42 — the actor's role names in the project, or "Platform Admin"; absent for SYSTEM
   merchantId?: string
   projectId?: string
   referenceNo?: string
@@ -299,26 +300,6 @@ export interface Flow {
   updatedBy: ClaimHolder | { userId: 'SYSTEM'; fullName: 'SYSTEM' }
 }
 
-// REQ: DEC-70 — per-project roles. Merchant Owner and Platform Admin are not project roles: they apply to all projects.
-export const PROJECT_ROLES = ['PROJECT_ADMIN', 'REVIEWER', 'VIEWER'] as const
-export type ProjectRole = (typeof PROJECT_ROLES)[number]
-export type AccessLevel = 'PLATFORM_ADMIN' | 'MERCHANT_OWNER' | 'MEMBER'
-/** A user's role in one project: Platform Admin and Merchant Owner apply to every project they reach. */
-export type EffectiveRole = 'PLATFORM_ADMIN' | 'MERCHANT_OWNER' | ProjectRole
-
-export interface ProjectMembership {
-  projectId: string
-  role: ProjectRole // one role per project (DEC-74)
-}
-
-/** What a user may reach: their level, their merchant, and (for members) one role per project. */
-export interface UserAccess {
-  userId: string
-  level: AccessLevel
-  merchantId?: string // required unless PLATFORM_ADMIN
-  memberships: ProjectMembership[] // only used for MEMBER
-}
-
 // REQ: DEC-70 — permissions, grouped as on the Roles screen. Merchant-level ones only work in an All projects assignment.
 export const MERCHANT_PERMISSIONS = ['MANAGE_BILLING', 'MANAGE_USERS_ROLES', 'MANAGE_PROJECTS', 'VIEW_MERCHANT_REPORTS'] as const
 export const PROJECT_PERMISSIONS = [
@@ -366,6 +347,25 @@ export interface RoleAssignment {
   scope: AssignmentScope
   addedBy: Actor
   addedAt: string
+}
+
+/** Platform Admin is internal and works in every merchant; everyone else belongs to one merchant (DEC-70). */
+export type AccessLevel = 'PLATFORM_ADMIN' | 'MERCHANT_USER'
+
+/** An assignment joined with its role: what the access checks work from. */
+export interface Grant {
+  roleId: string
+  roleName: string
+  permissions: readonly Permission[]
+  scope: AssignmentScope
+}
+
+/** What a user may reach: their level, their merchant and their grants (DEC-70). */
+export interface UserAccess {
+  userId: string
+  level: AccessLevel
+  merchantId?: string // required unless PLATFORM_ADMIN
+  grants: readonly Grant[] // empty for Platform Admin: its rights are fixed (roles.PLATFORM_ADMIN_PERMISSIONS)
 }
 
 // REQ: DEC-56 / DEC-58
@@ -420,12 +420,16 @@ export interface FlowRevision {
   changes: SettingChange[]
 }
 
-// REQ: DEC-74
-export const USER_STATUSES = ['INVITED', 'ACTIVE', 'DEACTIVATED'] as const
+// REQ: DEC-74 — [FRS] Pending until the invitation is accepted; Suspended instead of deleted.
+export const USER_STATUSES = ['PENDING', 'ACTIVE', 'SUSPENDED'] as const
 export type UserStatus = (typeof USER_STATUSES)[number]
 
-/** A portal account: level, merchant and one role per project (DEC-70, DEC-74). */
-export interface UserAccount extends UserAccess {
+/** A portal account: level, merchant and its role assignments (DEC-70, DEC-74). */
+export interface UserAccount {
+  userId: string
+  level: AccessLevel
+  merchantId?: string // required unless PLATFORM_ADMIN
+  assignments: RoleAssignment[] // empty for Platform Admin
   fullName: string
   email: string
   status: UserStatus

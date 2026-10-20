@@ -12,7 +12,7 @@ import { Input } from '@/components/ui/input'
 import { AUDIT_ACTION_GROUPS, type AuditAction, type AuditEntry, type Merchant, type Paged } from '@/domain/types'
 import { auditCsv, summarizeAudit } from '@/lib/auditFormat'
 import { formatMyt } from '@/lib/format'
-import { AUDIT_ACTION_LABELS, PROJECT_ROLE_LABELS } from '@/lib/labels'
+import { AUDIT_ACTION_LABELS } from '@/lib/labels'
 import { cn } from '@/lib/utils'
 import { auditService } from '@/services/auditService'
 import { isServiceError } from '@/services/errors'
@@ -256,7 +256,7 @@ export function AuditLogsPage() {
                           {e.actor.fullName}
                           <div className="text-xs text-muted-foreground">
                             {e.actor.userId}
-                            {e.actorRole && ` · ${PROJECT_ROLE_LABELS[e.actorRole]}`}
+                            {e.actorRole && ` · ${e.actorRole}`}
                           </div>
                         </>
                       )}

@@ -1,23 +1,24 @@
 // Deterministic seed (MOCK-05): same `now` → same data. Background volume + the named scenarios in fixtures/edgeCases.ts.
 import { Faker, en } from '@faker-js/faker'
-import { canInProject, roleInProject } from '@/domain/access'
+import { canInProject, roleNamesInProject } from '@/domain/access'
+import { grantsOf } from '@/domain/roles'
 import { makeAudit } from '@/domain/audit'
 import { RISK_NOT_PASSED } from '@/domain/checkRules'
 import { applyDecision } from '@/domain/claimRules'
 import { CONDITIONS, REJECT_REASONS } from '@/domain/conditions'
 import { resolveThreshold, type Thresholds } from '@/domain/thresholds'
-import type { Actor, AuditEntry, Check, Decision, Flow, ProjectApiKey, ProjectWebhook, FlowRevision, Merchant, Project, RegistryEntry, UserAccount, Verification } from '@/domain/types'
+import type { Actor, AuditEntry, Check, Decision, Flow, ProjectApiKey, ProjectWebhook, FlowRevision, Merchant, Project, RegistryEntry, Role, UserAccount, Verification } from '@/domain/types'
 import { buildCase, refNo } from './builders'
 import { buildCatalog, revisionAt } from './fixtures/catalog'
 import { buildEdgeCases } from './fixtures/edgeCases'
 import { MERCHANTS } from './fixtures/merchants'
-import { actorOf, buildAccounts } from './fixtures/users'
+import { actorOf, buildAccounts, buildRoles } from './fixtures/users'
 import { clientMetadata, fakeIp, person } from './malaysia'
 
 export const SEED = 2026
 export const BACKGROUND_COUNT = 300
 /** Bump when the shape of MockDbState changes: persisted demo data is then re-seeded. */
-export const DB_VERSION = 9
+export const DB_VERSION = 10
 
 export interface MockDbState {
   dbVersion: number
@@ -32,6 +33,7 @@ export interface MockDbState {
   flows: Flow[]
   flowRevisions: FlowRevision[]
   accounts: UserAccount[]
+  roles: Role[] // REQ: DEC-76 — System Default (shared) and each merchant's Custom roles
   // REQ: DEC-54 — per-project integration (Project Settings › Integration).
   projectKeys: ProjectApiKey[]
   webhooks: ProjectWebhook[]
@@ -117,12 +119,14 @@ export function seedDatabase(now: Date): MockDbState {
   const catalog = buildCatalog(now)
   const audit: AuditEntry[] = []
   const accounts = buildAccounts(now)
+  const roles = buildRoles(now)
+  const accessOf = (a: UserAccount) => ({ ...a, grants: grantsOf(a.assignments, roles) })
   // REQ: DEC-70 — only active users who may claim in the case's project review it (Platform Admin never decides).
   const reviewersOf = (v: Verification): Actor[] =>
     accounts
-      .filter((a) => a.status === 'ACTIVE' && canInProject(a, 'claimCase', { projectId: v.projectId, merchantId: v.merchantId }))
+      .filter((a) => a.status === 'ACTIVE' && canInProject(accessOf(a), 'claimCase', { projectId: v.projectId, merchantId: v.merchantId }))
       .map(actorOf)
-  const roleOf = (a: Actor, v: Verification) => roleInProject(accounts.find((x) => x.userId === a.userId)!, v)
+  const roleOf = (a: Actor, v: Verification) => roleNamesInProject(accessOf(accounts.find((x) => x.userId === a.userId)!), v).join(', ')
   const entryOf = (code: string) => catalog.registry.find((e) => e.code === code)!
 
   // Session start times first, sorted, so Reference Nos increase with time.
@@ -198,7 +202,7 @@ export function seedDatabase(now: Date): MockDbState {
   // Atoz Default's production key was rotated by the Merchant Owner a week ago (DEC-54).
   const owner = accounts.find((a) => a.userId === 'USR-2026-0002')!
   audit.push(
-    makeAudit({ id: '', now: new Date(now.getTime() - 7 * DAY), action: 'API_KEY_ROTATED', actor: owner, actorRole: 'MERCHANT_OWNER', ip: fakeIp(f), merchantId: 'MER-0001', projectId: 'PRJ-0001', details: { keyId: 'key_mock_prj-0001_01' } }),
+    makeAudit({ id: '', now: new Date(now.getTime() - 7 * DAY), action: 'API_KEY_ROTATED', actor: owner, actorRole: 'Merchant Owner', ip: fakeIp(f), merchantId: 'MER-0001', projectId: 'PRJ-0001', details: { keyId: 'key_mock_prj-0001_01' } }),
   )
 
   const edge = buildEdgeCases({ now, catalog })
@@ -213,6 +217,7 @@ export function seedDatabase(now: Date): MockDbState {
     auditSeq: allAudit.length,
     ...catalog,
     accounts,
+    roles,
     // One production key per project (mock hints only, never real secrets); Atoz Default also has a webhook.
     projectKeys: catalog.projects.map((p) => ({
       keyId: `key_mock_${p.projectId.toLowerCase()}_01`,

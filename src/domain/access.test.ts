@@ -1,39 +1,43 @@
 import { describe, expect, it } from 'vitest'
-import { canInMerchant, canInProject, canOnPlatform, projectsWhere, roleInProject, type ProjectAction } from './access'
-import type { Project, UserAccess } from './types'
+import { canInMerchant, canInProject, canOnPlatform, hasProject, projectsWhere, roleNamesInProject, type ProjectAction } from './access'
+import { SYSTEM_DEFAULT_ROLES, SYSTEM_ROLE_IDS } from './roles'
+import type { AssignmentScope, Grant, Permission, Project, UserAccess } from './types'
 
 const project = (projectId: string, merchantId = 'MER-0001'): Pick<Project, 'projectId' | 'merchantId'> => ({ projectId, merchantId })
 const RETAIL = project('PRJ-0001')
 const SME = project('PRJ-0002')
 const OTHER_MERCHANT = project('PRJ-0009', 'MER-0002')
 
-const PLATFORM: UserAccess = { userId: 'USR-2026-0001', level: 'PLATFORM_ADMIN', memberships: [] }
-const OWNER: UserAccess = { userId: 'USR-2026-0002', level: 'MERCHANT_OWNER', merchantId: 'MER-0001', memberships: [] }
-const PROJECT_ADMIN: UserAccess = { userId: 'USR-2026-0003', level: 'MEMBER', merchantId: 'MER-0001', memberships: [{ projectId: 'PRJ-0001', role: 'PROJECT_ADMIN' }] }
-// One user, different roles in different projects (DEC-74).
-const REVIEWER: UserAccess = {
-  userId: 'USR-2026-0012',
-  level: 'MEMBER',
-  merchantId: 'MER-0001',
-  memberships: [
-    { projectId: 'PRJ-0001', role: 'REVIEWER' },
-    { projectId: 'PRJ-0002', role: 'VIEWER' },
-  ],
+const ALL: AssignmentScope = { kind: 'ALL_PROJECTS' }
+const only = (...projectIds: string[]): AssignmentScope => ({ kind: 'PROJECTS', projectIds })
+const grant = (roleId: string, scope: AssignmentScope): Grant => {
+  const r = SYSTEM_DEFAULT_ROLES.find((x) => x.roleId === roleId)!
+  return { roleId, roleName: r.name, permissions: r.permissions, scope }
 }
+const custom = (name: string, permissions: Permission[], scope: AssignmentScope): Grant => ({ roleId: 'ROL-2026-0100', roleName: name, permissions, scope })
+const member = (userId: string, ...grants: Grant[]): UserAccess => ({ userId, level: 'MERCHANT_USER', merchantId: 'MER-0001', grants })
+
+const PLATFORM: UserAccess = { userId: 'USR-2026-0001', level: 'PLATFORM_ADMIN', grants: [] }
+const OWNER = member('USR-2026-0002', grant(SYSTEM_ROLE_IDS.MERCHANT_OWNER, ALL))
+const PROJECT_ADMIN = member('USR-2026-0003', grant(SYSTEM_ROLE_IDS.PROJECT_ADMIN, only('PRJ-0001')))
+// One user, different roles in different projects (DEC-70).
+const REVIEWER = member('USR-2026-0012', grant(SYSTEM_ROLE_IDS.REVIEWER, only('PRJ-0001')), grant(SYSTEM_ROLE_IDS.VIEWER, only('PRJ-0002')))
 
 const can = (u: UserAccess, a: ProjectAction, p = RETAIL) => canInProject(u, a, p)
 
-describe('access: roles per project (DEC-70)', () => {
+describe('access: roles by scoped assignment (DEC-70)', () => {
   it('Given a member with different roles per project, then each project uses its own role', () => {
-    expect(roleInProject(REVIEWER, RETAIL)).toBe('REVIEWER')
-    expect(roleInProject(REVIEWER, SME)).toBe('VIEWER')
+    expect(roleNamesInProject(REVIEWER, RETAIL)).toEqual(['Reviewer'])
+    expect(roleNamesInProject(REVIEWER, SME)).toEqual(['Viewer'])
     expect(can(REVIEWER, 'claimCase', RETAIL)).toBe(true)
     expect(can(REVIEWER, 'claimCase', SME)).toBe(false)
     expect(can(REVIEWER, 'viewCases', SME)).toBe(true)
   })
 
-  it('Given a Merchant Owner, then they act in every project of their merchant and none of another merchant', () => {
-    expect(roleInProject(OWNER, SME)).toBe('MERCHANT_OWNER')
+  it('Given a Merchant Owner (All projects), then they act in every project of their merchant, new ones too, and none of another merchant', () => {
+    expect(roleNamesInProject(OWNER, SME)).toEqual(['Merchant Owner'])
+    expect(hasProject(OWNER, project('PRJ-0099'))).toBe(true)
+    expect(hasProject(OWNER, OTHER_MERCHANT)).toBe(false)
     expect(can(OWNER, 'manageIntegration', SME)).toBe(true)
     expect(can(OWNER, 'viewCases', OTHER_MERCHANT)).toBe(false)
   })
@@ -43,6 +47,25 @@ describe('access: roles per project (DEC-70)', () => {
     expect(can(PROJECT_ADMIN, 'manageMembers', RETAIL)).toBe(true)
     expect(can(PROJECT_ADMIN, 'manageFlows', SME)).toBe(false)
     expect(can(PROJECT_ADMIN, 'manageProjects', RETAIL)).toBe(false)
+  })
+
+  it('Given two overlapping assignments, then the project gets the union of both roles', () => {
+    const both = member('USR-2026-0040', grant(SYSTEM_ROLE_IDS.VIEWER, ALL), custom('Flow Editor', ['MANAGE_FLOWS'], only('PRJ-0002')))
+    expect(can(both, 'manageFlows', SME)).toBe(true)
+    expect(can(both, 'viewCases', SME)).toBe(true)
+    expect(can(both, 'manageFlows', RETAIL)).toBe(false)
+    expect(roleNamesInProject(both, SME)).toEqual(['Viewer', 'Flow Editor'])
+  })
+
+  it('Given a custom role with Change verification level only, then thresholds but not the rest of the flow', () => {
+    const tuner = member('USR-2026-0041', custom('Risk Tuner', ['CHANGE_VERIFICATION_LEVEL'], only('PRJ-0001')))
+    expect(can(tuner, 'changeVerificationLevel')).toBe(true)
+    expect(can(tuner, 'manageFlows')).toBe(false)
+  })
+
+  it('Given no assignment for a project, then the user does not reach it at all', () => {
+    expect(hasProject(PROJECT_ADMIN, SME)).toBe(false)
+    expect(hasProject(member('USR-2026-0042'), RETAIL)).toBe(false)
   })
 
   it('Given a Viewer, then they see cases and dashboards but cannot claim, decide or see the audit log', () => {
@@ -78,11 +101,17 @@ describe('access: Platform Admin (DEC-70, DEC-75)', () => {
 })
 
 describe('access: merchant-wide actions and scope (DEC-86, DEC-72)', () => {
-  it('Given creating a project, then only Platform Admin or that merchant’s owner', () => {
+  it('Given creating a project, then only Platform Admin or a holder of the permission for All projects', () => {
     expect(canInMerchant(OWNER, 'manageProjects', 'MER-0001')).toBe(true)
     expect(canInMerchant(OWNER, 'manageProjects', 'MER-0002')).toBe(false)
     expect(canInMerchant(PROJECT_ADMIN, 'manageProjects', 'MER-0001')).toBe(false)
     expect(canInMerchant(PLATFORM, 'manageProjects', 'MER-0002')).toBe(true)
+    expect(canInMerchant(member('USR-2026-0043', custom('Admin desk', ['MANAGE_USERS_ROLES'], ALL)), 'manageUsersRoles', 'MER-0001')).toBe(true)
+  })
+
+  it('Given a project-wide permission held only for some projects, then it does not count merchant-wide', () => {
+    expect(canInMerchant(PROJECT_ADMIN, 'viewAudit', 'MER-0001')).toBe(false)
+    expect(canInMerchant(OWNER, 'viewAudit', 'MER-0001')).toBe(true)
   })
 
   it('Given dashboards, then everyone sees them, scoped: Platform Admin all, owner their merchant, members their projects', () => {

@@ -1,18 +1,20 @@
-// User directory API (mock), read-only: the signed-in account and the names used by filters. Managing access: accessAdminService.
-//   GET /me                            → 200 UserAccount (the signed-in user's level and project roles)
+// User directory API (mock), read-only: the signed-in account and the names used by filters.
+//   GET /me                            → 200 AccountAccess (the signed-in user's account and grants)
 //   GET /users                         → 200 UserSummary[]
 //   GET /users?canClaim=true&project=… → 200 UserSummary[]
 import { canInProject } from '@/domain/access'
 import type { AccessLevel, Actor, ClaimHolder, UserAccount } from '@/domain/types'
 import { db } from '@/mocks/mockDb'
-import { accountOf, projectIdsWhere } from './accessGuard'
+import { accountOf, projectIdsWhere, withAccess, type AccountAccess } from './accessGuard'
 import { simulateNetwork, wire } from './network'
+
+export type { AccountAccess }
 
 export type UserSummary = ClaimHolder & { level: AccessLevel; merchantId?: string }
 
 export interface UserService {
   /** The signed-in user's account: the UI decides what to show from it (DEC-71); services check it again. */
-  me(actor: Actor): Promise<UserAccount>
+  me(actor: Actor): Promise<AccountAccess>
   /**
    * Active users who may claim cases (DEC-70), limited to projects whose cases the actor can see; one project when given.
    * Platform Admins never claim.
@@ -37,7 +39,7 @@ export const mockUserService: UserService = {
     return wire(
       db
         .state()
-        .accounts.filter((a) => a.status === 'ACTIVE' && projects.some((p) => canInProject(a, 'claimCase', p)))
+        .accounts.filter((a) => a.status === 'ACTIVE' && projects.some((p) => canInProject(withAccess(a), 'claimCase', p)))
         .map(summary),
     )
   },

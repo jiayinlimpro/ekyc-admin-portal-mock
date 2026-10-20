@@ -71,7 +71,7 @@ describe('registryService lifecycle (DEC-56, DEC-57)', () => {
     const v6 = await registryService.register(inputOf(entry('V4'), { code: 'V6', name: 'V4 + document liveness', releaseNote: 'First draft' }), ADMIN)
     expect(v6).toMatchObject({ code: 'V6', status: 'DRAFT', isDefault: false, releaseNotes: [{ text: 'First draft', by: 'Lim Wei Jie' }] })
     await expectError(registryService.register(inputOf(entry('V4'), { name: 'Copy' }), ADMIN), 'VALIDATION', 'Workflow code already exists')
-    expect((await auditService.list({ actions: ['WORKFLOW_REGISTERED'] }, ADMIN)).items[0]).toMatchObject({ actorRole: 'PLATFORM_ADMIN', details: { code: 'V6' } })
+    expect((await auditService.list({ actions: ['WORKFLOW_REGISTERED'] }, ADMIN)).items[0]).toMatchObject({ actorRole: 'Platform Admin', details: { code: 'V6' } })
     expect((await auditService.list({ actions: ['WORKFLOW_REGISTERED'] }, OWNER)).total).toBe(0)
   })
 

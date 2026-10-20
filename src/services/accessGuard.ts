@@ -1,19 +1,26 @@
 // Service-side access checks (DEC-71, DEC-72). The session only says who the user is; what they may do is read from their
-// account and project roles, as the real backend would.
-import { canInProject, projectsWhere, roleInProject, type ProjectAction } from '@/domain/access'
-import type { Actor, EffectiveRole, Project, UserAccount } from '@/domain/types'
+// account, its role assignments and the roles' current permissions, as the real backend would.
+import { canInProject, projectsWhere, roleNamesInProject, type ProjectAction } from '@/domain/access'
+import { grantsOf } from '@/domain/roles'
+import type { Actor, Project, UserAccess, UserAccount } from '@/domain/types'
 import { db } from '@/mocks/mockDb'
 import { ServiceError } from './errors'
 
+/** An account with its grants: editing a role applies at once to everyone holding it (DEC-76). */
+export type AccountAccess = UserAccount & UserAccess
+
+/** The account with its grants, resolved against the current roles. */
+export const withAccess = (a: UserAccount): AccountAccess => ({ ...a, grants: grantsOf(a.assignments, db.state().roles) })
+
 /** The account behind the session. A session for an account that no longer exists has no access at all. */
-export function accountOf(actor: Pick<Actor, 'userId'>): UserAccount {
+export function accountOf(actor: Pick<Actor, 'userId'>): AccountAccess {
   const a = db.state().accounts.find((x) => x.userId === actor.userId)
   if (!a) throw new ServiceError('FORBIDDEN', 'Your account was not found.')
-  return a
+  return withAccess(a)
 }
 
-/** Invited and deactivated users cannot change anything, even with a stale session (DEC-74). */
-export function requireActive(actor: Pick<Actor, 'userId'>): UserAccount {
+/** Pending and suspended users cannot change anything, even with a stale session (DEC-74). */
+export function requireActive(actor: Pick<Actor, 'userId'>): AccountAccess {
   const a = accountOf(actor)
   if (a.status !== 'ACTIVE') throw new ServiceError('FORBIDDEN', 'Your account is inactive.')
   return a
@@ -27,10 +34,16 @@ export function mayInProject(actor: Pick<Actor, 'userId'>, action: ProjectAction
   return !!p && canInProject(accountOf(actor), action, p)
 }
 
-/** The user's role in a project, recorded on audit entries (DEC-42). */
-export function roleIn(actor: Pick<Actor, 'userId'>, projectId: string): EffectiveRole | undefined {
+/** The user's role names in a project, recorded on audit entries (DEC-42), e.g. "Reviewer". */
+export function roleIn(actor: Pick<Actor, 'userId'>, projectId: string): string | undefined {
   const p = projectById(projectId)
-  return p && roleInProject(accountOf(actor), p)
+  return (p && roleNamesInProject(accountOf(actor), p).join(', ')) || undefined
+}
+
+/** A new assignment id: ASG-2026-XXXX, unique across all accounts. */
+export function nextAssignmentId(): string {
+  const ids = db.state().accounts.flatMap((a) => a.assignments.map((x) => Number(x.assignmentId.slice('ASG-2026-'.length))))
+  return `ASG-2026-${String(Math.max(0, ...ids.filter(Number.isFinite)) + 1).padStart(4, '0')}`
 }
 
 /**

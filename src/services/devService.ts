@@ -2,14 +2,14 @@
 // Not part of the real API contract.
 import { isClaimActive } from '@/domain/claimRules'
 import { VERIFICATION_STATUSES, type AccessLevel, type Actor, type UserStatus, type VerificationStatus, type WorkflowVersion } from '@/domain/types'
-import { PROJECT_ROLE_LABELS } from '@/lib/labels'
+import { accessSummary, grantsOf } from '@/domain/roles'
 import { now } from '@/lib/clock'
 import { EDGE_CASES } from '@/mocks/fixtures/edgeCases'
 import { db } from '@/mocks/mockDb'
 import { wire } from './network'
 
 /** A demo user for "Switch user" and the mock login: the session part plus a one-line description of their access. */
-export type DevUser = Actor & { email: string; level: AccessLevel; status: UserStatus; merchantId?: string; access: string }
+export type DevUser = Actor & { email: string; level: AccessLevel; status: UserStatus; merchantId?: string; merchantName?: string; access: string }
 
 export interface ScenarioSummary {
   id: string // S01 …
@@ -27,13 +27,8 @@ export const devService = {
     const project = (id: string) => s.projects.find((p) => p.projectId === id)?.name ?? id
     return wire(
       s.accounts.map((a) => {
-        const access =
-          a.level === 'PLATFORM_ADMIN'
-            ? 'Platform Admin · all merchants'
-            : a.level === 'MERCHANT_OWNER'
-              ? `Merchant Owner · ${merchant(a.merchantId)}`
-              : `${a.memberships.map((m) => `${PROJECT_ROLE_LABELS[m.role]} in ${project(m.projectId)}`).join(', ') || 'No projects'} · ${merchant(a.merchantId)}`
-        return { userId: a.userId, fullName: a.fullName, email: a.email, level: a.level, status: a.status, merchantId: a.merchantId, access }
+        const access = a.level === 'PLATFORM_ADMIN' ? 'Platform Admin · all merchants' : accessSummary(grantsOf(a.assignments, s.roles), project) || 'No access yet'
+        return { userId: a.userId, fullName: a.fullName, email: a.email, level: a.level, status: a.status, merchantId: a.merchantId, merchantName: a.merchantId && merchant(a.merchantId), access }
       }),
     )
   },

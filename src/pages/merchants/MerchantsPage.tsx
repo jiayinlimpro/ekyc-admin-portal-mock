@@ -139,7 +139,7 @@ export function MerchantsPage() {
                       {r.owner.fullName}
                       <div className="text-xs text-muted-foreground">
                         {r.owner.email}
-                        {r.owner.status === 'INVITED' ? ' · Invited' : ''}
+                        {r.owner.status === 'PENDING' ? ' · Pending' : ''}
                       </div>
                     </>
                   ) : (

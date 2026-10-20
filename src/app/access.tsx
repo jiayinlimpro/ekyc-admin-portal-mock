@@ -2,9 +2,8 @@
 // UI only: every service checks again.
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { canInProject, canOnPlatform, type PlatformAction, type ProjectAction } from '@/domain/access'
-import type { UserAccount } from '@/domain/types'
 import { projectService, type MyProject } from '@/services/projectService'
-import { userService } from '@/services/userService'
+import { userService, type AccountAccess } from '@/services/userService'
 import { ALL_PROJECTS, useSession } from '@/stores/sessionStore'
 
 /**
@@ -18,8 +17,9 @@ export interface Access {
   /** Loading the account or projects failed (e.g. network): show a retry, not "No access". */
   error?: string
   retry: () => void
-  account?: UserAccount
-  /** Every project the user has a role in (switcher options). */
+  /** The account with its grants (DEC-70). */
+  account?: AccountAccess
+  /** Every project the user's assignments cover (switcher options). */
   projects: MyProject[]
   /** The selected project; undefined = "All my projects". A user with one project always has it selected. */
   selected?: MyProject
@@ -33,7 +33,7 @@ const AccessContext = createContext<Access>({ ready: false, retry: () => {}, pro
 export function AccessProvider({ children }: { children: ReactNode }) {
   const actor = useSession((s) => s.actor)
   const projectId = useSession((s) => s.projectId) ?? ALL_PROJECTS
-  const [loaded, setLoaded] = useState<{ userId: string; account?: UserAccount; projects: MyProject[]; error?: string }>()
+  const [loaded, setLoaded] = useState<{ userId: string; account?: AccountAccess; projects: MyProject[]; error?: string }>()
   const [attempt, setAttempt] = useState(0)
 
   useEffect(() => {

@@ -1,21 +1,9 @@
-import type { AccessLevel, AttemptOutcome, AuditAction, DocumentType, EffectiveRole, FlowStatus, RiskLevel, VerificationStatus } from '@/domain/types'
+import type { AttemptOutcome, AuditAction, DocumentType, FlowStatus, RiskLevel, UserStatus, VerificationStatus } from '@/domain/types'
 
 export const FLOW_STATUS_LABELS: Record<FlowStatus, string> = { DRAFT: 'Draft', ACTIVE: 'Active', RETIRING: 'Retiring', INACTIVE: 'Inactive' }
 
-// REQ: DEC-70 — the five working roles (names are OQ-09).
-export const PROJECT_ROLE_LABELS: Record<EffectiveRole, string> = {
-  PLATFORM_ADMIN: 'Platform Admin',
-  MERCHANT_OWNER: 'Merchant Owner',
-  PROJECT_ADMIN: 'Project Admin',
-  REVIEWER: 'Reviewer',
-  VIEWER: 'Viewer',
-}
-
-export const ACCESS_LEVEL_LABELS: Record<AccessLevel, string> = {
-  PLATFORM_ADMIN: 'Platform Admin',
-  MERCHANT_OWNER: 'Merchant Owner',
-  MEMBER: 'Project members',
-}
+// REQ: DEC-74 — [FRS] user statuses.
+export const USER_STATUS_LABELS: Record<UserStatus, string> = { PENDING: 'Pending', ACTIVE: 'Active', SUSPENDED: 'Suspended' }
 
 export const STATUS_LABELS: Record<VerificationStatus, string> = {
   PROCESSING: 'Processing',
@@ -66,9 +54,15 @@ export const AUDIT_ACTION_LABELS: Record<AuditAction, string> = {
   API_KEY_REVOKED: 'API key revoked',
   WEBHOOK_CHANGED: 'Webhook changed',
   USER_INVITED: 'User invited',
-  USER_ROLE_CHANGED: 'User role changed',
-  USER_REMOVED: 'User removed from project',
-  USER_DEACTIVATED: 'User deactivated',
+  USER_INVITATION_RESENT: 'Invitation resent',
+  USER_ACCESS_ADDED: 'Access added',
+  USER_ACCESS_CHANGED: 'Access changed',
+  USER_ACCESS_REMOVED: 'Access removed',
+  USER_SUSPENDED: 'User suspended',
+  USER_REACTIVATED: 'User reactivated',
+  ROLE_CREATED: 'Role created',
+  ROLE_UPDATED: 'Role updated',
+  ROLE_STATUS_CHANGED: 'Role status changed',
   WORKFLOW_REGISTERED: 'Workflow registered',
   WORKFLOW_UPDATED: 'Workflow updated',
   WORKFLOW_STATUS_CHANGED: 'Workflow status changed',

@@ -11,7 +11,6 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from '@/components/ui/input'
 import { errorMessage, useLoad } from '@/hooks/useLoad'
 import { formatMyt } from '@/lib/format'
-import { PROJECT_ROLE_LABELS } from '@/lib/labels'
 import { cn } from '@/lib/utils'
 import { isServiceError } from '@/services/errors'
 import { projectService, type ProjectRow } from '@/services/projectService'
@@ -178,7 +177,7 @@ export function ProjectsPage() {
                   <span className="font-mono text-[11px] font-normal text-muted-foreground">{r.projectId}</span>
                 </th>
                 {several && <td className="px-3 py-2 whitespace-nowrap">{r.merchantName}</td>}
-                <td className="px-3 py-2 whitespace-nowrap">{PROJECT_ROLE_LABELS[r.role]}</td>
+                <td className="px-3 py-2 whitespace-nowrap">{r.roles.join(', ')}</td>
                 <td className="px-3 py-2 whitespace-nowrap tabular-nums">
                   {r.activeFlows} active / {r.flows}
                 </td>

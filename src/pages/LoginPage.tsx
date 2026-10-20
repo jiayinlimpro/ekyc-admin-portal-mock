@@ -1,14 +1,13 @@
 import { useNavigate } from 'react-router'
 import { ShieldCheck } from 'lucide-react'
-import type { AccessLevel } from '@/domain/types'
 import { useUsers } from '@/hooks/useUsers'
-import { ACCESS_LEVEL_LABELS } from '@/lib/labels'
 import { useSession } from '@/stores/sessionStore'
 
 /** Mock login: pick a demo user. The real portal uses real authentication and a Secure, HttpOnly session cookie. */
 export function LoginPage() {
   const users = useUsers().filter((u) => u.status === 'ACTIVE')
-  const levels: AccessLevel[] = ['PLATFORM_ADMIN', 'MERCHANT_OWNER', 'MEMBER']
+  // Platform Admin first, then one group per merchant.
+  const groups = [...new Set(users.map((u) => u.merchantName ?? 'Platform Admin'))].sort((a, b) => Number(b === 'Platform Admin') - Number(a === 'Platform Admin'))
   const switchUser = useSession((s) => s.switchUser)
   const navigate = useNavigate()
   return (
@@ -22,12 +21,12 @@ export function LoginPage() {
           </div>
         </div>
         <p className="text-sm text-muted-foreground">Choose who to sign in as. There are no passwords in the mock.</p>
-        {levels.map((r) => (
-          <section key={r} aria-label={ACCESS_LEVEL_LABELS[r]}>
-            <h2 className="mb-1 text-xs font-medium tracking-wide text-muted-foreground uppercase">{ACCESS_LEVEL_LABELS[r]}</h2>
+        {groups.map((g) => (
+          <section key={g} aria-label={g}>
+            <h2 className="mb-1 text-xs font-medium tracking-wide text-muted-foreground uppercase">{g}</h2>
             <ul className="divide-y rounded-lg border">
               {users
-                .filter((u) => u.level === r)
+                .filter((u) => (u.merchantName ?? 'Platform Admin') === g)
                 .map((u) => (
                   <li key={u.userId}>
                     <button

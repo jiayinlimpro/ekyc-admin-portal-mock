@@ -7,32 +7,33 @@
 //   POST  /projects/{id}/archive      archive  → 200 Project | 403 | 422 VALIDATION
 //   PATCH /projects/{id}/general      updateGeneral    → 200 Project (branding, language)
 //   PATCH /projects/{id}/review-ops   updateClaimTimeout → 200 Project
-import { canInMerchant, canInProject, roleInProject, type ProjectAction } from '@/domain/access'
+import { canInMerchant, canInProject, hasProject, roleNamesInProject, type ProjectAction } from '@/domain/access'
 import { makeAudit } from '@/domain/audit'
 import { createFlow } from '@/domain/flowSettings'
 import { archiveError, IN_FLIGHT_STATUSES, validateProjectName } from '@/domain/flowRules'
 import { DEFAULT_CLAIM_TIMEOUT_MIN } from '@/domain/openQuestions'
 import { claimTimeoutError, diffSettings, PROJECT_SETTING_DEFAULTS, validateGeneral, type GeneralSettings } from '@/domain/projectSettings'
 import { defaultVersion } from '@/domain/registryRules'
-import type { Actor, AuditAction, EffectiveRole, Project, RuleError } from '@/domain/types'
+import { covers } from '@/domain/roles'
+import type { Actor, AuditAction, Project, RuleError } from '@/domain/types'
 import { now } from '@/lib/clock'
 import { db } from '@/mocks/mockDb'
 import { accountOf, projectById, requireActive, roleIn } from './accessGuard'
 import { ServiceError } from './errors'
 import { clientIpFor, simulateNetwork, wire } from './network'
 
-/** A project the user can reach, with their role in it (DEC-73: switcher and "role in the current project"). */
-export type MyProject = Project & { role: EffectiveRole }
+/** A project the user can reach, with their role names in it (DEC-73: switcher and "roles in the current project"). */
+export type MyProject = Project & { roles: string[] }
 
-/** A row on the Projects screen: the project, the user's role, and what it holds. */
+/** A row on the Projects screen: the project, the user's roles, and what it holds. */
 export type ProjectRow = MyProject & {
   merchantName: string
   flows: number
   activeFlows: number
   defaultFlowName: string
-  members: number // project members (not counting Merchant Owners and Platform Admins), Invited or Active
+  members: number // users with access, incl. All projects (DEC-77), Pending or Active; not Platform Admins
   inFlightCases: number // PROCESSING + PENDING_REVIEW
-  /** The user may rename and archive it (DEC-70: Platform Admin, Merchant Owner). */
+  /** The user may rename and archive it (DEC-70: Create, rename, archive projects). */
   canManage: boolean
 }
 
@@ -57,10 +58,10 @@ export function nextId(prefix: string, ids: readonly string[], width = 4): strin
 
 export const validation = (errors: RuleError[]) => new ServiceError('VALIDATION', errors[0].message, errors)
 
-/** A project the user has a role in, or "not found" (DEC-72). */
+/** A project the user has access to, or "not found" (DEC-72). */
 export function loadProject(actor: Actor, projectId: string): Project {
   const p = projectById(projectId)
-  if (!p || !roleInProject(accountOf(actor), p)) throw new ServiceError('NOT_FOUND', `Project ${projectId} not found.`)
+  if (!p || !hasProject(accountOf(actor), p)) throw new ServiceError('NOT_FOUND', `Project ${projectId} not found.`)
   return p
 }
 
@@ -103,8 +104,8 @@ export const mockProjectService: ProjectService = {
     const me = accountOf(actor)
     const rows = db
       .state()
-      .projects.map((p) => ({ ...p, role: roleInProject(me, p) }))
-      .filter((p): p is MyProject => !!p.role)
+      .projects.filter((p) => hasProject(me, p))
+      .map((p): MyProject => ({ ...p, roles: roleNamesInProject(me, p) }))
       .sort((a, b) => a.merchantId.localeCompare(b.merchantId) || Number(b.isDefault) - Number(a.isDefault) || a.name.localeCompare(b.name))
     return wire(rows)
   },
@@ -114,18 +115,17 @@ export const mockProjectService: ProjectService = {
     const me = accountOf(actor)
     const s = db.state()
     const rows = s.projects
-      .map((p) => ({ p, role: roleInProject(me, p) }))
-      .filter((x): x is { p: Project; role: EffectiveRole } => !!x.role)
-      .map(({ p, role }): ProjectRow => {
+      .filter((p) => hasProject(me, p))
+      .map((p): ProjectRow => {
         const flows = s.flows.filter((f) => f.projectId === p.projectId)
         return {
           ...p,
-          role,
+          roles: roleNamesInProject(me, p),
           merchantName: s.merchants.find((m) => m.merchantId === p.merchantId)?.name ?? p.merchantId,
           flows: flows.length,
           activeFlows: flows.filter((f) => f.status === 'ACTIVE').length,
           defaultFlowName: flows.find((f) => f.flowId === p.defaultFlowId)?.name ?? p.defaultFlowId,
-          members: s.accounts.filter((a) => a.status !== 'DEACTIVATED' && a.memberships.some((m) => m.projectId === p.projectId)).length,
+          members: s.accounts.filter((a) => a.status !== 'SUSPENDED' && a.merchantId === p.merchantId && a.assignments.some((x) => covers(x.scope, p.projectId))).length,
           inFlightCases: s.verifications.filter((v) => v.projectId === p.projectId && IN_FLIGHT_STATUSES.includes(v.status)).length,
           canManage: canInProject(me, 'manageProjects', p),
         }

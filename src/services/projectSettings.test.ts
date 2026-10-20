@@ -20,7 +20,7 @@ describe('Project Settings › General and Review operations', () => {
   it('Given the Project Admin, then branding and language save with old and new values audited', async () => {
     const p = await projectService.updateGeneral('PRJ-0002', { branding: { primaryColor: '#0F766E' }, language: 'ms' }, HAFIZ)
     expect(p).toMatchObject({ branding: { primaryColor: '#0F766E' }, language: 'ms' })
-    expect(await last(['PROJECT_SETTING_CHANGED'])).toMatchObject({ actorRole: 'PROJECT_ADMIN', projectId: 'PRJ-0002', details: { changes: [{ field: 'Primary colour', from: '—', to: '#0F766E' }, { field: 'Language', from: '—', to: 'Bahasa Melayu' }] } })
+    expect(await last(['PROJECT_SETTING_CHANGED'])).toMatchObject({ actorRole: 'Project Admin', projectId: 'PRJ-0002', details: { changes: [{ field: 'Primary colour', from: '—', to: '#0F766E' }, { field: 'Language', from: '—', to: 'Bahasa Melayu' }] } })
   })
 
   it('Given a new claim timeout, then new claims use it (DEC-22) and a timeout below 1 is refused (DEC-53)', async () => {

@@ -60,7 +60,7 @@ function put(entry: RegistryEntry) {
 
 // Registry events have no merchant or project, so only Platform Admin sees them in the Audit Log.
 function audit(actor: Actor, action: AuditAction, code: WorkflowCode, details: Record<string, unknown>) {
-  db.appendAudit(makeAudit({ id: '', now: now(), action, actor, actorRole: 'PLATFORM_ADMIN', ip: clientIpFor(actor), details: { code, ...details } }))
+  db.appendAudit(makeAudit({ id: '', now: now(), action, actor, actorRole: 'Platform Admin', ip: clientIpFor(actor), details: { code, ...details } }))
 }
 
 const FIELDS: (keyof RegistryInput)[] = ['name', 'description', 'phases', 'faceMatchMethod', 'requiredInputs', 'configurableChecks', 'stateMachineSandbox', 'stateMachineProduction']
