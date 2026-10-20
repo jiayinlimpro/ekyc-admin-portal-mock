@@ -11,6 +11,7 @@ import { can, canAccessMerchant } from '@/domain/permissions'
 import type { Actor, Decision, Paged, RiskLevel, Verification, VerificationDetail, VerificationStatus, VerificationSummary } from '@/domain/types'
 import { now } from '@/lib/clock'
 import { db } from '@/mocks/mockDb'
+import { requireActive } from './accessGuard'
 import { sweepExpiredClaims } from './claimSweep'
 import { ServiceError } from './errors'
 import { clientIpFor, simulateNetwork, wire } from './network'
@@ -70,12 +71,6 @@ function load(ref: string, actor: Actor): Verification {
 
 function audit(actor: Actor, action: Parameters<typeof makeAudit>[0]['action'], v: Verification, at: Date, details?: Record<string, unknown>) {
   db.appendAudit(makeAudit({ id: '', now: at, action, actor, ip: clientIpFor(actor), merchantId: v.merchantId, referenceNo: v.referenceNo, details }))
-}
-
-// Deactivated users (UAM) cannot claim or decide, even with a stale session.
-function requireActive(actor: Actor) {
-  const u = db.state().users.find((x) => x.userId === actor.userId)
-  if (u && !u.active) throw new ServiceError('FORBIDDEN', 'Your account is inactive.')
 }
 
 const loggedPiiViews = new Set<string>()

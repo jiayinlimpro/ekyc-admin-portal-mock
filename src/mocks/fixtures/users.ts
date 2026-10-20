@@ -1,23 +1,7 @@
 import type { Actor, UserAccount } from '@/domain/types'
 
-export const USERS: Actor[] = [
-  { userId: 'USR-2026-0001', fullName: 'Lim Wei Jie', role: 'PLATFORM_ADMIN' },
-  { userId: 'USR-2026-0012', fullName: 'Ali Bin Ahmad', role: 'MERCHANT_REVIEWER', merchantId: 'MER-0001' },
-  { userId: 'USR-2026-0031', fullName: 'Siti Aminah Binti Yusof', role: 'MERCHANT_REVIEWER', merchantId: 'MER-0001' },
-  { userId: 'USR-2026-0044', fullName: 'Kavitha A/P Subramaniam', role: 'MERCHANT_REVIEWER', merchantId: 'MER-0002' },
-  { userId: 'USR-2026-0052', fullName: 'Wong Kah Heng', role: 'MERCHANT_REVIEWER', merchantId: 'MER-0003' },
-  { userId: 'USR-2026-0063', fullName: 'Farah Binti Ismail', role: 'MERCHANT_REVIEWER', merchantId: 'MER-0004' },
-  { userId: 'USR-2026-0071', fullName: 'Ng Chee Keong', role: 'MERCHANT_REVIEWER', merchantId: 'MER-0005' },
-  { userId: 'USR-2026-0080', fullName: 'Rajesh A/L Muthu', role: 'MERCHANT_REVIEWER', merchantId: 'MER-0006' },
-]
-
-export const DEFAULT_USER = USERS[1] // Ali Bin Ahmad — main reviewer persona in docs/SCENARIOS.md
-
-export const userById = (id: string) => USERS.find((u) => u.userId === id)
-
 // ---------------------------------------------------------------------------------------------------------------------
-// Accounts under the per-project model (DEC-70, DEC-74). The legacy USERS above keep the old screens working until
-// services move over (Phase 4). Emails use the reserved .example domain.
+// Accounts under the per-project model (DEC-70, DEC-74): the only user list. Emails use the reserved .example domain.
 // ---------------------------------------------------------------------------------------------------------------------
 
 type AccountSpec = Omit<UserAccount, 'invitedAt' | 'lastActiveAt'> & { invitedDaysAgo: number; lastActiveHoursAgo?: number }
@@ -50,3 +34,19 @@ export function buildAccounts(now: Date): UserAccount[] {
     lastActiveAt: lastActiveHoursAgo === undefined ? undefined : ago(lastActiveHoursAgo),
   }))
 }
+
+/**
+ * The legacy two-role view of an account, for the screens not yet moved to per-project roles (until Phase 11). Services
+ * never trust it: they read what the user may do from the account (services/accessGuard.ts).
+ */
+export function legacyActor(a: Pick<UserAccount, 'userId' | 'fullName' | 'level' | 'merchantId'>): Actor {
+  return a.level === 'PLATFORM_ADMIN'
+    ? { userId: a.userId, fullName: a.fullName, role: 'PLATFORM_ADMIN' }
+    : { userId: a.userId, fullName: a.fullName, role: 'MERCHANT_REVIEWER', merchantId: a.merchantId }
+}
+
+export const USERS: Actor[] = ACCOUNT_SPECS.map(legacyActor)
+
+export const userById = (id: string) => USERS.find((u) => u.userId === id)
+
+export const DEFAULT_USER = userById('USR-2026-0012')! // Ali Bin Ahmad — main reviewer persona in docs/SCENARIOS.md

@@ -11,7 +11,7 @@ import { buildCase, makeConfigs, refNo, type ConfigRecord } from './builders'
 import { buildCatalog, revisionAt } from './fixtures/catalog'
 import { buildEdgeCases } from './fixtures/edgeCases'
 import { MERCHANTS } from './fixtures/merchants'
-import { USERS, buildAccounts } from './fixtures/users'
+import { buildAccounts, legacyActor } from './fixtures/users'
 import { clientMetadata, fakeIp, person } from './malaysia'
 
 export const SEED = 2026
@@ -23,7 +23,7 @@ export interface MockDbState {
   dbVersion: number
   seededAt: string
   merchants: Merchant[]
-  users: UserRecord[]
+  users: UserRecord[] // legacy two-role view of `accounts`, for the UAM screens until Phase 11
   apiKeys: Record<string, ApiCredential>
   configs: Record<string, ConfigRecord>
   verifications: Verification[]
@@ -121,8 +121,8 @@ export function seedDatabase(now: Date): MockDbState {
   const reviewersOf = (v: Verification): Actor[] =>
     accounts
       .filter((a) => a.status === 'ACTIVE' && canInProject(a, 'claimCase', { projectId: v.projectId, merchantId: v.merchantId }))
-      .map((a) => ({ userId: a.userId, fullName: a.fullName, role: 'MERCHANT_REVIEWER', merchantId: a.merchantId }))
-  const admin = USERS.find((u) => u.role === 'PLATFORM_ADMIN')!
+      .map(legacyActor)
+  const admin = legacyActor(accounts.find((a) => a.level === 'PLATFORM_ADMIN')!)
   const merchantOf = (id: string) => MERCHANTS.find((m) => m.merchantId === id)!
   const entryOf = (code: string) => catalog.registry.find((e) => e.code === code)!
 
@@ -235,7 +235,7 @@ export function seedDatabase(now: Date): MockDbState {
     dbVersion: DB_VERSION,
     seededAt: now.toISOString(),
     merchants: MERCHANTS,
-    users: USERS.map((u) => ({ ...u, active: true, createdAt: new Date(now.getTime() - 150 * DAY).toISOString() })),
+    users: accounts.map((a) => ({ ...legacyActor(a), active: a.status === 'ACTIVE', createdAt: a.invitedAt })),
     apiKeys,
     configs,
     verifications: [...verifications, ...edge.verifications],
