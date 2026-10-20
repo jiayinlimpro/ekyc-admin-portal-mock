@@ -179,7 +179,7 @@ export const NAV_ITEMS: NavItem[] = [
     inMenu: true,
     access: { project: 'manageUsersRoles' },
     priority: 'P1',
-    built: false,
+    built: true,
     notes: [
       '[FRS] Users: User ID, Full Name, Email, Merchant (Platform Admin), Access, Status, Created At (DEC-74).',
       'Invite (Pending, Resend invitation), Suspend / Reactivate, never delete. Access table: Role | Scope | Added by | Date.',
@@ -193,7 +193,7 @@ export const NAV_ITEMS: NavItem[] = [
     inMenu: true,
     access: { project: 'manageUsersRoles' },
     priority: 'P1',
-    built: false,
+    built: true,
     notes: ['[FRS] Roles: grouped permission checkboxes; System Default roles locked; "Affects N users" before saving (DEC-76).'],
   },
   {
