@@ -88,8 +88,8 @@ export const NAV_ITEMS: NavItem[] = [
     notes: [
       'Opening writes a SENSITIVE_PII_VIEW audit entry; full unmasked PII + client metadata (DEC-41).',
       'Claim bar: Assign to me / Cancel / countdown. Viewing is never blocked (DEC-25).',
-      'Decision overlay only for the claim owner on PENDING_REVIEW; PROCESSING is read-only; decisions are final (DEC-30, DEC-32, DEC-33).',
-      'Metrics grouped by phase; Risk panel for V4 only (DEC-10, DEC-13).',
+      'Decision only for the claim owner on PENDING_REVIEW: Confirm Manual Pass, or Reject with catalogue reasons; note optional (DEC-30, DEC-31).',
+      'Sections per DEC-44: end-user data, ID capture, Selfie (V1), Face match, Liveness, Risk (V4/V5), Rules applied, Activity.',
     ],
   },
   {

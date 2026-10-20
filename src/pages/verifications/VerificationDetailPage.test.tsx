@@ -110,22 +110,50 @@ describe('Verification Detail', () => {
     expect(screen.getByText(/Decision is final — Ali Bin Ahmad \(USR-2026-0012\)/)).toBeTruthy()
   })
 
-  it('Given S06, then the reason banner shows the final liveness condition and 4 submissions under one Reference No (DEC-16, DEC-35)', async () => {
+  it('Given S06, then the reason banner shows the final liveness condition and Liveness shows 4 scores, 3 of 3 retries (DEC-16, DEC-35, DEC-44)', async () => {
     await open(S(6))
-    expect(screen.getByText('Face not live (Retry Not Allowed)')).toBeTruthy()
-    const history = within(screen.getByRole('region', { name: 'Attempt history' }))
-    expect(history.getAllByRole('row')).toHaveLength(5) // header + 4
+    expect(screen.getAllByText('Face not live (Retry Not Allowed)').length).toBeGreaterThan(0)
+    const liveness = within(screen.getByRole('region', { name: 'Liveness' }))
+    expect(within(liveness.getByRole('list', { name: 'Scores in submission order' })).getAllByRole('listitem').map((li) => li.textContent)).toEqual(['52.3', '58.9', '61', '74.5'])
+    expect(liveness.getByText('3 of 3 allowed')).toBeTruthy()
+    expect(liveness.getByText('Standard · reject < 70 · approve ≥ 85')).toBeTruthy()
+    expect(liveness.getByText('Review band')).toBeTruthy()
   })
 
-  it('Given V4 S02, then a Risk panel with HIGH; given V1 S01, then no Risk panel', async () => {
+  it('Given the header, then project, flow, version, rules applied revision and created are shown (DEC-44)', async () => {
+    await open(S(12))
+    expect(screen.getByText('Malaysian onboarding')).toBeTruthy()
+    expect(within(screen.getByRole('region', { name: 'Rules applied' })).getByText('V4-R1')).toBeTruthy()
+    expect(screen.getByText(/^Created /)).toBeTruthy()
+  })
+
+  it('Given S18 rejected under a 120-min cooldown, then Liveness shows "New case allowed from" (DEC-26)', async () => {
+    await open(S(18))
+    const liveness = within(screen.getByRole('region', { name: 'Liveness' }))
+    expect(liveness.getByText('120 min after a rejection')).toBeTruthy()
+    expect(liveness.getByText('New case allowed from')).toBeTruthy()
+  })
+
+  it('Given V4 S02, then a Risk section with HIGH and the components as an open question; given V1 S01, then no Risk section but a Selfie section', async () => {
     await open(S(2))
-    const risk = within(screen.getByRole('region', { name: 'Risk Assessment (V4)' }))
+    const risk = within(screen.getByRole('region', { name: 'Risk Assessment' }))
     expect(risk.getByText('High')).toBeTruthy()
+    expect(risk.getByText('Open question OQ-25')).toBeTruthy()
     expect(screen.getByText('Risk Assessment not passed')).toBeTruthy()
+    expect(screen.queryByRole('region', { name: 'Selfie' })).toBeNull() // V4 has no selfie phase
     cleanup()
     useSession.getState().switchUser(OTHER_MERCHANT_REVIEWER) // Vantage reviewer
     await open(S(1))
-    expect(screen.queryByRole('region', { name: 'Risk Assessment (V4)' })).toBeNull()
+    expect(screen.queryByRole('region', { name: 'Risk Assessment' })).toBeNull()
+    expect(screen.getByRole('region', { name: 'Selfie' })).toBeTruthy()
+  })
+
+  it('Given S11, then the Activity timeline shows the claim and the approval', async () => {
+    await open(S(11))
+    const activity = within(screen.getByRole('region', { name: 'Activity' }))
+    expect(activity.getByText('Session started')).toBeTruthy()
+    expect(activity.getByText('Case claimed')).toBeTruthy()
+    expect(activity.getByText('Case approved')).toBeTruthy()
   })
 
   it('Given S15 passport, then passport fields and no NRIC (S15)', async () => {

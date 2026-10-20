@@ -4,7 +4,8 @@ import { formatDate } from '@/lib/format'
 import { DOCUMENT_TYPE_LABELS } from '@/lib/labels'
 import { Fields, Section } from './Section'
 
-// REQ: DEC-41 — full unmasked PII on the detail page only; opening it wrote a SENSITIVE_PII_VIEW audit entry.
+// REQ: DEC-41 / DEC-44 — end-user data: full unmasked PII on the detail page only; opening it wrote a
+// SENSITIVE_PII_VIEW audit entry. Document images are in the ID capture and Selfie sections.
 export function PiiSection({ v }: { v: VerificationDetail }) {
   const p = v.pii
   const passport = v.documentType === 'PASSPORT'
@@ -28,7 +29,8 @@ export function PiiSection({ v }: { v: VerificationDetail }) {
       ]
   return (
     <Section
-      title={`Identity document · ${DOCUMENT_TYPE_LABELS[v.documentType]} (OCR)`}
+      title="End-user data"
+      id="sec-end-user-data"
       aside={
         <span className="flex items-center gap-1 text-xs text-muted-foreground">
           <Eye className="size-3.5" aria-hidden />
@@ -36,19 +38,8 @@ export function PiiSection({ v }: { v: VerificationDetail }) {
         </span>
       }
     >
-      <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)]">
-        <div className="grid grid-cols-2 gap-3">
-          <figure>
-            <img src={v.images.docFront} alt={`${DOCUMENT_TYPE_LABELS[v.documentType]} front (sample image, not real)`} className="w-full rounded-md border" />
-            <figcaption className="mt-1 text-xs text-muted-foreground">Document front</figcaption>
-          </figure>
-          <figure>
-            <img src={v.images.selfie} alt="Selfie (sample image, not real)" className="w-full rounded-md border" />
-            <figcaption className="mt-1 text-xs text-muted-foreground">Selfie</figcaption>
-          </figure>
-        </div>
-        <Fields items={fields} />
-      </div>
+      <p className="mb-3 text-xs text-muted-foreground">From the {DOCUMENT_TYPE_LABELS[v.documentType]} (OCR)</p>
+      <Fields items={fields} />
     </Section>
   )
 }

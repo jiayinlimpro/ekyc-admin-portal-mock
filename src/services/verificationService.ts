@@ -91,7 +91,7 @@ function activityOf(v: Verification): CaseActivity[] {
   const rounds = Math.max(0, ...CHECKS.map((c) => v.submissions[c]?.length ?? 0))
   for (let i = 0; i < rounds; i++) {
     const scores = CHECKS.filter((c) => v.submissions[c]?.[i] !== undefined).map((c) => `${PHASE_LABELS[c]} ${v.submissions[c]![i]}`)
-    out.push({ at: v.attempts[i]?.startedAt ?? v.createdAt, kind: 'SUBMISSION', by: system, detail: `Submission ${i + 1}${i ? ` (retry ${i})` : ''} · ${scores.join(' · ')}` })
+    out.push({ at: v.attempts[i]?.startedAt ?? v.createdAt, kind: 'SUBMISSION', by: system, detail: `#${i + 1}${i ? ` (retry ${i})` : ''} · ${scores.join(' · ')}` })
   }
   // The automated result; for a manual decision the audit entry below records the change instead (DEC-03).
   if (v.status !== 'PROCESSING' && v.lastUpdatedBy.kind === 'SYSTEM') out.push({ at: v.lastUpdatedAt, kind: 'SYSTEM_RESULT', by: system, detail: [v.status, v.statusReason].filter(Boolean).join(' · ') })

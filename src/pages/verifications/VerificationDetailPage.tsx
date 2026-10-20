@@ -6,20 +6,19 @@ import { NativeSelect } from '@/components/common/NativeSelect'
 import { StatusBadge } from '@/components/common/StatusBadge'
 import { EmptyState, ErrorState } from '@/components/common/States'
 import { Button } from '@/components/ui/button'
-import { AttemptHistory } from '@/components/verification/AttemptHistory'
+import { ActivitySection, CheckSection, IdCaptureSection, RiskSection, RulesAppliedSection, SelfieSection } from '@/components/verification/CaseSections'
 import { ClaimBar } from '@/components/verification/ClaimBar'
 import { DecisionOverlay } from '@/components/verification/DecisionOverlay'
-import { PhaseMetrics, RiskPanel } from '@/components/verification/PhaseMetrics'
 import { ClientMetadataCard, PiiSection } from '@/components/verification/PiiSection'
 import { formatUpdatedBy } from '@/domain/audit'
 import { isClaimActive } from '@/domain/claimRules'
 import { canInProject, type ProjectAction } from '@/domain/access'
-import type { Actor, Decision, MerchantConfig, VerificationDetail } from '@/domain/types'
+import { DEFAULT_CLAIM_WARNING_MIN } from '@/domain/openQuestions'
+import type { Actor, Decision, VerificationDetail } from '@/domain/types'
 import { useMyAccount } from '@/hooks/useMyAccount'
 import { useNow } from '@/hooks/useNow'
 import { formatMyt } from '@/lib/format'
 import { DOCUMENT_TYPE_LABELS } from '@/lib/labels'
-import { configService } from '@/services/configService'
 import { isServiceError } from '@/services/errors'
 import { onVerificationsChanged } from '@/services/liveUpdates'
 import { userService, type UserSummary } from '@/services/userService'
@@ -102,8 +101,6 @@ export function VerificationDetailPage() {
   const [loaded, setLoaded] = useState<Loaded>({ key: '' })
   const [refresh, setRefresh] = useState(0)
   const [busy, setBusy] = useState(false)
-  const [activeConfig, setActiveConfig] = useState<MerchantConfig>()
-  const [evalConfig, setEvalConfig] = useState<MerchantConfig>()
   const [reviewers, setReviewers] = useState<UserSummary[]>([])
 
   useEffect(() => {
@@ -121,18 +118,7 @@ export function VerificationDetailPage() {
   useEffect(() => onVerificationsChanged(() => setRefresh((n) => n + 1)), [])
 
   const detail = loaded.key === key ? loaded.detail : undefined
-  const merchantId = detail?.merchantId
-  const configVersion = detail?.configVersion
   const projectId = detail?.projectId
-  useEffect(() => {
-    if (!merchantId || !configVersion) return
-    let live = true
-    configService.getActive(merchantId, actor).then((c) => live && setActiveConfig(c), () => live && setActiveConfig(undefined))
-    configService.getVersion(merchantId, configVersion, actor).then((c) => live && setEvalConfig(c), () => live && setEvalConfig(undefined))
-    return () => {
-      live = false
-    }
-  }, [merchantId, configVersion, actor])
   useEffect(() => {
     if (!projectId) return
     let live = true
@@ -197,11 +183,13 @@ export function VerificationDetailPage() {
           <h1 className="font-mono text-2xl font-semibold">{v.referenceNo}</h1>
           <StatusBadge status={v.status} className="text-sm" />
         </div>
+        {/* REQ: DEC-44 — header: project, flow, workflow version, configuration revision, created, last updated. */}
         <p className="text-sm text-muted-foreground">
-          {v.merchantName} · {v.workflowVersion} · Config {v.configVersion} · {DOCUMENT_TYPE_LABELS[v.documentType]} · Source SDK {v.clientMetadata.sdk}
+          <span className="text-foreground">{v.projectName}</span> › <span className="text-foreground">{v.flowName}</span> · {v.workflowVersion} · Rules applied{' '}
+          <span className="font-mono text-foreground">{v.revisionLabel}</span> · {DOCUMENT_TYPE_LABELS[v.documentType]}
         </p>
         <p className="text-sm text-muted-foreground">
-          Last updated by <span className="text-foreground">{formatUpdatedBy(v.lastUpdatedBy)}</span> · {formatMyt(v.lastUpdatedAt)} MYT
+          Created {formatMyt(v.createdAt)} MYT · Last updated by <span className="text-foreground">{formatUpdatedBy(v.lastUpdatedBy)}</span> · {formatMyt(v.lastUpdatedAt)} MYT
           {may('viewAudit') && (
             <>
               {' · '}
@@ -217,7 +205,7 @@ export function VerificationDetailPage() {
         v={v}
         actor={actor}
         now={now}
-        warningMin={activeConfig?.claimWarningMin}
+        warningMin={DEFAULT_CLAIM_WARNING_MIN}
         mayClaim={may('claimCase')}
         busy={busy}
         onClaim={() => void run(() => verificationService.claim(v.referenceNo, actor), 'Assigned to you')}
@@ -228,9 +216,13 @@ export function VerificationDetailPage() {
       <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_340px]">
         <div className="min-w-0 space-y-4">
           <PiiSection v={v} />
-          <PhaseMetrics v={v} config={evalConfig} />
-          <RiskPanel v={v} config={evalConfig} />
-          <AttemptHistory v={v} />
+          <IdCaptureSection v={v} />
+          <SelfieSection v={v} />
+          <CheckSection v={v} check="FACE_MATCH" />
+          <CheckSection v={v} check="LIVENESS" />
+          <RiskSection v={v} />
+          <RulesAppliedSection v={v} />
+          <ActivitySection v={v} />
           <ClientMetadataCard v={v} />
         </div>
         <aside className="space-y-3 lg:sticky lg:top-0">
