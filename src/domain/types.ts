@@ -123,11 +123,15 @@ export interface Verification {
   statusDetail?: string // e.g. "Auto-Reject < 70 · Auto-Pass ≥ 85 · Actual 78"
 }
 
-// REQ: DEC-40 — list rows carry no PII beyond name/ref and no client metadata.
+// REQ: DEC-40 — list rows carry no PII beyond name/ref, no client metadata and no duplicate-user information.
 export interface VerificationSummary {
   referenceNo: string
   merchantId: string
   merchantName: string
+  projectId: string
+  projectName: string
+  flowId: string
+  flowName: string
   fullName: string
   documentType: DocumentType
   workflowVersion: WorkflowVersion
@@ -137,7 +141,7 @@ export interface VerificationSummary {
   claimExpiresAt?: string
   lastUpdatedBy: UpdatedBy
   lastUpdatedAt: string
-  submittedAt: string // derived from attempts[0].startedAt (DEC-04)
+  createdAt: string // session started (DEC-04)
 }
 
 // REQ: DEC-41 — detail carries full PII + client metadata.

@@ -86,16 +86,15 @@ export function toSearchParams(p: ListParams): URLSearchParams {
   return sp
 }
 
-/** `scopeMerchantId` (top-bar merchant selector) wins over the Merchant filter. */
-export function toQuery(p: ListParams, scopeMerchantId?: string): VerificationQuery {
+/** Cases are scoped to the user's projects by the service (DEC-72); the merchant filter is gone with them. */
+export function toQuery(p: ListParams): VerificationQuery {
   const f = p.filters
   return {
     referenceNo: f.referenceNo || undefined,
     fullName: f.fullName || undefined,
     statuses: f.statuses.length ? f.statuses : undefined,
-    merchantId: scopeMerchantId ?? (f.merchantId || undefined),
-    submittedFrom: f.submittedFrom ? mytDateToUtcIso(f.submittedFrom) : undefined,
-    submittedTo: f.submittedTo ? mytDateToUtcIso(f.submittedTo, true) : undefined,
+    createdFrom: f.submittedFrom ? mytDateToUtcIso(f.submittedFrom) : undefined,
+    createdTo: f.submittedTo ? mytDateToUtcIso(f.submittedTo, true) : undefined,
     riskLevels: f.riskLevels.length ? f.riskLevels : undefined,
     claimedBy: f.claimedBy || undefined,
     lastUpdatedBy: f.lastUpdatedBy || undefined,

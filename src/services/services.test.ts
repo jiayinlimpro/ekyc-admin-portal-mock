@@ -43,10 +43,51 @@ describe('verificationService.list', () => {
     }
   })
 
-  it('Given a Merchant Reviewer, then only their merchant is visible, even when another merchant is requested', async () => {
+  it("Given a Reviewer, then only their projects are visible, even when another merchant's project is requested (DEC-72)", async () => {
     const own = await svc.list({ pageSize: 500 }, ALI)
     expect(own.items.every((r) => r.merchantId === 'MER-0001')).toBe(true)
-    expect((await svc.list({ merchantId: 'MER-0002' }, ALI)).total).toBe(0)
+    expect((await svc.list({ projectIds: ['PRJ-0003'] }, ALI)).total).toBe(0)
+  })
+
+  it('Given a list row, then it names its project and flow and carries Created (DEC-40)', async () => {
+    const row = (await svc.list({ referenceNo: S(16) }, ALI)).items[0]
+    expect(row).toMatchObject({ projectId: 'PRJ-0002', projectName: 'SME app', flowId: 'FLW-0004', flowName: 'SME director check', workflowVersion: 'V3' })
+    expect(row.createdAt).toBe((await svc.get(S(16), ALI)).createdAt)
+  })
+
+  it('Given project, flow and version filters, then only matching rows', async () => {
+    const sme = await svc.list({ projectIds: ['PRJ-0002'], pageSize: 500 }, ALI)
+    expect(sme.total).toBeGreaterThan(0)
+    expect(sme.items.every((r) => r.projectId === 'PRJ-0002')).toBe(true)
+    const foreigner = await svc.list({ flowId: 'FLW-0002', pageSize: 500 }, ALI)
+    expect(foreigner.items.every((r) => r.flowId === 'FLW-0002')).toBe(true)
+    expect((await svc.list({ workflowVersion: 'V3', pageSize: 500 }, ALI)).items.every((r) => r.workflowVersion === 'V3')).toBe(true)
+  })
+
+  it('Given claim state filters, then unclaimed, mine and others split the active claims (DEC-43)', async () => {
+    const mine = (await svc.list({ claim: 'MINE', pageSize: 500 }, ALI)).items
+    expect(mine.map((r) => r.referenceNo)).toEqual(expect.arrayContaining([S(7), S(8)]))
+    expect(mine.every((r) => r.claimedBy?.userId === ALI.userId)).toBe(true)
+    const others = (await svc.list({ claim: 'OTHERS', pageSize: 500 }, ALI)).items
+    expect(others.map((r) => r.referenceNo)).toContain(S(9))
+    expect(others.every((r) => r.claimedBy && r.claimedBy.userId !== ALI.userId)).toBe(true)
+    expect((await svc.list({ claim: 'UNCLAIMED', pageSize: 500 }, ALI)).items.every((r) => !r.claimedBy)).toBe(true)
+  })
+
+  it('Given no sort, then oldest Last updated first; NEWEST reverses it (DEC-43)', async () => {
+    const oldest = (await svc.list({ statuses: ['PENDING_REVIEW'], pageSize: 500 }, ALI)).items.map((r) => r.lastUpdatedAt)
+    expect(oldest).toEqual([...oldest].sort())
+    const newest = (await svc.list({ statuses: ['PENDING_REVIEW'], sort: 'NEWEST', pageSize: 500 }, ALI)).items.map((r) => r.lastUpdatedAt)
+    expect(newest).toEqual([...oldest].reverse())
+  })
+
+  it('Given filter options, then only projects and flows in the case scope, with whether each flow runs risk', async () => {
+    const o = await svc.filterOptions(ALI)
+    expect(o.projects.map((p) => p.projectId)).toEqual(['PRJ-0001', 'PRJ-0002'])
+    expect(o.flows.map((f) => f.flowId)).toEqual(['FLW-0001', 'FLW-0002', 'FLW-0004']) // FLW-0003 is Draft
+    expect(o.flows.find((f) => f.flowId === 'FLW-0004')!.runsRisk).toBe(false)
+    expect(o.flows.find((f) => f.flowId === 'FLW-0001')!.runsRisk).toBe(true)
+    expect((await svc.filterOptions(ADMIN)).projects).toEqual([]) // OQ-20
   })
 
   it('filters by status, Last Updated By, claim and name', async () => {
@@ -54,7 +95,7 @@ describe('verificationService.list', () => {
     expect(manual.items.every((r) => r.lastUpdatedBy.kind === 'USER')).toBe(true)
     const pending = await svc.list({ statuses: ['PENDING_REVIEW'], pageSize: 500 }, OWNER)
     expect(pending.items.every((r) => r.status === 'PENDING_REVIEW')).toBe(true)
-    const mine = await svc.list({ claimedBy: ALI.userId }, ALI)
+    const mine = await svc.list({ claim: 'MINE' }, ALI)
     expect(mine.items.map((r) => r.referenceNo).sort()).toEqual(expect.arrayContaining([S(7), S(8)]))
     const target = (await svc.get(S(3), ALI)).pii.fullName
     expect((await svc.list({ fullName: target.toLowerCase() }, ALI)).items.map((r) => r.referenceNo)).toContain(S(3))

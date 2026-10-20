@@ -44,13 +44,8 @@ describe('parseListParams / toSearchParams', () => {
 describe('toQuery', () => {
   it('converts MYT dates to a full UTC day range', () => {
     const q = toQuery(parse('from=2026-09-25&to=2026-09-25'))
-    expect(q.submittedFrom).toBe('2026-09-24T16:00:00.000Z')
-    expect(q.submittedTo).toBe('2026-09-25T15:59:59.999Z')
-  })
-
-  it('Given a top-bar merchant scope, then it wins over the Merchant filter', () => {
-    expect(toQuery(parse('merchant=MER-0002'), 'MER-0005').merchantId).toBe('MER-0005')
-    expect(toQuery(parse('merchant=MER-0002')).merchantId).toBe('MER-0002')
+    expect(q.createdFrom).toBe('2026-09-24T16:00:00.000Z')
+    expect(q.createdTo).toBe('2026-09-25T15:59:59.999Z')
   })
 
   it('leaves empty filters out of the service query', () => {

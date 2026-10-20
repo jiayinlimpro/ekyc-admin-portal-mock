@@ -47,7 +47,7 @@ export function VerificationsListPage() {
 
   useEffect(() => {
     let live = true
-    verificationService.list(toQuery(params, scope), actor).then(
+    verificationService.list(toQuery(params), actor).then(
       (data) => {
         if (!live) return
         setResult({ request, data })
