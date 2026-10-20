@@ -231,7 +231,7 @@ export const NAV_ITEMS: NavItem[] = [
     inMenu: true,
     access: { project: 'manageMembers' },
     priority: 'P1',
-    built: false,
+    built: true,
     notes: ['Users belong to the merchant; one role per project; invite, change role, remove access, deactivate (DEC-74).'],
   },
   {

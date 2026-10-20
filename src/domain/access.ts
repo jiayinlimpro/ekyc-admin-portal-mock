@@ -44,6 +44,11 @@ const ALLOWED: Record<ProjectAction, readonly EffectiveRole[]> = {
   viewAudit: ['PLATFORM_ADMIN', 'MERCHANT_OWNER', 'PROJECT_ADMIN'],
 }
 
+/** Roles allowed to do a project action (the DEC-70 table; Platform Admin and cases follow OQ-20). */
+export function rolesAllowed(action: ProjectAction, policy: Pick<Policy, 'platformAdminCaseAccess'> = POLICY): EffectiveRole[] {
+  return ALL.filter((r) => allowed(r, action, policy))
+}
+
 /** The user's role in a project: Platform Admin everywhere, Merchant Owner across their merchant, otherwise their membership. */
 export function roleInProject(user: UserAccess, project: Pick<Project, 'projectId' | 'merchantId'>): EffectiveRole | undefined {
   if (user.level === 'PLATFORM_ADMIN') return 'PLATFORM_ADMIN'
