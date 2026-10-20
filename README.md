@@ -35,18 +35,20 @@ If `npm` scripts are blocked in PowerShell: `Set-ExecutionPolicy -Scope CurrentU
 **Who you are.** There is no real login. Open `/login` and pick a user, use **Dev → Switch user**, or add
 `?as=USR-2026-0031` to any link.
 
-| User | Access | Merchant |
+| User | Access (role · scope) | Merchant |
 |---|---|---|
 | Lim Wei Jie (USR-2026-0001) | Platform Admin: all merchants; no case access by default (OQ-20) | — |
-| Tan Mei Ling (USR-2026-0002) | Merchant Owner: every project | Atoz Software Tech |
-| Ali Bin Ahmad (USR-2026-0012) | Reviewer in Default, Viewer in SME app | Atoz Software Tech |
-| Siti Aminah Binti Yusof (USR-2026-0031) | Reviewer in Default | Atoz Software Tech |
-| Hafiz Bin Rahman (USR-2026-0020) | Project Admin of SME app | Atoz Software Tech |
-| Nurul Huda Binti Kamaruddin (USR-2026-0033) | Reviewer in SME app | Atoz Software Tech |
-| Kavitha A/P Subramaniam (USR-2026-0044) | Reviewer in Default | Vantage |
+| Tan Mei Ling (USR-2026-0002) | Merchant Owner · All projects | Atoz Software Tech |
+| Ali Bin Ahmad (USR-2026-0012) | Reviewer · Default; Viewer · SME app | Atoz Software Tech |
+| Siti Aminah Binti Yusof (USR-2026-0031) | Reviewer · Default | Atoz Software Tech |
+| Hafiz Bin Rahman (USR-2026-0020) | Project Admin · SME app | Atoz Software Tech |
+| Nurul Huda Binti Kamaruddin (USR-2026-0033) | Reviewer · SME app | Atoz Software Tech |
+| Ahmad Faiz Bin Zulkifli (USR-2026-0045) | Merchant Owner · All projects | Vantage |
+| Kavitha A/P Subramaniam (USR-2026-0044) | Reviewer · Default; Compliance Auditor (Custom role) · All projects | Vantage |
 
-Access is **per project** (DEC-70): the header's project switcher picks one project or "All my projects", and the menu
-follows your role in it.
+Access follows the [FRS] Users and Roles method with **scoped assignments** (DEC-70): a role says what you may do, the
+scope says where (All projects, including new ones, or selected projects). The header's project switcher picks one
+project or "All my projects", and the menu follows your permissions there.
 
 **The Dev menu** (top right, amber) is mock-only:
 - **Switch user.**
@@ -68,7 +70,8 @@ follows your role in it.
 | Verification detail | Claim bar, Reject with catalogue reasons, rules applied (revision), checks with retries, activity timeline |
 | Projects / Project Settings | Create, rename, archive; branding, API keys (shown once), webhook, claim timeout, read-only routing |
 | Flows / Flow Detail | Low / Standard / High with a 0–100 band bar, Advanced for Platform Admin, retries 1–5, what-if, revisions |
-| Users and Access | Invite, one role per project, remove access (releases claims), deactivate; the fixed role table |
+| Users / Roles | FRS lists; invite (Pending, resend), Access table with Add / Edit / Remove, suspend; grouped permission checkboxes, System Default roles locked, "Affects N users" |
+| Project Settings › Members | Everyone with access to the project (All projects users inherited); add or remove for this project |
 | Audit Log | DEC-42 events with project and actor role |
 | Merchants / Workflow Registry | Platform Admin only: new merchant = Default project + owner; versions and flows using them |
 

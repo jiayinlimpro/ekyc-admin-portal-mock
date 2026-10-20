@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { isMerchantLevel, MERCHANT_LEVEL_SCOPE } from '@/domain/roles'
 import type { Role, UserStatus } from '@/domain/types'
-import { errorMessage } from '@/hooks/useLoad'
+import { errorMessage, fieldErrors } from '@/hooks/useLoad'
 import { USER_STATUS_LABELS } from '@/lib/labels'
 import { cn } from '@/lib/utils'
 import { isServiceError } from '@/services/errors'
@@ -21,12 +21,6 @@ const STATUS_TONE: Record<UserStatus, string> = {
 export const UserStatusBadge = ({ status }: { status: UserStatus }) => <span className={cn('rounded px-1.5 py-0.5 text-xs font-medium', STATUS_TONE[status])}>{USER_STATUS_LABELS[status]}</span>
 
 export type ProjectOption = { projectId: string; name: string }
-
-/** Field errors from a VALIDATION error, or the message under `form`. */
-export function fieldErrors(e: unknown): Record<string, string> {
-  if (isServiceError(e) && Array.isArray(e.details)) return Object.fromEntries((e.details as { field: string; message: string }[]).map((x) => [x.field, x.message]))
-  return { form: errorMessage(e) }
-}
 
 export function AssignmentFields({
   idPrefix,

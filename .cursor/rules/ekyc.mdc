@@ -34,9 +34,11 @@ UAT scenarios: `docs/SCENARIOS.md`.
   EXPIRED, CLAIMED, IN_REVIEW.
 - Manual vs automated = `lastUpdatedBy` (SYSTEM or user fullName + userId). It changes ONLY when status changes
   (never on claim, release or view).
-- Merchant → Project → Flow → Case. Each setting lives at exactly one level (DEC-91). Access is per project: 5 working
-  roles (Platform Admin, Merchant Owner, Project Admin, Reviewer, Viewer); every page checks project membership; a case
-  outside the user's projects is "not found".
+- Merchant → Project → Flow → Case. Each setting lives at exactly one level (DEC-91). Access = [FRS] Users + Roles with
+  scoped assignments (DEC-70): a role (permission checkboxes, merchant-level / project-level) is given to a user for All
+  projects (incl. future ones) or Selected projects; permissions are the union, no deny. Merchant-level permissions only
+  via All projects. System Default roles (locked): Merchant Owner, Project Admin, Reviewer, Viewer; Platform Admin is
+  internal with a fixed set. Every page checks access to the project; a case outside the user's projects is "not found".
 - Only FACE_MATCH and LIVENESS have thresholds: autoReject/autoPass, chosen as a Low/Standard/High preset, or Advanced
   (custom, Platform Admin only). Never per individual metric; granular metrics are never shown. Risk for V4/V5 only.
 - `>= autoPass` → pass; `< autoReject` → reject; between → review. Below autoPass with retries left → retry, case stays
@@ -60,11 +62,12 @@ UAT scenarios: `docs/SCENARIOS.md`.
 
 ## Layout
 ```
-src/domain/     types, openQuestions, access (5 roles per project), checkRules (status), claimRules, conditions,
+src/domain/     types, openQuestions, roles (permissions, assignments, grant rules), access (actions → permissions),
+                checkRules (status), claimRules, conditions,
                 thresholds, flowSettings, flowRules, flowImpact (what-if), registryRules, projectSettings, dashboards, audit
 src/mocks/      malaysia.ts, builders.ts, seed.ts, mockDb.ts, fixtures/ (catalog: registry/projects/flows, merchants,
                 users: accounts, edgeCases: S01–S20)
-src/services/   verification, project, flow, registry, integration, accessAdmin (Users and Access), merchantAdmin,
+src/services/   verification, project, flow, registry, integration, userAdmin (Users, project Members), role, merchantAdmin,
                 merchant, user, audit, analytics, liveUpdates, devService (dev-only), claimSweep, network
                 (latency/errors), errors (ServiceError + HTTP status map), accessGuard (the account behind the session
                 decides access; the session is only who you are)
@@ -78,12 +81,13 @@ docs/           DECISIONS.md, OPEN_QUESTIONS.md, SCENARIOS.md
 
 ## Build status
 - **Projects & Flows restructure done** (DEC-85 screens): Overview, System Intelligence, Billing (every role, scoped),
-  Verifications List + Detail, Projects, Project Settings (General, Integration, Review operations, Routing), Flows List,
-  Flow Detail (presets, band bar, retries, Advanced for Platform Admin, what-if, history), Users and Access, Audit Log;
-  Platform Admin: Merchants, Workflow Registry. Header: project switcher + role in the current project. Mock Login.
+  Verifications List + Detail, Projects, Project Settings (General, Integration, Review operations, Routing, Members),
+  Flows List, Flow Detail (presets, band bar, retries, Advanced for Platform Admin, what-if, history), Users, Roles,
+  Audit Log; Platform Admin: Merchants, Workflow Registry. Header: project switcher + roles in the current project.
+  Mock Login.
   No Home page: `/` opens Overview; UAT scenario links and data coverage are on the mock-only `/uat` page (Dev menu).
-- Retired (DEC-85): eKYC Workflow, Developers, legacy Users / Roles, Merchant Workflow Directory, the merchant-level
-  config and the two-role model.
+- Retired (DEC-85): eKYC Workflow, Developers, Merchant Workflow Directory, the merchant-level config, the two-role
+  model and the one-role-per-project Users and Access screen (replaced by Users + Roles, DEC-74 / DEC-76).
 - Tests: Vitest (`npm test`) for rules, data, services and screens; Playwright (`npm run e2e`) for the claim race and the
   reviewer flow.
 - Next work comes from answered OPEN QUESTIONS (update `docs/DECISIONS.md` first) and stakeholder feedback.

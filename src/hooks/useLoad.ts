@@ -3,6 +3,12 @@ import { isServiceError } from '@/services/errors'
 
 export const errorMessage = (e: unknown) => (isServiceError(e) ? e.message : e instanceof Error ? e.message : 'Unexpected error.')
 
+/** Field errors from a VALIDATION error, or the message under `form`. */
+export function fieldErrors(e: unknown): Record<string, string> {
+  if (isServiceError(e) && Array.isArray(e.details)) return Object.fromEntries((e.details as { field: string; message: string }[]).map((x) => [x.field, x.message]))
+  return { form: errorMessage(e) }
+}
+
 /**
  * Loads data through a service call. Re-runs when `key` changes (include the actor so switching user refetches) or on
  * `reload()`. While reloading, the previous data stays visible (`loading` is true).

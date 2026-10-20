@@ -13,6 +13,18 @@ below approve sends the user to retry; when retries run out, the last submission
 Claim-timed scenarios (S07, S08, S09) and cooldown (S18) are relative to the moment the data was seeded. Use **Reset demo
 data** before a UAT run.
 
+## Access scenarios (DEC-70, DEC-74, DEC-76, DEC-77)
+
+| # | As | Do | Expected |
+|---|---|---|---|
+| A1 | Tan Mei Ling (`?as=USR-2026-0002`) | Users › New user, role Reviewer, Selected projects › SME app | Listed as Pending, Access "Reviewer (SME app)"; audit USER_INVITED in SME app |
+| A2 | Tan Mei Ling | New user, role Merchant Owner | "Selected projects" is unavailable: merchant-level permissions only for All projects |
+| A3 | Tan Mei Ling | Users › Ali › edit Reviewer (Default) to Viewer | Ali's claim on S07 is released (audited); he can still view Default cases |
+| A4 | Lim Wei Jie (`?as=USR-2026-0001`) | Users › Tan Mei Ling › remove Merchant Owner, or Suspend | Refused: the merchant needs at least one Merchant Owner (All projects) |
+| A5 | Hafiz (`?as=USR-2026-0020`) | Project Settings › Members (SME app): add Siti as Reviewer | Siti appears; Tan Mei Ling is listed as Merchant Owner · inherited, not removable; Merchant Owner is not offered |
+| A6 | Ahmad Faiz (`?as=USR-2026-0045`) | Roles › Compliance Auditor | "Affects 1 user"; removing View audit log takes Kavitha's Audit Log away at once |
+| A7 | Tan Mei Ling | Roles › Reviewer | Read-only (System Default); New role with Claim cases ticks View cases |
+
 | ID | Reference No | Project › Flow | Scenario | Expected behaviour |
 |---|---|---|---|---|
 | S01 | KYC-260901-900001 | Vantage Default › Standard onboarding (V1) | Both checks ≥ Auto-Pass | APPROVED · SYSTEM; no risk panel |

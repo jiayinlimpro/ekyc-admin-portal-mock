@@ -12,7 +12,7 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { USER_STATUSES, type UserStatus } from '@/domain/types'
-import { errorMessage, useLoad } from '@/hooks/useLoad'
+import { errorMessage, fieldErrors, useLoad } from '@/hooks/useLoad'
 import { formatMyt } from '@/lib/format'
 import { USER_STATUS_LABELS } from '@/lib/labels'
 import { cn } from '@/lib/utils'
@@ -20,7 +20,7 @@ import { merchantService } from '@/services/merchantService'
 import { roleService } from '@/services/roleService'
 import { userAdminService, type AssignmentInput, type AssignmentRow, type UserRow } from '@/services/userAdminService'
 import { useSession } from '@/stores/sessionStore'
-import { AssignmentDialog, AssignmentFields, fieldErrors, UserStatusBadge, type ProjectOption } from './AccessFields'
+import { AssignmentDialog, AssignmentFields, UserStatusBadge, type ProjectOption } from './AccessFields'
 
 const PAGE_SIZES = [10, 20, 50] as const
 

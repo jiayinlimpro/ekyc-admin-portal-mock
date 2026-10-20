@@ -12,14 +12,13 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from '@/components/ui/input'
 import { withImpliedPermissions } from '@/domain/roles'
 import { MERCHANT_PERMISSIONS, PROJECT_PERMISSIONS, type Permission } from '@/domain/types'
-import { useLoad } from '@/hooks/useLoad'
+import { fieldErrors, useLoad } from '@/hooks/useLoad'
 import { formatMyt } from '@/lib/format'
 import { PERMISSION_LABELS } from '@/lib/labels'
 import { cn } from '@/lib/utils'
 import { merchantService } from '@/services/merchantService'
 import { roleService, type RoleRow } from '@/services/roleService'
 import { useSession } from '@/stores/sessionStore'
-import { fieldErrors } from '../users/AccessFields'
 
 const NEEDS_VIEW: Permission[] = ['CLAIM_CASES', 'DECIDE_CASES']
 
