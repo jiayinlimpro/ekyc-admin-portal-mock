@@ -21,7 +21,6 @@ import {
 import { useNow } from '@/hooks/useNow'
 import { useUsers } from '@/hooks/useUsers'
 import { formatMyt, formatOffset } from '@/lib/format'
-import { ROLE_LABELS } from '@/lib/labels'
 import { devService } from '@/services/devService'
 import { useDevFlags } from '@/stores/devFlagsStore'
 import { useSession } from '@/stores/sessionStore'
@@ -46,7 +45,7 @@ export function DevMenu() {
     const u = users.find((x) => x.userId === userId)
     if (!u) return
     switchUser(u)
-    toast.success(`Signed in as ${u.fullName}`, { description: ROLE_LABELS[u.role] })
+    toast.success(`Signed in as ${u.fullName}`, { description: u.access })
   }
 
   const onReset = async () => {
@@ -81,13 +80,12 @@ export function DevMenu() {
           <DropdownMenuSubContent className="w-96">
             <DropdownMenuRadioGroup value={actor.userId} onValueChange={(v) => onSwitch(String(v))}>
               {users.map((u) => (
-                <DropdownMenuRadioItem key={u.userId} value={u.userId} closeOnClick disabled={!u.active}>
+                <DropdownMenuRadioItem key={u.userId} value={u.userId} closeOnClick disabled={u.status !== 'ACTIVE'}>
                   <div className="min-w-0">
                     <div className="truncate">{u.fullName}</div>
                     <div className="truncate text-xs text-muted-foreground">
-                      {u.userId} · {ROLE_LABELS[u.role]}
-                      {u.merchantId ? ` · ${u.merchantId}` : ''}
-                      {!u.active && ' · inactive'}
+                      {u.access}
+                      {u.status !== 'ACTIVE' && ` · ${u.status === 'INVITED' ? 'invited' : 'deactivated'}`}
                     </div>
                   </div>
                 </DropdownMenuRadioItem>

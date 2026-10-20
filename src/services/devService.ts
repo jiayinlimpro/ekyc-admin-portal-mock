@@ -1,11 +1,15 @@
 // Dev-only helpers for the mock: fake users for "Switch user", scenario links and demo data reset.
 // Not part of the real API contract.
 import { isClaimActive } from '@/domain/claimRules'
-import { VERIFICATION_STATUSES, type UserRecord, type VerificationStatus, type WorkflowVersion } from '@/domain/types'
+import { VERIFICATION_STATUSES, type AccessLevel, type UserRecord, type UserStatus, type VerificationStatus, type WorkflowVersion } from '@/domain/types'
+import { PROJECT_ROLE_LABELS } from '@/lib/labels'
 import { now } from '@/lib/clock'
 import { EDGE_CASES } from '@/mocks/fixtures/edgeCases'
 import { db } from '@/mocks/mockDb'
 import { wire } from './network'
+
+/** A demo user for "Switch user" and the mock login: the session part plus a one-line description of their access. */
+export type DevUser = UserRecord & { email: string; level: AccessLevel; status: UserStatus; access: string }
 
 export interface ScenarioSummary {
   id: string // S01 …
@@ -16,9 +20,24 @@ export interface ScenarioSummary {
 }
 
 export const devService = {
-  /** Users available in the dev "Switch user" menu (there is no real login in the mock). */
-  async listUsers(): Promise<UserRecord[]> {
-    return wire(db.state().users)
+  /** Users available in the dev "Switch user" menu and the mock login (there is no real login in the mock). */
+  async listUsers(): Promise<DevUser[]> {
+    const s = db.state()
+    const merchant = (id?: string) => s.merchants.find((m) => m.merchantId === id)?.name ?? id ?? ''
+    const project = (id: string) => s.projects.find((p) => p.projectId === id)?.name ?? id
+    return wire(
+      s.users.flatMap((u) => {
+        const a = s.accounts.find((x) => x.userId === u.userId)
+        if (!a) return []
+        const access =
+          a.level === 'PLATFORM_ADMIN'
+            ? 'Platform Admin · all merchants'
+            : a.level === 'MERCHANT_OWNER'
+              ? `Merchant Owner · ${merchant(a.merchantId)}`
+              : `${a.memberships.map((m) => `${PROJECT_ROLE_LABELS[m.role]} in ${project(m.projectId)}`).join(', ') || 'No projects'} · ${merchant(a.merchantId)}`
+        return [{ ...u, email: a.email, level: a.level, status: a.status, access }]
+      }),
+    )
   },
 
   /** Named UAT scenarios from docs/SCENARIOS.md. */

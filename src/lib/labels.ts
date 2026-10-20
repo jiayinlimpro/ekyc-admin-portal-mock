@@ -1,10 +1,25 @@
 import type { Permission } from '@/domain/permissions'
-import type { AttemptOutcome, AuditAction, DocumentType, RiskLevel, RoleType, VerificationStatus } from '@/domain/types'
+import type { AccessLevel, AttemptOutcome, AuditAction, DocumentType, EffectiveRole, RiskLevel, RoleType, VerificationStatus } from '@/domain/types'
 
 // OQ-09: role display names still to be confirmed against the FRS.
 export const ROLE_LABELS: Record<RoleType, string> = {
   PLATFORM_ADMIN: 'Platform Admin',
   MERCHANT_REVIEWER: 'Merchant Reviewer',
+}
+
+// REQ: DEC-70 — the five working roles (names are OQ-09).
+export const PROJECT_ROLE_LABELS: Record<EffectiveRole, string> = {
+  PLATFORM_ADMIN: 'Platform Admin',
+  MERCHANT_OWNER: 'Merchant Owner',
+  PROJECT_ADMIN: 'Project Admin',
+  REVIEWER: 'Reviewer',
+  VIEWER: 'Viewer',
+}
+
+export const ACCESS_LEVEL_LABELS: Record<AccessLevel, string> = {
+  PLATFORM_ADMIN: 'Platform Admin',
+  MERCHANT_OWNER: 'Merchant Owner',
+  MEMBER: 'Project members',
 }
 
 export const STATUS_LABELS: Record<VerificationStatus, string> = {

@@ -1,7 +1,8 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router'
-import { Bell, Building2, ChevronDown, ChevronRight, Languages, Maximize, Minimize, Moon, PanelLeft, Search, Sun, UserRound } from 'lucide-react'
+import { Bell, ChevronDown, ChevronRight, FolderKanban, Languages, Maximize, Minimize, Moon, PanelLeft, Search, Sun, UserRound } from 'lucide-react'
 import { toast } from 'sonner'
+import { useAccess } from '@/app/access'
 import { routeMetaFor } from '@/app/nav'
 import { Button } from '@/components/ui/button'
 import {
@@ -17,11 +18,11 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
-import { can } from '@/domain/permissions'
 import type { Merchant } from '@/domain/types'
-import { ROLE_LABELS } from '@/lib/labels'
+import { PROJECT_ROLE_LABELS } from '@/lib/labels'
 import { merchantService } from '@/services/merchantService'
-import { ALL_MERCHANTS, useSession } from '@/stores/sessionStore'
+import type { MyProject } from '@/services/projectService'
+import { ALL_MERCHANTS, ALL_PROJECTS, useSession } from '@/stores/sessionStore'
 import { useUi } from '@/stores/uiStore'
 import { DevMenu } from './DevMenu'
 
@@ -69,10 +70,9 @@ function Breadcrumb() {
   )
 }
 
-function MerchantSelector() {
+/** Merchant names for grouping the switcher (Platform Admin sees projects of several merchants). */
+function useMerchantNames() {
   const actor = useSession((s) => s.actor)
-  const merchantId = useSession((s) => s.merchantId)
-  const selectMerchant = useSession((s) => s.selectMerchant)
   const [merchants, setMerchants] = useState<Merchant[]>([])
 
   useEffect(() => {
@@ -86,39 +86,100 @@ function MerchantSelector() {
     }
   }, [actor])
 
-  const current = merchants.find((m) => m.merchantId === merchantId)
-  // Reviewers are always scoped to their own merchant: show it, don't offer a choice.
-  if (!can(actor, 'canViewAllMerchants')) {
+  return (id: string) => merchants.find((m) => m.merchantId === id)?.name ?? id
+}
+
+/** The role is shown only for project members: Platform Admin and Merchant Owner have the same role everywhere. */
+function ProjectOption({ p, showRole }: { p: MyProject; showRole: boolean }) {
+  return (
+    <span className="flex min-w-0 flex-1 items-center gap-2">
+      <span className="truncate">{p.name}</span>
+      {p.status === 'ARCHIVED' && <span className="rounded bg-muted px-1 text-[10px] uppercase text-muted-foreground">Archived</span>}
+      {showRole && <span className="ml-auto shrink-0 text-xs text-muted-foreground">{PROJECT_ROLE_LABELS[p.role]}</span>}
+    </span>
+  )
+}
+
+// REQ: DEC-73 — the user's projects plus "All my projects" (only with more than one); the current project is always visible.
+function ProjectSwitcher() {
+  const { ready, account, projects, selected } = useAccess()
+  const selectProject = useSession((s) => s.selectProject)
+  const merchantName = useMerchantNames()
+  if (!ready) return <span className="h-8 w-40 animate-pulse rounded-md bg-muted" aria-hidden />
+
+  const merchantIds = [...new Set(projects.map((p) => p.merchantId))]
+  const several = merchantIds.length > 1
+  const label = selected?.name ?? (projects.length ? 'All my projects' : 'No projects')
+  const sub = selected && several ? merchantName(selected.merchantId) : undefined
+  const current = (
+    <>
+      <FolderKanban className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+      <span className="max-w-44 truncate">{label}</span>
+      {sub && <span className="hidden max-w-32 truncate text-xs text-muted-foreground lg:inline">{sub}</span>}
+    </>
+  )
+  if (projects.length <= 1) {
     return (
-      <span className="hidden items-center gap-1.5 rounded-md border px-2.5 py-1 text-sm lg:flex">
-        <Building2 className="size-4 text-muted-foreground" aria-hidden />
-        {current?.name ?? actor.merchantId}
+      <span className="flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-sm" aria-label={`Current project: ${label}`}>
+        {current}
       </span>
     )
   }
+  const pick = (v: unknown) => {
+    const id = String(v)
+    if (id === ALL_PROJECTS) return selectProject(ALL_PROJECTS, account?.level === 'PLATFORM_ADMIN' ? ALL_MERCHANTS : (account?.merchantId ?? ALL_MERCHANTS))
+    const p = projects.find((x) => x.projectId === id)
+    if (p) selectProject(p.projectId, p.merchantId)
+  }
+  const value = selected?.projectId ?? ALL_PROJECTS
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
         render={
-          <Button variant="outline" size="sm" aria-label="Select merchant">
-            <Building2 aria-hidden />
-            <span className="max-w-40 truncate">{current ? `${current.name} (${current.workflowVersion})` : 'All merchants'}</span>
+          <Button variant="outline" size="sm" aria-label={`Switch project. Current: ${label}`}>
+            {current}
             <ChevronDown aria-hidden />
           </Button>
         }
       />
-      <DropdownMenuContent className="w-64">
-        <DropdownMenuRadioGroup value={merchantId} onValueChange={(v) => selectMerchant(String(v))}>
-          <DropdownMenuRadioItem value={ALL_MERCHANTS} closeOnClick>All merchants</DropdownMenuRadioItem>
-          <DropdownMenuSeparator />
-          {merchants.map((m) => (
-            <DropdownMenuRadioItem key={m.merchantId} value={m.merchantId} closeOnClick>
-              {m.name} <span className="ml-1 text-xs text-muted-foreground">{m.workflowVersion}</span>
-            </DropdownMenuRadioItem>
-          ))}
+      <DropdownMenuContent className="max-h-[70vh] w-80 overflow-y-auto">
+        <DropdownMenuRadioGroup value={value} onValueChange={pick}>
+          <DropdownMenuRadioItem value={ALL_PROJECTS} closeOnClick>
+            All my projects
+          </DropdownMenuRadioItem>
         </DropdownMenuRadioGroup>
+        {merchantIds.map((m) => (
+          <DropdownMenuGroup key={m}>
+            <DropdownMenuSeparator />
+            {several && <DropdownMenuLabel>{merchantName(m)}</DropdownMenuLabel>}
+            <DropdownMenuRadioGroup value={value} onValueChange={pick}>
+              {projects
+                .filter((p) => p.merchantId === m)
+                .map((p) => (
+                  <DropdownMenuRadioItem key={p.projectId} value={p.projectId} closeOnClick>
+                    <ProjectOption p={p} showRole={account?.level === 'MEMBER'} />
+                  </DropdownMenuRadioItem>
+                ))}
+            </DropdownMenuRadioGroup>
+          </DropdownMenuGroup>
+        ))}
       </DropdownMenuContent>
     </DropdownMenu>
+  )
+}
+
+/** REQ: DEC-73 — role in the current project; under "All my projects", the role in each. */
+function RoleLines() {
+  const { account, projects, selected } = useAccess()
+  if (!account) return null
+  if (selected) return <div>{`${PROJECT_ROLE_LABELS[selected.role]} · ${selected.name}`}</div>
+  if (account.level !== 'MEMBER') return <div>{`${PROJECT_ROLE_LABELS[account.level]} · all projects`}</div>
+  return (
+    <>
+      {projects.map((p) => (
+        <div key={p.projectId}>{`${PROJECT_ROLE_LABELS[p.role]} · ${p.name}`}</div>
+      ))}
+    </>
   )
 }
 
@@ -157,6 +218,7 @@ export function TopBar() {
   const theme = useUi((s) => s.theme)
   const toggleTheme = useUi((s) => s.toggleTheme)
   const actor = useSession((s) => s.actor)
+  const { account } = useAccess()
   const fullscreen = useFullscreen()
   const mock = (what: string) => () => toast.info(`${what} is not part of the mock.`)
 
@@ -168,7 +230,7 @@ export function TopBar() {
       <div className="min-w-0 flex-1">
         <Breadcrumb />
       </div>
-      <MerchantSelector />
+      <ProjectSwitcher />
       <RefSearch />
       <IconButton label="Notifications (mock)" onClick={mock('Notifications')}>
         <Bell aria-hidden />
@@ -204,9 +266,9 @@ export function TopBar() {
           <DropdownMenuGroup>
             <DropdownMenuLabel className="text-foreground">
               <div className="text-sm font-medium">{actor.fullName}</div>
-              <div className="text-xs font-normal text-muted-foreground">
-                {actor.userId} · {ROLE_LABELS[actor.role]}
-                {actor.merchantId ? ` · ${actor.merchantId}` : ''}
+              <div className="text-xs font-normal text-muted-foreground">{account?.email ?? actor.userId}</div>
+              <div className="mt-1 space-y-0.5 text-xs font-normal text-muted-foreground" aria-label="Your role">
+                <RoleLines />
               </div>
             </DropdownMenuLabel>
           </DropdownMenuGroup>

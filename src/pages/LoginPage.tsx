@@ -1,13 +1,14 @@
 import { useNavigate } from 'react-router'
 import { ShieldCheck } from 'lucide-react'
-import { ROLES } from '@/domain/types'
+import type { AccessLevel } from '@/domain/types'
 import { useUsers } from '@/hooks/useUsers'
-import { ROLE_LABELS } from '@/lib/labels'
+import { ACCESS_LEVEL_LABELS } from '@/lib/labels'
 import { useSession } from '@/stores/sessionStore'
 
 /** Mock login: pick a demo user. The real portal uses real authentication and a Secure, HttpOnly session cookie. */
 export function LoginPage() {
-  const users = useUsers().filter((u) => u.active)
+  const users = useUsers().filter((u) => u.status === 'ACTIVE')
+  const levels: AccessLevel[] = ['PLATFORM_ADMIN', 'MERCHANT_OWNER', 'MEMBER']
   const switchUser = useSession((s) => s.switchUser)
   const navigate = useNavigate()
   return (
@@ -21,12 +22,12 @@ export function LoginPage() {
           </div>
         </div>
         <p className="text-sm text-muted-foreground">Choose who to sign in as. There are no passwords in the mock.</p>
-        {ROLES.map((r) => (
-          <section key={r} aria-label={ROLE_LABELS[r]}>
-            <h2 className="mb-1 text-xs font-medium tracking-wide text-muted-foreground uppercase">{ROLE_LABELS[r]}</h2>
+        {levels.map((r) => (
+          <section key={r} aria-label={ACCESS_LEVEL_LABELS[r]}>
+            <h2 className="mb-1 text-xs font-medium tracking-wide text-muted-foreground uppercase">{ACCESS_LEVEL_LABELS[r]}</h2>
             <ul className="divide-y rounded-lg border">
               {users
-                .filter((u) => u.role === r)
+                .filter((u) => u.level === r)
                 .map((u) => (
                   <li key={u.userId}>
                     <button
@@ -38,10 +39,7 @@ export function LoginPage() {
                       className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-sm outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring"
                     >
                       <span>{u.fullName}</span>
-                      <span className="text-xs text-muted-foreground">
-                        {u.userId}
-                        {u.merchantId ? ` · ${u.merchantId}` : ''}
-                      </span>
+                      <span className="text-right text-xs text-muted-foreground">{u.access}</span>
                     </button>
                   </li>
                 ))}

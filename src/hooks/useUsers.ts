@@ -1,10 +1,9 @@
 import { useEffect, useState } from 'react'
-import type { UserRecord } from '@/domain/types'
-import { devService } from '@/services/devService'
+import { devService, type DevUser } from '@/services/devService'
 
 /** Fake users for the dev "Switch user" menu and name lookups. */
-export function useUsers(): UserRecord[] {
-  const [users, setUsers] = useState<UserRecord[]>([])
+export function useUsers(): DevUser[] {
+  const [users, setUsers] = useState<DevUser[]>([])
   useEffect(() => {
     void devService.listUsers().then(setUsers)
   }, [])

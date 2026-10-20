@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { createMemoryRouter } from 'react-router'
 import { RouterProvider } from 'react-router/dom'
 import { LANDING_TAB } from '@/app/tabs'
-import { ADMIN, ALI, OWNER } from '@/test/factories'
+import { ADMIN, ALI, HAFIZ, OWNER } from '@/test/factories'
 import { devService } from '@/services/devService'
 import { useSession } from '@/stores/sessionStore'
 import { useTabs } from '@/stores/tabsStore'
@@ -53,6 +53,35 @@ describe('AppShell', () => {
   it('Given a Reviewer opens the Audit Log URL directly, then "No access" (DEC-72)', async () => {
     renderAt('/audit')
     await screen.findByRole('heading', { name: 'No access' })
+  })
+
+  it('Given Ali (two projects), then the switcher offers "All my projects" and his projects with his role in each; picking one shows it and his role there (DEC-73)', async () => {
+    renderAt('/dashboard')
+    fireEvent.click(await screen.findByRole('button', { name: 'Switch project. Current: All my projects' }))
+    const options = await screen.findAllByRole('menuitemradio')
+    expect(options.map((o) => o.textContent)).toEqual(['All my projects', 'DefaultReviewer', 'SME appViewer'])
+    fireEvent.click(options[2])
+    await screen.findByRole('button', { name: 'Switch project. Current: SME app' })
+    expect(useSession.getState()).toMatchObject({ projectId: 'PRJ-0002', merchantId: 'MER-0001' })
+    fireEvent.click(screen.getByRole('button', { name: 'Account: Ali Bin Ahmad' }))
+    expect((await screen.findByLabelText('Your role')).textContent).toBe('Viewer · SME app')
+    expect(screen.getByText('ali.ahmad@atoz.example')).toBeTruthy()
+  })
+
+  it('Given a user with one project, then it is shown without a switcher', async () => {
+    useSession.getState().switchUser(HAFIZ)
+    renderAt('/dashboard')
+    await screen.findByLabelText('Current project: SME app')
+    expect(screen.queryByRole('button', { name: /Switch project/ })).toBeNull()
+  })
+
+  it('Given the Platform Admin, then projects are grouped by merchant and picking one scopes the legacy screens to its merchant', async () => {
+    useSession.getState().switchUser(ADMIN)
+    renderAt('/dashboard')
+    fireEvent.click(await screen.findByRole('button', { name: /Switch project/ }))
+    const vantage = within((await screen.findByText('Vantage')).closest('[role="group"]') as HTMLElement)
+    fireEvent.click(vantage.getByRole('menuitemradio', { name: /Default/ }))
+    await waitFor(() => expect(useSession.getState()).toMatchObject({ projectId: 'PRJ-0003', merchantId: 'MER-0002' }))
   })
 
   it('Given I open the portal root, then I land on Overview and there is no Home page, tab or menu item', async () => {
