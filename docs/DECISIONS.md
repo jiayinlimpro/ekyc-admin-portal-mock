@@ -129,7 +129,9 @@ Rules changed on 2026-10-20 (Projects & Flows restructure) are marked **(changed
   - Flows: `FLOW_CREATED`, `FLOW_ACTIVATED`, `FLOW_RETIRED`, `FLOW_DEFAULT_CHANGED`, `FLOW_SETTING_CHANGED`
   - Projects: `PROJECT_CREATED`, `PROJECT_RENAMED`, `PROJECT_ARCHIVED`, `PROJECT_SETTING_CHANGED`
   - Integration: `API_KEY_CREATED`, `API_KEY_ROTATED`, `API_KEY_REVOKED`, `WEBHOOK_CHANGED`
-  - Users: `USER_INVITED`, `USER_ROLE_CHANGED`, `USER_REMOVED`, `USER_DEACTIVATED`
+  - Users: `USER_INVITED`, `USER_INVITATION_RESENT`, `USER_ACCESS_ADDED`, `USER_ACCESS_CHANGED`, `USER_ACCESS_REMOVED`,
+    `USER_SUSPENDED`, `USER_REACTIVATED`
+  - Roles: `ROLE_CREATED`, `ROLE_UPDATED` (permissions or name), `ROLE_STATUS_CHANGED`
   - Registry (Platform Admin only): `WORKFLOW_REGISTERED`, `WORKFLOW_UPDATED`, `WORKFLOW_STATUS_CHANGED`, `WORKFLOW_DEFAULT_CHANGED`
   - Merchants (Platform Admin only): `MERCHANT_CREATED`, `MERCHANT_UPDATED`, `MERCHANT_STATUS_CHANGED`
   [MS][FRS]
@@ -192,42 +194,74 @@ Rules changed on 2026-10-20 (Projects & Flows restructure) are marked **(changed
   Billing column is "Verification Status". [FRS][PO 2026-10-20]
 
 ## Roles and access
-- **DEC-70** **(changed)** Access is granted **per project**. Working roles (names are OQ-09): [MS]
+- **DEC-70** **(changed again)** Users and roles follow the [FRS] User Management method, extended with **scoped role
+  assignments** ("Option C") [PO 2026-10-20]:
+  - A **role** is defined once per merchant from permission checkboxes; it says *what* a user may do. An **assignment**
+    gives a user a role with a **scope**, *where*: **All projects** (every current and future project; labelled in the UI)
+    or **Selected projects**. A user may hold several assignments; where they overlap, permissions are the **union**
+    (no deny rules). Flow-level scope is not used (Option D kept in reserve).
+  - Permissions, grouped on the Roles screen:
 
-  | Action | Platform Admin (internal) | Merchant Owner | Project Admin | Reviewer | Viewer |
-  |---|---|---|---|---|---|
-  | Workflow Registry, Merchants | Yes | No | No | No | No |
-  | Overview, System Intelligence, Billing (data scoped, DEC-86) | All merchants | All projects | Own project | Own project | Own project |
-  | Create, rename, archive projects | Yes | Yes | No | No | No |
-  | Invite users, assign project roles | Yes | Yes | Own project | No | No |
-  | API keys, webhook, redirect URLs, IP allowlist | No | Yes | Own project | No | No |
-  | Create, edit, activate, retire flows | Yes, any merchant (audited as internal user) | Yes | Own project | No | No |
-  | Advanced (custom) thresholds (DEC-19) | Yes | No | No | No | No |
-  | View routing configuration | Yes | Yes | Own project | No | No |
-  | View cases | OQ-20 (default: no) | All projects | Own project | Own project | Own project |
-  | Claim a case | No | Yes | Own project | Own project | No |
-  | Approve or reject a claimed case | No | Own claim | Own claim | Own claim | No |
-  | Audit Log | Yes | All projects | Own project | No | No |
+    | Merchant-level (assignable to All projects only) | Project-level |
+    |---|---|
+    | Manage billing and contract | View cases |
+    | Manage users and roles | Claim cases |
+    | Create, rename, archive projects | Approve / reject cases (own claim only, DEC-30) |
+    | View merchant-wide reports | Manage project settings (branding, auto-release timeout) |
+    | | Manage API keys and webhook |
+    | | Manage flows (create, activate, retire, set default) |
+    | | Change verification level and retries (thresholds, retries allowed, risk level) |
+    | | Manage project members |
+    | | View project reports (Overview, System Intelligence, Billing for those projects) |
+    | | View audit log |
+
+  - A role with any merchant-level permission can only be assigned to **All projects**. Claim and Approve / reject need
+    View cases, so the Roles screen ticks it automatically.
+  - **System Default roles** (locked, the same for every merchant): **Merchant Owner** (every permission), **Project Admin**
+    (every project-level permission), **Reviewer** (view, claim, approve / reject, project reports), **Viewer** (view cases,
+    project reports). Merchants add **Custom** roles. Role names are OQ-09.
+  - **Platform Admin** (internal) is not a merchant role. It keeps: Workflow Registry, Merchants, Advanced thresholds
+    (DEC-19), dashboards, Audit Log, users and roles, projects, project settings and flows in **any** merchant
+    (DEC-75); never API keys / webhooks; never claim or decide; cases per OQ-20 (default: no).
 - **DEC-71** Client-side permission checks are UI only, not security. The real backend must enforce them.
-- **DEC-72** **(new)** Every page checks project membership; hiding a menu item is not enough. A case from a project the user
-  cannot access returns "not found" (not "forbidden"), so its existence is not revealed. [MS]
-- **DEC-73** **(new)** Global header: project switcher (the user's projects, plus "All my projects" for users in more than
-  one), current project name always visible, menu filtered by the user's role in the selected project, user menu (name, email,
-  role in the current project, log out). [MS]
-- **DEC-74** **(new)** Users and Access: users belong to the merchant; one role per project. Columns: name and email, projects
-  and roles, status (`Invited`, `Active`, `Deactivated`), last active. Actions: invite by email, change role, remove project
-  access, deactivate. Removing access releases the user's open claims in that project. Project Admins manage their own
-  project only; Merchant Owners all projects. The fixed role table above replaces the old custom Roles screen. [MS]
+- **DEC-72** **(changed)** Every page checks the user's access to the project; hiding a menu item is not enough. A case from
+  a project the user's assignments don't cover returns "not found" (not "forbidden"). [MS]
+- **DEC-73** **(changed)** Global header: project switcher (only projects the user's assignments cover, plus "All my
+  projects" for more than one), current project name always visible, menu filtered by the user's permissions in the
+  selected project, user menu (name, email, roles in the current project, log out). A user with no assignments can sign in
+  but sees "You don't have access to any project yet". [MS][PO 2026-10-20]
+- **DEC-74** **(changed again)** **Users** screen ([FRS] User Management › Users): flat list with User ID, Full Name, Email,
+  Merchant (Platform Admin only), **Access** (assignment summary, e.g. "Reviewer (Retail), Viewer (SME)"), Status, Created
+  At; sorted by Created At, newest first; 10 / 20 / 50 per page; "No Records Found". Create: full name, work email,
+  merchant (Platform Admin only) and the first assignment; the user starts **Pending** and gets an invitation (Resend while
+  Pending). Statuses `Pending`, `Active`, `Suspended`; users are never deleted (Suspend). **User detail**: an Access table
+  (Role | Scope | Added by | Date) with Add / Edit / Remove. Rules [PO 2026-10-20]:
+  - Only users with Manage users and roles (or Platform Admin) manage users; on a project's Members tab, users with Manage
+    project members add or remove assignments **for that project**.
+  - Nobody grants permissions they don't have themselves.
+  - Removing an assignment (or suspending) releases the user's open claims in projects where they can no longer claim.
+  - At least one active Merchant Owner (All projects) must remain.
+  - Nobody changes their own access.
 - **DEC-75** **(new)** Platform Admin may manage flows in any merchant for onboarding and support; API keys and webhooks stay
   merchant-only because they carry the merchant's secrets. [PO 2026-10-20]
+- **DEC-76** **(new)** **Roles** screen ([FRS] User Management › Roles): Role ID (`ROL-2026-XXXX`), Role Name, Merchant
+  (Platform Admin only), Role Type (`System Default` / `Custom`), Status, Users, Created At. The detail / create modal holds
+  the grouped permission checkboxes (at least one: "Roles require at least one action permission flag"). System Default
+  roles are read-only. Editing a role applies at once to everyone holding it, in all their scopes, and shows "Affects N
+  users" before saving. Roles are never deleted; deactivating one still assigned is refused: "Operation rejected. This role
+  is currently assigned to active records inside the system." Managed by users with Manage users and roles and by Platform
+  Admin. [FRS][PO 2026-10-20]
+- **DEC-77** **(new)** Project Settings › **Members** tab: everyone with access to the project and their role, including
+  users with All projects access (marked "inherited"). Adding a member creates an assignment scoped to that project. An
+  archived project keeps its assignments read-only and leaves the switcher. [PO 2026-10-20]
 
 ## Screens and navigation
 - **DEC-84** **(new)** No Home page. **Everyone lands on Overview.** UAT scenario links are on a mock-only page in the Dev
   menu. [PO 2026-10-20]
 - **DEC-85** **(new)** Screens: Overview, System Intelligence, Billing (all roles, DEC-86), Verifications List, Verification
-  Detail, Projects, Project Settings, Flows List, Flow Detail, Users and Access, Audit Log; Platform Admin only: Merchants,
+  Detail, Projects, Project Settings, Flows List, Flow Detail, Users, Roles, Audit Log; Platform Admin only: Merchants,
   Workflow Registry. Replaced: eKYC Workflow → Flows List + Flow Detail; Developers → Project Settings › Integration;
-  Users / Roles → Users and Access; Merchant Workflow Directory → Workflow Registry ("flows using it"); the [MS] Reports
+  Users and Access → Users + Roles ([FRS] method, DEC-74, DEC-76); Merchant Workflow Directory → Workflow Registry ("flows using it"); the [MS] Reports
   module → folded into the three dashboards (DEC-86). Overview, System Intelligence, Billing and Merchants otherwise follow
   [FRS]. [MS][PO 2026-10-20]
 - **DEC-86** **(changed)** Overview, System Intelligence and Billing are visible to every role; only the data differs.
@@ -309,7 +343,7 @@ These keep the mock runnable. They are not signed-off requirements; change them 
 | Review queue | Separate screen | Removed (DEC-80) |
 | Supervisor actions | Assign / reassign / force-release | None (DEC-23) |
 | Retry limit | Retries per token-consuming phase (V1: selfie and liveness) | Face match and liveness only; selfie unlimited and free (DEC-18) |
-| Roles | 7-role catalogue / Platform vs Merchant Admin / custom roles | 5 working roles per project (DEC-70) |
+| Roles | 7-role catalogue / Platform vs Merchant Admin / custom roles | [FRS] Users + Roles screens with custom roles, assigned with a scope (All / Selected projects) (DEC-70, DEC-74, DEC-76) |
 | Developers page | Merchant-level API key and webhook | Per project, Project Settings › Integration (DEC-54) |
 | Merchant Workflow Directory | Platform Admin edits merchant thresholds | Removed; Registry shows flows per version (DEC-85) |
 | Timestamps | Extra fields | `createdAt` and `lastUpdatedAt` (DEC-04) |
