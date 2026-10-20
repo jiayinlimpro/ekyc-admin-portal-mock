@@ -1,6 +1,6 @@
 // Every value in this file is an OPEN QUESTION (docs/OPEN_QUESTIONS.md), not a signed-off requirement.
 // The UI must label anything read from here "OPEN QUESTION".
-import type { CapturePhase, PhaseConfig, RiskLevel } from './types'
+import type { CapturePhase, Check, PhaseConfig, RiskLevel, ThresholdPreset } from './types'
 
 export type PhaseCombination = 'REJECT_WINS' | 'REVIEW_WINS'
 
@@ -32,6 +32,18 @@ export const DEFAULT_PHASE_THRESHOLDS: Record<CapturePhase, Omit<PhaseConfig, 'p
   FACE_MATCH: { autoPass: 85, autoReject: 70, maxAttempts: 3, cooldownSec: 30 },
   LIVENESS: { autoPass: 90, autoReject: 70, maxAttempts: 3, cooldownSec: 30 },
 }
+
+/** OQ-02: preset values per check (DEC-19). Low = lenient, High = strict. */
+export const THRESHOLD_PRESETS: Record<Check, Record<ThresholdPreset, { autoReject: number; autoPass: number }>> = {
+  FACE_MATCH: { LOW: { autoReject: 80, autoPass: 90 }, STANDARD: { autoReject: 85, autoPass: 95 }, HIGH: { autoReject: 90, autoPass: 97 } },
+  LIVENESS: { LOW: { autoReject: 60, autoPass: 80 }, STANDARD: { autoReject: 70, autoPass: 85 }, HIGH: { autoReject: 80, autoPass: 92 } },
+}
+
+/** OQ-03: "Retries allowed" per check (DEC-18). Default 3 retries = up to 4 submissions. */
+export const RETRY_LIMITS = { min: 1, max: 5, default: 3 } as const
+
+/** DEC-26 (FRS default); what counts as the "same end user" is OQ-22. */
+export const DEFAULT_COOLDOWN_MIN = 0
 
 /** OQ-04 */
 export const DEFAULT_CLAIM_TIMEOUT_MIN = 30
@@ -70,7 +82,10 @@ export function riskLevelFromScore(score: number, bands = POLICY.riskBands): Ris
   return 'LOW'
 }
 
-/** OQ-14: mock unit prices (RM). Every verification is charged on entry (DEC-60); retakes only if chargePerAttempt (OQ-07). */
+/** OQ-14: mock token price (RM per liveness submission, DEC-60). The per-verification prices are the old model, removed with billing in a later phase. */
+export const TOKEN_PRICE = 0.5
+
+/** Old model: every verification charged on entry; retakes only if chargePerAttempt (OQ-07). */
 export const PRICING = {
   currency: 'MYR',
   perVerification: { V1: 1.5, V3: 2.0, V4: 2.5, V5: 2.5 },
