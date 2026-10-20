@@ -242,7 +242,7 @@ export const NAV_ITEMS: NavItem[] = [
     inMenu: true,
     access: { platform: 'manageRegistry' },
     priority: 'P1',
-    built: false,
+    built: true,
     notes: ['Draft → Active → Deprecated; default for new merchants; flows using each version (DEC-56 … DEC-58).'],
   },
   {

@@ -58,6 +58,14 @@ describe('registryService access (DEC-70)', () => {
   })
 })
 
+describe('registryService flows using a version (DEC-85)', () => {
+  it('Given V3, then the flows on it with their project and merchant', async () => {
+    const flows = await registryService.flowsUsing('V3', ADMIN)
+    expect(flows.map((f) => f.flowId).sort()).toEqual(db.state().flows.filter((f) => f.workflowVersion === 'V3').map((f) => f.flowId).sort())
+    expect(flows.find((f) => f.flowId === 'FLW-0004')).toMatchObject({ projectName: 'SME app', merchantName: 'Atoz Software Tech' })
+  })
+})
+
 describe('registryService lifecycle (DEC-56, DEC-57)', () => {
   it('Given a new code, then it is registered as Draft; a used code is refused; the event is Platform Admin only', async () => {
     const v6 = await registryService.register(inputOf(entry('V4'), { code: 'V6', name: 'V4 + document liveness', releaseNote: 'First draft' }), ADMIN)

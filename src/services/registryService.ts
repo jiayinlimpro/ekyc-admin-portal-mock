@@ -5,10 +5,11 @@
 //   PUT  /registry/{code}             update         → 200 RegistryEntry | 422 VALIDATION (locked fields)
 //   POST /registry/{code}/status      changeStatus   → 200 RegistryEntry | 422 VALIDATION
 //   POST /registry/{code}/default     setDefault     → 200 RegistryEntry | 422 VALIDATION
+//   GET  /registry/{code}/flows       flowsUsing     → 200 FlowUsingVersion[] (replaces the Merchant Workflow Directory, DEC-85)
 import { canOnPlatform, projectsWhere } from '@/domain/access'
 import { makeAudit } from '@/domain/audit'
 import { isLocked, selectableForNewFlow, setDefaultError, statusChangeError, validateRegistryInput, withDefault, type RegistryInput } from '@/domain/registryRules'
-import type { Actor, AuditAction, RegistryEntry, RegistryStatus, SettingChange, WorkflowCode } from '@/domain/types'
+import type { Actor, AuditAction, Flow, RegistryEntry, RegistryStatus, SettingChange, WorkflowCode } from '@/domain/types'
 import { now } from '@/lib/clock'
 import { db } from '@/mocks/mockDb'
 import { accountOf, requireActive } from './accessGuard'
@@ -22,8 +23,18 @@ export type RegistryRow = RegistryEntry & { flowsUsing: number }
 /** What a flow creator needs to pick a version. State machine references are internal and left out. */
 export type SelectableVersion = Pick<RegistryEntry, 'code' | 'name' | 'description' | 'phases' | 'faceMatchMethod' | 'requiredInputs' | 'configurableChecks' | 'isDefault'>
 
+/** A flow on a version, with where it lives. */
+export interface FlowUsingVersion {
+  flowId: string
+  name: string
+  status: Flow['status']
+  projectName: string
+  merchantName: string
+}
+
 export interface RegistryService {
   list(actor: Actor): Promise<RegistryRow[]>
+  flowsUsing(code: WorkflowCode, actor: Actor): Promise<FlowUsingVersion[]>
   listSelectable(actor: Actor): Promise<SelectableVersion[]>
   register(input: RegistryInput, actor: Actor): Promise<RegistryEntry>
   /** The code never changes. After first activation only name, description and state machine references can (DEC-56). */
@@ -76,6 +87,22 @@ export const mockRegistryService: RegistryService = {
     requireRegistry(actor)
     const flows = db.state().flows
     return wire(db.state().registry.map((e) => ({ ...e, flowsUsing: flows.filter((f) => f.workflowVersion === e.code).length })))
+  },
+
+  async flowsUsing(code, actor) {
+    await simulateNetwork('flows using version')
+    requireRegistry(actor)
+    load(code)
+    const s = db.state()
+    return wire(
+      s.flows
+        .filter((f) => f.workflowVersion === code)
+        .map((f) => {
+          const p = s.projects.find((x) => x.projectId === f.projectId)
+          return { flowId: f.flowId, name: f.name, status: f.status, projectName: p?.name ?? f.projectId, merchantName: s.merchants.find((m) => m.merchantId === f.merchantId)?.name ?? f.merchantId }
+        })
+        .sort((a, b) => a.merchantName.localeCompare(b.merchantName) || a.projectName.localeCompare(b.projectName) || a.name.localeCompare(b.name)),
+    )
   },
 
   // REQ: DEC-56 — Active versions only; for anyone who may create flows somewhere.
