@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { Outlet, useLocation, useSearchParams } from 'react-router'
 import { toast } from 'sonner'
+import { AccessProvider } from '@/app/access'
 import { routeMetaFor } from '@/app/nav'
 import { Toaster } from '@/components/ui/sonner'
 import { TooltipProvider } from '@/components/ui/tooltip'
@@ -76,19 +77,21 @@ export function AppShell() {
   useAsParam()
 
   return (
-    <TooltipProvider>
-      <div className="flex h-screen overflow-hidden bg-background text-foreground">
-        <Sidebar />
-        <div className="flex min-w-0 flex-1 flex-col">
-          <MockBanner />
-          <TopBar />
-          <TabStrip />
-          <main className="flex-1 overflow-auto p-6">
-            <Outlet />
-          </main>
+    <AccessProvider>
+      <TooltipProvider>
+        <div className="flex h-screen overflow-hidden bg-background text-foreground">
+          <Sidebar />
+          <div className="flex min-w-0 flex-1 flex-col">
+            <MockBanner />
+            <TopBar />
+            <TabStrip />
+            <main className="flex-1 overflow-auto p-6">
+              <Outlet />
+            </main>
+          </div>
         </div>
-      </div>
-      <Toaster position="bottom-right" richColors closeButton />
-    </TooltipProvider>
+        <Toaster position="bottom-right" richColors closeButton />
+      </TooltipProvider>
+    </AccessProvider>
   )
 }

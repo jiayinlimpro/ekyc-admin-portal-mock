@@ -17,7 +17,7 @@ import {
   Users,
   type LucideIcon,
 } from 'lucide-react'
-import type { Permission } from '@/domain/permissions'
+import type { AccessRule } from './access'
 
 export const NAV_GROUPS = ['Dashboards', 'eKYC', 'Governance', 'Access Management', 'Developers'] as const
 export type NavGroup = (typeof NAV_GROUPS)[number]
@@ -28,7 +28,8 @@ export interface NavItem {
   icon: LucideIcon
   group?: NavGroup // undefined = not in a menu group (mock-only pages)
   inMenu: boolean
-  permission?: Permission
+  /** REQ: DEC-72 / DEC-73 — the menu and the page guard both use it; services check again. */
+  access?: AccessRule
   priority: 'P0' | 'P1' | 'P2' | 'P3'
   built: boolean
   /** Rules the screen must follow — shown on its placeholder until it is built. */
@@ -44,6 +45,7 @@ export const NAV_ITEMS: NavItem[] = [
     icon: LayoutDashboard,
     group: 'Dashboards',
     inMenu: true,
+    access: { project: 'viewDashboards' },
     priority: 'P2',
     built: true,
     notes: ['4 statuses only (DEC-01).', '3 KPI cards; Auto-Clear = APPROVED with Last Updated By = SYSTEM (DEC-14).', 'No Drop-off KPI (DEC-81).'],
@@ -54,6 +56,7 @@ export const NAV_ITEMS: NavItem[] = [
     icon: Activity,
     group: 'Dashboards',
     inMenu: true,
+    access: { project: 'viewDashboards' },
     priority: 'P2',
     built: true,
     notes: ['Retry KPI counts user retakes only (DEC-18).', 'Charts show two threshold lines: Auto-Pass and Auto-Reject (DEC-11).'],
@@ -64,6 +67,7 @@ export const NAV_ITEMS: NavItem[] = [
     icon: ScanFace,
     group: 'eKYC',
     inMenu: true,
+    access: { project: 'viewCases' }, // Platform Admin: OQ-20
     priority: 'P0',
     built: true,
     notes: [
@@ -78,6 +82,7 @@ export const NAV_ITEMS: NavItem[] = [
     icon: FileSearch,
     group: 'eKYC',
     inMenu: false,
+    access: { project: 'viewCases' },
     priority: 'P0',
     built: true,
     notes: [
@@ -93,7 +98,7 @@ export const NAV_ITEMS: NavItem[] = [
     icon: SlidersHorizontal,
     group: 'eKYC',
     inMenu: true,
-    permission: 'canConfigureWorkflow',
+    access: { legacy: 'canConfigureWorkflow' }, // replaced by Flows List + Flow Detail
     priority: 'P0',
     built: true,
     notes: [
@@ -108,7 +113,7 @@ export const NAV_ITEMS: NavItem[] = [
     icon: BookOpen,
     group: 'eKYC',
     inMenu: true,
-    permission: 'canViewAllMerchants',
+    access: { platform: 'manageRegistry' }, // replaced by Workflow Registry
     priority: 'P1',
     built: true,
     notes: ['Links each merchant to its workflow version; V4 adds the Risk Assessment phase.'],
@@ -119,7 +124,7 @@ export const NAV_ITEMS: NavItem[] = [
     icon: ClipboardList,
     group: 'Governance',
     inMenu: true,
-    permission: 'canViewAudit',
+    access: { project: 'viewAudit' },
     priority: 'P1',
     built: true,
     notes: ['Events: DEC-42 names (cases, flows, projects, integration, users, registry, merchants), with the actor role and project; CONFIG_* remain for the legacy eKYC Workflow screen.'],
@@ -130,7 +135,7 @@ export const NAV_ITEMS: NavItem[] = [
     icon: ReceiptText,
     group: 'Governance',
     inMenu: true,
-    permission: 'canViewBilling',
+    access: { project: 'viewDashboards' }, // every role, data scoped (DEC-86)
     priority: 'P2',
     built: true,
     notes: ['Every verification is charged on entry; column "Verification Status" (DEC-60).', '"Cost of Retries" depends on OQ-07 (per-attempt charging).'],
@@ -141,7 +146,7 @@ export const NAV_ITEMS: NavItem[] = [
     icon: Building2,
     group: 'Access Management',
     inMenu: true,
-    permission: 'canManageUAM',
+    access: { platform: 'manageMerchants' },
     priority: 'P3',
     built: true,
     notes: ['Standard CRUD.'],
@@ -152,7 +157,7 @@ export const NAV_ITEMS: NavItem[] = [
     icon: KeyRound,
     group: 'Access Management',
     inMenu: true,
-    permission: 'canManageUAM',
+    access: { legacy: 'canManageUAM' }, // replaced by Users and Access
     priority: 'P3',
     built: true,
     notes: ['2 roles only: Platform Admin and Merchant Reviewer (DEC-70).'],
@@ -163,7 +168,7 @@ export const NAV_ITEMS: NavItem[] = [
     icon: Users,
     group: 'Access Management',
     inMenu: true,
-    permission: 'canManageUAM',
+    access: { legacy: 'canManageUAM' }, // replaced by Users and Access
     priority: 'P3',
     built: true,
     notes: ['Standard CRUD.'],
@@ -174,7 +179,7 @@ export const NAV_ITEMS: NavItem[] = [
     icon: Code,
     group: 'Developers',
     inMenu: true,
-    permission: 'canRotateKeys',
+    access: { legacy: 'canRotateKeys' }, // replaced by Project Settings › Integration
     priority: 'P3',
     built: true,
     notes: ['Masked fake API key (sk_mock_…) with reveal / copy / rotate; rotation writes API_KEY_ROTATED.', 'Webhooks: "On hold" placeholder (DEC-82).'],

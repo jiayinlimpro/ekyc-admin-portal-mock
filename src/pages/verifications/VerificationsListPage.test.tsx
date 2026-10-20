@@ -78,10 +78,10 @@ describe('Verifications List', () => {
     await screen.findByText('No verifications yet')
   })
 
-  it('Given the Platform Admin, then no cases are listed: no case access by default (OQ-20, DEC-72)', async () => {
+  it('Given the Platform Admin, then Verifications is "No access": no case access by default (OQ-20, DEC-72)', async () => {
     useSession.getState().switchUser(ADMIN)
     renderAt('/verifications')
-    await screen.findByText('No verifications yet')
+    await screen.findByRole('heading', { name: 'No access' })
   })
 
   it('Given the service fails, then an error with Try again; when it recovers, then rows load', async () => {

@@ -1,10 +1,9 @@
 import { NavLink } from 'react-router'
 import { ShieldCheck } from 'lucide-react'
+import { useAccess } from '@/app/access'
 import { NAV_GROUPS, NAV_ITEMS, type NavItem } from '@/app/nav'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
-import { can } from '@/domain/permissions'
 import { cn } from '@/lib/utils'
-import { useSession } from '@/stores/sessionStore'
 import { useUi } from '@/stores/uiStore'
 
 function SidebarLink({ item, collapsed }: { item: NavItem; collapsed: boolean }) {
@@ -42,10 +41,10 @@ function SidebarLink({ item, collapsed }: { item: NavItem; collapsed: boolean })
 }
 
 export function Sidebar() {
-  const actor = useSession((s) => s.actor)
+  const access = useAccess()
   const collapsed = useUi((s) => s.sidebarCollapsed)
-  // Hide what the role can't access (UI only — DEC-71).
-  const visible = NAV_ITEMS.filter((i) => i.inMenu && (!i.permission || can(actor, i.permission)))
+  // REQ: DEC-73 — the menu follows the user's role in the selected project (UI only — DEC-71).
+  const visible = NAV_ITEMS.filter((i) => i.inMenu && access.allows(i.access))
   const top = visible.filter((i) => !i.group)
 
   return (

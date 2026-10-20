@@ -92,8 +92,9 @@ describe('Billing', () => {
     expect(lines.getAllByRole('columnheader').map((h) => h.textContent)).toContain('Verification Status')
   })
 
-  it('Given a Merchant Reviewer, then Billing is not accessible', () => {
+  it('Given a Reviewer, then Billing opens with their own projects only (DEC-86)', async () => {
     renderAt('/billing')
-    expect(screen.getByRole('heading', { name: 'No access' })).toBeTruthy()
+    await screen.findByRole('region', { name: 'Line items' })
+    expect(screen.queryByRole('heading', { name: 'No access' })).toBeNull()
   })
 })
