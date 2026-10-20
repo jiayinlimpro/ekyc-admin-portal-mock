@@ -146,6 +146,16 @@ describe('flowService settings and lifecycle (DEC-51 … DEC-53, DEC-94)', () =>
     expect(await lastAudit('FLOW_RETIRED')).toMatchObject({ actor: { kind: 'SYSTEM' }, details: { changes: [{ field: 'Status', from: 'RETIRING', to: 'INACTIVE' }] } })
   })
 
+  it('Given a what-if with High liveness, then the preview counts finished sessions only and changes nothing (MOCK-10)', async () => {
+    const { flow } = await flowService.get('FLW-0001', OWNER)
+    const before = JSON.stringify(db.state().verifications)
+    const r = await flowService.preview('FLW-0001', withLiveness(flow.settings, 'HIGH'), OWNER)
+    expect(r.total).toBeGreaterThan(0)
+    expect(r.before.PROCESSING + r.before.APPROVED + r.before.PENDING_REVIEW + r.before.REJECTED).toBe(r.total)
+    expect(r.after.APPROVED).toBeLessThanOrEqual(r.before.APPROVED) // stricter liveness never approves more
+    expect(JSON.stringify(db.state().verifications)).toBe(before)
+  })
+
   it('Given a Retiring flow, then its settings are read-only', async () => {
     const { flow } = await flowService.get('FLW-0008', ADMIN) // Boring "Express (pilot)", retiring
     await expectError(flowService.save('FLW-0008', { name: 'Renamed', description: flow.description, settings: flow.settings }, 'Rename the pilot flow', ADMIN), 'VALIDATION', 'Retiring and inactive flows are read-only.')
