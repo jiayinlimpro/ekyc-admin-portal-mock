@@ -1,116 +1,305 @@
 # Decisions — source of truth
 
-**Precedence:** this file > latest change summary > FRS (sections above "Archive" only) > old Axure.
-Everything from "Archive" onward in the FRS is ignored. If code, FRS or Axure disagree with this file, this file wins.
+**Precedence:** this file > Module Specification "Projects & Flows" (2026-10-19, **[MS]**) > FRS 05/10/26 revision (**[FRS]**)
+> old Axure. Where [MS] covers a topic it wins; anything it does not cover follows [FRS]. Answers given by the product owner
+in review are marked **[PO]** with the date. If code, [MS], [FRS] or Axure disagree with this file, this file wins.
 
 Each rule has an ID (`DEC-xx`). Tag code that implements a rule with `// REQ: DEC-xx` so QA and devs can trace it.
-When FRS IDs are available, add them next to the DEC ID (e.g. `DEC-20 / FRS VER-CLAIM-03`).
+Rules changed on 2026-10-20 (Projects & Flows restructure) are marked **(changed)**; replaced rules are listed under
+"Superseded" at the end so old `REQ:` tags can still be traced.
 
 ---
+
+## Structure: Merchant → Project → Flow → Case
+- **DEC-90** Four levels: a Merchant has 1..N Projects; a Project has 1..N Flows; every Case belongs to exactly one Flow
+  (and so one Project). Each project has its own members, cases and settings ("Option C"). [MS]
+- **DEC-91** Each setting lives at exactly one level. [PO 2026-10-20]
+
+  | Level | Settings |
+  |---|---|
+  | Merchant | Contract, plan, billing · user accounts · portal login security · default branding and language |
+  | Project | Members and roles · auto-release claim timeout · API keys, webhook · redirect URLs, allowed web origins, IP allowlist · branding override, language · default flow and routing method · Reference ID scope (OQ-17) · data retention (OQ-21) |
+  | Flow | Workflow version (locked once active) · check thresholds · retries allowed, cooldown · accepted documents · risk thresholds (V4, V5) · routing rule or % share · session expiry |
+
+- **DEC-92** Every merchant starts with a **Default** project. Creating a merchant also creates its Default project with one
+  default flow built on the registry's default version (DEC-57), and its first user as Merchant Owner (FRS "Option B"). [MS][FRS]
+- **DEC-93** Projects: create (name required), rename, archive. Archived = no new sessions; existing cases stay reviewable.
+  The Default project cannot be archived while it is the merchant's only active project. Projects are never deleted. [MS]
+- **DEC-94** Flows: status `Draft`, `Active`, `Retiring` (in-flight cases only), `Inactive`. Exactly one default flow per
+  project. Actions: create (pick a workflow version → Flow Detail), duplicate, set as default, activate, retire. Retiring the
+  default flow requires choosing a new default first. Flows are never deleted, so past cases keep their flow. The workflow
+  version is locked once a flow is active; to change version, create a new flow. [MS]
+- **DEC-95** Routing (which flow a new session uses) is set by the merchant through the API. The portal shows the routing
+  method, rules (priority, conditions, target flow) and percentage shares **read-only** (OQ-18). [MS]
+- **DEC-96** Case lists may span all of a user's projects ("All my projects"). Settings pages always work on one selected
+  project. [MS]
 
 ## Statuses
 - **DEC-01** `VerificationStatus` is exactly: `PROCESSING`, `PENDING_REVIEW`, `APPROVED`, `REJECTED`. No other status exists
   (no MANUAL_APPROVED, ERROR, EXPIRED, CLAIMED, IN_REVIEW).
 - **DEC-02** Manual vs automated is read from `lastUpdatedBy`: `SYSTEM`, or the reviewer's Full Name + User ID.
 - **DEC-03** `lastUpdatedBy` / `lastUpdatedAt` change **only when the status changes**. Claiming, releasing or viewing never touch them.
-- **DEC-04** The only lifecycle timestamp is `lastUpdatedAt` (plus the claim fields). The "Submitted" date used by filters is derived
-  from the first attempt's `startedAt`; it is not a stored field.
+- **DEC-04** Lifecycle timestamps are `createdAt` (session started) and `lastUpdatedAt` (latest status change), plus the claim
+  fields. **(changed)** [MS]
 
-## Automated evaluation (per phase)
-- **DEC-10** Thresholds are **per phase**, never per individual metric. Phases: DOCUMENT (Capture & OCR), SELFIE, FACE_MATCH,
-  LIVENESS, and RISK_ASSESSMENT (internal engine, **V4 only**). Individual metrics are display-only, grouped by phase.
-- **DEC-11** Each capture phase has `autoPass` and `autoReject`: score `>= autoPass` → pass; `< autoReject` → reject;
-  in between → review.
-- **DEC-12** Phase results combine into a status: any reject → `REJECTED`; otherwise any review → `PENDING_REVIEW`;
-  otherwise all pass. *(Precedence is OQ-01 and is configurable.)*
-- **DEC-13** V4 only: all capture phases passing is not enough; Risk Assessment must also pass, otherwise `PENDING_REVIEW`
-  with reason "Risk Assessment not passed".
+## Automated evaluation
+- **DEC-10** **(changed)** Only two checks have configurable thresholds: **Face match** and **Liveness**, each with an
+  Auto-Reject / Auto-Pass pair. ID capture and Selfie have no configurable thresholds; their quality checks are fixed by the
+  engine. Granular metrics (pitch, yaw, sharpness, brightness, face confidence …) are never shown in the portal. Risk
+  Assessment runs for V4 and V5 only. [MS][FRS][PO 2026-10-19]
+- **DEC-11** For face match and liveness: score `>= autoPass` → pass; `< autoReject` → reject band; in between → review band.
+- **DEC-12** When every check has a final result, they combine: any reject → `REJECTED`; otherwise any review →
+  `PENDING_REVIEW`; otherwise all pass. *(Precedence is OQ-01 and is configurable.)*
+- **DEC-13** **(changed)** V4 and V5: all checks passing is not enough; Risk Assessment must also pass, otherwise
+  `PENDING_REVIEW` with reason "Risk Assessment not passed". V5's per-component risk thresholds are OQ-05.
 - **DEC-14** A system approval is `APPROVED` with `lastUpdatedBy = SYSTEM` ("Auto-Clear").
+- **DEC-19** Threshold presets. **(new)** [PO 2026-10-20]
+  - Each of face match and liveness offers **Low**, **Standard** and **High** presets. Low = lenient (more automatic
+    approvals); High = strict. Preset values are OQ-02.
+  - **Advanced** = custom Auto-Reject / Auto-Pass numbers, set by **Platform Admin only**. A merchant sees a read-only
+    "Advanced (set by platform)" chip with the numbers and may switch back to a preset, but cannot edit the numbers.
+  - A 0–100 band bar shows the Reject / Review / Approve bands and updates when a preset or custom values are chosen.
 
-## Attempts & retries
-- **DEC-15** A run that is incomplete, aborted or timed out, or a failed retake, with attempts left → `PROCESSING`.
-- **DEC-16** Attempt limit reached → `PENDING_REVIEW` with reason `Attempt limit reached – [Phase]`.
+## Retries
+- **DEC-15** **(changed)** A face match or liveness result below Auto-Pass, with retries left, sends the user to retry; the case
+  stays `PROCESSING`. An incomplete, aborted or timed-out run also stays `PROCESSING`. [PO 2026-10-20]
+- **DEC-16** **(changed)** When retries run out, the **last attempt** decides: below Auto-Reject → `REJECTED`; review band →
+  `PENDING_REVIEW`. The reason is the matching condition from DEC-35 (e.g. "Liveness face does not match ID face (Retry Not
+  Allowed)"). [PO 2026-10-20]
 - **DEC-17** Retries keep the same `referenceNo`; each retry is appended to `attempts[]`, never a new record.
-- **DEC-18** The Retry KPI counts **user retakes only** (`isUserRetake = true`).
+- **DEC-18** **(changed)** "**Retries allowed**" is set per check (face match, liveness) per flow: the number of retries after
+  the first submission. Default 3 = up to 4 submissions. Range is OQ-03. ID capture and Selfie retakes are **unlimited, not
+  counted and free**. The retry KPIs (First-Attempt Pass Rate, Average Retries) count face match and liveness retries only.
+  [PO 2026-10-20][FRS]
+- **DEC-26** **(new)** Cooldown (per flow, minutes, default 0): after a case is `REJECTED`, the **same end user** cannot start
+  a new case until the cooldown ends. 0 = no wait. How "same end user" is identified, and whether the wait covers only this
+  flow or the whole project, is OQ-22. Verification Detail shows "New case allowed from …" on rejected cases. [PO 2026-10-20]
 
 ## Claim
 - **DEC-20** Claim is **not** a status. It is stored as `claimedBy`, `claimedAt`, `claimExpiresAt`.
-- **DEC-21** One owner at a time. Only `PENDING_REVIEW` records can be claimed.
-- **DEC-22** Claim timeout is set per merchant (`claimTimeoutMin`). A claim ends only by **Cancel**, **timeout** or **decision**.
+- **DEC-21** One owner at a time. Only `PENDING_REVIEW` records can be claimed ("Assign to me").
+- **DEC-22** **(changed)** The auto-release claim timeout is set **per project**. A claim ends only by **Release**, **timeout**,
+  **decision**, or the holder being **removed from the project** (DEC-74). [MS]
 - **DEC-23** No supervisor assign, reassign or force-release.
-- **DEC-24** Ownership is re-checked **at save time**. If the claim expired, belongs to someone else, or the status is no longer
-  `PENDING_REVIEW`, nothing is saved and an `OWNERSHIP_CONFLICT` audit entry is written.
-- **DEC-25** Anyone with access to the merchant can **view** any record; opening a record never locks it. Only the Decision
-  Overlay is enabled or disabled.
+- **DEC-24** **(changed)** Ownership is re-checked **at save time**. If the claim expired, belongs to someone else, or the status
+  is no longer `PENDING_REVIEW`, nothing is saved, a `CASE_DECISION_BLOCKED` audit entry is written, and the page shows
+  "This case is no longer assigned to you" and refreshes. [MS][FRS]
+- **DEC-25** **(changed)** Any member of the case's project can **view** it; opening never locks it. Only the decision
+  buttons are enabled or disabled. [MS]
 
 ## Decisions
-- **DEC-30** The Decision Overlay is enabled only for the active claim owner on a `PENDING_REVIEW` record.
-  "Confirm Manual Pass" → `APPROVED`; "Maintain Automated Rejection" → `REJECTED`; `lastUpdatedBy` = the reviewer.
-- **DEC-31** A decision requires a Reason Code and an Audit Comment.
+- **DEC-30** **(changed)** Approve ("Confirm Manual Pass") and **Reject** are enabled only for the claim holder on a
+  `PENDING_REVIEW` case; `lastUpdatedBy` = the reviewer. Everyone else sees the case read-only with the buttons disabled. [MS][FRS]
+- **DEC-31** **(changed)** Reject requires at least one reason from the DEC-35 failure conditions. Approve needs no reason
+  code. The note is optional for both. [MS][PO 2026-10-20]
 - **DEC-32** Decisions are final: no reopen, no "Request Resubmission".
 - **DEC-33** `PROCESSING` records are read-only.
+- **DEC-35** Condition catalogue. **(new)** [PO 2026-10-20] Used for the reason banner on Verification Detail
+  (`PENDING_REVIEW` / `REJECTED`), the Top-5 failure reasons charts and the Reject reason list.
+
+  | Stage | Condition |
+  |---|---|
+  | Onboarding | No valid face in ID detected |
+  | Onboarding | No valid face in Selfie detected |
+  | OCR | ID image smaller than 320x320 |
+  | OCR | No word detected |
+  | OCR (NRIC) | IC field not detected · Gender field not detected · Name field not detected · Address field not detected |
+  | OCR (Driving License) | IC field not detected · Validity Data field not detected · Name field not detected · Nationality field not detected · Class field not detected · Address field not detected |
+  | OCR (Passport) | Unable to detect the 2 lines MRZ field in passport image |
+  | Onboarding | ID face and Selfie face do not match (Retry Allowed) · (Retry Not Allowed) |
+  | Onboarding | Face already has existing registered user in db — **record-only** |
+  | Liveness | Face not live (Retry Allowed) · (Retry Not Allowed) |
+  | Liveness | Liveness face does not match ID face (Retry Allowed) · (Retry Not Allowed) |
+  | Liveness | All stages passed — success, not a failure |
+
+  - The **record-only** condition never changes the status, is never shown on the list or detail screens ([MS]: no
+    duplicate-user information) and is not a Reject reason.
+  - "(Retry Allowed)" conditions keep the case `PROCESSING`; "(Retry Not Allowed)" conditions are the final reason (DEC-16).
 
 ## Visibility, PII & audit
-- **DEC-40** List view: no PII beyond Full Name and Reference No, and no client metadata. Enforced by the `VerificationSummary` type.
-- **DEC-41** Detail view: full unmasked PII + client metadata. **Every** open writes a `PII_VIEW` audit entry.
-- **DEC-42** Every mutation writes an audit entry. Audit actions: `PII_VIEW`, `CLAIM`, `CLAIM_RELEASE`, `CLAIM_TIMEOUT`,
-  `DECISION`, `OWNERSHIP_CONFLICT`, `CONFIG_DRAFT_SAVE`, `CONFIG_DISCARD`, `CONFIG_DEPLOY`, `CREDENTIAL_ROTATION`.
+- **DEC-40** **(changed)** Verifications List columns: Reference ID, Full Name, Project (when more than one project is in view),
+  Flow, Workflow version, Document type, Status, Risk level (only when a flow in view runs risk), Claimed by (or "Unclaimed"),
+  Claim expires, Created, Last updated. No other PII, no client metadata, no duplicate-user information. Enforced by the
+  `VerificationSummary` type. [MS][FRS][PO 2026-10-20]
+- **DEC-41** Detail view: full unmasked PII + client metadata. **Every** open writes a `SENSITIVE_PII_VIEW` audit entry.
+- **DEC-42** **(changed)** Every mutation writes an audit entry (actor or SYSTEM, role, project, event, target, old and new
+  value, IP). Event actions:
+  - Cases: `SENSITIVE_PII_VIEW`, `CASE_CLAIMED`, `CASE_RELEASED`, `CASE_CLAIM_EXPIRED`, `CASE_DECISION_APPROVED`,
+    `CASE_DECISION_REJECTED`, `CASE_DECISION_BLOCKED`
+  - Flows: `FLOW_CREATED`, `FLOW_ACTIVATED`, `FLOW_RETIRED`, `FLOW_DEFAULT_CHANGED`, `FLOW_SETTING_CHANGED`
+  - Projects: `PROJECT_CREATED`, `PROJECT_RENAMED`, `PROJECT_ARCHIVED`, `PROJECT_SETTING_CHANGED`
+  - Integration: `API_KEY_CREATED`, `API_KEY_ROTATED`, `API_KEY_REVOKED`, `WEBHOOK_CHANGED`
+  - Users: `USER_INVITED`, `USER_ROLE_CHANGED`, `USER_REMOVED`, `USER_DEACTIVATED`
+  - Registry (Platform Admin only): `WORKFLOW_REGISTERED`, `WORKFLOW_UPDATED`, `WORKFLOW_STATUS_CHANGED`, `WORKFLOW_DEFAULT_CHANGED`
+  - Merchants (Platform Admin only): `MERCHANT_CREATED`, `MERCHANT_UPDATED`, `MERCHANT_STATUS_CHANGED`
+  [MS][FRS]
+- **DEC-43** **(new)** Verifications List filters: project, flow, workflow version, status, claim state (unclaimed / mine /
+  others), risk level, date range; search by Reference ID and Full Name. Default view: `PENDING_REVIEW` cases in the user's
+  projects, oldest first. [MS][FRS]
+- **DEC-44** **(new)** Verification Detail sections: header (Reference ID, status, project, flow, workflow version,
+  configuration revision, created, last updated) · claim panel · end-user data (email for V4/V5) · ID capture (images, result,
+  soft rejects) · Selfie (V1 only: image, result) · Face match (result, threshold applied, score, retries used / allowed) ·
+  Liveness (result, threshold applied, retries used / allowed, cooldown applied) · Risk (V4/V5: each component's 0–100 score
+  and reason codes, overall) · Rules applied (settings snapshot at session start) · Activity timeline. [MS]
 
-## Configuration (eKYC Workflow)
-- **DEC-50** Configured **per phase**: enabled, Auto-Pass, Auto-Reject, max attempts, cooldown. Risk settings appear for V4 only.
-  Claim timeout is a merchant-level setting.
-- **DEC-51** Draft → Deploy. Save Draft, Discard Draft and Deploy are each audited; Deploy logs the diff and bumps the minor version.
-- **DEC-52** Deployed config applies to **new sessions only**. Each record stores the `configVersion` it was evaluated with.
-- **DEC-53** Validation: `0 <= autoReject < autoPass <= 100`, `maxAttempts >= 1`, `cooldownSec >= 0`, `claimTimeoutMin >= 1`.
+## Configuration
+- **DEC-50** **(changed)** Settings live on each **flow** (Flow Detail). The form shows only what applies to the flow's version:
+
+  | Section | V1 | V3 | V4 | V5 |
+  |---|---|---|---|---|
+  | General: name, description, workflow version (locked once active) | ✓ | ✓ | ✓ | ✓ |
+  | Thresholds: face match, liveness (DEC-19) | ✓ | ✓ | ✓ | ✓ |
+  | Retries allowed: face match, liveness (DEC-18) · cooldown (DEC-26) | ✓ | ✓ | ✓ | ✓ |
+  | Accepted documents (MyKad, Passport, Driving License) | ✓ | ✓ | ✓ | ✓ |
+  | Session expiry | ✓ | ✓ | ✓ | ✓ |
+  | Risk thresholds and resulting action | | | ✓ | OQ-05 |
+  | Requirements: "Email required at session creation" | | | ✓ | ✓ |
+  | Developer info: flow ID, sample create-session request | ✓ | ✓ | ✓ | ✓ |
+  | History: who, when, old and new value | ✓ | ✓ | ✓ | ✓ |
+  [MS][PO 2026-10-20]
+- **DEC-51** **(changed)** No staged draft/deploy. A Draft flow is edited freely. On an Active flow, Save requires a
+  "Reason for change" (min 10 characters), warns that changes apply to new sessions only, and creates a new **configuration
+  revision** `<Version>-R<n>` (running number per flow, never reset). Each save is audited with old and new values. [MS][FRS]
+- **DEC-52** Saved settings apply to **new sessions only**. Each case stores its flow and configuration revision, shown as
+  "Rules applied".
+- **DEC-53** **(changed)** Validation: `0 <= autoReject < autoPass <= 100`; retries allowed within OQ-03; cooldown `>= 0`
+  minutes; claim timeout `>= 1` minute; reason for change `>= 10` characters.
+- **DEC-54** **(new)** Project Settings tabs: **General** (name, branding override, language; blank branding inherits the
+  merchant default) · **Integration** (API keys: name, created, last used, status, create / rotate / revoke, key shown once;
+  webhook URL (HTTPS), signing secret, events; redirect URLs; allowed web origins; IP allowlist) · **Review operations**
+  (auto-release claim timeout) · **Routing** (read-only, DEC-95; default flow). Changes are audited with old and new values. [MS]
+- **DEC-55** **(new)** Webhook delivery: on a change to `PENDING_REVIEW`, `APPROVED` or `REJECTED`, POST
+  `verification.status_changed` (Reference ID, new status, Last Updated By, timestamp), signed with the project's signing
+  secret; non-2xx → up to 3 retries at increasing intervals, each attempt audited. Mock: deliveries are simulated only. [FRS]
+
+## Workflow Registry
+- **DEC-56** **(changed)** Statuses `Draft`, `Active`, `Deprecated`. [FRS][PO 2026-10-20]
+  - Allowed: Draft → Active (all mandatory fields complete), Draft → Deprecated (withdraw), Active → Deprecated, Deprecated →
+    Active (re-activate). Never back to Draft.
+  - Only Active versions can be chosen when creating a flow. Draft versions cannot be chosen by anyone; there are no test
+    flows. [PO 2026-10-20]
+  - Deprecated versions cannot be chosen for new flows; existing flows keep running and show a "version deprecated" warning.
+  - No hard delete. Once a version has been Active, only name, description, state machine references and release notes can be
+    edited; anything else needs a new version code.
+- **DEC-57** **(new)** Exactly one version is "**Default for new merchants**" and it must be Active. It cannot be deprecated
+  while it is the default. Changing the default affects new merchants only. [PO 2026-10-20]
+- **DEC-58** **(new)** Versions: V1 (ID → Selfie → Liveness; face match ID vs Selfie; default), V3 (ID → Liveness; ID vs
+  liveness face), V4 (V3 + Risk Assessment; email required), V5 (Draft, TBC). No V2. [FRS][MS]
 
 ## Charging
-- **DEC-60** Every verification is charged when the end user enters the flow (`charged: true`). Billing column is "Verification Status".
-  Whether retakes are charged per attempt is OQ-07.
+- **DEC-60** **(changed)** Tokens are consumed per **liveness submission**, whatever the final status (including cases still
+  `PROCESSING`). ID capture and Selfie retakes are free. "Cost of retries" = tokens from liveness submissions after the first.
+  Billing column is "Verification Status". [FRS][PO 2026-10-20]
 
-## Roles
-- **DEC-70** Two roles only: Platform Admin and Merchant Reviewer. Permissions are flags checked through one `can(actor, flag)` helper.
+## Roles and access
+- **DEC-70** **(changed)** Access is granted **per project**. Working roles (names are OQ-09): [MS]
+
+  | Action | Platform Admin (internal) | Merchant Owner | Project Admin | Reviewer | Viewer |
+  |---|---|---|---|---|---|
+  | Workflow Registry, Merchants | Yes | No | No | No | No |
+  | Overview, System Intelligence, Billing (data scoped, DEC-86) | All merchants | All projects | Own project | Own project | Own project |
+  | Create, rename, archive projects | Yes | Yes | No | No | No |
+  | Invite users, assign project roles | Yes | Yes | Own project | No | No |
+  | API keys, webhook, redirect URLs, IP allowlist | No | Yes | Own project | No | No |
+  | Create, edit, activate, retire flows | Yes, any merchant (audited as internal user) | Yes | Own project | No | No |
+  | Advanced (custom) thresholds (DEC-19) | Yes | No | No | No | No |
+  | View routing configuration | Yes | Yes | Own project | No | No |
+  | View cases | OQ-20 (default: no) | All projects | Own project | Own project | Own project |
+  | Claim a case | No | Yes | Own project | Own project | No |
+  | Approve or reject a claimed case | No | Own claim | Own claim | Own claim | No |
+  | Audit Log | Yes | All projects | Own project | No | No |
 - **DEC-71** Client-side permission checks are UI only, not security. The real backend must enforce them.
+- **DEC-72** **(new)** Every page checks project membership; hiding a menu item is not enough. A case from a project the user
+  cannot access returns "not found" (not "forbidden"), so its existence is not revealed. [MS]
+- **DEC-73** **(new)** Global header: project switcher (the user's projects, plus "All my projects" for users in more than
+  one), current project name always visible, menu filtered by the user's role in the selected project, user menu (name, email,
+  role in the current project, log out). [MS]
+- **DEC-74** **(new)** Users and Access: users belong to the merchant; one role per project. Columns: name and email, projects
+  and roles, status (`Invited`, `Active`, `Deactivated`), last active. Actions: invite by email, change role, remove project
+  access, deactivate. Removing access releases the user's open claims in that project. Project Admins manage their own
+  project only; Merchant Owners all projects. The fixed role table above replaces the old custom Roles screen. [MS]
+- **DEC-75** **(new)** Platform Admin may manage flows in any merchant for onboarding and support; API keys and webhooks stay
+  merchant-only because they carry the merchant's secrets. [PO 2026-10-20]
 
-## Removed / on hold / backlog
+## Screens and navigation
+- **DEC-84** **(new)** No Home page. **Everyone lands on Overview.** UAT scenario links are on a mock-only page in the Dev
+  menu. [PO 2026-10-20]
+- **DEC-85** **(new)** Screens: Overview, System Intelligence, Billing (all roles, DEC-86), Verifications List, Verification
+  Detail, Projects, Project Settings, Flows List, Flow Detail, Users and Access, Audit Log; Platform Admin only: Merchants,
+  Workflow Registry. Replaced: eKYC Workflow → Flows List + Flow Detail; Developers → Project Settings › Integration;
+  Users / Roles → Users and Access; Merchant Workflow Directory → Workflow Registry ("flows using it"); the [MS] Reports
+  module → folded into the three dashboards (DEC-86). Overview, System Intelligence, Billing and Merchants otherwise follow
+  [FRS]. [MS][PO 2026-10-20]
+- **DEC-86** **(changed)** Overview, System Intelligence and Billing are visible to every role; only the data differs.
+  [PO 2026-10-20]
+  - **Scope:** Platform Admin = all merchants (merchant filter shown); Merchant Owner = all the merchant's projects;
+    Project Admin, Reviewer, Viewer = their own projects. The merchant filter is hidden for merchant users ([FRS]).
+  - **Project and flow filters** on all three, following the header's project switcher ("All my projects" or one project).
+  - **Overview** adds the [MS] Reports metrics: cases by status by project, flow and version · pass rate (APPROVED out of
+    completed) by project and flow · cases waiting in `PENDING_REVIEW` and their age by project · totals across projects
+    (Platform Admin, Merchant Owner).
+  - **System Intelligence** adds drop-off by phase (ID capture, selfie, liveness) by flow, and the retry KPIs by flow.
+  - **Billing** adds tokens and cost by project and flow.
+  - Score and reason reporting stays deferred. [MS]
+
+## Removed / backlog
 - **DEC-80** Manual Review Queue screen: **removed** (replaced by List + claim on Detail).
-- **DEC-81** Drop-off KPI: **removed**.
-- **DEC-82** Webhooks: **on hold**, shown as a placeholder only.
-- **DEC-83** Backlog (greyed "Backlog" chip or omitted): stuck-in-PROCESSING reason, duplicate-face PROCESSING, System Re-Process.
+- **DEC-83** Backlog (greyed "Backlog" chip or omitted): stuck-in-PROCESSING reason, System Re-Process, "Impersonate merchant
+  view", Diagnostics page, advanced configuration methods. [FRS]
 
 ---
 
 ## Mock-only design choices (not business decisions)
 These keep the mock runnable. They are not signed-off requirements; change them freely.
 
-- **MOCK-01** Attempt counting: each `Attempt` records the phase where it stopped. The limit is reached when the last attempt is
-  not `COMPLETED` and the number of attempts that stopped at that phase is `>= maxAttempts` for that phase.
+- **MOCK-01** **(changed)** Attempt counting: each `Attempt` records the check where it stopped and its scores. Retries for a
+  check = submissions for that check after the first. ID capture and selfie retakes are not recorded as attempts.
 - **MOCK-02** Risk gate: V4 risk passes when `riskLevel <= risk.maxAllowedLevel`. Risk never auto-rejects. *(See OQ-05.)*
-- **MOCK-03** Claim expiry is lazy: every service call sweeps expired claims and writes one `CLAIM_TIMEOUT` per expired claim.
+- **MOCK-03** Claim expiry is lazy: every service call sweeps expired claims and writes one `CASE_CLAIM_EXPIRED` per expired claim.
 - **MOCK-04** Time is read from an injectable clock (`src/lib/clock.ts`) with a dev "time warp" offset, so expiry can be demoed
   without waiting.
 - **MOCK-05** Seeded data is deterministic (`faker.seed(2026)`), with dates relative to the moment of seeding. Scenario
   records (S01–S15) have fixed Reference Nos (`KYC-260901-9000NN`) so UAT deep links stay stable.
 - **MOCK-06** Fake identity data: NRIC serials always use the `999G` pattern, IPs come from the RFC 5737 documentation ranges,
   and images are "SAMPLE – NOT REAL" placeholders.
-- **MOCK-07** Deactivated users (UAM) are refused by the services for claim, cancel and decide, and are not offered as
-  reviewers. Their open claims still end by timeout.
+- **MOCK-07** Deactivated users are refused by the services for claim, release and decide, and are not offered as reviewers.
+  Their open claims still end by timeout.
 - **MOCK-08** Cross-tab sync uses localStorage (last writer wins). It demonstrates the race; the real API needs an atomic
   conditional write (see docs/HANDOFF.md).
-- **MOCK-09** Creating a merchant deploys a default config v1.0.0, audited as its first CONFIG_DEPLOY.
-- **MOCK-10** The eKYC Workflow what-if preview re-runs `deriveStatus` over the merchant's finished sessions. It is
+- **MOCK-09** **(changed)** Creating a merchant creates its Default project, a default flow on the registry default version
+  (revision R1) and a Merchant Owner user, each audited.
+- **MOCK-10** **(changed)** Flow Detail's what-if preview re-runs the status rules over the flow's finished sessions. It is
   read-only and never changes decided records.
+- **MOCK-11** **(new)** Login, portal login security and webhook delivery are simulated; no real auth or HTTP calls.
+
+## Superseded (kept so old `REQ:` tags can be traced)
+| Old rule | Was | Now |
+|---|---|---|
+| DEC-10/11 | Pass/reject per phase for DOCUMENT, SELFIE, FACE_MATCH, LIVENESS; metrics shown per phase | DEC-10, DEC-19 |
+| DEC-15/16 | Attempt limit → always `PENDING_REVIEW` "Attempt limit reached – [Phase]" | DEC-15, DEC-16 |
+| DEC-18 | Retry KPI counts all user retakes | DEC-18 |
+| DEC-22 | Claim timeout per merchant; ends by Cancel, timeout or decision | DEC-22 |
+| DEC-31 | Reason code and audit comment required for both decisions | DEC-31 |
+| DEC-42 | `PII_VIEW`, `CLAIM`, `CLAIM_RELEASE`, `CLAIM_TIMEOUT`, `DECISION`, `OWNERSHIP_CONFLICT`, `CONFIG_*`, `CREDENTIAL_ROTATION` | DEC-42 |
+| DEC-50/51 | One config per merchant, Save Draft / Discard / Deploy | DEC-50, DEC-51 |
+| DEC-60 | Charged once when the user enters the flow | DEC-60 |
+| DEC-70 | Two global roles: Platform Admin, Merchant Reviewer | DEC-70 |
+| DEC-81 | Drop-off KPI removed | Drop-off by phase on System Intelligence (DEC-86) |
+| DEC-82 | Webhooks on hold | DEC-54, DEC-55 |
 
 ## Conflict register (old FRS / Axure → latest decision)
 | Topic | Old FRS / Axure | Latest decision |
 |---|---|---|
 | Statuses | MANUAL_APPROVED, ERROR, EXPIRED | 4 statuses only (DEC-01) |
 | Manual vs auto | Separate status | `lastUpdatedBy` (DEC-02) |
-| Workflow canvas | High/Mid/Low per metric | Settings per phase (DEC-10, DEC-50) |
-| Detail buttons | "Maintain Automated Rejection" / "Confirm Manual Pass" | Kept as overlay actions for the claim owner (DEC-30) |
+| Workflow canvas | High/Mid/Low per metric | Low/Standard/High presets per check + Advanced for Platform Admin (DEC-19) |
+| Configuration scope | One per merchant, draft → deploy | Per flow, save creates a revision (DEC-50, DEC-51) |
+| Detail buttons | "Maintain Automated Rejection" / "Confirm Manual Pass" | "Reject" / "Confirm Manual Pass" for the claim holder (DEC-30) |
 | Review queue | Separate screen | Removed (DEC-80) |
 | Supervisor actions | Assign / reassign / force-release | None (DEC-23) |
-| Drop-off KPI | Present | Removed (DEC-81) |
-| Webhooks W1–W2 | Configurable | On hold (DEC-82) |
-| Roles | 7-role catalogue | 2 roles (DEC-70) |
-| Timestamps | Extra fields | `lastUpdatedAt` only (DEC-04) |
-| "System Failure Reason" banner | Red banner | "Reason" banner for PENDING_REVIEW / REJECTED (DEC-16) |
+| Retry limit | Retries per token-consuming phase (V1: selfie and liveness) | Face match and liveness only; selfie unlimited and free (DEC-18) |
+| Roles | 7-role catalogue / Platform vs Merchant Admin / custom roles | 5 working roles per project (DEC-70) |
+| Developers page | Merchant-level API key and webhook | Per project, Project Settings › Integration (DEC-54) |
+| Merchant Workflow Directory | Platform Admin edits merchant thresholds | Removed; Registry shows flows per version (DEC-85) |
+| Timestamps | Extra fields | `createdAt` and `lastUpdatedAt` (DEC-04) |
+| "System Failure Reason" banner | Red banner | Reason banner from the condition catalogue (DEC-35) |

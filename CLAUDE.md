@@ -3,7 +3,8 @@
 Clickable mock of the eKYC Admin Portal. Fake data, no backend. Its purpose is to run the real business rules so
 stakeholders can see behaviour, and to hand engineering a draft contract (`src/domain/types.ts`, `src/services/*`).
 
-Source of truth: `docs/DECISIONS.md` (it overrides the FRS and old Axure). Open parameters: `docs/OPEN_QUESTIONS.md`.
+Source of truth: `docs/DECISIONS.md` (it overrides the "Projects & Flows" module spec, which overrides the FRS 05/10/26;
+anything the module spec does not cover follows the FRS). Open parameters: `docs/OPEN_QUESTIONS.md`.
 UAT scenarios: `docs/SCENARIOS.md`.
 
 ## Commands
@@ -25,23 +26,29 @@ UAT scenarios: `docs/SCENARIOS.md`.
   EXPIRED, CLAIMED, IN_REVIEW.
 - Manual vs automated = `lastUpdatedBy` (SYSTEM or user fullName + userId). It changes ONLY when status changes
   (never on claim, release or view).
-- Thresholds are PER PHASE (DOCUMENT, SELFIE, FACE_MATCH, LIVENESS; RISK_ASSESSMENT for V4 only), each capture phase with
-  autoPass & autoReject. Never per individual metric. Metrics are display-only, grouped by phase.
-- `>= autoPass` → pass; `< autoReject` → reject; between → review. V4 only: APPROVED also requires risk pass,
-  else PENDING_REVIEW.
-- Incomplete / aborted / timed-out / failed retake with attempts left → PROCESSING. Attempt limit → PENDING_REVIEW,
-  reason "Attempt limit reached – [Phase]". Retries keep the same referenceNo.
-- PROCESSING records are read-only. Decisions are final (no reopen, no resubmission).
-- Claim is NOT a status: `claimedBy` / `claimedAt` / `claimExpiresAt`. One owner, per-merchant timeout, ends only by
-  Cancel, timeout or decision. No supervisor reassign or force-release. Ownership re-checked at save.
-- Anyone with access can view any record; only the Decision Overlay enables/disables. No lock on open.
-- List view: no PII beyond name/ref, no client metadata (`VerificationSummary`). Detail: full unmasked PII + client
-  metadata; every open writes a PII_VIEW audit entry.
-- Every mutation writes an audit entry.
-- Config: draft → deploy with audit; applies to new sessions only.
-- 2 roles only. No Manual Review Queue screen. No Drop-off KPI. Webhooks = "On hold" placeholder.
-- Open questions must be parameters (`src/domain/openQuestions.ts` or `MerchantConfig`) with an "OPEN QUESTION" label in
-  the UI, never hard-coded values in components.
+- Merchant → Project → Flow → Case. Each setting lives at exactly one level (DEC-91). Access is per project: 5 working
+  roles (Platform Admin, Merchant Owner, Project Admin, Reviewer, Viewer); every page checks project membership; a case
+  outside the user's projects is "not found".
+- Only FACE_MATCH and LIVENESS have thresholds: autoReject/autoPass, chosen as a Low/Standard/High preset, or Advanced
+  (custom, Platform Admin only). Never per individual metric; granular metrics are never shown. Risk for V4/V5 only.
+- `>= autoPass` → pass; `< autoReject` → reject; between → review. Below autoPass with retries left → retry, case stays
+  PROCESSING. Retries used up → the last attempt decides. V4/V5: APPROVED also requires risk pass, else PENDING_REVIEW.
+- "Retries allowed" = retries after the first submission (default 3), face match and liveness only. ID capture and
+  selfie retakes are unlimited and free. Tokens = liveness submissions. Retries keep the same referenceNo.
+- PROCESSING records are read-only. Decisions are final (no reopen, no resubmission). Reject needs a reason from the
+  condition catalogue (DEC-35); the note is optional.
+- Claim is NOT a status: `claimedBy` / `claimedAt` / `claimExpiresAt`. One owner, per-project timeout, ends only by
+  Release, timeout, decision or removal from the project. No supervisor reassign or force-release. Ownership re-checked
+  at save.
+- Any project member can view its cases; only the decision buttons enable/disable. No lock on open.
+- List view: name, ref and the DEC-40 columns only; no client metadata, no duplicate-user info (`VerificationSummary`).
+  Detail: full unmasked PII + client metadata; every open writes a SENSITIVE_PII_VIEW audit entry.
+- Every mutation writes an audit entry (DEC-42 event names).
+- Config lives on each flow; saving an active flow needs a reason and creates a revision; applies to new sessions only.
+- No Home page; everyone lands on Overview. Overview, System Intelligence and Billing are for every role, data scoped to
+  the user (no separate Reports screen). Merchants and Workflow Registry are Platform Admin only. No Manual Review Queue.
+- Open questions must be parameters (`src/domain/openQuestions.ts`, or on the project/flow) with an "OPEN QUESTION" label
+  in the UI, never hard-coded values in components.
 
 ## Layout
 ```
@@ -58,9 +65,15 @@ docs/           DECISIONS.md, OPEN_QUESTIONS.md, SCENARIOS.md
 ## Build status
 - **All screens built** (P0–P3): Verifications List + Detail (claim, decision), eKYC Workflow (per phase, draft →
   deploy, what-if), Audit Logs, Merchant Workflow Directory, Overview, System Intelligence, Billing, Merchants, Roles,
-  Users, Developers, mock Login. Home has scenario links and data coverage.
+  Users, Developers, mock Login. No Home page: `/` opens Overview; UAT scenario links and data coverage are
+  on the mock-only `/uat` page (Dev menu).
 - Tests: Vitest (`npm test`) for rules, data, services and screens; Playwright (`npm run e2e`) for the claim race and the
   reviewer flow.
+- **In progress: Projects & Flows restructure.** The decision docs are updated (Phase 0); the code still follows the old
+  merchant-level model and 2 roles until each phase lands: domain → mock data → services → global header → Verifications
+  → Projects → Project Settings → Flows List → Flow Detail → Users and Access → Overview / System Intelligence /
+  Billing (project and flow data) and Audit Log → Workflow Registry
+  → retire replaced screens.
 - Next work comes from answered OPEN QUESTIONS (update `docs/DECISIONS.md` first) and stakeholder feedback.
 
 ## UI conventions
