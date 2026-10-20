@@ -319,6 +319,55 @@ export interface UserAccess {
   memberships: ProjectMembership[] // only used for MEMBER
 }
 
+// REQ: DEC-70 — permissions, grouped as on the Roles screen. Merchant-level ones only work in an All projects assignment.
+export const MERCHANT_PERMISSIONS = ['MANAGE_BILLING', 'MANAGE_USERS_ROLES', 'MANAGE_PROJECTS', 'VIEW_MERCHANT_REPORTS'] as const
+export const PROJECT_PERMISSIONS = [
+  'VIEW_CASES',
+  'CLAIM_CASES',
+  'DECIDE_CASES',
+  'MANAGE_PROJECT_SETTINGS',
+  'MANAGE_INTEGRATION', // API keys and webhook
+  'MANAGE_FLOWS',
+  'CHANGE_VERIFICATION_LEVEL', // thresholds, retries allowed, risk level
+  'MANAGE_MEMBERS',
+  'VIEW_PROJECT_REPORTS',
+  'VIEW_AUDIT_LOG',
+] as const
+export type MerchantPermission = (typeof MERCHANT_PERMISSIONS)[number]
+export type ProjectPermission = (typeof PROJECT_PERMISSIONS)[number]
+export type Permission = MerchantPermission | ProjectPermission
+export const PERMISSIONS: readonly Permission[] = [...MERCHANT_PERMISSIONS, ...PROJECT_PERMISSIONS]
+
+// REQ: DEC-76
+export type RoleType = 'SYSTEM_DEFAULT' | 'CUSTOM'
+export type RoleStatus = 'ACTIVE' | 'INACTIVE'
+
+/** What a user may do. System Default roles are shared by every merchant (no merchantId) and locked. */
+export interface Role {
+  roleId: string // ROL-2026-XXXX
+  merchantId?: string // absent for System Default roles
+  name: string
+  type: RoleType
+  permissions: Permission[]
+  status: RoleStatus
+  createdAt: string
+  createdBy: Actor
+  updatedAt: string
+  updatedBy: Actor
+}
+
+/** REQ: DEC-70 — where a role applies: every current and future project of the merchant, or the listed ones. */
+export type AssignmentScope = { kind: 'ALL_PROJECTS' } | { kind: 'PROJECTS'; projectIds: string[] }
+
+/** One role given to one user with a scope (DEC-74: Role | Scope | Added by | Date). */
+export interface RoleAssignment {
+  assignmentId: string
+  roleId: string
+  scope: AssignmentScope
+  addedBy: Actor
+  addedAt: string
+}
+
 // REQ: DEC-56 / DEC-58
 export const REGISTRY_STATUSES = ['DRAFT', 'ACTIVE', 'DEPRECATED'] as const
 export type RegistryStatus = (typeof REGISTRY_STATUSES)[number]

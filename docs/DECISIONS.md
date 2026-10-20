@@ -238,7 +238,8 @@ Rules changed on 2026-10-20 (Projects & Flows restructure) are marked **(changed
   (Role | Scope | Added by | Date) with Add / Edit / Remove. Rules [PO 2026-10-20]:
   - Only users with Manage users and roles (or Platform Admin) manage users; on a project's Members tab, users with Manage
     project members add or remove assignments **for that project**.
-  - Nobody grants permissions they don't have themselves.
+  - Nobody grants permissions they don't have themselves (for All projects: held in every project). Platform Admin is
+    exempt, so it can set up a merchant's first Merchant Owner (DEC-92).
   - Removing an assignment (or suspending) releases the user's open claims in projects where they can no longer claim.
   - At least one active Merchant Owner (All projects) must remain.
   - Nobody changes their own access.
