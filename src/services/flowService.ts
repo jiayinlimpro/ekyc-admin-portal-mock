@@ -1,5 +1,6 @@
 // Flows API (mock). DEC-50 … DEC-53, DEC-75, DEC-94. Settings live on the flow; saving an Active flow creates a revision.
 //   GET  /projects/{id}/flows          list       → 200 Flow[]
+//   GET  /projects/{id}/flows/rows     listRows   → 200 FlowRow[] (Flows List)
 //   GET  /flows/{id}                   get        → 200 FlowDetail
 //   POST /projects/{id}/flows          create     → 201 Flow | 422 VALIDATION (version not selectable)
 //   POST /flows/{id}/duplicate         duplicate  → 201 Flow
@@ -11,7 +12,7 @@ import { canInProject } from '@/domain/access'
 import { activate, activateError, duplicateFlow, IN_FLIGHT_STATUSES, retire, retireError, setDefaultFlowError, settleRetiring } from '@/domain/flowRules'
 import { createFlow, saveFlow, validateFlow } from '@/domain/flowSettings'
 import { selectableForNewFlow } from '@/domain/registryRules'
-import type { Actor, Flow, FlowRevision, Project, RegistryEntry } from '@/domain/types'
+import type { Actor, Flow, FlowRevision, Project, RegistryEntry, RegistryStatus } from '@/domain/types'
 import { now } from '@/lib/clock'
 import { db } from '@/mocks/mockDb'
 import { accountOf, projectById, requireActive } from './accessGuard'
@@ -27,6 +28,13 @@ export interface FlowDetail {
   inFlightCases: number // PROCESSING + PENDING_REVIEW: a Retiring flow finishes these only
 }
 
+/** A row on the Flows List (DEC-94). */
+export type FlowRow = Flow & {
+  isDefault: boolean
+  inFlightCases: number
+  versionStatus: RegistryStatus // DEPRECATED shows a "version deprecated" warning (DEC-56)
+}
+
 export interface FlowEdit {
   name: string
   description: string
@@ -35,6 +43,7 @@ export interface FlowEdit {
 
 export interface FlowService {
   list(projectId: string, actor: Actor): Promise<Flow[]>
+  listRows(projectId: string, actor: Actor): Promise<FlowRow[]>
   get(flowId: string, actor: Actor): Promise<FlowDetail>
   create(projectId: string, input: { name: string; description: string; workflowVersion: string }, actor: Actor): Promise<Flow>
   duplicate(flowId: string, actor: Actor): Promise<Flow>
@@ -69,6 +78,19 @@ export const mockFlowService: FlowService = {
     const project = loadProject(actor, projectId)
     requireInProject(actor, 'manageFlows', project, 'manage flows')
     return wire(db.state().flows.filter((f) => f.projectId === projectId))
+  },
+
+  async listRows(projectId, actor) {
+    await simulateNetwork('list flow rows')
+    const project = loadProject(actor, projectId)
+    requireInProject(actor, 'manageFlows', project, 'manage flows')
+    const order = { ACTIVE: 0, DRAFT: 1, RETIRING: 2, INACTIVE: 3 } as const
+    const rows = db
+      .state()
+      .flows.filter((f) => f.projectId === projectId)
+      .map((f) => ({ ...f, isDefault: project.defaultFlowId === f.flowId, inFlightCases: inFlight(f.flowId), versionStatus: entryOf(f.workflowVersion)?.status ?? 'DEPRECATED' }))
+      .sort((a, b) => Number(b.isDefault) - Number(a.isDefault) || order[a.status] - order[b.status] || a.name.localeCompare(b.name))
+    return wire(rows)
   },
 
   async get(flowId, actor) {

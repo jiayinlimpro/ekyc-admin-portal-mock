@@ -128,7 +128,7 @@ export const NAV_ITEMS: NavItem[] = [
     inMenu: true,
     access: { project: 'manageFlows' },
     priority: 'P0',
-    built: false,
+    built: true,
     notes: ['Draft, Active, Retiring, Inactive; one default per project; create, duplicate, set default, activate, retire (DEC-94).'],
   },
   {
