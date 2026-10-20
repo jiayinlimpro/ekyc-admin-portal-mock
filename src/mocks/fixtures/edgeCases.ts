@@ -43,6 +43,7 @@ export const EDGE_CASES: EdgeCaseExpectation[] = [
   { id: 'S17', title: 'In flight on a retiring flow', asUserId: 'USR-2026-0063', referenceNo: 'KYC-260901-900017', flowId: 'FLW-0008', status: 'PROCESSING' },
   { id: 'S18', title: 'Rejected 30 min ago; 120-min cooldown running', asUserId: 'USR-2026-0012', referenceNo: 'KYC-260901-900018', flowId: 'FLW-0002', status: 'REJECTED', reason: 'Liveness face does not match ID face (Retry Not Allowed)', lastUpdatedBy: 'SYSTEM' },
   { id: 'S19', title: 'V1 face match (ID vs selfie) below threshold, retry pending', asUserId: 'USR-2026-0044', referenceNo: 'KYC-260901-900019', flowId: 'FLW-0005', status: 'PROCESSING' },
+  { id: 'S20', title: 'Driving License: face match retries used up, last in review band', asUserId: 'USR-2026-0044', referenceNo: 'KYC-260901-900020', flowId: 'FLW-0005', status: 'PENDING_REVIEW', reason: 'ID face and Selfie face do not match (Retry Not Allowed)' },
 ]
 
 const MIN = 60_000
@@ -135,6 +136,8 @@ export function buildEdgeCases(ctx: { now: Date; merchants: Merchant[]; configs:
     make(18, 'FLW-0002', 40, { FACE_MATCH: [84.0, 86.5, 88.0, 85.2], LIVENESS: passes(4) }, { documentType: 'PASSPORT' }),
     // Vantage FLW-0005 (V1, face match Advanced < 82 / ≥ 93): selfie retakes are free; face match retry pending.
     make(19, 'FLW-0005', 25, { FACE_MATCH: [70.0] }),
+    // Vantage FLW-0005 R2 accepts Driving License: face match < 82 / ≥ 93, 3 retries used, last 88.0 → review; liveness passes.
+    make(20, 'FLW-0005', 20, { FACE_MATCH: [80.1, 84.0, 86.2, 88.0], LIVENESS: [96.2] }, { documentType: 'DRIVING_LICENSE' }),
   ]
 
   // S11: manually approved by Ali 10 minutes ago.

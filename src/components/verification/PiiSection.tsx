@@ -9,7 +9,17 @@ import { Fields, Section } from './Section'
 export function PiiSection({ v }: { v: VerificationDetail }) {
   const p = v.pii
   const passport = v.documentType === 'PASSPORT'
-  const fields: [string, React.ReactNode][] = passport
+  const licence = v.documentType === 'DRIVING_LICENSE'
+  const fields: [string, React.ReactNode][] = licence
+    ? [
+        ['Full Name', p.fullName],
+        ['IC', <span key="ic" className="font-mono">{p.nric}</span>],
+        ['Licence class', p.licenceClass],
+        ['Valid until', p.licenceValidUntil && formatDate(p.licenceValidUntil)],
+        ['Nationality', p.nationality],
+        ['Address', p.address],
+      ]
+    : passport
     ? [
         ['Full Name', p.fullName],
         ['Passport No', <span key="passport" className="font-mono">{p.passportNo}</span>],
@@ -39,7 +49,7 @@ export function PiiSection({ v }: { v: VerificationDetail }) {
       }
     >
       <p className="mb-3 text-xs text-muted-foreground">From the {DOCUMENT_TYPE_LABELS[v.documentType]} (OCR)</p>
-      <Fields items={fields} />
+      <Fields items={p.email ? [...fields, ['Email', p.email]] : fields} />
     </Section>
   )
 }

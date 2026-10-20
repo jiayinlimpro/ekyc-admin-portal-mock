@@ -43,7 +43,8 @@ export interface Actor {
 // REQ: DEC-02 — manual vs automated is read from lastUpdatedBy.
 export type UpdatedBy = { kind: 'SYSTEM' } | { kind: 'USER'; userId: string; fullName: string }
 
-export type DocumentType = 'MYKAD' | 'PASSPORT'
+// REQ: DEC-50 — accepted documents: MyKad, Passport, Driving License.
+export type DocumentType = 'MYKAD' | 'PASSPORT' | 'DRIVING_LICENSE'
 
 export type MetricResult = 'PASS' | 'REVIEW' | 'FAIL'
 
@@ -69,8 +70,11 @@ export interface Attempt {
 
 export interface Pii {
   fullName: string
-  nric?: string // MYKAD only
+  nric?: string // MYKAD and DRIVING_LICENSE (the IC field)
   passportNo?: string // PASSPORT only
+  licenceClass?: string // DRIVING_LICENSE only, e.g. "B2 D"
+  licenceValidUntil?: string // DRIVING_LICENSE only, yyyy-MM-dd
+  email?: string // REQ: DEC-44 — V4/V5: the session's required EMAIL input
   gender: 'LELAKI' | 'PEREMPUAN'
   dob: string // yyyy-MM-dd
   nationality: string

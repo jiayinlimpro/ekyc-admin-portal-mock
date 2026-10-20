@@ -132,7 +132,9 @@ export function buildCase(spec: CaseSpec): Verification {
   // REQ: DEC-03 — lastUpdatedAt only moves on status change: PROCESSING was set when the user entered the flow.
   const lastUpdatedAt = ev.status === 'PROCESSING' ? at(0) : new Date(Date.parse(attempts.at(-1)!.startedAt) + 3 * 60_000).toISOString()
   const decisive = ev.status === 'PENDING_REVIEW' || ev.status === 'REJECTED'
-  const passport = spec.person.documentType === 'PASSPORT'
+  const image = { MYKAD: '/mock/mykad-front.svg', PASSPORT: '/mock/passport.svg', DRIVING_LICENSE: '/mock/driving-license.svg' }[spec.person.documentType]
+  // REQ: DEC-44 — V4/V5 sessions require an email; reserved .example domain, never a real address.
+  const email = spec.entry.requiredInputs.includes('EMAIL') ? emailFor(spec.person.pii.fullName, spec.referenceNo) : undefined
   return {
     referenceNo: spec.referenceNo,
     merchantId: spec.merchant.merchantId,
@@ -147,10 +149,10 @@ export function buildCase(spec: CaseSpec): Verification {
     riskLevel,
     riskScore: riskRan ? spec.riskScore : undefined,
     documentType: spec.person.documentType,
-    pii: spec.person.pii,
+    pii: email ? { ...spec.person.pii, email } : spec.person.pii,
     clientMetadata: spec.metadata,
     metrics: metricsFor(ev, riskRan ? { score: spec.riskScore!, level: riskLevel!, maxAllowed: rev.settings.risk!.maxAllowedLevel } : undefined),
-    images: { docFront: passport ? '/mock/passport.svg' : '/mock/mykad-front.svg', selfie: '/mock/selfie.svg' },
+    images: { docFront: image, selfie: '/mock/selfie.svg' },
     charged: true,
     projectId: spec.flow.projectId,
     flowId: spec.flow.flowId,
@@ -161,6 +163,11 @@ export function buildCase(spec: CaseSpec): Verification {
   }
 }
 
+
+function emailFor(fullName: string, referenceNo: string): string {
+  const words = fullName.toLowerCase().replace(/[^a-z ]/g, '').split(' ').filter((w) => w && !['bin', 'binti', 'al', 'ap'].includes(w))
+  return `${words.slice(0, 2).join('.')}${referenceNo.slice(-3)}@mail.example`
+}
 
 export function refNo(date: Date, seq: number): string {
   // Reference date in MYT (UTC+8).

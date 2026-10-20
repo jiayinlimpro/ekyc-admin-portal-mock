@@ -128,10 +128,20 @@ export function person(f: Faker, now: Date, documentType: DocumentType = 'MYKAD'
   // Mostly born in the state of residence.
   const birthState = f.number.int({ min: 1, max: 10 }) <= 8 ? residence : pickState(f)
   const { name, religion } = malaysianName(f, gender)
+  const ic = nric(dob, birthState.code, gender, f)
+  if (documentType === 'DRIVING_LICENSE') {
+    // Malaysian licence: IC, validity, name, nationality, class, address (the DEC-35 OCR fields). No religion.
+    const valid = new Date(now.getTime() + f.number.int({ min: 60, max: 5 * 365 }) * 86_400_000).toISOString().slice(0, 10)
+    return {
+      documentType,
+      city: addr.city,
+      pii: { fullName: name, nric: ic, gender, dob, nationality: 'WARGANEGARA', address: addr.line, licenceClass: f.helpers.arrayElement(['D', 'B2', 'B2 D', 'DA']), licenceValidUntil: valid },
+    }
+  }
   return {
     documentType,
     city: addr.city,
-    pii: { fullName: name, nric: nric(dob, birthState.code, gender, f), gender, dob, nationality: 'WARGANEGARA', religion, address: addr.line },
+    pii: { fullName: name, nric: ic, gender, dob, nationality: 'WARGANEGARA', religion, address: addr.line },
   }
 }
 

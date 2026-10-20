@@ -32,6 +32,7 @@ export const STATUS_LABELS: Record<VerificationStatus, string> = {
 export const DOCUMENT_TYPE_LABELS: Record<DocumentType, string> = {
   MYKAD: 'MyKad',
   PASSPORT: 'Passport',
+  DRIVING_LICENSE: 'Driving License',
 }
 
 export const RISK_LABELS: Record<RiskLevel, string> = {

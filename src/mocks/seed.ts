@@ -169,7 +169,8 @@ export function seedDatabase(now: Date): MockDbState {
     ])
     if ((profile === 'RETRYING' || profile === 'ABANDONED') && s.daysAgo > 2) profile = 'CLEAN' // in-flight sessions are recent
     const docs = rev.settings.acceptedDocuments
-    const documentType = docs.length === 1 ? docs[0] : f.number.int({ min: 1, max: 100 }) <= 8 ? 'PASSPORT' : 'MYKAD'
+    const DOC_WEIGHT = { MYKAD: 85, PASSPORT: 8, DRIVING_LICENSE: 7 } as const
+    const documentType = docs.length === 1 ? docs[0] : f.helpers.weightedArrayElement(docs.map((d) => ({ value: d, weight: DOC_WEIGHT[d] })))
     const p = person(f, now, documentType)
     return buildCase({
       referenceNo: refNo(start, i + 1),

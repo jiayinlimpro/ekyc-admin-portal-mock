@@ -106,7 +106,7 @@ const FLOWS: FlowSpec[] = [
     flowId: 'FLW-0005', projectId: 'PRJ-0003', name: 'Standard onboarding', description: 'All Vantage customers', version: 'V1', status: 'ACTIVE', createdDaysAgo: 400,
     revisions: [
       { hoursAgo: 120 * 24, reason: 'Flow activated', settings: settings({ docs: ['MYKAD', 'PASSPORT'] }) },
-      { hoursAgo: 30 * 24, by: ADMIN, reason: 'Custom face match band agreed with Vantage risk team', settings: settings({ fm: { preset: 'ADVANCED', autoReject: 82, autoPass: 93 }, docs: ['MYKAD', 'PASSPORT'] }) },
+      { hoursAgo: 30 * 24, by: ADMIN, reason: 'Custom face match band agreed with Vantage risk team', settings: settings({ fm: { preset: 'ADVANCED', autoReject: 82, autoPass: 93 }, docs: ['MYKAD', 'PASSPORT', 'DRIVING_LICENSE'] }) },
     ],
   },
   {

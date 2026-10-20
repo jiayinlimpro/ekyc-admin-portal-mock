@@ -156,6 +156,20 @@ describe('Verification Detail', () => {
     expect(activity.getByText('Case approved')).toBeTruthy()
   })
 
+  it('Given S20 Driving License, then IC, licence class and validity in End-user data (S20, DEC-50)', async () => {
+    useSession.getState().switchUser(OTHER_MERCHANT_REVIEWER)
+    await open(S(20))
+    const data = within(screen.getByRole('region', { name: 'End-user data' }))
+    for (const label of ['IC', 'Licence class', 'Valid until']) expect(data.getByText(label)).toBeTruthy()
+    expect(screen.getByRole('region', { name: 'ID capture · Driving License' })).toBeTruthy()
+    expect(data.queryByText('Email')).toBeNull() // V1 has no email input
+  })
+
+  it('Given a V4 case, then End-user data includes the email (DEC-44)', async () => {
+    await open(S(3))
+    expect(within(screen.getByRole('region', { name: 'End-user data' })).getByText(/@mail\.example$/)).toBeTruthy()
+  })
+
   it('Given S15 passport, then passport fields and no NRIC (S15)', async () => {
     useSession.getState().switchUser(OTHER_MERCHANT_REVIEWER)
     await open(S(15))
