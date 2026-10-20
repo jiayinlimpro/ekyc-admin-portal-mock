@@ -20,16 +20,11 @@ const PAGES: Partial<Record<string, ComponentType>> = {
   '/registry': page(() => import('@/pages/registry/RegistryPage'), 'RegistryPage'),
   '/verifications': page(() => import('@/pages/verifications/VerificationsListPage'), 'VerificationsListPage'),
   '/verifications/:referenceNo': page(() => import('@/pages/verifications/VerificationDetailPage'), 'VerificationDetailPage'),
-  '/workflow': page(() => import('@/pages/config/WorkflowConfigPage'), 'WorkflowConfigPage'),
-  '/workflow-directory': page(() => import('@/pages/directory/WorkflowDirectoryPage'), 'WorkflowDirectoryPage'),
   '/audit': page(() => import('@/pages/audit/AuditLogsPage'), 'AuditLogsPage'),
   '/dashboard': page(() => import('@/pages/dashboard/OverviewPage'), 'OverviewPage'),
   '/intelligence': page(() => import('@/pages/dashboard/IntelligencePage'), 'IntelligencePage'),
   '/billing': page(() => import('@/pages/billing/BillingPage'), 'BillingPage'),
   '/uam/merchants': page(() => import('@/pages/uam/MerchantsPage'), 'MerchantsPage'),
-  '/uam/roles': page(() => import('@/pages/uam/RolesPage'), 'RolesPage'),
-  '/uam/users': page(() => import('@/pages/uam/UsersPage'), 'UsersPage'),
-  '/developers': page(() => import('@/pages/developers/DevelopersPage'), 'DevelopersPage'),
   '/uat': page(() => import('@/pages/dev/UatPage'), 'UatPage'),
 }
 

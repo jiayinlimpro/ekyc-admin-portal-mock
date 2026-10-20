@@ -46,7 +46,8 @@ describe('AppShell', () => {
     useSession.getState().switchUser(ADMIN)
     renderAt('/')
     await mainNav().findByRole('link', { name: /Merchants/ })
-    for (const shown of [/eKYC Workflow/, 'Users and Access', /Billing/, /Developers/, /Audit Logs/, 'Workflow Registry', 'Projects']) expect(mainNav().getByRole('link', { name: shown })).toBeTruthy()
+    for (const shown of ['Users and Access', /Billing/, /Audit Logs/, 'Workflow Registry', 'Projects', 'Flows', 'Merchants']) expect(mainNav().getByRole('link', { name: shown })).toBeTruthy()
+    for (const retired of [/eKYC Workflow/, /Developers/, 'Roles', 'Users', /Merchant Workflow Directory/]) expect(mainNav().queryByRole('link', { name: retired })).toBeNull()
     expect(mainNav().queryByRole('link', { name: 'Verifications' })).toBeNull()
   })
 
@@ -109,9 +110,14 @@ describe('AppShell', () => {
     await waitFor(() => expect(router.state.location.search).toBe(''))
   })
 
-  it('Given a reviewer opens an admin URL directly, then "No access"', () => {
+  it('Given a reviewer opens an admin URL directly, then "No access"', async () => {
+    renderAt('/registry')
+    await screen.findByRole('heading', { name: 'No access' })
+  })
+
+  it('Given a retired screen URL (eKYC Workflow), then "Page not found" (DEC-85)', () => {
     renderAt('/workflow')
-    expect(screen.getByRole('heading', { name: 'No access' })).toBeTruthy()
+    expect(screen.getByRole('heading', { name: 'Page not found' })).toBeTruthy()
   })
 
   it('Given an unknown URL, then "Page not found"', () => {

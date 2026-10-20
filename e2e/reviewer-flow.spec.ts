@@ -33,8 +33,8 @@ test('reviewer finds an unclaimed pending record, claims it, approves it, and th
   await expect(page.locator('section[aria-label="Audit entries"]')).toContainText('SENSITIVE_PII_VIEW')
 })
 
-test('reviewer cannot open admin screens and sees only their merchant', async ({ page }) => {
-  await page.goto('/workflow?as=USR-2026-0012')
+test('reviewer cannot open settings screens: no Flows in the menu and "No access" on the URL', async ({ page }) => {
+  await page.goto('/flows?as=USR-2026-0012')
   await expect(page.getByRole('heading', { name: 'No access' })).toBeVisible()
-  await expect(page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: /eKYC Workflow/ })).toHaveCount(0)
+  await expect(page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: 'Flows' })).toHaveCount(0)
 })

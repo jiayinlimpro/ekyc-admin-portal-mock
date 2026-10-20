@@ -3,28 +3,23 @@
 import { matchPath } from 'react-router'
 import {
   Activity,
-  BookOpen,
   Building2,
   ClipboardList,
-  Code,
   FileSearch,
   FlaskConical,
   FolderKanban,
   GitBranch,
-  KeyRound,
   Library,
   Settings2,
   ShieldCheck,
   LayoutDashboard,
   ReceiptText,
   ScanFace,
-  SlidersHorizontal,
-  Users,
   type LucideIcon,
 } from 'lucide-react'
 import type { AccessRule } from './access'
 
-export const NAV_GROUPS = ['Dashboards', 'eKYC', 'Projects & Flows', 'Governance', 'Access Management', 'Platform', 'Developers'] as const
+export const NAV_GROUPS = ['Dashboards', 'eKYC', 'Projects & Flows', 'Governance', 'Access Management', 'Platform'] as const
 export type NavGroup = (typeof NAV_GROUPS)[number]
 
 export interface NavItem {
@@ -143,32 +138,6 @@ export const NAV_ITEMS: NavItem[] = [
     notes: ['Low / Standard / High presets with a 0–100 band bar; Advanced for Platform Admin only; retries allowed 1–5 (DEC-18, DEC-19, DEC-50).'],
   },
   {
-    path: '/workflow',
-    label: 'eKYC Workflow',
-    icon: SlidersHorizontal,
-    group: 'eKYC',
-    inMenu: true,
-    access: { legacy: 'canConfigureWorkflow' }, // replaced by Flows List + Flow Detail
-    priority: 'P0',
-    built: true,
-    notes: [
-      'Configured per phase, not per metric: Auto-Pass, Auto-Reject, max attempts, cooldown (DEC-50).',
-      'Active Production Baseline (read-only) vs Staging Canvas (draft); Risk settings for V4 only.',
-      'Save Draft / Discard / Deploy, all audited; applies to new sessions only (DEC-51, DEC-52).',
-    ],
-  },
-  {
-    path: '/workflow-directory',
-    label: 'Merchant Workflow Directory',
-    icon: BookOpen,
-    group: 'eKYC',
-    inMenu: true,
-    access: { platform: 'manageRegistry' }, // replaced by Workflow Registry
-    priority: 'P1',
-    built: true,
-    notes: ['Links each merchant to its workflow version; V4 adds the Risk Assessment phase.'],
-  },
-  {
     path: '/audit',
     label: 'Audit Logs',
     icon: ClipboardList,
@@ -202,28 +171,6 @@ export const NAV_ITEMS: NavItem[] = [
     notes: ['Standard CRUD.'],
   },
   {
-    path: '/uam/roles',
-    label: 'Roles',
-    icon: KeyRound,
-    group: 'Access Management',
-    inMenu: true,
-    access: { legacy: 'canManageUAM' }, // replaced by Users and Access
-    priority: 'P3',
-    built: true,
-    notes: ['2 roles only: Platform Admin and Merchant Reviewer (DEC-70).'],
-  },
-  {
-    path: '/uam/users',
-    label: 'Users',
-    icon: Users,
-    group: 'Access Management',
-    inMenu: true,
-    access: { legacy: 'canManageUAM' }, // replaced by Users and Access
-    priority: 'P3',
-    built: true,
-    notes: ['Standard CRUD.'],
-  },
-  {
     path: '/access',
     label: 'Users and Access',
     icon: ShieldCheck,
@@ -244,17 +191,6 @@ export const NAV_ITEMS: NavItem[] = [
     priority: 'P1',
     built: true,
     notes: ['Draft → Active → Deprecated; default for new merchants; flows using each version (DEC-56 … DEC-58).'],
-  },
-  {
-    path: '/developers',
-    label: 'Developers',
-    icon: Code,
-    group: 'Developers',
-    inMenu: true,
-    access: { legacy: 'canRotateKeys' }, // replaced by Project Settings › Integration
-    priority: 'P3',
-    built: true,
-    notes: ['Masked fake API key (sk_mock_…) with reveal / copy / rotate; rotation writes API_KEY_ROTATED.', 'Webhooks: "On hold" placeholder (DEC-82).'],
   },
 ]
 

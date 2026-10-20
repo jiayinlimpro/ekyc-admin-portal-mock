@@ -82,19 +82,3 @@ describe('Audit Logs', () => {
     expect(r[0].textContent).toContain('Ali Bin Ahmad')
   })
 })
-
-describe('Merchant Workflow Directory', () => {
-  it('Given an admin, then every merchant with its version, phases and risk gate; Open workflow jumps to the config', async () => {
-    useSession.getState().switchUser(ADMIN)
-    const router = renderAt('/workflow-directory')
-    const r = await rows('Merchants and workflows')
-    expect(r).toHaveLength(6)
-    const atoz = r.find((x) => x.textContent!.includes('Atoz Software Tech'))!
-    expect(within(atoz).getByRole('list', { name: 'Phases in order' }).textContent).toBe('DocumentSelfieFace MatchLivenessRisk Assessment')
-    const vantage = r.find((x) => x.textContent!.includes('Vantage'))!
-    expect(vantage.textContent).toContain('n/a (V1)')
-    fireEvent.click(within(vantage).getByRole('button', { name: /Open workflow/ }))
-    await waitFor(() => expect(router.state.location.pathname).toBe('/workflow'))
-    expect(useSession.getState().merchantId).toBe('MER-0002')
-  })
-})

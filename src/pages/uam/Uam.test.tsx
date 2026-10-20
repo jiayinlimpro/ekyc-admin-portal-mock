@@ -6,19 +6,15 @@ import { RouterProvider } from 'react-router/dom'
 import { routes } from '@/app/routes'
 import { auditService } from '@/services/auditService'
 import { devService } from '@/services/devService'
-import { isServiceError } from '@/services/errors'
-import { uamService } from '@/services/uamService'
-import { verificationService } from '@/services/verificationService'
 import { DEFAULT_DEV_FLAGS, useDevFlags } from '@/stores/devFlagsStore'
 import { useSession } from '@/stores/sessionStore'
-import { ADMIN, ALI, SITI } from '@/test/factories'
+import { ADMIN, SITI } from '@/test/factories'
 
 function renderAt(path: string) {
   const router = createMemoryRouter(routes, { initialEntries: [path] })
   render(<RouterProvider router={router} />)
   return router
 }
-const region = async (name: string) => within(await screen.findByRole('region', { name }, { timeout: 5000 }))
 
 beforeEach(async () => {
   useDevFlags.setState({ ...DEFAULT_DEV_FLAGS, simulateLatency: false })
@@ -61,64 +57,6 @@ describe('Merchants', () => {
     renderAt('/uam/merchants')
     const row = (await screen.findByText('Atoz Software Tech')).closest('tr')!
     expect((within(row).getByRole('button', { name: /can’t be deleted/ }) as HTMLButtonElement).disabled).toBe(true)
-  })
-})
-
-describe('Users', () => {
-  it('Given a new Merchant Reviewer, then they appear with the next user ID', async () => {
-    renderAt('/uam/users')
-    await screen.findByText('Ali Bin Ahmad')
-    fireEvent.click(screen.getByRole('button', { name: /New user/ }))
-    fireEvent.change(await screen.findByLabelText('Full name'), { target: { value: 'Aishah Binti Omar' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Create user' }))
-    const row = (await screen.findByText('Aishah Binti Omar')).closest('tr')!
-    expect(row.textContent).toContain('USR-2026-0081')
-    expect(row.textContent).toContain('Merchant Reviewer')
-  })
-
-  it('Given Siti is deactivated, then she cannot claim (service-enforced) and is not offered as a reviewer', async () => {
-    await uamService.setUserActive(SITI.userId, false, ADMIN)
-    const err = await verificationService.claim('KYC-260901-900010', SITI).catch((e: unknown) => e)
-    expect(isServiceError(err) && err.code).toBe('FORBIDDEN')
-    await expect(verificationService.claim('KYC-260901-900010', ALI)).resolves.toBeTruthy()
-  })
-
-  it('Given I am the admin, then I cannot deactivate myself', async () => {
-    await expect(uamService.setUserActive(ADMIN.userId, false, ADMIN)).rejects.toMatchObject({ code: 'VALIDATION' })
-  })
-
-  it('Given a Merchant Reviewer, then UAM screens are not accessible', () => {
-    useSession.getState().switchUser(ALI)
-    renderAt('/uam/users')
-    expect(screen.getByRole('heading', { name: 'No access' })).toBeTruthy()
-  })
-})
-
-describe('Roles', () => {
-  it('shows the 2-role permission matrix', async () => {
-    renderAt('/uam/roles')
-    const matrix = await region('Permission matrix')
-    const manage = matrix.getByText('Manage users').closest('tr')!
-    expect(within(manage).getAllByRole('img').map((i) => i.getAttribute('aria-label'))).toEqual(['Allowed', 'Not allowed'])
-    const review = matrix.getByText('Review').closest('tr')!
-    expect(within(review).getAllByRole('img').map((i) => i.getAttribute('aria-label'))).toEqual(['Allowed', 'Allowed'])
-  })
-})
-
-describe('Developers', () => {
-  it('Given reveal and rotate, then the secret is a mock key and rotation is audited with a new key ID', async () => {
-    useSession.getState().selectMerchant('MER-0002')
-    renderAt('/developers')
-    const key = await region('API key')
-    await waitFor(() => expect(key.getByText('key_mock_mer-0002_01')).toBeTruthy())
-    fireEvent.click(key.getByRole('button', { name: /Reveal/ }))
-    await waitFor(() => expect(key.getByText(/^sk_mock_[0-9a-f]{32}$/)).toBeTruthy())
-    fireEvent.click(key.getByRole('button', { name: /Rotate/ }))
-    fireEvent.click(await screen.findByRole('button', { name: 'Rotate key' }))
-    await waitFor(() => expect(key.getByText('key_mock_mer-0002_02')).toBeTruthy())
-    const log = await auditService.list({ merchantId: 'MER-0002', actions: ['API_KEY_ROTATED'] }, ADMIN)
-    expect(log.items[0].details).toMatchObject({ fromKeyId: 'key_mock_mer-0002_01', keyId: 'key_mock_mer-0002_02' })
-    expect((await region('Webhooks')).getByText('On hold')).toBeTruthy()
   })
 })
 

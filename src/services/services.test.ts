@@ -4,7 +4,6 @@ import type { AuditAction } from '@/domain/types'
 import { ADMIN, ALI, EMPTY_OWNER, HAFIZ, NOW, NURUL, OTHER_MERCHANT_REVIEWER, OWNER, SITI, minutes } from '@/test/factories'
 import { analyticsService } from './analyticsService'
 import { auditService } from './auditService'
-import { configService } from './configService'
 import { devService } from './devService'
 import { isServiceError } from './errors'
 import { merchantService } from './merchantService'
@@ -275,56 +274,6 @@ describe('decide (DEC-24, DEC-30)', () => {
 
   it('Given S11 manually approved, then any save is refused (decisions are final)', async () => {
     await expectError(svc.decide(S(11), ALI, approve), 'OWNERSHIP_CONFLICT')
-  })
-})
-
-describe('configService (DEC-50 … DEC-53)', () => {
-  it('Given a valid change, when admin saves a draft and deploys, then the version bumps and both steps are audited; old records keep their version (S12)', async () => {
-    const active = await configService.getActive('MER-0001', ADMIN)
-    expect(active.version).toBe('v1.1.0')
-    const phases = active.phases.map((p) => (p.phase === 'FACE_MATCH' ? { ...p, autoPass: 88 } : p))
-    const draft = await configService.saveDraft('MER-0001', { ...active, phases }, ADMIN)
-    expect(draft).toMatchObject({ state: 'DRAFT', version: 'v1.2.0' })
-    const deployed = await configService.deploy('MER-0001', ADMIN)
-    expect(deployed).toMatchObject({ state: 'DEPLOYED', version: 'v1.2.0' })
-    expect(await configService.getDraft('MER-0001', ADMIN)).toBeNull()
-
-    const log = (await auditService.list({ merchantId: 'MER-0001', actions: ['CONFIG_DRAFT_SAVE', 'CONFIG_DEPLOY'] }, ADMIN)).items
-    expect(log[0]).toMatchObject({ action: 'CONFIG_DEPLOY', details: { fromVersion: 'v1.1.0', toVersion: 'v1.2.0', changes: [{ field: 'phases.FACE_MATCH.autoPass', from: 85, to: 88 }] } })
-    expect(log[1].action).toBe('CONFIG_DRAFT_SAVE')
-    expect((await svc.get(S(12), ALI)).configVersion).toBe('v1.0.0')
-  })
-
-  it('Given an invalid draft, then VALIDATION with field errors', async () => {
-    const active = await configService.getActive('MER-0001', ADMIN)
-    const phases = active.phases.map((p) => (p.phase === 'LIVENESS' ? { ...p, autoReject: 95 } : p))
-    await expectError(configService.saveDraft('MER-0001', { ...active, phases }, ADMIN), 'VALIDATION')
-  })
-
-  it('Given no changes, then deploy is refused', async () => {
-    const active = await configService.getActive('MER-0001', ADMIN)
-    await configService.saveDraft('MER-0001', active, ADMIN)
-    await expectError(configService.deploy('MER-0001', ADMIN), 'VALIDATION', 'The draft has no changes to deploy.')
-  })
-
-  it('Given a Merchant Reviewer, then they can read but not change config', async () => {
-    const active = await configService.getActive('MER-0001', ALI)
-    await expectError(configService.saveDraft('MER-0001', active, ALI), 'FORBIDDEN')
-    await expectError(configService.getActive('MER-0002', ALI), 'NOT_FOUND')
-  })
-
-  it('Given a V1 merchant, then risk settings are dropped from the draft', async () => {
-    const active = await configService.getActive('MER-0002', ADMIN)
-    const draft = await configService.saveDraft('MER-0002', { ...active, risk: { enabled: true, maxAllowedLevel: 'LOW' }, claimTimeoutMin: 20 }, ADMIN)
-    expect(draft.risk).toBeUndefined()
-  })
-
-  it('Given a discard, then the draft is gone and CONFIG_DISCARD is audited', async () => {
-    const active = await configService.getActive('MER-0001', ADMIN)
-    await configService.saveDraft('MER-0001', { ...active, claimTimeoutMin: 45 }, ADMIN)
-    await configService.discardDraft('MER-0001', ADMIN)
-    expect(await configService.getDraft('MER-0001', ADMIN)).toBeNull()
-    expect((await auditService.list({ actions: ['CONFIG_DISCARD'] }, ADMIN)).total).toBe(1)
   })
 })
 
