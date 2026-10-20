@@ -5,6 +5,7 @@ import { VERIFICATION_STATUSES, type AccessLevel, type UserRecord, type UserStat
 import { PROJECT_ROLE_LABELS } from '@/lib/labels'
 import { now } from '@/lib/clock'
 import { EDGE_CASES } from '@/mocks/fixtures/edgeCases'
+import { legacyActor } from '@/mocks/fixtures/users'
 import { db } from '@/mocks/mockDb'
 import { wire } from './network'
 
@@ -26,16 +27,14 @@ export const devService = {
     const merchant = (id?: string) => s.merchants.find((m) => m.merchantId === id)?.name ?? id ?? ''
     const project = (id: string) => s.projects.find((p) => p.projectId === id)?.name ?? id
     return wire(
-      s.users.flatMap((u) => {
-        const a = s.accounts.find((x) => x.userId === u.userId)
-        if (!a) return []
+      s.accounts.map((a) => {
         const access =
           a.level === 'PLATFORM_ADMIN'
             ? 'Platform Admin · all merchants'
             : a.level === 'MERCHANT_OWNER'
               ? `Merchant Owner · ${merchant(a.merchantId)}`
               : `${a.memberships.map((m) => `${PROJECT_ROLE_LABELS[m.role]} in ${project(m.projectId)}`).join(', ') || 'No projects'} · ${merchant(a.merchantId)}`
-        return [{ ...u, email: a.email, level: a.level, status: a.status, access }]
+        return { ...legacyActor(a), active: a.status === 'ACTIVE', createdAt: a.invitedAt, email: a.email, level: a.level, status: a.status, access }
       }),
     )
   },
