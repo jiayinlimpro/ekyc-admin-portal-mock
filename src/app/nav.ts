@@ -139,7 +139,7 @@ export const NAV_ITEMS: NavItem[] = [
     inMenu: false,
     access: { project: 'manageFlows' },
     priority: 'P0',
-    built: false,
+    built: true,
     notes: ['Low / Standard / High presets with a 0–100 band bar; Advanced for Platform Admin only; retries allowed 1–5 (DEC-18, DEC-19, DEC-50).'],
   },
   {
