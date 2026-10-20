@@ -71,9 +71,9 @@ export const NAV_ITEMS: NavItem[] = [
     priority: 'P0',
     built: true,
     notes: [
-      'Filters: Reference No, Full Name, Status (4 only), Merchant, Submitted date range, Risk Level, Claimed By, Last Updated By (SYSTEM / Manual).',
-      'Columns include Claimed By with countdown; claim is not a status (DEC-20).',
-      'No NRIC, no client metadata in the list (DEC-40).',
+      'Filters: project, flow, workflow version, status, claim state, risk level, created range, Last Updated By; search Reference ID and Full Name (DEC-43).',
+      'Default view: Pending Review in the user projects, oldest first. Columns per DEC-40; claim is not a status (DEC-20).',
+      'No NRIC, no client metadata, no duplicate-user information in the list (DEC-40).',
     ],
   },
   {

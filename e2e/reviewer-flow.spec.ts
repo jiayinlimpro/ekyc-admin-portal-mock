@@ -3,11 +3,10 @@ import { expect, test } from '@playwright/test'
 // List filter → open detail → claim → approve → audit entry exists (seen by the Merchant Owner).
 test('reviewer finds an unclaimed pending record, claims it, approves it, and the decision is audited', async ({ page }) => {
   await page.goto('/verifications?as=USR-2026-0012')
-  await page.getByRole('group', { name: 'Status' }).getByRole('button', { name: 'Pending Review' }).click()
-  await page.getByLabel('Claimed By').selectOption('UNCLAIMED')
+  // The default view is Pending Review, oldest first (DEC-43); narrow it to unclaimed cases.
+  await page.getByLabel('Claim', { exact: true }).selectOption('UNCLAIMED')
   await page.getByRole('button', { name: 'Search' }).click()
-  await expect(page).toHaveURL(/status=PENDING_REVIEW/)
-  await expect(page).toHaveURL(/claimedBy=UNCLAIMED/)
+  await expect(page).toHaveURL(/claim=UNCLAIMED/)
   await expect(page.locator('table[aria-busy="false"] tbody tr').first()).toBeVisible()
 
   // Open S03 directly from the filtered list via the top-bar search.

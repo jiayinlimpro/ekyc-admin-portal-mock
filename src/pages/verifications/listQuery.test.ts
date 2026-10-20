@@ -1,12 +1,13 @@
 import { describe, expect, it } from 'vitest'
 import { formatRemaining, mytDateToUtcIso } from '@/lib/format'
-import { DEFAULT_PAGE_SIZE, EMPTY_FILTERS, parseListParams, toQuery, toSearchParams, validateFilters, type ListParams } from './listQuery'
+import { DEFAULT_FILTERS, DEFAULT_PAGE_SIZE, isDefaultView, parseListParams, toQuery, toSearchParams, validateFilters, type ListParams } from './listQuery'
 
 const parse = (qs: string) => parseListParams(new URLSearchParams(qs))
 
 describe('parseListParams / toSearchParams', () => {
-  it('Given no params, then empty filters, page 1, default size', () => {
-    expect(parse('')).toEqual({ filters: EMPTY_FILTERS, page: 1, pageSize: DEFAULT_PAGE_SIZE })
+  it('Given no params, then the DEC-43 default view: Pending Review, oldest first, page 1', () => {
+    expect(parse('')).toEqual({ filters: DEFAULT_FILTERS, page: 1, pageSize: DEFAULT_PAGE_SIZE })
+    expect(DEFAULT_FILTERS).toMatchObject({ statuses: ['PENDING_REVIEW'], sort: 'OLDEST' })
   })
 
   it('round-trips every filter through the URL', () => {
@@ -15,12 +16,15 @@ describe('parseListParams / toSearchParams', () => {
         referenceNo: 'KYC-2609',
         fullName: 'tan',
         statuses: ['PENDING_REVIEW', 'REJECTED'],
-        merchantId: 'MER-0003',
-        submittedFrom: '2026-09-01',
-        submittedTo: '2026-09-25',
+        projectId: 'PRJ-0002',
+        flowId: 'FLW-0004',
+        workflowVersion: 'V3',
+        claim: 'OTHERS',
+        createdFrom: '2026-09-01',
+        createdTo: '2026-09-25',
         riskLevels: ['HIGH'],
-        claimedBy: 'UNCLAIMED',
         lastUpdatedBy: 'MANUAL',
+        sort: 'NEWEST',
       },
       page: 3,
       pageSize: 50,
@@ -28,16 +32,24 @@ describe('parseListParams / toSearchParams', () => {
     expect(parseListParams(toSearchParams(p))).toEqual(p)
   })
 
-  it('Given the defaults, then the URL is empty', () => {
-    expect(toSearchParams({ filters: EMPTY_FILTERS, page: 1, pageSize: DEFAULT_PAGE_SIZE }).toString()).toBe('')
+  it('Given the default view, then the URL is empty; "every status" is written as status=ALL', () => {
+    expect(toSearchParams({ filters: DEFAULT_FILTERS, page: 1, pageSize: DEFAULT_PAGE_SIZE }).toString()).toBe('')
+    const all = toSearchParams({ filters: { ...DEFAULT_FILTERS, statuses: [] }, page: 1, pageSize: DEFAULT_PAGE_SIZE })
+    expect(all.toString()).toBe('status=ALL')
+    expect(parseListParams(all).filters.statuses).toEqual([])
   })
 
   it('Given unknown statuses (e.g. a stale CLAIMED link), then they are dropped (DEC-01, DEC-20)', () => {
     expect(parse('status=CLAIMED,APPROVED,MANUAL_APPROVED,APPROVED').filters.statuses).toEqual(['APPROVED'])
   })
 
-  it('Given junk page, size, dates and updatedBy, then defaults are used', () => {
-    expect(parse('page=-2&size=7&from=25/09/2026&updatedBy=ROBOT')).toEqual({ filters: EMPTY_FILTERS, page: 1, pageSize: DEFAULT_PAGE_SIZE })
+  it('Given junk page, size, dates, claim and updatedBy, then defaults are used', () => {
+    expect(parse('page=-2&size=7&from=25/09/2026&updatedBy=ROBOT&claim=SOMEONE')).toEqual({ filters: DEFAULT_FILTERS, page: 1, pageSize: DEFAULT_PAGE_SIZE })
+  })
+
+  it('knows the default view whatever the status order', () => {
+    expect(isDefaultView(DEFAULT_FILTERS)).toBe(true)
+    expect(isDefaultView({ ...DEFAULT_FILTERS, claim: 'MINE' })).toBe(false)
   })
 })
 
@@ -48,15 +60,21 @@ describe('toQuery', () => {
     expect(q.createdTo).toBe('2026-09-25T15:59:59.999Z')
   })
 
+  it('Given the header shows several projects, then the Project filter narrows within them; one outside is ignored', () => {
+    expect(toQuery(parse(''), ['PRJ-0001', 'PRJ-0002']).projectIds).toEqual(['PRJ-0001', 'PRJ-0002'])
+    expect(toQuery(parse('project=PRJ-0002'), ['PRJ-0001', 'PRJ-0002']).projectIds).toEqual(['PRJ-0002'])
+    expect(toQuery(parse('project=PRJ-0003'), ['PRJ-0001']).projectIds).toEqual(['PRJ-0001'])
+  })
+
   it('leaves empty filters out of the service query', () => {
-    expect(toQuery(parse(''))).toEqual({ page: 1, pageSize: DEFAULT_PAGE_SIZE })
+    expect(toQuery(parse('status=ALL'))).toEqual({ sort: 'OLDEST', page: 1, pageSize: DEFAULT_PAGE_SIZE })
   })
 })
 
 describe('validateFilters', () => {
   it('Given from after to, then an error', () => {
-    expect(validateFilters({ ...EMPTY_FILTERS, submittedFrom: '2026-09-26', submittedTo: '2026-09-25' })).toBeDefined()
-    expect(validateFilters({ ...EMPTY_FILTERS, submittedFrom: '2026-09-25', submittedTo: '2026-09-25' })).toBeUndefined()
+    expect(validateFilters({ ...DEFAULT_FILTERS, createdFrom: '2026-09-26', createdTo: '2026-09-25' })).toBeDefined()
+    expect(validateFilters({ ...DEFAULT_FILTERS, createdFrom: '2026-09-25', createdTo: '2026-09-25' })).toBeUndefined()
   })
 })
 

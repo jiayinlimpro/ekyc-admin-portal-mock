@@ -28,8 +28,6 @@ export interface VerificationQuery {
   flowId?: string
   workflowVersion?: string
   claim?: 'UNCLAIMED' | 'MINE' | 'OTHERS' // active claims only
-  /** @deprecated Legacy "Claimed By" filter (a userId or UNCLAIMED); removed with the new list screen (Phase 6b). */
-  claimedBy?: string
   createdFrom?: string // ISO, inclusive
   createdTo?: string // ISO, inclusive
   riskLevels?: RiskLevel[]
@@ -126,10 +124,6 @@ export const mockVerificationService: VerificationService = {
           const active = isClaimActive(v, at)
           const mine = active && v.claimedBy!.userId === actor.userId
           if (q.claim === 'UNCLAIMED' ? active : q.claim === 'MINE' ? !mine : !active || mine) return false
-        }
-        if (q.claimedBy) {
-          const active = isClaimActive(v, at)
-          if (q.claimedBy === 'UNCLAIMED' ? active : !active || v.claimedBy!.userId !== q.claimedBy) return false
         }
         if (q.createdFrom && v.createdAt < q.createdFrom) return false
         if (q.createdTo && v.createdAt > q.createdTo) return false

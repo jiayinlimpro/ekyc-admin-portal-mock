@@ -1,53 +1,57 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router'
+import { useAccess } from '@/app/access'
 import { Pagination } from '@/components/common/Pagination'
 import { EmptyState, ErrorState } from '@/components/common/States'
 import { Button } from '@/components/ui/button'
-import { can } from '@/domain/permissions'
-import type { Merchant, Paged, VerificationSummary } from '@/domain/types'
+import type { Paged, VerificationSummary } from '@/domain/types'
 import { isServiceError } from '@/services/errors'
-import { merchantService } from '@/services/merchantService'
-import { userService, type UserSummary } from '@/services/userService'
-import { verificationService } from '@/services/verificationService'
-import { ALL_MERCHANTS, useSession } from '@/stores/sessionStore'
-import { EMPTY_FILTERS, PAGE_SIZES, parseListParams, toQuery, toSearchParams, type ListParams } from './listQuery'
+import { verificationService, type FilterOptions } from '@/services/verificationService'
+import { useSession } from '@/stores/sessionStore'
+import { DEFAULT_FILTERS, isDefaultView, PAGE_SIZES, parseListParams, toQuery, toSearchParams, type ListParams } from './listQuery'
 import { VerificationFilters } from './VerificationFilters'
 import { VerificationTable } from './VerificationTable'
 
 /** Result of one request. `request` identifies it, so "loading" is simply "the latest result is for an older request". */
 type Result = { request: string; data?: Paged<VerificationSummary>; error?: string }
 
+const NO_OPTIONS: FilterOptions = { projects: [], flows: [] }
+
+// REQ: DEC-40 / DEC-43 / DEC-96 — cases across the projects in the header's view ("All my projects" or one project).
 export function VerificationsListPage() {
   const actor = useSession((s) => s.actor)
-  const selectedMerchant = useSession((s) => s.merchantId)
+  const { inView } = useAccess()
   const [sp, setSp] = useSearchParams()
   const key = sp.toString()
   const params = useMemo(() => parseListParams(new URLSearchParams(key)), [key])
   const filtersKey = JSON.stringify(params.filters)
-
-  // Top-bar merchant selector scopes admins; reviewers are scoped by the service anyway.
-  const scope = can(actor, 'canViewAllMerchants') && selectedMerchant !== ALL_MERCHANTS ? selectedMerchant : undefined
+  const viewIds = useMemo(() => inView.map((p) => p.projectId), [inView])
+  const viewKey = viewIds.join(',')
 
   const [retry, setRetry] = useState(0)
-  const request = JSON.stringify([key, scope, actor.userId, retry])
+  const request = JSON.stringify([key, viewKey, actor.userId, retry])
   const [result, setResult] = useState<Result>({ request: '' })
   const [lastData, setLastData] = useState<Paged<VerificationSummary>>()
-  const [merchants, setMerchants] = useState<Merchant[]>([])
-  const [reviewers, setReviewers] = useState<UserSummary[]>([])
+  const [allOptions, setAllOptions] = useState<FilterOptions>(NO_OPTIONS)
 
   useEffect(() => {
     let live = true
     // Filter options only: on failure the dropdowns just stay short; the list itself shows the error.
-    merchantService.list(actor).then((m) => live && setMerchants(m), () => live && setMerchants([]))
-    userService.listReviewers(actor).then((r) => live && setReviewers(r), () => live && setReviewers([]))
+    verificationService.filterOptions(actor).then((o) => live && setAllOptions(o), () => live && setAllOptions(NO_OPTIONS))
     return () => {
       live = false
     }
   }, [actor])
 
+  // Only the projects in view (and their flows) are offered as filters.
+  const options = useMemo<FilterOptions>(() => {
+    const ids = new Set(viewKey.split(','))
+    return { projects: allOptions.projects.filter((p) => ids.has(p.projectId)), flows: allOptions.flows.filter((f) => ids.has(f.projectId)) }
+  }, [allOptions, viewKey])
+
   useEffect(() => {
     let live = true
-    verificationService.list(toQuery(params), actor).then(
+    verificationService.list(toQuery(params, viewKey ? viewKey.split(',') : []), actor).then(
       (data) => {
         if (!live) return
         setResult({ request, data })
@@ -58,7 +62,7 @@ export function VerificationsListPage() {
     return () => {
       live = false
     }
-  }, [request, params, scope, actor])
+  }, [request, params, viewKey, actor])
 
   const loading = result.request !== request
   const error = loading ? undefined : result.error
@@ -73,25 +77,24 @@ export function VerificationsListPage() {
   }, [result.data, params, setSp])
 
   const go = (next: ListParams) => setSp(toSearchParams(next))
-  const onReset = () => go({ filters: EMPTY_FILTERS, page: 1, pageSize: params.pageSize })
-  const filtered = filtersKey !== JSON.stringify(EMPTY_FILTERS)
+  const onReset = () => go({ filters: DEFAULT_FILTERS, page: 1, pageSize: params.pageSize })
+  const filtered = !isDefaultView(params.filters)
 
   return (
     <div className="mx-auto max-w-[1600px] space-y-4">
       <header>
         <h1 className="text-2xl font-semibold">Verifications</h1>
-        <p className="text-sm text-muted-foreground">Open a record to review it. Claiming happens on the detail page; claim is not a status.</p>
+        <p className="text-sm text-muted-foreground">
+          {!filtered ? 'Pending Review cases in your projects, oldest first. ' : ''}Open a case to review it. Claiming happens on the detail page; claim is not a status.
+        </p>
       </header>
 
       <VerificationFilters
-        key={filtersKey} // re-mount when the applied filters change (Search, Reset, top-bar search, back button)
+        key={`${filtersKey}|${viewKey}`} // re-mount when the applied filters or the header's project change
         initial={params.filters}
         onSearch={(filters) => go({ filters, page: 1, pageSize: params.pageSize })}
         onReset={onReset}
-        actor={actor}
-        merchants={merchants}
-        scopedMerchant={merchants.find((m) => m.merchantId === scope)}
-        reviewers={reviewers}
+        options={options}
       />
 
       <section aria-label="Results" className="rounded-lg border bg-card">
@@ -109,19 +112,24 @@ export function VerificationsListPage() {
             )}
             {!loading && data?.total === 0 ? (
               <EmptyState
-                title={filtered ? 'No verifications match these filters' : 'No verifications yet'}
+                title={filtered ? 'No verifications match these filters' : 'Nothing waiting for review'}
                 action={
-                  filtered && (
-                    <Button variant="outline" size="sm" onClick={onReset}>
-                      Reset filters
-                    </Button>
-                  )
+                  <Button variant="outline" size="sm" onClick={() => (filtered ? onReset() : go({ filters: { ...DEFAULT_FILTERS, statuses: [] }, page: 1, pageSize: params.pageSize }))}>
+                    {filtered ? 'Reset filters' : 'Show all statuses'}
+                  </Button>
                 }
               >
-                {!filtered && 'Records appear here once end users start the eKYC flow for this merchant.'}
+                {!filtered && 'No Pending Review cases in the projects in view.'}
               </EmptyState>
             ) : (
-              <VerificationTable rows={data?.items ?? []} currentUserId={actor.userId} loading={loading} skeletonRows={Math.min(params.pageSize, 10)} />
+              <VerificationTable
+                rows={data?.items ?? []}
+                currentUserId={actor.userId}
+                loading={loading}
+                skeletonRows={Math.min(params.pageSize, 10)}
+                showProject={options.projects.length > 1}
+                showRisk={options.flows.some((f) => f.runsRisk)}
+              />
             )}
             {data && data.total > 0 && (
               <div className="border-t">

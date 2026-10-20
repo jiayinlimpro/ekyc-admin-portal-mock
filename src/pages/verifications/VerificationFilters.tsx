@@ -4,11 +4,10 @@ import { NativeSelect } from '@/components/common/NativeSelect'
 import { ToggleChips } from '@/components/common/ToggleChips'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { can } from '@/domain/permissions'
-import { RISK_LEVELS, VERIFICATION_STATUSES, type Actor, type Merchant } from '@/domain/types'
+import { RISK_LEVELS, VERIFICATION_STATUSES } from '@/domain/types'
 import { RISK_LABELS, STATUS_LABELS } from '@/lib/labels'
-import type { UserSummary } from '@/services/userService'
-import { EMPTY_FILTERS, validateFilters, type ListFilters } from './listQuery'
+import type { FilterOptions } from '@/services/verificationService'
+import { DEFAULT_FILTERS, validateFilters, type ListFilters } from './listQuery'
 
 const STATUS_OPTIONS = VERIFICATION_STATUSES.map((s) => ({ value: s, label: STATUS_LABELS[s] }))
 const RISK_OPTIONS = RISK_LEVELS.map((r) => ({ value: r, label: RISK_LABELS[r] }))
@@ -37,25 +36,11 @@ function GroupField({ label, hint, children, className }: { label: string; hint?
   )
 }
 
-/** Owns the unsaved draft. Re-mount it (`key`) when the applied filters change so it shows the URL state. */
-export function VerificationFilters({
-  initial,
-  onSearch,
-  onReset,
-  actor,
-  merchants,
-  scopedMerchant,
-  reviewers,
-}: {
-  initial: ListFilters
-  onSearch: (filters: ListFilters) => void
-  onReset: () => void
-  actor: Actor
-  merchants: Merchant[]
-  /** Set when the top-bar merchant selector scopes the list; the Merchant filter then follows it. */
-  scopedMerchant?: Merchant
-  reviewers: UserSummary[]
-}) {
+/**
+ * REQ: DEC-43 — owns the unsaved draft. Re-mount it (`key`) when the applied filters change so it shows the URL state.
+ * `options` holds only the projects in view (the header's switcher) and their flows.
+ */
+export function VerificationFilters({ initial, onSearch, onReset, options }: { initial: ListFilters; onSearch: (filters: ListFilters) => void; onReset: () => void; options: FilterOptions }) {
   const [draft, setDraft] = useState(initial)
   const [error, setError] = useState<string>()
   const set = <K extends keyof ListFilters>(k: K, v: ListFilters[K]) => setDraft({ ...draft, [k]: v })
@@ -66,54 +51,69 @@ export function VerificationFilters({
     if (!err) onSearch(draft)
   }
   const reset = () => {
-    setDraft(EMPTY_FILTERS)
+    setDraft(DEFAULT_FILTERS)
     setError(undefined)
     onReset()
   }
-  const showMerchant = can(actor, 'canViewAllMerchants')
-  const others = reviewers.filter((r) => r.userId !== actor.userId)
-  const byMerchant = new Map<string, UserSummary[]>()
-  for (const r of others) {
-    const key = r.merchantId ? (merchants.find((m) => m.merchantId === r.merchantId)?.name ?? r.merchantId) : 'Platform Admins'
-    byMerchant.set(key, [...(byMerchant.get(key) ?? []), r])
-  }
+
+  const several = options.projects.length > 1
+  const projectName = (id: string) => options.projects.find((p) => p.projectId === id)?.name ?? id
+  const flows = options.flows.filter((f) => !draft.projectId || f.projectId === draft.projectId)
+  const versions = [...new Set(options.flows.map((f) => f.workflowVersion))].sort()
+  const showRisk = options.flows.some((f) => f.runsRisk)
+  const pickProject = (projectId: string) =>
+    setDraft({ ...draft, projectId, flowId: projectId && options.flows.find((f) => f.flowId === draft.flowId)?.projectId !== projectId ? '' : draft.flowId })
 
   // noValidate: show our own validation message instead of the browser tooltip that min/max would trigger.
   return (
     <form role="search" aria-label="Filter verifications" noValidate onSubmit={submit} className="rounded-lg border bg-card p-4">
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Field id="f-ref" label="Reference No">
+        <Field id="f-ref" label="Reference ID">
           <Input id="f-ref" value={draft.referenceNo} onChange={(e) => set('referenceNo', e.target.value)} placeholder="e.g. KYC-260901" autoComplete="off" />
         </Field>
         <Field id="f-name" label="Full Name">
           <Input id="f-name" value={draft.fullName} onChange={(e) => set('fullName', e.target.value)} placeholder="Contains…" autoComplete="off" />
         </Field>
-        {showMerchant && (
-          <Field id="f-merchant" label="Merchant" hint={scopedMerchant ? 'set in top bar' : undefined}>
-            <NativeSelect id="f-merchant" value={scopedMerchant?.merchantId ?? draft.merchantId} disabled={!!scopedMerchant} onChange={(e) => set('merchantId', e.target.value)}>
-              <option value="">All merchants</option>
-              {merchants.map((m) => (
-                <option key={m.merchantId} value={m.merchantId}>
-                  {m.name} ({m.workflowVersion})
+        {several && (
+          <Field id="f-project" label="Project">
+            <NativeSelect id="f-project" value={draft.projectId} onChange={(e) => pickProject(e.target.value)}>
+              <option value="">All projects in view</option>
+              {options.projects.map((p) => (
+                <option key={p.projectId} value={p.projectId}>
+                  {p.name}
+                  {p.status === 'ARCHIVED' ? ' (archived)' : ''}
                 </option>
               ))}
             </NativeSelect>
           </Field>
         )}
-        <Field id="f-claimed" label="Claimed By">
-          <NativeSelect id="f-claimed" value={draft.claimedBy} onChange={(e) => set('claimedBy', e.target.value)}>
-            <option value="">Anyone or unclaimed</option>
-            <option value="UNCLAIMED">Unclaimed</option>
-            {can(actor, 'canReview') && <option value={actor.userId}>Me ({actor.fullName})</option>}
-            {[...byMerchant].map(([group, users]) => (
-              <optgroup key={group} label={group}>
-                {users.map((u) => (
-                  <option key={u.userId} value={u.userId}>
-                    {u.fullName} ({u.userId})
-                  </option>
-                ))}
-              </optgroup>
+        <Field id="f-flow" label="Flow">
+          <NativeSelect id="f-flow" value={draft.flowId} onChange={(e) => set('flowId', e.target.value)}>
+            <option value="">All flows</option>
+            {flows.map((f) => (
+              <option key={f.flowId} value={f.flowId}>
+                {several && !draft.projectId ? `${projectName(f.projectId)} › ` : ''}
+                {f.name} ({f.workflowVersion}){f.status === 'ACTIVE' ? '' : ` · ${f.status.toLowerCase()}`}
+              </option>
             ))}
+          </NativeSelect>
+        </Field>
+        <Field id="f-version" label="Workflow version">
+          <NativeSelect id="f-version" value={draft.workflowVersion} onChange={(e) => set('workflowVersion', e.target.value)}>
+            <option value="">All versions</option>
+            {versions.map((v) => (
+              <option key={v} value={v}>
+                {v}
+              </option>
+            ))}
+          </NativeSelect>
+        </Field>
+        <Field id="f-claim" label="Claim">
+          <NativeSelect id="f-claim" value={draft.claim} onChange={(e) => set('claim', e.target.value as ListFilters['claim'])}>
+            <option value="">Any</option>
+            <option value="UNCLAIMED">Unclaimed</option>
+            <option value="MINE">Claimed by me</option>
+            <option value="OTHERS">Claimed by others</option>
           </NativeSelect>
         </Field>
         <Field id="f-updated" label="Last Updated By">
@@ -123,18 +123,26 @@ export function VerificationFilters({
             <option value="MANUAL">Manual (reviewer)</option>
           </NativeSelect>
         </Field>
-        <Field id="f-from" label="Submitted from" hint="MYT">
-          <Input id="f-from" type="date" value={draft.submittedFrom} max={draft.submittedTo || undefined} onChange={(e) => set('submittedFrom', e.target.value)} aria-invalid={!!error} />
+        <Field id="f-sort" label="Sort by last updated">
+          <NativeSelect id="f-sort" value={draft.sort} onChange={(e) => set('sort', e.target.value as ListFilters['sort'])}>
+            <option value="OLDEST">Oldest first</option>
+            <option value="NEWEST">Newest first</option>
+          </NativeSelect>
         </Field>
-        <Field id="f-to" label="Submitted to" hint="MYT">
-          <Input id="f-to" type="date" value={draft.submittedTo} min={draft.submittedFrom || undefined} onChange={(e) => set('submittedTo', e.target.value)} aria-invalid={!!error} />
+        <Field id="f-from" label="Created from" hint="MYT">
+          <Input id="f-from" type="date" value={draft.createdFrom} max={draft.createdTo || undefined} onChange={(e) => set('createdFrom', e.target.value)} aria-invalid={!!error} />
         </Field>
-        <GroupField label="Status" className="sm:col-span-2 lg:col-span-2">
+        <Field id="f-to" label="Created to" hint="MYT">
+          <Input id="f-to" type="date" value={draft.createdTo} min={draft.createdFrom || undefined} onChange={(e) => set('createdTo', e.target.value)} aria-invalid={!!error} />
+        </Field>
+        <GroupField label="Status" hint="none selected = all" className="sm:col-span-2 lg:col-span-2">
           <ToggleChips label="Status" options={STATUS_OPTIONS} value={draft.statuses} onChange={(v) => set('statuses', v)} />
         </GroupField>
-        <GroupField label="Risk Level" hint="V4 only">
-          <ToggleChips label="Risk Level" options={RISK_OPTIONS} value={draft.riskLevels} onChange={(v) => set('riskLevels', v)} />
-        </GroupField>
+        {showRisk && (
+          <GroupField label="Risk Level" hint="flows with risk assessment">
+            <ToggleChips label="Risk Level" options={RISK_OPTIONS} value={draft.riskLevels} onChange={(v) => set('riskLevels', v)} />
+          </GroupField>
+        )}
       </div>
       <div className="mt-4 flex flex-wrap items-center justify-end gap-2">
         {error && (
