@@ -7,8 +7,10 @@
 //   POST /verifications/{ref}/decision decide  → 200 | 409 OWNERSHIP_CONFLICT | 422 VALIDATION
 import { makeAudit } from '@/domain/audit'
 import { applyDecision, checkOwnershipAtSave, decisionReason, claim as claimRule, isClaimActive, release as releaseRule, validateDecision } from '@/domain/claimRules'
+import { evaluateCase } from '@/domain/checkRules'
+import { newCaseAllowedAt, revisionLabel } from '@/domain/flowRules'
 import { hasRisk } from '@/domain/registryRules'
-import type { Actor, Decision, Flow, Paged, Project, RiskLevel, Verification, VerificationDetail, VerificationStatus, VerificationSummary } from '@/domain/types'
+import { CHECKS, PHASE_LABELS, type Actor, type AuditAction, type CaseActivity, type Decision, type Flow, type Paged, type Project, type RiskLevel, type Verification, type VerificationDetail, type VerificationStatus, type VerificationSummary } from '@/domain/types'
 import { now } from '@/lib/clock'
 import { db } from '@/mocks/mockDb'
 import { mayInProject, projectById, projectIdsWhere, requireActive, roleIn } from './accessGuard'
@@ -80,7 +82,49 @@ function toSummary(v: Verification, at: Date): VerificationSummary {
   }
 }
 
-const toDetail = (v: Verification): VerificationDetail => wire({ ...v, merchantName: merchantName(v.merchantId) })
+/** Case events on the timeline. Views are left out (the Audit Log has them); the rest are the DEC-42 case events. */
+const TIMELINE_ACTIONS: readonly AuditAction[] = ['CASE_CLAIMED', 'CASE_RELEASED', 'CASE_CLAIM_EXPIRED', 'CASE_DECISION_APPROVED', 'CASE_DECISION_REJECTED', 'CASE_DECISION_BLOCKED']
+
+function activityOf(v: Verification): CaseActivity[] {
+  const system = { kind: 'SYSTEM' } as const
+  const out: CaseActivity[] = [{ at: v.createdAt, kind: 'SESSION_STARTED', by: system }]
+  const rounds = Math.max(0, ...CHECKS.map((c) => v.submissions[c]?.length ?? 0))
+  for (let i = 0; i < rounds; i++) {
+    const scores = CHECKS.filter((c) => v.submissions[c]?.[i] !== undefined).map((c) => `${PHASE_LABELS[c]} ${v.submissions[c]![i]}`)
+    out.push({ at: v.attempts[i]?.startedAt ?? v.createdAt, kind: 'SUBMISSION', by: system, detail: `Submission ${i + 1}${i ? ` (retry ${i})` : ''} · ${scores.join(' · ')}` })
+  }
+  // The automated result; for a manual decision the audit entry below records the change instead (DEC-03).
+  if (v.status !== 'PROCESSING' && v.lastUpdatedBy.kind === 'SYSTEM') out.push({ at: v.lastUpdatedAt, kind: 'SYSTEM_RESULT', by: system, detail: [v.status, v.statusReason].filter(Boolean).join(' · ') })
+  for (const e of db.state().audit) {
+    if (e.referenceNo !== v.referenceNo || !TIMELINE_ACTIONS.includes(e.action)) continue
+    const d = e.details as { reasons?: string; note?: string; reason?: string }
+    out.push({ at: e.at, kind: e.action, by: e.actor, detail: [d.reasons, d.note && `“${d.note}”`, d.reason].filter(Boolean).join(' · ') || undefined })
+  }
+  return out.sort((a, b) => a.at.localeCompare(b.at))
+}
+
+// REQ: DEC-44 — everything the Detail sections need, evaluated with the revision the case started on (DEC-52).
+function toDetail(v: Verification): VerificationDetail {
+  const s = db.state()
+  const flow = s.flows.find((f) => f.flowId === v.flowId)!
+  const rev = s.flowRevisions.find((r) => r.flowId === v.flowId && r.revision === v.configRevision)
+  const settings = rev?.settings ?? flow.settings
+  const entry = s.registry.find((e) => e.code === v.workflowVersion)!
+  const runsRisk = hasRisk(entry)
+  const ev = evaluateCase({ submissions: v.submissions, riskLevel: v.riskLevel }, { checks: entry.configurableChecks, faceMatchMethod: entry.faceMatchMethod, hasRisk: runsRisk, settings })
+  return wire({
+    ...v,
+    merchantName: merchantName(v.merchantId),
+    projectName: projectName(v.projectId),
+    flowName: flow.name,
+    revisionLabel: revisionLabel({ workflowVersion: v.workflowVersion, revision: v.configRevision }) ?? `${v.workflowVersion}-R${v.configRevision}`,
+    rulesApplied: settings,
+    steps: { phases: entry.phases, faceMatchMethod: entry.faceMatchMethod, runsRisk },
+    checks: ev.checks,
+    newCaseAllowedAt: v.status === 'REJECTED' ? newCaseAllowedAt(v.lastUpdatedAt, settings.cooldownMin)?.toISOString() : undefined,
+    activity: activityOf(v),
+  })
+}
 
 // REQ: DEC-72 — the same response for "not found" and "not in your projects", so references can't be probed.
 function load(ref: string, actor: Actor): Verification {

@@ -1,4 +1,5 @@
 // Domain contract for the eKYC Admin Portal mock. Source of truth: docs/DECISIONS.md.
+import type { CheckEvaluation } from './checkRules'
 // Const arrays + derived types (not TS enums): loopable for dropdowns/badges and compatible with erasableSyntaxOnly.
 
 // REQ: DEC-01 — exactly 4 statuses. Never add more.
@@ -144,8 +145,26 @@ export interface VerificationSummary {
   createdAt: string // session started (DEC-04)
 }
 
-// REQ: DEC-41 — detail carries full PII + client metadata.
-export type VerificationDetail = Verification & { merchantName: string }
+/** One line of the case's Activity timeline (DEC-44): session events plus the case's audit events, oldest first. */
+export interface CaseActivity {
+  at: string
+  kind: 'SESSION_STARTED' | 'SUBMISSION' | 'SYSTEM_RESULT' | AuditAction
+  by: UpdatedBy
+  detail?: string
+}
+
+// REQ: DEC-41 / DEC-44 — detail carries full PII + client metadata, and everything the Detail sections show.
+export type VerificationDetail = Verification & {
+  merchantName: string
+  projectName: string
+  flowName: string
+  revisionLabel: string // "Rules applied", e.g. V4-R1 (DEC-51, DEC-52)
+  rulesApplied: FlowSettings // the revision's settings: the snapshot at session start
+  steps: { phases: OnboardingPhase[]; faceMatchMethod: FaceMatchMethod; runsRisk: boolean } // from the registry version
+  checks: CheckEvaluation[] // face match / liveness: threshold applied, result, retries used / allowed
+  newCaseAllowedAt?: string // REJECTED with a cooldown (DEC-26)
+  activity: CaseActivity[]
+}
 
 export interface PhaseConfig {
   phase: CapturePhase

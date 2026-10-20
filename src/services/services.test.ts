@@ -149,6 +149,36 @@ describe('per-project case access (DEC-70, DEC-72)', () => {
   })
 })
 
+describe('verificationService.get detail sections (DEC-44)', () => {
+  it('Given S03, then project, flow, revision, steps and each check with threshold applied and retries used / allowed', async () => {
+    const d = await svc.get(S(3), ALI)
+    expect(d).toMatchObject({ projectName: 'Default', flowName: 'Malaysian onboarding', revisionLabel: 'V4-R2', steps: { runsRisk: true, faceMatchMethod: 'ID_VS_LIVENESS' } })
+    const fm = d.checks.find((c) => c.check === 'FACE_MATCH')!
+    expect(fm).toMatchObject({ state: 'REVIEW', thresholds: { autoReject: 85, autoPass: 95 }, lastScore: 88.5, submissions: 4, retriesUsed: 3, retriesAllowed: 3 })
+    expect(d.rulesApplied.checks.FACE_MATCH.threshold).toEqual({ preset: 'STANDARD' })
+  })
+
+  it('Given S12 started on R1, then Rules applied are R1 even though R2 is live (DEC-52)', async () => {
+    const d = await svc.get(S(12), ALI)
+    expect(d.revisionLabel).toBe('V4-R1')
+    expect(d.rulesApplied.checks.LIVENESS.threshold).toEqual({ preset: 'LOW' })
+  })
+
+  it('Given S18 rejected with a 120-min cooldown, then "New case allowed from" is 2 h after the rejection (DEC-26)', async () => {
+    const d = await svc.get(S(18), ALI)
+    expect(d.status).toBe('REJECTED')
+    expect(Date.parse(d.newCaseAllowedAt!) - Date.parse(d.lastUpdatedAt)).toBe(minutes(120))
+    expect((await svc.get(S(4), ALI)).newCaseAllowedAt).toBeUndefined() // cooldown 0
+  })
+
+  it('Given S11, then the activity timeline runs session start → submissions → claim → decision, without PII views', async () => {
+    const kinds = (await svc.get(S(11), ALI)).activity.map((a) => a.kind)
+    expect(kinds).toEqual(['SESSION_STARTED', 'SUBMISSION', 'SUBMISSION', 'SUBMISSION', 'SUBMISSION', 'CASE_CLAIMED', 'CASE_DECISION_APPROVED'])
+    const s04 = (await svc.get(S(4), ALI)).activity
+    expect(s04.at(-1)).toMatchObject({ kind: 'SYSTEM_RESULT', detail: 'REJECTED · Face not live (Retry Not Allowed)' })
+  })
+})
+
 describe('verificationService.get (DEC-41)', () => {
   it('Given a detail open, then full PII is returned and one SENSITIVE_PII_VIEW is written per request id', async () => {
     const before = (await auditFor(S(10), ['SENSITIVE_PII_VIEW'])).length
