@@ -117,7 +117,7 @@ export const NAV_ITEMS: NavItem[] = [
     inMenu: true,
     access: { project: 'manageFlows' },
     priority: 'P1',
-    built: false,
+    built: true,
     notes: ['Tabs: General · Integration (API keys, webhook, redirect URLs, origins, IP allowlist) · Review operations (claim timeout) · Routing (read-only) (DEC-54).'],
   },
   {
