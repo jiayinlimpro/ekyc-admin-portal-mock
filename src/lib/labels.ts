@@ -1,6 +1,26 @@
-import type { AttemptOutcome, AuditAction, DocumentType, FlowStatus, RiskLevel, UserStatus, VerificationStatus } from '@/domain/types'
+import type { AttemptOutcome, AuditAction, DocumentType, FlowStatus, Permission, RiskLevel, UserStatus, VerificationStatus } from '@/domain/types'
 
 export const FLOW_STATUS_LABELS: Record<FlowStatus, string> = { DRAFT: 'Draft', ACTIVE: 'Active', RETIRING: 'Retiring', INACTIVE: 'Inactive' }
+
+// REQ: DEC-70 — permission names on the Roles screen (the list is OQ-09).
+export const PERMISSION_LABELS: Record<Permission, string> = {
+  MANAGE_BILLING: 'Manage billing and contract',
+  MANAGE_USERS_ROLES: 'Manage users and roles',
+  MANAGE_PROJECTS: 'Create, rename, archive projects',
+  VIEW_MERCHANT_REPORTS: 'View merchant-wide reports',
+  VIEW_CASES: 'View cases',
+  CLAIM_CASES: 'Claim cases',
+  DECIDE_CASES: 'Approve / reject cases',
+  MANAGE_PROJECT_SETTINGS: 'Manage project settings',
+  MANAGE_INTEGRATION: 'Manage API keys and webhook',
+  MANAGE_FLOWS: 'Manage flows',
+  CHANGE_VERIFICATION_LEVEL: 'Change verification level and retries',
+  MANAGE_MEMBERS: 'Manage project members',
+  VIEW_PROJECT_REPORTS: 'View project reports',
+  VIEW_AUDIT_LOG: 'View audit log',
+}
+
+export const permissionList = (ps: readonly Permission[]) => ps.map((p) => PERMISSION_LABELS[p]).join(', ') || 'None'
 
 // REQ: DEC-74 — [FRS] user statuses.
 export const USER_STATUS_LABELS: Record<UserStatus, string> = { PENDING: 'Pending', ACTIVE: 'Active', SUSPENDED: 'Suspended' }
