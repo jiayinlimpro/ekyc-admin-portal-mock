@@ -43,7 +43,7 @@ afterEach(cleanup)
 describe('Verification Detail', () => {
   it('Given S03 unclaimed, when Ali assigns, confirms Manual Pass with reason + comment, then APPROVED by Ali and final', async () => {
     await open(S(3))
-    expect(await audit(S(3), ['PII_VIEW'])).toEqual(['PII_VIEW']) // DEC-41: opening logs the view
+    expect(await audit(S(3), ['SENSITIVE_PII_VIEW'])).toEqual(['SENSITIVE_PII_VIEW']) // DEC-41: opening logs the view
     expect(decision().getByRole('status').textContent).toBe('Assign to me to review')
 
     fireEvent.click(screen.getByRole('button', { name: 'Assign to me' }))
@@ -55,7 +55,7 @@ describe('Verification Detail', () => {
     await screen.findByText(/Decision is final — Ali Bin Ahmad \(USR-2026-0012\)/)
     expect(screen.getAllByText('Approved').length).toBeGreaterThan(0)
     expect(decision().getByRole('status').textContent).toBe('Decision is final')
-    expect(await audit(S(3), ['CLAIM', 'DECISION'])).toEqual(['CLAIM', 'DECISION'])
+    expect(await audit(S(3), ['CASE_CLAIMED', 'CASE_DECISION_APPROVED'])).toEqual(['CASE_CLAIMED', 'CASE_DECISION_APPROVED'])
   })
 
   it('Given the form is incomplete, then Save shows what is missing and nothing is saved', async () => {
@@ -141,7 +141,7 @@ describe('Verification Detail', () => {
     expect(screen.getByRole('button', { name: 'Assign to me' })).toBeTruthy()
   })
 
-  it('Given UI claim checks off, when Ali saves after his claim expired, then the service refuses: nothing saved, CLAIM_TIMEOUT + OWNERSHIP_CONFLICT audited (S08)', async () => {
+  it('Given UI claim checks off, when Ali saves after his claim expired, then the service refuses: nothing saved, CASE_CLAIM_EXPIRED + CASE_DECISION_BLOCKED audited (S08)', async () => {
     useDevFlags.setState({ uiClaimChecks: false })
     await open(S(8))
     act(() => useDevFlags.getState().advanceTime(minutes(11)))
@@ -149,13 +149,13 @@ describe('Verification Detail', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Confirm Approved' }))
     await screen.findByText('Your claim expired. No changes saved.')
     expect(screen.getAllByText('Pending Review').length).toBeGreaterThan(0)
-    expect(await audit(S(8), ['CLAIM_TIMEOUT', 'OWNERSHIP_CONFLICT', 'DECISION'])).toEqual(['CLAIM_TIMEOUT', 'OWNERSHIP_CONFLICT'])
+    expect(await audit(S(8), ['CASE_CLAIM_EXPIRED', 'CASE_DECISION_BLOCKED', 'CASE_DECISION_APPROVED'])).toEqual(['CASE_CLAIM_EXPIRED', 'CASE_DECISION_BLOCKED'])
   })
 
   it('Given Ali holds a claim, when he cancels, then it is released and the record stays Pending Review', async () => {
     await open(S(7))
     fireEvent.click(screen.getByRole('button', { name: 'Cancel claim' }))
     await screen.findByRole('button', { name: 'Assign to me' })
-    expect(await audit(S(7), ['CLAIM_RELEASE'])).toEqual(['CLAIM_RELEASE'])
+    expect(await audit(S(7), ['CASE_RELEASED'])).toEqual(['CASE_RELEASED'])
   })
 })

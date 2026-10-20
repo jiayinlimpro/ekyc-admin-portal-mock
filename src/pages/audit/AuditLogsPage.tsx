@@ -24,10 +24,11 @@ import { AUDIT_PAGE_SIZES, EMPTY_AUDIT_FILTERS, parseAuditParams, toAuditQuery, 
 const ACTION_OPTIONS = AUDIT_ACTIONS.map((a) => ({ value: a, label: AUDIT_ACTION_LABELS[a] }))
 
 const ACTION_TONE: Partial<Record<AuditAction, string>> = {
-  PII_VIEW: 'bg-slate-100 text-slate-700 dark:bg-slate-500/20 dark:text-slate-200',
-  DECISION: 'bg-green-100 text-green-800 dark:bg-green-500/20 dark:text-green-200',
-  OWNERSHIP_CONFLICT: 'bg-red-100 text-red-800 dark:bg-red-500/20 dark:text-red-200',
-  CLAIM_TIMEOUT: 'bg-amber-100 text-amber-800 dark:bg-amber-500/20 dark:text-amber-200',
+  SENSITIVE_PII_VIEW: 'bg-slate-100 text-slate-700 dark:bg-slate-500/20 dark:text-slate-200',
+  CASE_DECISION_APPROVED: 'bg-green-100 text-green-800 dark:bg-green-500/20 dark:text-green-200',
+  CASE_DECISION_REJECTED: 'bg-green-100 text-green-800 dark:bg-green-500/20 dark:text-green-200',
+  CASE_DECISION_BLOCKED: 'bg-red-100 text-red-800 dark:bg-red-500/20 dark:text-red-200',
+  CASE_CLAIM_EXPIRED: 'bg-amber-100 text-amber-800 dark:bg-amber-500/20 dark:text-amber-200',
   CONFIG_DEPLOY: 'bg-blue-100 text-blue-800 dark:bg-blue-500/20 dark:text-blue-200',
   CREDENTIAL_ROTATION: 'bg-violet-100 text-violet-800 dark:bg-violet-500/20 dark:text-violet-200',
 }

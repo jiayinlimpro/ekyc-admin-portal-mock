@@ -1,7 +1,7 @@
 // Human-readable one-line summary of an audit entry's details, per action. Pure (unit-tested).
 import type { ConfigChange } from '@/domain/configRules'
 import { reasonLabel } from '@/domain/openQuestions'
-import type { AuditEntry, ClaimHolder } from '@/domain/types'
+import type { AuditEntry, ClaimHolder, SettingChange } from '@/domain/types'
 import { formatMyt } from './format'
 
 const str = (v: unknown) => (typeof v === 'string' ? v : undefined)
@@ -9,24 +9,25 @@ const str = (v: unknown) => (typeof v === 'string' ? v : undefined)
 export function summarizeAudit(e: AuditEntry): string {
   const d = e.details
   switch (e.action) {
-    case 'PII_VIEW':
+    case 'SENSITIVE_PII_VIEW':
       return 'Opened the record with unmasked personal data'
-    case 'CLAIM': {
+    case 'CASE_CLAIMED': {
       const until = str(d.claimExpiresAt)
       return until ? `Claim expires ${formatMyt(until)} MYT` : 'Claimed for review'
     }
-    case 'CLAIM_RELEASE':
-      return 'Reviewer cancelled their claim'
-    case 'CLAIM_TIMEOUT': {
+    case 'CASE_RELEASED':
+      return 'Reviewer released their claim'
+    case 'CASE_CLAIM_EXPIRED': {
       const who = d.claimedBy as ClaimHolder | undefined
       return `Claim by ${who ? `${who.fullName} (${who.userId})` : 'unknown'} expired${str(d.claimExpiresAt) ? ` at ${formatMyt(str(d.claimExpiresAt)!)} MYT` : ''}`
     }
-    case 'DECISION': {
+    case 'CASE_DECISION_APPROVED':
+    case 'CASE_DECISION_REJECTED': {
       const outcome = d.outcome === 'APPROVE' ? 'Approved' : d.outcome === 'REJECT' ? 'Rejected' : String(d.outcome)
       const reason = reasonLabel(str(d.reasonCode) ?? '') ?? str(d.reasonCode) ?? '—'
       return `${str(d.fromStatus) ?? '?'} → ${outcome} · ${reason}${str(d.comment) ? ` · “${str(d.comment)}”` : ''}`
     }
-    case 'OWNERSHIP_CONFLICT':
+    case 'CASE_DECISION_BLOCKED':
       return `Save refused (${d.attempted === 'APPROVE' ? 'approve' : d.attempted === 'REJECT' ? 'reject' : 'decision'}): ${str(d.reason) ?? 'claim not held'}`
     case 'CONFIG_DRAFT_SAVE': {
       const n = (d.changes as ConfigChange[] | undefined)?.length ?? 0
@@ -40,6 +41,12 @@ export function summarizeAudit(e: AuditEntry): string {
     }
     case 'CREDENTIAL_ROTATION':
       return `API key rotated${str(d.keyId) ? ` (${str(d.keyId)})` : ''}`
+    default: {
+      // Events whose details carry the changed fields (DEC-42 "old and new value").
+      const changes = d.changes as SettingChange[] | undefined
+      if (changes?.length) return changes.map((c) => `${c.field}: ${c.from} → ${c.to}`).join(' · ')
+      return str(d.summary) ?? ''
+    }
   }
 }
 

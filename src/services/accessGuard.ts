@@ -1,7 +1,7 @@
 // Service-side access checks (DEC-71, DEC-72). The session only says who the user is; what they may do is read from their
 // account and project roles, as the real backend would. The legacy `Actor.role` is never trusted here.
-import { canInProject, projectsWhere, type ProjectAction } from '@/domain/access'
-import type { Actor, Project, UserAccount } from '@/domain/types'
+import { canInProject, projectsWhere, roleInProject, type ProjectAction } from '@/domain/access'
+import type { Actor, EffectiveRole, Project, UserAccount } from '@/domain/types'
 import { db } from '@/mocks/mockDb'
 import { ServiceError } from './errors'
 
@@ -25,6 +25,12 @@ export const projectById = (projectId: string): Project | undefined => db.state(
 export function mayInProject(actor: Pick<Actor, 'userId'>, action: ProjectAction, projectId: string): boolean {
   const p = projectById(projectId)
   return !!p && canInProject(accountOf(actor), action, p)
+}
+
+/** The user's role in a project, recorded on audit entries (DEC-42). */
+export function roleIn(actor: Pick<Actor, 'userId'>, projectId: string): EffectiveRole | undefined {
+  const p = projectById(projectId)
+  return p && roleInProject(accountOf(actor), p)
 }
 
 /** Ids of the projects where the user may do `action` (case lists, dashboard and audit scope; DEC-72, DEC-86). */

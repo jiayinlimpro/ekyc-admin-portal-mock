@@ -1,7 +1,7 @@
 // Per-project access (DEC-70, DEC-72, DEC-75, DEC-86). Replaces the two-role permissions.ts once services move over (Phase 4).
 // REQ: DEC-71 — UI-only checks. The real backend must enforce the same table.
 import { POLICY, type Policy } from './openQuestions'
-import type { Project, ProjectRole, UserAccess } from './types'
+import type { EffectiveRole, Project, UserAccess } from './types'
 
 /** Platform-wide actions: no project involved. */
 export const PLATFORM_ACTIONS = ['manageRegistry', 'manageMerchants'] as const
@@ -23,7 +23,7 @@ export const PROJECT_ACTIONS = [
 ] as const
 export type ProjectAction = (typeof PROJECT_ACTIONS)[number]
 
-export type EffectiveRole = 'PLATFORM_ADMIN' | 'MERCHANT_OWNER' | ProjectRole
+export type { EffectiveRole }
 
 const ALL: readonly EffectiveRole[] = ['PLATFORM_ADMIN', 'MERCHANT_OWNER', 'PROJECT_ADMIN', 'REVIEWER', 'VIEWER']
 

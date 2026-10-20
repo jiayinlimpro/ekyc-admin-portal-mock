@@ -181,27 +181,29 @@ export type Decision =
   | { outcome: 'APPROVE'; reasonCode: string; comment: string } // "Confirm Manual Pass"
   | { outcome: 'REJECT'; reasonCode: string; comment: string } // "Maintain Automated Rejection"
 
-// REQ: DEC-42
-export const AUDIT_ACTIONS = [
-  'PII_VIEW',
-  'CLAIM',
-  'CLAIM_RELEASE',
-  'CLAIM_TIMEOUT',
-  'DECISION',
-  'OWNERSHIP_CONFLICT',
-  'CONFIG_DRAFT_SAVE',
-  'CONFIG_DISCARD',
-  'CONFIG_DEPLOY',
-  'CREDENTIAL_ROTATION',
-] as const
-export type AuditAction = (typeof AUDIT_ACTIONS)[number]
+// REQ: DEC-42 — event names, grouped as in DECISIONS.md.
+export const AUDIT_ACTION_GROUPS = {
+  Cases: ['SENSITIVE_PII_VIEW', 'CASE_CLAIMED', 'CASE_RELEASED', 'CASE_CLAIM_EXPIRED', 'CASE_DECISION_APPROVED', 'CASE_DECISION_REJECTED', 'CASE_DECISION_BLOCKED'],
+  Flows: ['FLOW_CREATED', 'FLOW_ACTIVATED', 'FLOW_RETIRED', 'FLOW_DEFAULT_CHANGED', 'FLOW_SETTING_CHANGED'],
+  Projects: ['PROJECT_CREATED', 'PROJECT_RENAMED', 'PROJECT_ARCHIVED', 'PROJECT_SETTING_CHANGED'],
+  Integration: ['API_KEY_CREATED', 'API_KEY_ROTATED', 'API_KEY_REVOKED', 'WEBHOOK_CHANGED'],
+  Users: ['USER_INVITED', 'USER_ROLE_CHANGED', 'USER_REMOVED', 'USER_DEACTIVATED'],
+  Registry: ['WORKFLOW_REGISTERED', 'WORKFLOW_UPDATED', 'WORKFLOW_STATUS_CHANGED', 'WORKFLOW_DEFAULT_CHANGED'],
+  Merchants: ['MERCHANT_CREATED', 'MERCHANT_UPDATED', 'MERCHANT_STATUS_CHANGED'],
+  // Legacy: the merchant-level eKYC Workflow and Developers screens, until Flows and Project Settings replace them.
+  Legacy: ['CONFIG_DRAFT_SAVE', 'CONFIG_DISCARD', 'CONFIG_DEPLOY', 'CREDENTIAL_ROTATION'],
+} as const
+export type AuditAction = (typeof AUDIT_ACTION_GROUPS)[keyof typeof AUDIT_ACTION_GROUPS][number]
+export const AUDIT_ACTIONS: readonly AuditAction[] = Object.values(AUDIT_ACTION_GROUPS).flat()
 
 export interface AuditEntry {
   id: string
   at: string // ISO UTC
   action: AuditAction
   actor: UpdatedBy
+  actorRole?: EffectiveRole // REQ: DEC-42 — the actor's role in the project (or Platform Admin); absent for SYSTEM
   merchantId?: string
+  projectId?: string
   referenceNo?: string
   ip: string
   details: Record<string, unknown>
@@ -303,6 +305,8 @@ export interface Flow {
 export const PROJECT_ROLES = ['PROJECT_ADMIN', 'REVIEWER', 'VIEWER'] as const
 export type ProjectRole = (typeof PROJECT_ROLES)[number]
 export type AccessLevel = 'PLATFORM_ADMIN' | 'MERCHANT_OWNER' | 'MEMBER'
+/** A user's role in one project: Platform Admin and Merchant Owner apply to every project they reach. */
+export type EffectiveRole = 'PLATFORM_ADMIN' | 'MERCHANT_OWNER' | ProjectRole
 
 export interface ProjectMembership {
   projectId: string

@@ -81,7 +81,7 @@ export const NAV_ITEMS: NavItem[] = [
     priority: 'P0',
     built: true,
     notes: [
-      'Opening writes a PII_VIEW audit entry; full unmasked PII + client metadata (DEC-41).',
+      'Opening writes a SENSITIVE_PII_VIEW audit entry; full unmasked PII + client metadata (DEC-41).',
       'Claim bar: Assign to me / Cancel / countdown. Viewing is never blocked (DEC-25).',
       'Decision overlay only for the claim owner on PENDING_REVIEW; PROCESSING is read-only; decisions are final (DEC-30, DEC-32, DEC-33).',
       'Metrics grouped by phase; Risk panel for V4 only (DEC-10, DEC-13).',
@@ -122,7 +122,7 @@ export const NAV_ITEMS: NavItem[] = [
     permission: 'canViewAudit',
     priority: 'P1',
     built: true,
-    notes: ['Events: PII_VIEW, CLAIM, CLAIM_RELEASE, CLAIM_TIMEOUT, DECISION, OWNERSHIP_CONFLICT, CONFIG_DRAFT_SAVE, CONFIG_DISCARD, CONFIG_DEPLOY, CREDENTIAL_ROTATION (DEC-42).'],
+    notes: ['Events: DEC-42 names (cases, flows, projects, integration, users, registry, merchants), with the actor role and project; CONFIG_* and CREDENTIAL_ROTATION remain for the legacy screens.'],
   },
   {
     path: '/billing',

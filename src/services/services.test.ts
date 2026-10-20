@@ -108,24 +108,24 @@ describe('per-project case access (DEC-70, DEC-72)', () => {
 })
 
 describe('verificationService.get (DEC-41)', () => {
-  it('Given a detail open, then full PII is returned and one PII_VIEW is written per request id', async () => {
-    const before = (await auditFor(S(10), ['PII_VIEW'])).length
+  it('Given a detail open, then full PII is returned and one SENSITIVE_PII_VIEW is written per request id', async () => {
+    const before = (await auditFor(S(10), ['SENSITIVE_PII_VIEW'])).length
     const d = await svc.get(S(10), ALI, { requestId: 'r-1' })
     await svc.get(S(10), ALI, { requestId: 'r-1' }) // StrictMode double effect
     expect(d.pii.nric).toMatch(/999\d$/)
     expect(d.clientMetadata.ip).toMatch(/^(192\.0\.2|198\.51\.100|203\.0\.113)\./)
-    expect((await auditFor(S(10), ['PII_VIEW'])).length).toBe(before + 1)
+    expect((await auditFor(S(10), ['SENSITIVE_PII_VIEW'])).length).toBe(before + 1)
     await svc.get(S(10), ALI, { requestId: 'r-2' })
-    expect((await auditFor(S(10), ['PII_VIEW'])).length).toBe(before + 2)
+    expect((await auditFor(S(10), ['SENSITIVE_PII_VIEW'])).length).toBe(before + 2)
   })
 
-  it('Given the same request id on two different records, then each record gets its own PII_VIEW', async () => {
-    const a = (await auditFor(S(3), ['PII_VIEW'])).length
-    const b = (await auditFor(S(4), ['PII_VIEW'])).length
+  it('Given the same request id on two different records, then each record gets its own SENSITIVE_PII_VIEW', async () => {
+    const a = (await auditFor(S(3), ['SENSITIVE_PII_VIEW'])).length
+    const b = (await auditFor(S(4), ['SENSITIVE_PII_VIEW'])).length
     await svc.get(S(3), ALI, { requestId: 'page-1' })
     await svc.get(S(4), ALI, { requestId: 'page-1' })
-    expect((await auditFor(S(3), ['PII_VIEW'])).length).toBe(a + 1)
-    expect((await auditFor(S(4), ['PII_VIEW'])).length).toBe(b + 1)
+    expect((await auditFor(S(3), ['SENSITIVE_PII_VIEW'])).length).toBe(a + 1)
+    expect((await auditFor(S(4), ['SENSITIVE_PII_VIEW'])).length).toBe(b + 1)
   })
 
   it("Given another merchant's record, then NOT_FOUND", async () => {
@@ -138,7 +138,7 @@ describe('claim and release', () => {
     const d = await svc.claim(S(10), ALI)
     expect(d.claimedBy?.userId).toBe(ALI.userId)
     await expectError(svc.claim(S(10), SITI), 'ALREADY_CLAIMED', 'Already claimed by Ali Bin Ahmad.')
-    expect(await auditFor(S(10), ['CLAIM'])).toEqual(['CLAIM'])
+    expect(await auditFor(S(10), ['CASE_CLAIMED'])).toEqual(['CASE_CLAIMED'])
   })
 
   it('Given a claim, then status, lastUpdatedBy and lastUpdatedAt are unchanged (DEC-03, DEC-20)', async () => {
@@ -153,41 +153,43 @@ describe('claim and release', () => {
     await expectError(svc.claim(S(5), ALI), 'NOT_CLAIMABLE')
   })
 
-  it("Given Siti's claim, when Ali cancels, then NOT_CLAIM_OWNER; when Siti cancels, then CLAIM_RELEASE", async () => {
+  it("Given Siti's claim, when Ali cancels, then NOT_CLAIM_OWNER; when Siti cancels, then CASE_RELEASED", async () => {
     await expectError(svc.release(S(9), ALI), 'NOT_CLAIM_OWNER')
     const d = await svc.release(S(9), SITI)
     expect(d.claimedBy).toBeUndefined()
-    expect(await auditFor(S(9), ['CLAIM_RELEASE'])).toEqual(['CLAIM_RELEASE'])
+    expect(await auditFor(S(9), ['CASE_RELEASED'])).toEqual(['CASE_RELEASED'])
   })
 
-  it("Given time passes the claim expiry, then the claim disappears and one CLAIM_TIMEOUT is written", async () => {
+  it("Given time passes the claim expiry, then the claim disappears and one CASE_CLAIM_EXPIRED is written", async () => {
     vi.setSystemTime(NOW.getTime() + minutes(3)) // S07 had ~2 min left
     await svc.list({}, ALI)
     await svc.list({}, ALI) // idempotent
     expect((await svc.get(S(7), ALI)).claimedBy).toBeUndefined()
-    expect(await auditFor(S(7), ['CLAIM_TIMEOUT'])).toEqual(['CLAIM_TIMEOUT'])
+    expect(await auditFor(S(7), ['CASE_CLAIM_EXPIRED'])).toEqual(['CASE_CLAIM_EXPIRED'])
   })
 })
 
 describe('decide (DEC-24, DEC-30)', () => {
   const approve = { outcome: 'APPROVE' as const, reasonCode: 'FACE_MATCH_CONFIRMED', comment: 'Matches.' }
 
-  it('Given Ali holds the S07 claim, when he approves, then APPROVED by Ali and a DECISION entry', async () => {
+  it('Given Ali holds the S07 claim, when he approves, then APPROVED by Ali and a CASE_DECISION_APPROVED entry with his project role', async () => {
     vi.setSystemTime(NOW.getTime() + minutes(1))
     const d = await svc.decide(S(7), ALI, approve)
     expect(d).toMatchObject({ status: 'APPROVED', lastUpdatedBy: { kind: 'USER', userId: ALI.userId }, statusReason: 'Face match confirmed by reviewer', claimedBy: undefined })
     expect(d.lastUpdatedAt).toBe(new Date(NOW.getTime() + minutes(1)).toISOString())
-    expect((await auditFor(S(7))).at(-1)).toBe('DECISION')
+    expect((await auditFor(S(7))).at(-1)).toBe('CASE_DECISION_APPROVED')
+    const [entry] = (await auditService.list({ referenceNo: S(7), actions: ['CASE_DECISION_APPROVED'] }, ADMIN)).items
+    expect(entry).toMatchObject({ actorRole: 'REVIEWER', projectId: 'PRJ-0001', details: { fromStatus: 'PENDING_REVIEW', toStatus: 'APPROVED' } })
     await expectError(svc.decide(S(7), ALI, approve), 'OWNERSHIP_CONFLICT', 'This record has already been decided. No changes saved.')
   })
 
-  it("Given Ali's S08 claim expires while he types, when he saves, then nothing is saved and CLAIM_TIMEOUT + OWNERSHIP_CONFLICT are audited (S08)", async () => {
+  it("Given Ali's S08 claim expires while he types, when he saves, then nothing is saved and CASE_CLAIM_EXPIRED + CASE_DECISION_BLOCKED are audited (S08, DEC-24)", async () => {
     vi.setSystemTime(NOW.getTime() + minutes(11)) // S08 had ~10 min left
     await expectError(svc.decide(S(8), ALI, approve), 'OWNERSHIP_CONFLICT', 'Your claim expired. No changes saved.')
     const d = await svc.get(S(8), ALI)
     expect(d.status).toBe('PENDING_REVIEW')
     expect(d.lastUpdatedBy.kind).toBe('SYSTEM')
-    expect((await auditFor(S(8), ['CLAIM_TIMEOUT', 'OWNERSHIP_CONFLICT']))).toEqual(['CLAIM_TIMEOUT', 'OWNERSHIP_CONFLICT'])
+    expect((await auditFor(S(8), ['CASE_CLAIM_EXPIRED', 'CASE_DECISION_BLOCKED']))).toEqual(['CASE_CLAIM_EXPIRED', 'CASE_DECISION_BLOCKED'])
   })
 
   it('Given Siti holds the claim, when Ali saves, then OWNERSHIP_CONFLICT (S09)', async () => {
@@ -196,7 +198,7 @@ describe('decide (DEC-24, DEC-30)', () => {
 
   it('Given no audit comment, then VALIDATION and nothing is written', async () => {
     await expectError(svc.decide(S(7), ALI, { ...approve, comment: '' }), 'VALIDATION')
-    expect(await auditFor(S(7), ['DECISION', 'OWNERSHIP_CONFLICT'])).toEqual([])
+    expect(await auditFor(S(7), ['CASE_DECISION_APPROVED', 'CASE_DECISION_REJECTED', 'CASE_DECISION_BLOCKED'])).toEqual([])
   })
 
   it('Given S11 manually approved, then any save is refused (decisions are final)', async () => {

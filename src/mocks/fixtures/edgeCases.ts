@@ -88,16 +88,16 @@ export function buildEdgeCases(ctx: { now: Date; merchants: Merchant[]; configs:
   const claimFor = (v: Verification, actor: Actor, claimedMinAgo: number): Verification => {
     const timeoutMin = catalog.projects.find((p) => p.projectId === v.projectId)!.claimTimeoutMin // REQ: DEC-22
     const claimedAt = ago(claimedMinAgo)
-    audit.push(makeAudit({ id: '', now: new Date(claimedAt.getTime() - MIN), action: 'PII_VIEW', actor, ip: fakeIp(f), merchantId: v.merchantId, referenceNo: v.referenceNo }))
+    const ref = { merchantId: v.merchantId, projectId: v.projectId, referenceNo: v.referenceNo, actorRole: 'REVIEWER' as const } // Ali and Siti review Atoz Default
+    audit.push(makeAudit({ id: '', now: new Date(claimedAt.getTime() - MIN), action: 'SENSITIVE_PII_VIEW', actor, ip: fakeIp(f), ...ref }))
     audit.push(
       makeAudit({
         id: '',
         now: claimedAt,
-        action: 'CLAIM',
+        action: 'CASE_CLAIMED',
         actor,
         ip: fakeIp(f),
-        merchantId: v.merchantId,
-        referenceNo: v.referenceNo,
+        ...ref,
         details: { claimExpiresAt: new Date(claimedAt.getTime() + timeoutMin * MIN).toISOString() },
       }),
     )
@@ -147,10 +147,12 @@ export function buildEdgeCases(ctx: { now: Date; merchants: Merchant[]; configs:
     makeAudit({
       id: '',
       now: decidedAt,
-      action: 'DECISION',
+      action: 'CASE_DECISION_APPROVED',
       actor: ali,
+      actorRole: 'REVIEWER',
       ip: fakeIp(f),
       merchantId: out[s11].merchantId,
+      projectId: out[s11].projectId,
       referenceNo: out[s11].referenceNo,
       details: { ...decision, fromStatus: 'PENDING_REVIEW', toStatus: 'APPROVED' },
     }),

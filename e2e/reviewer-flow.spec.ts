@@ -30,9 +30,9 @@ test('reviewer finds an unclaimed pending record, claims it, approves it, and th
   await expect(page.getByRole('link', { name: 'Audit trail' })).toHaveCount(0)
   await page.goto('/audit?ref=KYC-260901-900003&as=USR-2026-0002')
   const rows = page.locator('section[aria-label="Audit entries"] tbody tr')
-  await expect(rows.first()).toContainText('DECISION')
+  await expect(rows.first()).toContainText('CASE_DECISION_APPROVED')
   await expect(rows.first()).toContainText('E2E: selfie matches MyKad photo.')
-  await expect(page.locator('section[aria-label="Audit entries"]')).toContainText('PII_VIEW')
+  await expect(page.locator('section[aria-label="Audit entries"]')).toContainText('SENSITIVE_PII_VIEW')
 })
 
 test('reviewer cannot open admin screens and sees only their merchant', async ({ page }) => {

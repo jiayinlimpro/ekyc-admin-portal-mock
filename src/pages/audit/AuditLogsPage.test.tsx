@@ -39,7 +39,7 @@ describe('Audit Logs', () => {
   it('Given ref=S11, then its trail reads PII view → claim → decision with a readable summary', async () => {
     renderAt('/audit?ref=KYC-260901-900011')
     const r = await rows('Audit entries')
-    expect(r.map((x) => within(x).getAllByRole('cell')[1].textContent)).toEqual(['Decision savedDECISION', 'ClaimedCLAIM', 'PII viewedPII_VIEW'])
+    expect(r.map((x) => within(x).getAllByRole('cell')[1].textContent)).toEqual(['Case approvedCASE_DECISION_APPROVED', 'Case claimedCASE_CLAIMED', 'Personal data viewedSENSITIVE_PII_VIEW'])
     expect(r[0].textContent).toContain('PENDING_REVIEW → Approved · Face match confirmed by reviewer')
   })
 
@@ -47,7 +47,7 @@ describe('Audit Logs', () => {
     useSession.getState().switchUser(ADMIN)
     const router = renderAt('/audit')
     await rows('Audit entries')
-    fireEvent.click(within(screen.getByRole('group', { name: 'Event' })).getByRole('button', { name: 'Config deployed' }))
+    fireEvent.click(within(screen.getByRole('group', { name: 'Event' })).getByRole('button', { name: 'Config deployed (legacy)' }))
     fireEvent.click(screen.getByRole('button', { name: 'Search' }))
     await waitFor(() => expect(router.state.location.search).toBe('?action=CONFIG_DEPLOY'))
     const r = await rows('Audit entries')
@@ -55,12 +55,12 @@ describe('Audit Logs', () => {
     for (const row of r) expect(row.textContent).toContain('CONFIG_DEPLOY')
   })
 
-  it('Given claims expire (time warp), then SYSTEM CLAIM_TIMEOUT entries name whose claim ended', async () => {
+  it('Given claims expire (time warp), then SYSTEM CASE_CLAIM_EXPIRED entries name whose claim ended', async () => {
     act(() => useDevFlags.getState().advanceTime(minutes(31)))
     renderAt('/audit?actor=SYSTEM')
     const r = await rows('Audit entries')
     expect(r.length).toBeGreaterThan(0)
-    expect(r.every((x) => x.textContent!.includes('CLAIM_TIMEOUT'))).toBe(true)
+    expect(r.every((x) => x.textContent!.includes('CASE_CLAIM_EXPIRED'))).toBe(true)
     expect(screen.getAllByText(/Claim by Ali Bin Ahmad \(USR-2026-0012\) expired/).length).toBeGreaterThan(0)
   })
 

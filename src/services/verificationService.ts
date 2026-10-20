@@ -1,6 +1,6 @@
 // Verification API (mock implementation). Signatures are the draft contract for the real REST API:
 //   GET  /verifications?…            list      → 200 Paged<VerificationSummary>
-//   GET  /verifications/{ref}        get       → 200 VerificationDetail (server writes PII_VIEW)
+//   GET  /verifications/{ref}        get       → 200 VerificationDetail (server writes SENSITIVE_PII_VIEW)
 //   POST /verifications/{ref}/claim  claim     → 200 | 409 ALREADY_CLAIMED / NOT_CLAIMABLE
 //   DELETE /verifications/{ref}/claim release → 200 | 409 NOT_CLAIM_OWNER
 //   POST /verifications/{ref}/decision decide  → 200 | 409 OWNERSHIP_CONFLICT | 422 VALIDATION
@@ -10,7 +10,7 @@ import { reasonLabel } from '@/domain/openQuestions'
 import type { Actor, Decision, Paged, RiskLevel, Verification, VerificationDetail, VerificationStatus, VerificationSummary } from '@/domain/types'
 import { now } from '@/lib/clock'
 import { db } from '@/mocks/mockDb'
-import { mayInProject, projectById, projectIdsWhere, requireActive } from './accessGuard'
+import { mayInProject, projectById, projectIdsWhere, requireActive, roleIn } from './accessGuard'
 import { sweepExpiredClaims } from './claimSweep'
 import { ServiceError } from './errors'
 import { clientIpFor, simulateNetwork, wire } from './network'
@@ -69,7 +69,10 @@ function load(ref: string, actor: Actor): Verification {
 }
 
 function audit(actor: Actor, action: Parameters<typeof makeAudit>[0]['action'], v: Verification, at: Date, details?: Record<string, unknown>) {
-  db.appendAudit(makeAudit({ id: '', now: at, action, actor, ip: clientIpFor(actor), merchantId: v.merchantId, referenceNo: v.referenceNo, details }))
+  // REQ: DEC-42 — actor, their role in the case's project, project, target and old/new values.
+  db.appendAudit(
+    makeAudit({ id: '', now: at, action, actor, actorRole: roleIn(actor, v.projectId), ip: clientIpFor(actor), merchantId: v.merchantId, projectId: v.projectId, referenceNo: v.referenceNo, details }),
+  )
 }
 
 const loggedPiiViews = new Set<string>()
@@ -113,7 +116,7 @@ export const mockVerificationService: VerificationService = {
     }
   },
 
-  // REQ: DEC-41 — every open writes PII_VIEW. requestId dedupes React StrictMode's double effect in dev.
+  // REQ: DEC-41 — every open writes SENSITIVE_PII_VIEW. requestId dedupes React StrictMode's double effect in dev.
   async get(ref, actor, opts) {
     await simulateNetwork('get verification')
     const at = now()
@@ -122,7 +125,7 @@ export const mockVerificationService: VerificationService = {
     const key = opts?.requestId ? `${actor.userId}:${ref}:${opts.requestId}` : undefined
     if (!key || !loggedPiiViews.has(key)) {
       if (key) loggedPiiViews.add(key)
-      audit(actor, 'PII_VIEW', v, at, { requestId: opts?.requestId })
+      audit(actor, 'SENSITIVE_PII_VIEW', v, at, { requestId: opts?.requestId })
     }
     return toDetail(v)
   },
@@ -137,7 +140,7 @@ export const mockVerificationService: VerificationService = {
     if (!r.ok) throw new ServiceError(r.code, r.message)
     // REQ: DEC-03 — claiming does not touch lastUpdatedBy / lastUpdatedAt.
     const updated = db.updateVerification(ref, (x) => ({ ...x, ...r.value }))
-    audit(actor, 'CLAIM', updated, at, { claimExpiresAt: r.value.claimExpiresAt })
+    audit(actor, 'CASE_CLAIMED', updated, at, { claimExpiresAt: r.value.claimExpiresAt })
     return toDetail(updated)
   },
 
@@ -150,7 +153,7 @@ export const mockVerificationService: VerificationService = {
     const r = releaseRule(v, actor, at)
     if (!r.ok) throw new ServiceError(r.code, r.message)
     const updated = db.updateVerification(ref, (x) => ({ ...x, ...r.value }))
-    audit(actor, 'CLAIM_RELEASE', updated, at, { claimedAt: v.claimedAt })
+    audit(actor, 'CASE_RELEASED', updated, at, { claimedAt: v.claimedAt })
     return toDetail(updated)
   },
 
@@ -166,13 +169,13 @@ export const mockVerificationService: VerificationService = {
     if (!mayInProject(actor, 'decideCase', v.projectId)) throw new ServiceError('FORBIDDEN', 'You do not have review permission for this project.')
     const owner = checkOwnershipAtSave(v, actor, at)
     if (!owner.ok) {
-      sweepExpiredClaims(at) // writes CLAIM_TIMEOUT first if the claim just expired
-      audit(actor, 'OWNERSHIP_CONFLICT', v, at, { attempted: d.outcome, reason: owner.message })
+      sweepExpiredClaims(at) // writes CASE_CLAIM_EXPIRED first if the claim just expired
+      audit(actor, 'CASE_DECISION_BLOCKED', v, at, { attempted: d.outcome, reason: owner.message })
       throw new ServiceError(owner.code, owner.message)
     }
     const label = reasonLabel(d.reasonCode) ?? d.reasonCode
     const updated = db.updateVerification(ref, (x) => applyDecision(x, actor, d, label, at))
-    audit(actor, 'DECISION', updated, at, { ...d, fromStatus: v.status, toStatus: updated.status, fromReason: v.statusReason })
+    audit(actor, d.outcome === 'APPROVE' ? 'CASE_DECISION_APPROVED' : 'CASE_DECISION_REJECTED', updated, at, { ...d, fromStatus: v.status, toStatus: updated.status, fromReason: v.statusReason })
     return toDetail(updated)
   },
 }

@@ -4,7 +4,7 @@ import { formatDate } from '@/lib/format'
 import { DOCUMENT_TYPE_LABELS } from '@/lib/labels'
 import { Fields, Section } from './Section'
 
-// REQ: DEC-41 — full unmasked PII on the detail page only; opening it wrote a PII_VIEW audit entry.
+// REQ: DEC-41 — full unmasked PII on the detail page only; opening it wrote a SENSITIVE_PII_VIEW audit entry.
 export function PiiSection({ v }: { v: VerificationDetail }) {
   const p = v.pii
   const passport = v.documentType === 'PASSPORT'

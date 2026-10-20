@@ -1,6 +1,6 @@
 // Deterministic seed (MOCK-05): same `now` → same data. Background volume + the named scenarios in fixtures/edgeCases.ts.
 import { Faker, en } from '@faker-js/faker'
-import { canInProject } from '@/domain/access'
+import { canInProject, roleInProject } from '@/domain/access'
 import { makeAudit } from '@/domain/audit'
 import { RISK_NOT_PASSED } from '@/domain/checkRules'
 import { applyDecision } from '@/domain/claimRules'
@@ -17,7 +17,7 @@ import { clientMetadata, fakeIp, person } from './malaysia'
 export const SEED = 2026
 export const BACKGROUND_COUNT = 300
 /** Bump when the shape of MockDbState changes: persisted demo data is then re-seeded. */
-export const DB_VERSION = 4
+export const DB_VERSION = 5
 
 export interface MockDbState {
   dbVersion: number
@@ -122,6 +122,7 @@ export function seedDatabase(now: Date): MockDbState {
     accounts
       .filter((a) => a.status === 'ACTIVE' && canInProject(a, 'claimCase', { projectId: v.projectId, merchantId: v.merchantId }))
       .map(legacyActor)
+  const roleOf = (a: Actor, v: Verification) => roleInProject(accounts.find((x) => x.userId === a.userId)!, v)
   const admin = legacyActor(accounts.find((a) => a.level === 'PLATFORM_ADMIN')!)
   const merchantOf = (id: string) => MERCHANTS.find((m) => m.merchantId === id)!
   const entryOf = (code: string) => catalog.registry.find((e) => e.code === code)!
@@ -195,21 +196,21 @@ export function seedDatabase(now: Date): MockDbState {
     const timeoutMin = catalog.projects.find((p) => p.projectId === v.projectId)!.claimTimeoutMin // REQ: DEC-22
     const age = now.getTime() - Date.parse(v.lastUpdatedAt)
     const ip = fakeIp(f)
-    const ref = { merchantId: v.merchantId, referenceNo: v.referenceNo, ip }
+    const ref = { merchantId: v.merchantId, projectId: v.projectId, referenceNo: v.referenceNo, ip, actorRole: roleOf(actor, v) }
 
     if (age > DAY && f.number.float({ min: 0, max: 1 }) < 0.7) {
       const decidedAt = new Date(Math.min(Date.parse(v.lastUpdatedAt) + f.number.int({ min: 30, max: 2880 }) * MIN, now.getTime() - 10 * MIN))
       const { decision, label } = decisionFor(f, v.statusReason)
-      audit.push(makeAudit({ id: '', now: new Date(decidedAt.getTime() - 4 * MIN), action: 'PII_VIEW', actor, ...ref }))
-      audit.push(makeAudit({ id: '', now: new Date(decidedAt.getTime() - 3 * MIN), action: 'CLAIM', actor, ...ref }))
-      audit.push(makeAudit({ id: '', now: decidedAt, action: 'DECISION', actor, ...ref, details: { ...decision, fromStatus: v.status, toStatus: decision.outcome === 'APPROVE' ? 'APPROVED' : 'REJECTED' } }))
+      audit.push(makeAudit({ id: '', now: new Date(decidedAt.getTime() - 4 * MIN), action: 'SENSITIVE_PII_VIEW', actor, ...ref }))
+      audit.push(makeAudit({ id: '', now: new Date(decidedAt.getTime() - 3 * MIN), action: 'CASE_CLAIMED', actor, ...ref }))
+      audit.push(makeAudit({ id: '', now: decidedAt, action: decision.outcome === 'APPROVE' ? 'CASE_DECISION_APPROVED' : 'CASE_DECISION_REJECTED', actor, ...ref, details: { ...decision, fromStatus: v.status, toStatus: decision.outcome === 'APPROVE' ? 'APPROVED' : 'REJECTED' } }))
       verifications[i] = applyDecision(v, actor, decision, label, decidedAt)
     } else if (f.number.float({ min: 0, max: 1 }) < 0.2) {
       const claimedAt = new Date(now.getTime() - f.number.int({ min: 1, max: timeoutMin - 1 }) * MIN)
       if (claimedAt.getTime() <= Date.parse(v.lastUpdatedAt)) continue
       const claimExpiresAt = new Date(claimedAt.getTime() + timeoutMin * MIN).toISOString()
-      audit.push(makeAudit({ id: '', now: new Date(claimedAt.getTime() - MIN), action: 'PII_VIEW', actor, ...ref }))
-      audit.push(makeAudit({ id: '', now: claimedAt, action: 'CLAIM', actor, ...ref, details: { claimExpiresAt } }))
+      audit.push(makeAudit({ id: '', now: new Date(claimedAt.getTime() - MIN), action: 'SENSITIVE_PII_VIEW', actor, ...ref }))
+      audit.push(makeAudit({ id: '', now: claimedAt, action: 'CASE_CLAIMED', actor, ...ref, details: { claimExpiresAt } }))
       verifications[i] = { ...v, claimedBy: { userId: actor.userId, fullName: actor.fullName }, claimedAt: claimedAt.toISOString(), claimExpiresAt }
     }
   }
