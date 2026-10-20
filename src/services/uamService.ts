@@ -1,14 +1,16 @@
 // User & Access Management API (mock): merchants and users. 2 roles only (DEC-70).
-// UAM changes are not audited: the agreed audit action list has no UAM events (OQ-16).
+// REQ: DEC-42 / OQ-16 — merchant and user changes are audited with the DEC-42 names. Actions that only exist on this
+// legacy screen (rename a user, reactivate) have no DEC-42 event and are not audited; Users and Access drops them (DEC-74).
 // Until Users and Access replaces this screen (Phase 11), every change is mirrored onto the user's account, which is what
 // the services check (accessGuard.ts). A Merchant Reviewer becomes a Reviewer in the merchant's Default project.
 //   GET/POST /merchants · PATCH/DELETE /merchants/{id} · GET/POST /users · PATCH /users/{id}
 import { makeAudit } from '@/domain/audit'
-import { can } from '@/domain/permissions'
-import type { Actor, Merchant, RoleType, UserAccount, UserRecord, WorkflowVersion } from '@/domain/types'
+import { canOnPlatform } from '@/domain/access'
+import type { Actor, AuditAction, Merchant, RoleType, SettingChange, UserAccount, UserRecord, WorkflowVersion } from '@/domain/types'
 import { now } from '@/lib/clock'
 import { initialConfig, mockSecret } from '@/mocks/builders'
 import { db } from '@/mocks/mockDb'
+import { accountOf } from './accessGuard'
 import { ServiceError } from './errors'
 import { clientIpFor, simulateNetwork, wire } from './network'
 
@@ -36,9 +38,16 @@ export interface UamService {
   setUserActive(userId: string, active: boolean, actor: Actor): Promise<UserRecord>
 }
 
+// REQ: DEC-70 — Platform Admin only, read from the account (never from the session's role).
 function requireUam(actor: Actor) {
-  if (!can(actor, 'canManageUAM')) throw new ServiceError('FORBIDDEN', 'You do not have permission to manage users and merchants.')
+  if (!canOnPlatform(accountOf(actor), 'manageMerchants')) throw new ServiceError('FORBIDDEN', 'You do not have permission to manage users and merchants.')
 }
+
+function audit(actor: Actor, action: AuditAction, merchantId: string | undefined, details: Record<string, unknown>) {
+  db.appendAudit(makeAudit({ id: '', now: now(), action, actor, actorRole: 'PLATFORM_ADMIN', ip: clientIpFor(actor), merchantId, details }))
+}
+
+const ROLE_TEXT: Record<RoleType, string> = { PLATFORM_ADMIN: 'Platform Admin', MERCHANT_REVIEWER: 'Merchant Reviewer' }
 
 const invalid = (message: string, field?: string) => new ServiceError('VALIDATION', message, field ? [{ field, message }] : undefined)
 
@@ -109,6 +118,7 @@ export const mockUamService: UamService = {
       configs: { ...st.configs, [merchant.merchantId]: { deployed: config, history: [config] } },
       apiKeys: { ...st.apiKeys, [merchant.merchantId]: { merchantId: merchant.merchantId, keyId: `key_mock_${merchant.merchantId.toLowerCase()}_01`, secret: mockSecret(), createdAt: at.toISOString(), createdBy: actor.fullName } },
     }))
+    audit(actor, 'MERCHANT_CREATED', merchant.merchantId, { name, workflowVersion: input.workflowVersion })
     // The first config deployment is a config event, so it is audited like any other deploy.
     db.appendAudit(makeAudit({ id: '', now: at, action: 'CONFIG_DEPLOY', actor, ip: clientIpFor(actor), merchantId: merchant.merchantId, details: { fromVersion: null, toVersion: 'v1.0.0', changes: [] } }))
     return wire(merchant)
@@ -122,7 +132,9 @@ export const mockUamService: UamService = {
     if (!s.merchants.some((m) => m.merchantId === merchantId)) throw new ServiceError('NOT_FOUND', `Merchant ${merchantId} not found.`)
     if (n.length < 2) throw invalid('Merchant name is required.', 'name')
     if (s.merchants.some((m) => m.merchantId !== merchantId && m.name.toLowerCase() === n.toLowerCase())) throw invalid('A merchant with this name already exists.', 'name')
+    const before = s.merchants.find((m) => m.merchantId === merchantId)!.name
     db.setState((st) => ({ merchants: st.merchants.map((m) => (m.merchantId === merchantId ? { ...m, name: n } : m)) }))
+    if (before !== n) audit(actor, 'MERCHANT_UPDATED', merchantId, { changes: [{ field: 'Name', from: before, to: n }] })
     return wire(db.state().merchants.find((m) => m.merchantId === merchantId)!)
   },
 
@@ -140,6 +152,7 @@ export const mockUamService: UamService = {
       delete apiKeys[merchantId]
       return { merchants: st.merchants.filter((m) => m.merchantId !== merchantId), configs, apiKeys }
     })
+    audit(actor, 'MERCHANT_STATUS_CHANGED', merchantId, { changes: [{ field: 'Status', from: 'Active', to: 'Deleted (no users, no records)' }] })
   },
 
   async listUsers(actor) {
@@ -155,6 +168,7 @@ export const mockUamService: UamService = {
     const clean = validateUser(input, s.merchants)
     const user: UserRecord = { userId: nextId('USR-2026-', s.accounts.map((u) => u.userId), 4), ...clean, active: true, createdAt: now().toISOString() }
     saveUser(user)
+    audit(actor, 'USER_INVITED', user.merchantId, { userId: user.userId, fullName: user.fullName, role: ROLE_TEXT[user.role] })
     return wire(user)
   },
 
@@ -167,6 +181,10 @@ export const mockUamService: UamService = {
     const clean = validateUser(input, s.merchants)
     if (userId === actor.userId && clean.role !== existing.role) throw invalid('You cannot change your own role.', 'role')
     saveUser({ ...existing, ...clean })
+    const changes: SettingChange[] = []
+    if (clean.role !== existing.role) changes.push({ field: 'Role', from: ROLE_TEXT[existing.role], to: ROLE_TEXT[clean.role] })
+    if (clean.merchantId !== existing.merchantId) changes.push({ field: 'Merchant', from: existing.merchantId ?? '—', to: clean.merchantId ?? '—' })
+    if (changes.length) audit(actor, 'USER_ROLE_CHANGED', clean.merchantId ?? existing.merchantId, { userId, fullName: clean.fullName, changes })
     return wire(db.state().users.find((u) => u.userId === userId)!)
   },
 
@@ -177,6 +195,7 @@ export const mockUamService: UamService = {
     const existing = db.state().users.find((u) => u.userId === userId)
     if (!existing) throw new ServiceError('NOT_FOUND', `User ${userId} not found.`)
     saveUser({ ...existing, active })
+    if (existing.active && !active) audit(actor, 'USER_DEACTIVATED', existing.merchantId, { userId, fullName: existing.fullName })
     return wire(db.state().users.find((u) => u.userId === userId)!)
   },
 }
