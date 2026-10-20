@@ -5,12 +5,11 @@
 import { intelligenceStats, mytDay, overviewStats, presetRange, type IntelligenceStats, type OverviewStats } from '@/domain/analytics'
 import { billingLine, billingTotals, monthRange, type BillingLine, type BillingTotals } from '@/domain/billing'
 import { POLICY, PRICING } from '@/domain/openQuestions'
-import { can, canAccessMerchant } from '@/domain/permissions'
 import type { Actor, Verification } from '@/domain/types'
 import { now } from '@/lib/clock'
 import { db } from '@/mocks/mockDb'
+import { projectIdsWhere, requireMerchantInScope } from './accessGuard'
 import { sweepExpiredClaims } from './claimSweep'
-import { ServiceError } from './errors'
 import { simulateNetwork, wire } from './network'
 
 export interface AnalyticsQuery {
@@ -34,10 +33,12 @@ export interface AnalyticsService {
   billing(q: { period: string; merchantId?: string; chargePerAttempt?: boolean }, actor: Actor): Promise<BillingReport>
 }
 
+// REQ: DEC-86 — every role sees the dashboards and Billing; only the data differs: Platform Admin all merchants, Merchant
+// Owner all of the merchant's projects, everyone else their own projects.
 function scoped(actor: Actor, merchantId?: string): Verification[] {
-  if (merchantId && !canAccessMerchant(actor, merchantId)) throw new ServiceError('NOT_FOUND', `Merchant ${merchantId} not found.`)
-  const scope = can(actor, 'canViewAllMerchants') ? merchantId : actor.merchantId
-  return db.state().verifications.filter((v) => !scope || v.merchantId === scope)
+  if (merchantId) requireMerchantInScope(actor, merchantId)
+  const projects = projectIdsWhere(actor, 'viewDashboards')
+  return db.state().verifications.filter((v) => projects.has(v.projectId) && (!merchantId || v.merchantId === merchantId))
 }
 
 export const mockAnalyticsService: AnalyticsService = {
@@ -59,14 +60,12 @@ export const mockAnalyticsService: AnalyticsService = {
 
   async billingPeriods(actor) {
     await simulateNetwork('billing periods')
-    if (!can(actor, 'canViewBilling')) throw new ServiceError('FORBIDDEN', 'You do not have permission to view billing.')
     const months = new Set(scoped(actor).map((v) => mytDay(v.attempts[0]?.startedAt ?? v.lastUpdatedAt).slice(0, 7)))
     return [...months].sort().reverse()
   },
 
   async billing(q, actor) {
     await simulateNetwork('billing')
-    if (!can(actor, 'canViewBilling')) throw new ServiceError('FORBIDDEN', 'You do not have permission to view billing.')
     const chargePerAttempt = q.chargePerAttempt ?? POLICY.chargePerAttempt
     const { from, to } = monthRange(q.period)
     const lines = scoped(actor, q.merchantId)

@@ -8,7 +8,7 @@ import { devService } from '@/services/devService'
 import { verificationService } from '@/services/verificationService'
 import { DEFAULT_DEV_FLAGS, useDevFlags } from '@/stores/devFlagsStore'
 import { useSession } from '@/stores/sessionStore'
-import { ADMIN, ALI, minutes } from '@/test/factories'
+import { ADMIN, ALI, OWNER, minutes } from '@/test/factories'
 
 function renderAt(path: string) {
   const router = createMemoryRouter(routes, { initialEntries: [path] })
@@ -23,13 +23,13 @@ async function rows(regionName: string) {
 
 beforeEach(async () => {
   useDevFlags.setState({ ...DEFAULT_DEV_FLAGS, simulateLatency: false })
-  useSession.getState().switchUser(ALI)
+  useSession.getState().switchUser(OWNER)
   await devService.resetDemoData()
 })
 afterEach(cleanup)
 
 describe('Audit Logs', () => {
-  it('Given a reviewer, then only their merchant’s entries are listed', async () => {
+  it('Given the Merchant Owner, then only their merchant’s entries are listed', async () => {
     renderAt('/audit?size=100')
     const r = await rows('Audit entries')
     expect(r.length).toBeGreaterThan(0)
@@ -66,7 +66,7 @@ describe('Audit Logs', () => {
 
   it('Given a live action elsewhere, then it appears on the next load', async () => {
     await verificationService.claim('KYC-260901-900010', ALI)
-    renderAt('/audit?ref=KYC-260901-900010&action=CLAIM')
+    renderAt('/audit?ref=KYC-260901-900010&action=CASE_CLAIMED')
     const r = await rows('Audit entries')
     expect(r).toHaveLength(1)
     expect(r[0].textContent).toContain('Ali Bin Ahmad')

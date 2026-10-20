@@ -2,6 +2,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { AuditAction } from '@/domain/types'
 import { ADMIN, ALI, EMPTY_OWNER, HAFIZ, NOW, NURUL, OTHER_MERCHANT_REVIEWER, OWNER, SITI, minutes } from '@/test/factories'
+import { analyticsService } from './analyticsService'
 import { auditService } from './auditService'
 import { configService } from './configService'
 import { devService } from './devService'
@@ -256,11 +257,53 @@ describe('configService (DEC-50 … DEC-53)', () => {
   })
 })
 
-describe('auditService and merchantService scoping', () => {
-  it('Given a Merchant Reviewer, then audit entries and merchants are limited to their merchant', async () => {
-    const log = await auditService.list({ pageSize: 500 }, ALI)
+describe('auditService and merchantService scoping (DEC-70, DEC-72)', () => {
+  it('Given the Merchant Owner, then audit entries and merchants are limited to their merchant', async () => {
+    const log = await auditService.list({ pageSize: 1000 }, OWNER)
     expect(log.items.every((e) => e.merchantId === 'MER-0001')).toBe(true)
+    expect(log.items.some((e) => e.action === 'API_KEY_ROTATED')).toBe(true) // merchant-wide entries included
     expect((await merchantService.list(ALI)).map((m) => m.merchantId)).toEqual(['MER-0001'])
     expect((await merchantService.list(ADMIN)).length).toBe(6)
+  })
+
+  it('Given a Project Admin, then only their project entries; merchant-wide entries are not theirs', async () => {
+    const log = await auditService.list({ pageSize: 1000 }, HAFIZ)
+    expect(log.total).toBeGreaterThan(0)
+    expect(log.items.every((e) => e.projectId === 'PRJ-0002')).toBe(true)
+  })
+
+  it('Given a Reviewer, then the Audit Log is refused', async () => {
+    await expectError(auditService.list({}, ALI), 'FORBIDDEN')
+  })
+
+  it('Given a project filter, then only that project', async () => {
+    const log = await auditService.list({ projectId: 'PRJ-0002', pageSize: 1000 }, OWNER)
+    expect(log.items.every((e) => e.projectId === 'PRJ-0002')).toBe(true)
+  })
+})
+
+describe('analyticsService scoping (DEC-86)', () => {
+  const total = async (actor: typeof ALI, merchantId?: string) => {
+    const s = await analyticsService.overview({ days: 90, merchantId }, actor)
+    return s.total
+  }
+
+  it('Given each role, then the same dashboards with data scoped: admin ≥ owner ≥ one-project admin', async () => {
+    const admin = await total(ADMIN)
+    const owner = await total(OWNER)
+    const hafiz = await total(HAFIZ)
+    expect(admin).toBeGreaterThan(owner)
+    expect(owner).toBeGreaterThan(hafiz)
+    expect(hafiz).toBeGreaterThan(0)
+  })
+
+  it('Given a Reviewer, then Billing is available with their projects only', async () => {
+    const report = await analyticsService.billing({ period: NOW.toISOString().slice(0, 7) }, ALI)
+    expect(report.byMerchant.every((m) => m.merchantId === 'MER-0001')).toBe(true)
+  })
+
+  it("Given another merchant's id, then NOT_FOUND for merchant users; Platform Admin may filter any merchant", async () => {
+    await expectError(analyticsService.overview({ days: 30, merchantId: 'MER-0002' }, OWNER), 'NOT_FOUND')
+    expect(await total(ADMIN, 'MER-0006')).toBe(0)
   })
 })

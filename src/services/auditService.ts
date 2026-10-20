@@ -1,9 +1,10 @@
 // Audit log API (mock). Read-only: entries are written by the other services.
 //   GET /audit?…  → 200 Paged<AuditEntry>
-import { can } from '@/domain/permissions'
+import { canInMerchant } from '@/domain/access'
 import type { Actor, AuditAction, AuditEntry, Paged } from '@/domain/types'
 import { now } from '@/lib/clock'
 import { db } from '@/mocks/mockDb'
+import { accountOf, projectIdsWhere } from './accessGuard'
 import { sweepExpiredClaims } from './claimSweep'
 import { ServiceError } from './errors'
 import { simulateNetwork, wire } from './network'
@@ -12,6 +13,7 @@ export interface AuditQuery {
   actions?: AuditAction[]
   referenceNo?: string // exact
   merchantId?: string
+  projectId?: string
   actorUserId?: string // 'SYSTEM' for system entries
   from?: string // ISO, inclusive
   to?: string // ISO, inclusive
@@ -26,16 +28,22 @@ export interface AuditService {
 export const mockAuditService: AuditService = {
   async list(q, actor) {
     await simulateNetwork('list audit')
-    if (!can(actor, 'canViewAudit')) throw new ServiceError('FORBIDDEN', 'You do not have permission to view audit logs.')
+    // REQ: DEC-70 — Platform Admin: everything; Merchant Owner: the merchant's projects and merchant-wide entries;
+    // Project Admin: their projects' entries. Reviewers and Viewers have no Audit Log.
+    const me = accountOf(actor)
+    const projects = projectIdsWhere(actor, 'viewAudit')
+    if (me.level !== 'PLATFORM_ADMIN' && projects.size === 0) throw new ServiceError('FORBIDDEN', 'You do not have permission to view audit logs.')
+    const visible = (e: AuditEntry) =>
+      me.level === 'PLATFORM_ADMIN' || (e.projectId ? projects.has(e.projectId) : !!e.merchantId && canInMerchant(me, 'viewAudit', e.merchantId))
     sweepExpiredClaims(now())
-    const scope = can(actor, 'canViewAllMerchants') ? undefined : actor.merchantId
     const actorId = (e: AuditEntry) => (e.actor.kind === 'SYSTEM' ? 'SYSTEM' : e.actor.userId)
     const rows = db
       .state()
       .audit.filter(
         (e) =>
-          (!scope || e.merchantId === scope) &&
+          visible(e) &&
           (!q.merchantId || e.merchantId === q.merchantId) &&
+          (!q.projectId || e.projectId === q.projectId) &&
           (!q.actions?.length || q.actions.includes(e.action)) &&
           (!q.referenceNo || e.referenceNo === q.referenceNo) &&
           (!q.actorUserId || actorId(e) === q.actorUserId) &&
