@@ -29,15 +29,10 @@ export type WorkflowVersion = (typeof WORKFLOW_VERSIONS)[number]
 export const RISK_LEVELS = ['LOW', 'MEDIUM', 'HIGH'] as const
 export type RiskLevel = (typeof RISK_LEVELS)[number]
 
-// REQ: DEC-70 — 2 roles only (names are OQ-09).
-export const ROLES = ['PLATFORM_ADMIN', 'MERCHANT_REVIEWER'] as const
-export type RoleType = (typeof ROLES)[number]
-
+/** Who is signed in. What they may do is read from their account and project roles (UserAccount, DEC-70), never from the session. */
 export interface Actor {
   userId: string
   fullName: string
-  role: RoleType
-  merchantId?: string // required for MERCHANT_REVIEWER
 }
 
 // REQ: DEC-02 — manual vs automated is read from lastUpdatedBy.
@@ -203,12 +198,6 @@ export interface Paged<T> {
   page: number // 1-based
   pageSize: number
   total: number
-}
-
-/** Stored user (UAM). The session only needs the Actor part. */
-export interface UserRecord extends Actor {
-  active: boolean
-  createdAt: string
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -386,7 +375,7 @@ export interface FlowRevision {
 export const USER_STATUSES = ['INVITED', 'ACTIVE', 'DEACTIVATED'] as const
 export type UserStatus = (typeof USER_STATUSES)[number]
 
-/** A portal account under the per-project model. Replaces UserRecord once services move over (Phase 4). */
+/** A portal account: level, merchant and one role per project (DEC-70, DEC-74). */
 export interface UserAccount extends UserAccess {
   fullName: string
   email: string

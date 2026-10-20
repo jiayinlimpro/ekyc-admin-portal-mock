@@ -25,7 +25,7 @@ beforeEach(async () => {
   useDevFlags.setState({ ...DEFAULT_DEV_FLAGS, simulateLatency: false })
   await devService.resetDemoData()
   useSession.getState().switchUser(OWNER)
-  useSession.getState().selectProject('PRJ-0001', 'MER-0001')
+  useSession.getState().selectProject('PRJ-0001')
 })
 afterEach(cleanup)
 
@@ -73,7 +73,7 @@ describe('Flows List (DEC-94)', () => {
 
   it('Given the Platform Admin on Vantage, then they manage its flows too (DEC-75)', async () => {
     useSession.getState().switchUser(ADMIN)
-    useSession.getState().selectProject('PRJ-0003', 'MER-0002')
+    useSession.getState().selectProject('PRJ-0003')
     renderAt('/flows')
     expect(await row('Standard onboarding')).toBeTruthy()
     expect(screen.getByRole('button', { name: /New flow/ })).toBeTruthy()

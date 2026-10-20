@@ -15,7 +15,7 @@ import { isClaimActive } from '@/domain/claimRules'
 import { canInProject, type ProjectAction } from '@/domain/access'
 import { DEFAULT_CLAIM_WARNING_MIN } from '@/domain/openQuestions'
 import type { Actor, Decision, VerificationDetail } from '@/domain/types'
-import { useMyAccount } from '@/hooks/useMyAccount'
+import { useAccess } from '@/app/access'
 import { useNow } from '@/hooks/useNow'
 import { formatMyt } from '@/lib/format'
 import { DOCUMENT_TYPE_LABELS } from '@/lib/labels'
@@ -93,7 +93,7 @@ export function VerificationDetailPage() {
   const { referenceNo = '' } = useParams()
   const actor = useSession((s) => s.actor)
   const uiClaimChecks = useDevFlags((s) => s.uiClaimChecks)
-  const me = useMyAccount()
+  const me = useAccess() // the account and its project roles (DEC-71: the service checks again)
   const now = useNow(1000)
   // One id per page visit: StrictMode's double effect and live refreshes don't log extra PII_VIEWs (DEC-41).
   const [requestId] = useState(() => crypto.randomUUID())

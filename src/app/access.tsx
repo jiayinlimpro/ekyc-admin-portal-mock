@@ -2,7 +2,6 @@
 // UI only: every service checks again.
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { canInProject, canOnPlatform, type PlatformAction, type ProjectAction } from '@/domain/access'
-import { can, type Permission } from '@/domain/permissions'
 import type { UserAccount } from '@/domain/types'
 import { projectService, type MyProject } from '@/services/projectService'
 import { userService } from '@/services/userService'
@@ -10,9 +9,9 @@ import { ALL_PROJECTS, useSession } from '@/stores/sessionStore'
 
 /**
  * Who may open a screen. `project`: the user's role in the selected project (or in any of their projects under "All my
- * projects"). `platform`: Platform Admin only. `legacy`: the old two-role check, kept only on screens being replaced.
+ * projects"). `platform`: Platform Admin only.
  */
-export type AccessRule = { project: ProjectAction } | { platform: PlatformAction } | { legacy: Permission }
+export type AccessRule = { project: ProjectAction } | { platform: PlatformAction }
 
 export interface Access {
   ready: boolean
@@ -57,7 +56,6 @@ export function AccessProvider({ children }: { children: ReactNode }) {
     const inView = selected ? [selected] : projects
     const allows = (rule: AccessRule | undefined) => {
       if (!rule) return true
-      if ('legacy' in rule) return can(actor, rule.legacy)
       if (!account) return false
       if ('platform' in rule) return canOnPlatform(account, rule.platform)
       return inView.some((p) => canInProject(account, rule.project, p))

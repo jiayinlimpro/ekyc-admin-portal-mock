@@ -25,7 +25,7 @@ export function RequireProject({ action, title, children }: { action: ProjectAct
           <li key={p.projectId}>
             <button
               type="button"
-              onClick={() => selectProject(p.projectId, p.merchantId)}
+              onClick={() => selectProject(p.projectId)}
               className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring"
             >
               <FolderKanban className="size-4 text-muted-foreground" aria-hidden />

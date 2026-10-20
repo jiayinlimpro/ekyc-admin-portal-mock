@@ -35,17 +35,10 @@ export function buildAccounts(now: Date): UserAccount[] {
   }))
 }
 
-/**
- * The legacy two-role view of an account, for the screens not yet moved to per-project roles (until Phase 11). Services
- * never trust it: they read what the user may do from the account (services/accessGuard.ts).
- */
-export function legacyActor(a: Pick<UserAccount, 'userId' | 'fullName' | 'level' | 'merchantId'>): Actor {
-  return a.level === 'PLATFORM_ADMIN'
-    ? { userId: a.userId, fullName: a.fullName, role: 'PLATFORM_ADMIN' }
-    : { userId: a.userId, fullName: a.fullName, role: 'MERCHANT_REVIEWER', merchantId: a.merchantId }
-}
+/** The session part of an account. Rights always come from the account itself (services/accessGuard.ts). */
+export const actorOf = (a: Pick<UserAccount, 'userId' | 'fullName'>): Actor => ({ userId: a.userId, fullName: a.fullName })
 
-export const USERS: Actor[] = ACCOUNT_SPECS.map(legacyActor)
+export const USERS: Actor[] = ACCOUNT_SPECS.map(actorOf)
 
 export const userById = (id: string) => USERS.find((u) => u.userId === id)
 

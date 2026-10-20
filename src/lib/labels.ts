@@ -1,11 +1,4 @@
-import type { Permission } from '@/domain/permissions'
-import type { AccessLevel, AttemptOutcome, AuditAction, DocumentType, EffectiveRole, RiskLevel, RoleType, VerificationStatus } from '@/domain/types'
-
-// OQ-09: role display names still to be confirmed against the FRS.
-export const ROLE_LABELS: Record<RoleType, string> = {
-  PLATFORM_ADMIN: 'Platform Admin',
-  MERCHANT_REVIEWER: 'Merchant Reviewer',
-}
+import type { AccessLevel, AttemptOutcome, AuditAction, DocumentType, EffectiveRole, RiskLevel, VerificationStatus } from '@/domain/types'
 
 // REQ: DEC-70 — the five working roles (names are OQ-09).
 export const PROJECT_ROLE_LABELS: Record<EffectiveRole, string> = {
@@ -83,13 +76,3 @@ export const AUDIT_ACTION_LABELS: Record<AuditAction, string> = {
   MERCHANT_STATUS_CHANGED: 'Merchant status changed',
 }
 
-export const PERMISSION_LABELS: Record<Permission, { label: string; description: string }> = {
-  canViewAllMerchants: { label: 'All merchants', description: 'See every merchant (merchant selector). Otherwise own merchant only.' },
-  canReview: { label: 'Review', description: 'Claim verifications and save decisions.' },
-  canViewPII: { label: 'View PII', description: 'Open the detail page with unmasked personal data (each view is audited).' },
-  canConfigureWorkflow: { label: 'Configure workflow', description: 'Edit, save and deploy the per-phase eKYC Workflow.' },
-  canManageUAM: { label: 'Manage users', description: 'Merchants, roles and users.' },
-  canRotateKeys: { label: 'API keys', description: 'Reveal and rotate merchant API credentials.' },
-  canViewAudit: { label: 'Audit logs', description: 'Read the audit trail (scoped to own merchant for reviewers).' },
-  canViewBilling: { label: 'Billing', description: 'Billing reports and exports.' },
-}

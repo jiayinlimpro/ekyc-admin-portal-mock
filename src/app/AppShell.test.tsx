@@ -63,7 +63,7 @@ describe('AppShell', () => {
     expect(options.map((o) => o.textContent)).toEqual(['All my projects', 'DefaultReviewer', 'SME appViewer'])
     fireEvent.click(options[2])
     await screen.findByRole('button', { name: 'Switch project. Current: SME app' })
-    expect(useSession.getState()).toMatchObject({ projectId: 'PRJ-0002', merchantId: 'MER-0001' })
+    expect(useSession.getState()).toMatchObject({ projectId: 'PRJ-0002' })
     fireEvent.click(screen.getByRole('button', { name: 'Account: Ali Bin Ahmad' }))
     expect((await screen.findByLabelText('Your role')).textContent).toBe('Viewer · SME app')
     expect(screen.getByText('ali.ahmad@atoz.example')).toBeTruthy()
@@ -76,13 +76,13 @@ describe('AppShell', () => {
     expect(screen.queryByRole('button', { name: /Switch project/ })).toBeNull()
   })
 
-  it('Given the Platform Admin, then projects are grouped by merchant and picking one scopes the legacy screens to its merchant', async () => {
+  it('Given the Platform Admin, then projects are grouped by merchant and picking one selects it', async () => {
     useSession.getState().switchUser(ADMIN)
     renderAt('/dashboard')
     fireEvent.click(await screen.findByRole('button', { name: /Switch project/ }))
     const vantage = within((await screen.findByText('Vantage')).closest('[role="group"]') as HTMLElement)
     fireEvent.click(vantage.getByRole('menuitemradio', { name: /Default/ }))
-    await waitFor(() => expect(useSession.getState()).toMatchObject({ projectId: 'PRJ-0003', merchantId: 'MER-0002' }))
+    await waitFor(() => expect(useSession.getState()).toMatchObject({ projectId: 'PRJ-0003' }))
   })
 
   it('Given I open the portal root, then I land on Overview and there is no Home page, tab or menu item', async () => {

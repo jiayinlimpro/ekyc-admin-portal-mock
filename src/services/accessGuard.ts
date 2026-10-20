@@ -1,5 +1,5 @@
 // Service-side access checks (DEC-71, DEC-72). The session only says who the user is; what they may do is read from their
-// account and project roles, as the real backend would. The legacy `Actor.role` is never trusted here.
+// account and project roles, as the real backend would.
 import { canInProject, projectsWhere, roleInProject, type ProjectAction } from '@/domain/access'
 import type { Actor, EffectiveRole, Project, UserAccount } from '@/domain/types'
 import { db } from '@/mocks/mockDb'

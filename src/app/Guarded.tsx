@@ -11,9 +11,9 @@ const Loading = ({ label }: { label: string }) => <div className="mx-auto h-40 m
 export function Guarded({ item, page: Page }: { item: NavItem; page?: ComponentType }) {
   const access = useAccess()
   const rule = item.access
-  const waits = !!rule && !('legacy' in rule) && !access.ready // project and platform rules need the account
+  const waits = !!rule && !access.ready // rules need the account
   if (waits) return <Loading label={item.label} />
-  if (rule && !('legacy' in rule) && access.error) return <ErrorState message={access.error} onRetry={access.retry} />
+  if (rule && access.error) return <ErrorState message={access.error} onRetry={access.retry} />
   if (!access.allows(rule)) return <ForbiddenPage page={item.label} />
   if (!Page) return <PlaceholderPage item={item} />
   return (

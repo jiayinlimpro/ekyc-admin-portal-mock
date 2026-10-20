@@ -22,7 +22,7 @@ import type { Merchant } from '@/domain/types'
 import { PROJECT_ROLE_LABELS } from '@/lib/labels'
 import { merchantService } from '@/services/merchantService'
 import type { MyProject } from '@/services/projectService'
-import { ALL_MERCHANTS, ALL_PROJECTS, useSession } from '@/stores/sessionStore'
+import { ALL_PROJECTS, useSession } from '@/stores/sessionStore'
 import { useUi } from '@/stores/uiStore'
 import { DevMenu } from './DevMenu'
 
@@ -127,9 +127,9 @@ function ProjectSwitcher() {
   }
   const pick = (v: unknown) => {
     const id = String(v)
-    if (id === ALL_PROJECTS) return selectProject(ALL_PROJECTS, account?.level === 'PLATFORM_ADMIN' ? ALL_MERCHANTS : (account?.merchantId ?? ALL_MERCHANTS))
+    if (id === ALL_PROJECTS) return selectProject(ALL_PROJECTS)
     const p = projects.find((x) => x.projectId === id)
-    if (p) selectProject(p.projectId, p.merchantId)
+    if (p) selectProject(p.projectId)
   }
   const value = selected?.projectId ?? ALL_PROJECTS
   return (

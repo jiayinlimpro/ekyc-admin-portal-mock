@@ -46,7 +46,7 @@ describe('Project Settings (DEC-54, DEC-96)', () => {
   })
 
   it('Given Integration, when the Owner creates a key, then its secret is shown once and the key is listed', async () => {
-    useSession.getState().selectProject('PRJ-0001', 'MER-0001')
+    useSession.getState().selectProject('PRJ-0001')
     renderAt('/project-settings?tab=integration')
     fireEvent.click((await panel()).getByRole('button', { name: /Create key/ }))
     fireEvent.change(await screen.findByLabelText('Key name'), { target: { value: 'Staging' } })
@@ -57,7 +57,7 @@ describe('Project Settings (DEC-54, DEC-96)', () => {
   })
 
   it('Given an http:// webhook, then the field error shows', async () => {
-    useSession.getState().selectProject('PRJ-0001', 'MER-0001')
+    useSession.getState().selectProject('PRJ-0001')
     renderAt('/project-settings?tab=integration')
     const p = await panel()
     fireEvent.change(await p.findByLabelText('Endpoint URL (HTTPS)'), { target: { value: 'http://hooks.example' } })
@@ -67,7 +67,7 @@ describe('Project Settings (DEC-54, DEC-96)', () => {
 
   it('Given the Platform Admin, then Integration is merchant-only and General is editable (DEC-75)', async () => {
     useSession.getState().switchUser(ADMIN)
-    useSession.getState().selectProject('PRJ-0003', 'MER-0002')
+    useSession.getState().selectProject('PRJ-0003')
     renderAt('/project-settings?tab=integration')
     expect((await panel()).getByText(/only the Merchant Owner and the project’s Project Admin manage them/)).toBeTruthy()
     tab('General')
@@ -75,7 +75,7 @@ describe('Project Settings (DEC-54, DEC-96)', () => {
   })
 
   it('Given Review operations, then 0 is refused and 20 saves (DEC-53)', async () => {
-    useSession.getState().selectProject('PRJ-0001', 'MER-0001')
+    useSession.getState().selectProject('PRJ-0001')
     renderAt('/project-settings?tab=review')
     const p = await panel()
     fireEvent.change(p.getByLabelText(/claim timeout/i), { target: { value: '0' } })
@@ -87,7 +87,7 @@ describe('Project Settings (DEC-54, DEC-96)', () => {
   })
 
   it('Given Routing, then the default flow and the passport rule are shown read-only (DEC-95)', async () => {
-    useSession.getState().selectProject('PRJ-0001', 'MER-0001')
+    useSession.getState().selectProject('PRJ-0001')
     renderAt('/project-settings?tab=routing')
     const p = await panel()
     expect(await p.findByText('Rule · priority 1 · Document type is Passport')).toBeTruthy()

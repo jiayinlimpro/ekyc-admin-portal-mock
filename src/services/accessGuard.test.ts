@@ -1,6 +1,5 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import type { Actor } from '@/domain/types'
 import { db } from '@/mocks/mockDb'
 import { ADMIN, ALI, NOW } from '@/test/factories'
 import { accountOf, mayInProject, projectIdsWhere, requireActive } from './accessGuard'
@@ -32,9 +31,6 @@ describe('accessGuard (DEC-71, DEC-72)', () => {
     expect(mayInProject(ALI, 'viewCases', 'PRJ-0003')).toBe(false) // another merchant
     expect(mayInProject(ALI, 'viewCases', 'PRJ-9999')).toBe(false)
     expect([...projectIdsWhere(ALI, 'viewCases')].sort()).toEqual(['PRJ-0001', 'PRJ-0002'])
-    // A session claiming to be Platform Admin changes nothing: the account decides.
-    const spoofed: Actor = { ...ALI, role: 'PLATFORM_ADMIN' }
-    expect(projectIdsWhere(spoofed, 'viewCases').size).toBe(2)
   })
 
   it('Given the Platform Admin, then no case access by default (OQ-20)', () => {
@@ -52,7 +48,7 @@ describe('userService', () => {
 
   it('Given Ali, then the directory is his merchant plus Platform Admins', async () => {
     const users = await userService.list(ALI)
-    expect(users.every((u) => u.merchantId === 'MER-0001' || u.role === 'PLATFORM_ADMIN')).toBe(true)
+    expect(users.every((u) => u.merchantId === 'MER-0001' || u.level === 'PLATFORM_ADMIN')).toBe(true)
     expect(ids(users)).toContain('USR-2026-0001')
     expect((await userService.list(ADMIN)).length).toBe(db.state().accounts.length)
   })

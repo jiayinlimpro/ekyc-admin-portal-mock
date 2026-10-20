@@ -39,7 +39,7 @@ describe('Audit Logs', () => {
   })
 
   it('Given SME app in the header, then only that project’s entries', async () => {
-    useSession.getState().selectProject('PRJ-0002', 'MER-0001')
+    useSession.getState().selectProject('PRJ-0002')
     renderAt('/audit?size=100')
     const r = await rows('Audit entries')
     expect(r.length).toBeGreaterThan(0)

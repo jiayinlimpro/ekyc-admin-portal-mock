@@ -3,13 +3,12 @@
 //   GET /users                         → 200 UserSummary[]
 //   GET /users?canClaim=true&project=… → 200 UserSummary[]
 import { canInProject } from '@/domain/access'
-import type { Actor, ClaimHolder, UserAccount } from '@/domain/types'
+import type { AccessLevel, Actor, ClaimHolder, UserAccount } from '@/domain/types'
 import { db } from '@/mocks/mockDb'
-import { legacyActor } from '@/mocks/fixtures/users'
 import { accountOf, projectIdsWhere } from './accessGuard'
 import { simulateNetwork, wire } from './network'
 
-export type UserSummary = ClaimHolder & Pick<Actor, 'role' | 'merchantId'>
+export type UserSummary = ClaimHolder & { level: AccessLevel; merchantId?: string }
 
 export interface UserService {
   /** The signed-in user's account: the UI decides what to show from it (DEC-71); services check it again. */
@@ -23,7 +22,7 @@ export interface UserService {
   list(actor: Actor): Promise<UserSummary[]>
 }
 
-const summary = (a: Parameters<typeof legacyActor>[0]): UserSummary => legacyActor(a)
+const summary = (a: UserAccount): UserSummary => ({ userId: a.userId, fullName: a.fullName, level: a.level, merchantId: a.merchantId })
 
 export const mockUserService: UserService = {
   async me(actor) {

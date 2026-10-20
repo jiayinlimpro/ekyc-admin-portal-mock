@@ -11,15 +11,12 @@ export interface Policy {
   riskBands: { mediumFrom: number; highFrom: number }
   /** OQ-20: can Platform Admin (internal support) view merchant cases? */
   platformAdminCaseAccess: boolean
-  /** OQ-08: can Platform Admin claim and decide? */
-  adminCanReview: boolean
 }
 
 export const POLICY: Policy = {
   phaseCombination: 'REJECT_WINS',
   riskBands: { mediumFrom: 40, highFrom: 70 },
   platformAdminCaseAccess: false,
-  adminCanReview: true,
 }
 
 /** OQ-02: preset values per check (DEC-19). Low = lenient, High = strict. */

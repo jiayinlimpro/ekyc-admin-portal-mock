@@ -279,7 +279,7 @@ export function FlowDetailPage() {
 
   // REQ: DEC-96 — settings work on one project: follow the flow's project in the header.
   useEffect(() => {
-    if (d && headerProject !== d.flow.projectId) selectProject(d.flow.projectId, d.flow.merchantId)
+    if (d && headerProject !== d.flow.projectId) selectProject(d.flow.projectId)
   }, [d, headerProject, selectProject])
 
   const act = async (fn: () => Promise<unknown>, ok: string) => {

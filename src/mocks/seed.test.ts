@@ -258,7 +258,7 @@ describe('accounts (DEC-70, DEC-74)', () => {
     expect(db.accounts.map((a) => a.status)).toEqual(expect.arrayContaining(['INVITED', 'DEACTIVATED']))
   })
 
-  it('Given the legacy scenario personas, then each still exists as an account', () => {
-    for (const u of db.users) expect(account(u.userId), u.userId).toBeDefined()
+  it('Given the scenario personas, then each exists as an account', () => {
+    for (const id of ['USR-2026-0001', 'USR-2026-0002', 'USR-2026-0012', 'USR-2026-0031', 'USR-2026-0044']) expect(account(id), id).toBeDefined()
   })
 })

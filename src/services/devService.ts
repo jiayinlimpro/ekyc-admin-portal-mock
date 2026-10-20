@@ -1,16 +1,15 @@
 // Dev-only helpers for the mock: fake users for "Switch user", scenario links and demo data reset.
 // Not part of the real API contract.
 import { isClaimActive } from '@/domain/claimRules'
-import { VERIFICATION_STATUSES, type AccessLevel, type UserRecord, type UserStatus, type VerificationStatus, type WorkflowVersion } from '@/domain/types'
+import { VERIFICATION_STATUSES, type AccessLevel, type Actor, type UserStatus, type VerificationStatus, type WorkflowVersion } from '@/domain/types'
 import { PROJECT_ROLE_LABELS } from '@/lib/labels'
 import { now } from '@/lib/clock'
 import { EDGE_CASES } from '@/mocks/fixtures/edgeCases'
-import { legacyActor } from '@/mocks/fixtures/users'
 import { db } from '@/mocks/mockDb'
 import { wire } from './network'
 
 /** A demo user for "Switch user" and the mock login: the session part plus a one-line description of their access. */
-export type DevUser = UserRecord & { email: string; level: AccessLevel; status: UserStatus; access: string }
+export type DevUser = Actor & { email: string; level: AccessLevel; status: UserStatus; merchantId?: string; access: string }
 
 export interface ScenarioSummary {
   id: string // S01 …
@@ -34,7 +33,7 @@ export const devService = {
             : a.level === 'MERCHANT_OWNER'
               ? `Merchant Owner · ${merchant(a.merchantId)}`
               : `${a.memberships.map((m) => `${PROJECT_ROLE_LABELS[m.role]} in ${project(m.projectId)}`).join(', ') || 'No projects'} · ${merchant(a.merchantId)}`
-        return { ...legacyActor(a), active: a.status === 'ACTIVE', createdAt: a.invitedAt, email: a.email, level: a.level, status: a.status, access }
+        return { userId: a.userId, fullName: a.fullName, email: a.email, level: a.level, status: a.status, merchantId: a.merchantId, access }
       }),
     )
   },

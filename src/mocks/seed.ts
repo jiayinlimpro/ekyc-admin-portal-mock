@@ -6,24 +6,23 @@ import { RISK_NOT_PASSED } from '@/domain/checkRules'
 import { applyDecision } from '@/domain/claimRules'
 import { CONDITIONS, REJECT_REASONS } from '@/domain/conditions'
 import { resolveThreshold, type Thresholds } from '@/domain/thresholds'
-import type { Actor, AuditEntry, Check, Decision, Flow, ProjectApiKey, ProjectWebhook, FlowRevision, Merchant, Project, RegistryEntry, UserAccount, UserRecord, Verification } from '@/domain/types'
+import type { Actor, AuditEntry, Check, Decision, Flow, ProjectApiKey, ProjectWebhook, FlowRevision, Merchant, Project, RegistryEntry, UserAccount, Verification } from '@/domain/types'
 import { buildCase, refNo } from './builders'
 import { buildCatalog, revisionAt } from './fixtures/catalog'
 import { buildEdgeCases } from './fixtures/edgeCases'
 import { MERCHANTS } from './fixtures/merchants'
-import { buildAccounts, legacyActor } from './fixtures/users'
+import { actorOf, buildAccounts } from './fixtures/users'
 import { clientMetadata, fakeIp, person } from './malaysia'
 
 export const SEED = 2026
 export const BACKGROUND_COUNT = 300
 /** Bump when the shape of MockDbState changes: persisted demo data is then re-seeded. */
-export const DB_VERSION = 8
+export const DB_VERSION = 9
 
 export interface MockDbState {
   dbVersion: number
   seededAt: string
   merchants: Merchant[]
-  users: UserRecord[] // legacy two-role view of `accounts`
   verifications: Verification[]
   audit: AuditEntry[] // append-only, oldest first
   auditSeq: number
@@ -122,7 +121,7 @@ export function seedDatabase(now: Date): MockDbState {
   const reviewersOf = (v: Verification): Actor[] =>
     accounts
       .filter((a) => a.status === 'ACTIVE' && canInProject(a, 'claimCase', { projectId: v.projectId, merchantId: v.merchantId }))
-      .map(legacyActor)
+      .map(actorOf)
   const roleOf = (a: Actor, v: Verification) => roleInProject(accounts.find((x) => x.userId === a.userId)!, v)
   const entryOf = (code: string) => catalog.registry.find((e) => e.code === code)!
 
@@ -209,7 +208,6 @@ export function seedDatabase(now: Date): MockDbState {
     dbVersion: DB_VERSION,
     seededAt: now.toISOString(),
     merchants: MERCHANTS,
-    users: accounts.map((a) => ({ ...legacyActor(a), active: a.status === 'ACTIVE', createdAt: a.invitedAt })),
     verifications: [...verifications, ...edge.verifications],
     audit: allAudit,
     auditSeq: allAudit.length,

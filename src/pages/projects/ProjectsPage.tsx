@@ -128,7 +128,7 @@ export function ProjectsPage() {
   const data = rows.data ?? []
   const several = new Set(data.map((r) => r.merchantId)).size > 1
   const open = (r: ProjectRow, to: string) => {
-    selectProject(r.projectId, r.merchantId) // settings pages work on the header's project (DEC-96)
+    selectProject(r.projectId) // settings pages work on the header's project (DEC-96)
     navigate(to)
   }
   const saved = (projectId?: string) => {

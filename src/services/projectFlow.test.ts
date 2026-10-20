@@ -10,7 +10,7 @@ import { flowService } from './flowService'
 import { projectService } from './projectService'
 import { verificationService } from './verificationService'
 
-const VANTAGE_OWNER: Actor = { userId: 'USR-2026-0045', fullName: 'Ahmad Faiz Bin Zulkifli', role: 'MERCHANT_REVIEWER', merchantId: 'MER-0002' }
+const VANTAGE_OWNER: Actor = { userId: 'USR-2026-0045', fullName: 'Ahmad Faiz Bin Zulkifli' }
 
 beforeEach(async () => {
   vi.useFakeTimers({ toFake: ['Date'] })
