@@ -123,10 +123,10 @@ describe('Developers', () => {
 })
 
 describe('Login (mock)', () => {
-  it('Given I pick Siti, then I am signed in as her and land on Home', async () => {
+  it('Given I pick Siti, then I am signed in as her and land on Overview (no Home page)', async () => {
     const router = renderAt('/login')
     fireEvent.click(await screen.findByRole('button', { name: /Siti Aminah Binti Yusof/ }))
-    await waitFor(() => expect(router.state.location.pathname).toBe('/'))
+    await waitFor(() => expect(router.state.location.pathname).toBe('/dashboard'))
     expect(useSession.getState().actor.userId).toBe(SITI.userId)
   })
 })

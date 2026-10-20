@@ -3,7 +3,7 @@ import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testi
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { createMemoryRouter } from 'react-router'
 import { RouterProvider } from 'react-router/dom'
-import { HOME_TAB } from '@/app/tabs'
+import { LANDING_TAB } from '@/app/tabs'
 import { ADMIN, ALI } from '@/test/factories'
 import { useSession } from '@/stores/sessionStore'
 import { useTabs } from '@/stores/tabsStore'
@@ -20,7 +20,7 @@ const tabs = () => within(screen.getByRole('navigation', { name: 'Open pages' })
 
 beforeEach(() => {
   useSession.getState().switchUser(ALI)
-  useTabs.setState({ tabs: [HOME_TAB] })
+  useTabs.setState({ tabs: [LANDING_TAB] })
 })
 afterEach(cleanup)
 
@@ -40,6 +40,15 @@ describe('AppShell', () => {
     for (const shown of [/eKYC Workflow/, /Users/, /Billing/, /Developers/]) expect(mainNav().getByRole('link', { name: shown })).toBeTruthy()
   })
 
+  it('Given I open the portal root, then I land on Overview and there is no Home page, tab or menu item', async () => {
+    const router = renderAt('/')
+    await waitFor(() => expect(router.state.location.pathname).toBe('/dashboard'))
+    expect(tabs().getByRole('link', { name: 'Overview' })).toBeTruthy()
+    expect(tabs().queryByRole('button', { name: 'Close Overview' })).toBeNull()
+    expect(mainNav().queryByRole('link', { name: 'Home' })).toBeNull()
+    expect(screen.queryByRole('link', { name: 'UAT scenarios' })).toBeNull()
+  })
+
   it('Given a page visit, then a tab opens; the detail tab is titled with the Reference No; closing the active tab goes left', async () => {
     const router = renderAt('/audit')
     expect(tabs().getByRole('link', { name: 'Audit Logs' })).toBeTruthy()
@@ -47,7 +56,7 @@ describe('AppShell', () => {
     expect(tabs().getByRole('link', { name: 'KYC-260901-900003' })).toBeTruthy()
     fireEvent.click(tabs().getByRole('button', { name: 'Close KYC-260901-900003' }))
     await waitFor(() => expect(router.state.location.pathname).toBe('/audit'))
-    expect(tabs().queryByRole('button', { name: 'Close Home' })).toBeNull()
+    expect(tabs().queryByRole('button', { name: 'Close Overview' })).toBeNull()
   })
 
   it('Given ?as=USR-2026-0031, then the session switches to Siti and the parameter is removed', async () => {

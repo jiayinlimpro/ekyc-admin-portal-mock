@@ -1,4 +1,5 @@
-// Dev-only controls for demos and UAT: switch user, time warp, simulated network, reset demo data.
+// Dev-only controls for demos and UAT: scenarios page, switch user, time warp, simulated network, reset demo data.
+import { useNavigate } from 'react-router'
 import { FlaskConical } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
@@ -39,6 +40,7 @@ export function DevMenu() {
   const switchUser = useSession((s) => s.switchUser)
   const flags = useDevFlags()
   const now = useNow(15_000)
+  const navigate = useNavigate()
 
   const onSwitch = (userId: string) => {
     const u = users.find((x) => x.userId === userId)
@@ -69,6 +71,8 @@ export function DevMenu() {
           <DropdownMenuLabel>Mock only — not in the real portal</DropdownMenuLabel>
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
+
+        <DropdownMenuItem onClick={() => navigate('/uat')}>UAT scenarios & data coverage</DropdownMenuItem>
 
         <DropdownMenuSub>
           <DropdownMenuSubTrigger>

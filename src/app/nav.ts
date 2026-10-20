@@ -8,7 +8,7 @@ import {
   ClipboardList,
   Code,
   FileSearch,
-  Home,
+  FlaskConical,
   KeyRound,
   LayoutDashboard,
   ReceiptText,
@@ -26,7 +26,7 @@ export interface NavItem {
   path: string // route pattern
   label: string
   icon: LucideIcon
-  group?: NavGroup // undefined = top level (Home) or not in the menu
+  group?: NavGroup // undefined = not in a menu group (mock-only pages)
   inMenu: boolean
   permission?: Permission
   priority: 'P0' | 'P1' | 'P2' | 'P3'
@@ -36,7 +36,8 @@ export interface NavItem {
 }
 
 export const NAV_ITEMS: NavItem[] = [
-  { path: '/', label: 'Home', icon: Home, inMenu: true, priority: 'P0', built: true, notes: [] },
+  // No Home page: `/` redirects to LANDING_PATH (src/app/tabs.ts). /uat is mock-only, opened from the Dev menu.
+  { path: '/uat', label: 'UAT scenarios', icon: FlaskConical, inMenu: false, priority: 'P0', built: true, notes: ['Mock only. Not part of the real portal.'] },
   {
     path: '/dashboard',
     label: 'Overview',

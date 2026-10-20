@@ -49,7 +49,7 @@ If `npm` scripts are blocked in PowerShell: `Set-ExecutionPolicy -Scope CurrentU
 - **Skip UI claim checks:** lets a save reach the service's ownership check (S08).
 - **Reset demo data:** run this before every UAT session. Claim timers count from when the data was seeded.
 
-**Scenarios.** Home lists S01–S15 with "Open as" links that sign in as the right user. To show the two-reviewer race
+**Scenarios.** Dev menu → "UAT scenarios & data coverage" lists S01–S15 with "Open as" links that sign in as the right user. To show the two-reviewer race
 (S10), open the same record in two tabs of the same browser, one with `?as=USR-2026-0012` and one with
 `?as=USR-2026-0031`, then click **Assign to me** in both.
 

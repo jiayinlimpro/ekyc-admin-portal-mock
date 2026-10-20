@@ -1,15 +1,11 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router'
-import { CheckCircle2, CircleDashed } from 'lucide-react'
-import { NAV_ITEMS } from '@/app/nav'
 import { StatusBadge } from '@/components/common/StatusBadge'
 import { useUsers } from '@/hooks/useUsers'
-import { ROLE_LABELS } from '@/lib/labels'
 import { devService, type ScenarioSummary } from '@/services/devService'
-import { useSession } from '@/stores/sessionStore'
 
-export function HomePage() {
-  const actor = useSession((s) => s.actor)
+/** Mock-only page, opened from the Dev menu: UAT scenario links and data coverage. Not part of the real portal. */
+export function UatPage() {
   const [scenarios, setScenarios] = useState<ScenarioSummary[]>([])
   const [coverage, setCoverage] = useState<Awaited<ReturnType<typeof devService.coverage>>>()
   const users = useUsers()
@@ -20,16 +16,12 @@ export function HomePage() {
   }, [])
 
   const userName = (id: string) => users.find((u) => u.userId === id)?.fullName ?? id
-  const screens = NAV_ITEMS.filter((i) => i.path !== '/')
 
   return (
     <div className="mx-auto max-w-6xl space-y-6">
       <header>
-        <h1 className="text-2xl font-semibold">Welcome, {actor.fullName}</h1>
-        <p className="text-sm text-muted-foreground">
-          {ROLE_LABELS[actor.role]} · {actor.userId}
-          {actor.merchantId ? ` · ${actor.merchantId}` : ''}
-        </p>
+        <h1 className="text-2xl font-semibold">UAT scenarios</h1>
+        <p className="text-sm text-muted-foreground">Mock only. Not part of the real portal.</p>
       </header>
 
       <section className="rounded-lg border bg-card p-4 text-sm">
@@ -124,23 +116,6 @@ export function HomePage() {
           </div>
         </section>
       )}
-
-      <section aria-labelledby="status-heading" className="rounded-lg border bg-card p-4">
-        <h2 id="status-heading" className="mb-3 font-medium">
-          Build status
-        </h2>
-        <ul className="grid gap-2 text-sm sm:grid-cols-2 lg:grid-cols-3">
-          {screens.map((i) => (
-            <li key={i.path} className="flex items-center gap-2">
-              <span role="img" aria-label={i.built ? 'Built' : 'Not built'} className="inline-flex">
-                {i.built ? <CheckCircle2 className="size-4 text-green-600" aria-hidden /> : <CircleDashed className="size-4 text-muted-foreground" aria-hidden />}
-              </span>
-              <span>{i.label}</span>
-              <span className="text-xs text-muted-foreground">{i.priority}</span>
-            </li>
-          ))}
-        </ul>
-      </section>
     </div>
   )
 }

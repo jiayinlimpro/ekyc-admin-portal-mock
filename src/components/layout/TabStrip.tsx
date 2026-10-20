@@ -1,6 +1,6 @@
 import { Link, useLocation, useNavigate } from 'react-router'
 import { X } from 'lucide-react'
-import { HOME_TAB } from '@/app/tabs'
+import { LANDING_TAB } from '@/app/tabs'
 import { cn } from '@/lib/utils'
 import { useTabs } from '@/stores/tabsStore'
 
@@ -30,7 +30,7 @@ export function TabStrip() {
             <Link to={t.to} aria-current={active ? 'page' : undefined} className="truncate rounded-t-md px-3 py-1 outline-none focus-visible:ring-2 focus-visible:ring-ring">
               {t.title}
             </Link>
-            {t.key !== HOME_TAB.key && (
+            {t.key !== LANDING_TAB.key && (
               <button
                 type="button"
                 onClick={() => onClose(t.key)}

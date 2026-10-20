@@ -1,11 +1,11 @@
 import { lazy, type ComponentType } from 'react'
-import type { RouteObject } from 'react-router'
+import { Navigate, type RouteObject } from 'react-router'
 import { AppShell } from '@/components/layout/AppShell'
-import { HomePage } from '@/pages/HomePage'
 import { LoginPage } from '@/pages/LoginPage'
 import { NotFoundPage, RouteErrorPage } from '@/pages/StatusPages'
 import { Guarded } from './Guarded'
 import { NAV_ITEMS } from './nav'
+import { LANDING_PATH } from './tabs'
 
 // Route-level code splitting: each screen (and Recharts, for the dashboards) loads when first opened.
 const page = <K extends string>(load: () => Promise<Record<K, ComponentType>>, name: K) => lazy(() => load().then((m) => ({ default: m[name] })))
@@ -24,6 +24,7 @@ const PAGES: Partial<Record<string, ComponentType>> = {
   '/uam/roles': page(() => import('@/pages/uam/RolesPage'), 'RolesPage'),
   '/uam/users': page(() => import('@/pages/uam/UsersPage'), 'UsersPage'),
   '/developers': page(() => import('@/pages/developers/DevelopersPage'), 'DevelopersPage'),
+  '/uat': page(() => import('@/pages/dev/UatPage'), 'UatPage'),
 }
 
 export const routes: RouteObject[] = [
@@ -33,8 +34,8 @@ export const routes: RouteObject[] = [
     element: <AppShell />,
     errorElement: <RouteErrorPage />,
     children: [
-      { index: true, element: <HomePage /> },
-      ...NAV_ITEMS.filter((i) => i.path !== '/').map((item) => ({ path: item.path.slice(1), element: <Guarded item={item} page={PAGES[item.path]} /> })),
+      { index: true, element: <Navigate to={LANDING_PATH} replace /> },
+      ...NAV_ITEMS.map((item) => ({ path: item.path.slice(1), element: <Guarded item={item} page={PAGES[item.path]} /> })),
       { path: '*', element: <NotFoundPage /> },
     ],
   },

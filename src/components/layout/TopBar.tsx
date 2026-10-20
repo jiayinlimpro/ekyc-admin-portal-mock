@@ -45,7 +45,7 @@ function IconButton({ label, onClick, children }: { label: string; onClick?: () 
 function Breadcrumb() {
   const { pathname } = useLocation()
   const meta = routeMetaFor(pathname)
-  if (!meta || meta.item.path === '/') return <span className="text-sm font-medium">Home</span>
+  if (!meta) return null
   const parts = [meta.item.group !== meta.title ? meta.item.group : undefined, meta.item.path === '/verifications/:referenceNo' ? 'Verifications' : undefined, meta.title].filter(Boolean)
   return (
     <nav aria-label="Breadcrumb" className="min-w-0">

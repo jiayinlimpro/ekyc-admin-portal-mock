@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { createJSONStorage, persist } from 'zustand/middleware'
-import { HOME_TAB, closeTab, openTab, type Tab } from '@/app/tabs'
+import { LANDING_TAB, closeTab, openTab, type Tab } from '@/app/tabs'
 
 interface TabsStore {
   tabs: Tab[]
@@ -12,7 +12,7 @@ interface TabsStore {
 export const useTabs = create<TabsStore>()(
   persist(
     (set, get) => ({
-      tabs: [HOME_TAB],
+      tabs: [LANDING_TAB],
       open: (tab) => {
         const tabs = openTab(get().tabs, tab)
         if (tabs !== get().tabs) set({ tabs })
@@ -23,7 +23,7 @@ export const useTabs = create<TabsStore>()(
         return r.navigateTo
       },
     }),
-    // Per browser tab, like the session.
-    { name: 'ekyc-mock-tabs', storage: createJSONStorage(() => sessionStorage) },
+    // Per browser tab, like the session. v1: Home tab removed, so older saved tabs are dropped.
+    { name: 'ekyc-mock-tabs', storage: createJSONStorage(() => sessionStorage), version: 1, migrate: () => ({ tabs: [LANDING_TAB] }) },
   ),
 )
