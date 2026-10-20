@@ -88,11 +88,11 @@ describe('Verification Detail', () => {
     expect(screen.getByText(/Decision is final — Ali Bin Ahmad \(USR-2026-0012\)/)).toBeTruthy()
   })
 
-  it('Given S06, then the reason banner shows the attempt limit and 3 attempts under one Reference No (S06)', async () => {
+  it('Given S06, then the reason banner shows the final liveness condition and 4 submissions under one Reference No (DEC-16, DEC-35)', async () => {
     await open(S(6))
-    expect(screen.getByText('Attempt limit reached – Liveness')).toBeTruthy()
+    expect(screen.getByText('Face not live (Retry Not Allowed)')).toBeTruthy()
     const history = within(screen.getByRole('region', { name: 'Attempt history' }))
-    expect(history.getAllByRole('row')).toHaveLength(4) // header + 3
+    expect(history.getAllByRole('row')).toHaveLength(5) // header + 4
   })
 
   it('Given V4 S02, then a Risk panel with HIGH; given V1 S01, then no Risk panel', async () => {

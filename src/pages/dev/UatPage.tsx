@@ -85,13 +85,13 @@ export function UatPage() {
             <h2 id="coverage-heading" className="font-medium">
               Data coverage
             </h2>
-            <p className="text-sm text-muted-foreground">{coverage.total} records across all merchants. Every status appears for V1 and V4, with manual and system decisions.</p>
+            <p className="text-sm text-muted-foreground">{coverage.total} records across all merchants and flows. Every status appears for V1, V3 and V4, with manual and system decisions.</p>
           </div>
           <div className="overflow-x-auto p-4">
             <table className="w-full text-sm">
               <thead className="text-left text-xs text-muted-foreground">
                 <tr>
-                  {['Status', 'V1', 'V4', 'Claimed now', 'Last updated by SYSTEM', 'Last updated by a reviewer'].map((h, i) => (
+                  {['Status', 'V1', 'V3', 'V4', 'Claimed now', 'Last updated by SYSTEM', 'Last updated by a reviewer'].map((h, i) => (
                     <th key={h} scope="col" className={i ? 'py-1.5 pr-4 text-right font-medium' : 'py-1.5 pr-4 font-medium'}>
                       {h}
                     </th>
@@ -104,7 +104,7 @@ export function UatPage() {
                     <td className="py-1.5 pr-4">
                       <StatusBadge status={r.status} />
                     </td>
-                    {[r.byVersion.V1 ?? 0, r.byVersion.V4 ?? 0, r.claimed, r.system, r.manual].map((n, i) => (
+                    {[r.byVersion.V1 ?? 0, r.byVersion.V3 ?? 0, r.byVersion.V4 ?? 0, r.claimed, r.system, r.manual].map((n, i) => (
                       <td key={i} className="py-1.5 pr-4 text-right tabular-nums">
                         {n}
                       </td>

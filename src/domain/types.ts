@@ -112,6 +112,15 @@ export interface Verification {
   metrics: PhaseMetric[]
   images: { docFront: string; selfie: string }
   charged: true // REQ: DEC-60 — every verification is charged
+  // Projects & Flows (DEC-44, DEC-52). `status` and `statusReason` come from checkRules.evaluateCase over `submissions`
+  // with the settings of `configRevision`; `attempts`, `metrics` and `configVersion` remain for the current screens.
+  projectId: string
+  flowId: string
+  configRevision: number // the flow revision live when the session started ("Rules applied")
+  createdAt: string // session started (DEC-04)
+  submissions: Partial<Record<Check, number[]>> // scores per check, in submission order
+  idCaptureSoftRejects: number // ID capture retakes: unlimited, free, not counted as retries (DEC-18)
+  statusDetail?: string // e.g. "Auto-Reject < 70 · Auto-Pass ≥ 85 · Actual 78"
 }
 
 // REQ: DEC-40 — list rows carry no PII beyond name/ref and no client metadata.

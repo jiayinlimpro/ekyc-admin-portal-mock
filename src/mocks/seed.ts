@@ -1,21 +1,23 @@
 // Deterministic seed (MOCK-05): same `now` → same data. Background volume + the named scenarios in fixtures/edgeCases.ts.
 import { Faker, en } from '@faker-js/faker'
+import { canInProject } from '@/domain/access'
 import { makeAudit } from '@/domain/audit'
+import { RISK_NOT_PASSED } from '@/domain/checkRules'
 import { applyDecision } from '@/domain/claimRules'
 import { REASON_CODES } from '@/domain/openQuestions'
-import { REASONS } from '@/domain/statusRules'
-import { CAPTURE_PHASES, type ApiCredential, type Attempt, type UserRecord, type AuditEntry, type CapturePhase, type Flow, type FlowRevision, type Merchant, type MerchantConfig, type PhaseConfig, type Project, type RegistryEntry, type UserAccount, type Verification } from '@/domain/types'
-import { buildVerification, configAt, makeConfigs, refNo, type ConfigRecord } from './builders'
+import { resolveThreshold, type Thresholds } from '@/domain/thresholds'
+import type { Actor, ApiCredential, AuditEntry, Check, Flow, FlowRevision, Merchant, Project, RegistryEntry, UserAccount, UserRecord, Verification } from '@/domain/types'
+import { buildCase, makeConfigs, refNo, type ConfigRecord } from './builders'
+import { buildCatalog, revisionAt } from './fixtures/catalog'
 import { buildEdgeCases } from './fixtures/edgeCases'
-import { MERCHANT_WEIGHTS, MERCHANTS } from './fixtures/merchants'
-import { buildCatalog } from './fixtures/catalog'
+import { MERCHANTS } from './fixtures/merchants'
 import { USERS, buildAccounts } from './fixtures/users'
 import { clientMetadata, fakeIp, person } from './malaysia'
 
 export const SEED = 2026
 export const BACKGROUND_COUNT = 300
 /** Bump when the shape of MockDbState changes: persisted demo data is then re-seeded. */
-export const DB_VERSION = 3
+export const DB_VERSION = 4
 
 export interface MockDbState {
   dbVersion: number
@@ -35,78 +37,58 @@ export interface MockDbState {
   accounts: UserAccount[]
 }
 
-type Band = 'PASS' | 'REVIEW' | 'REJECT'
-type Profile = 'CLEAN' | 'REVIEW' | 'REJECT' | 'PROCESSING' | 'LIMIT' | 'RETAKE_THEN_CLEAN'
+type Profile = 'CLEAN' | 'RETAKE_THEN_CLEAN' | 'REVIEW' | 'REJECT' | 'ABANDONED' | 'RETRYING'
 
 const MIN = 60_000
 const DAY = 24 * 60 * MIN
 
-function score(f: Faker, band: Band, p: PhaseConfig): number {
+/** Share of background cases per flow (DRAFT flows never get cases; INACTIVE ones only before they were retired). */
+const FLOW_WEIGHTS: Record<string, number> = {
+  'FLW-0001': 22, 'FLW-0002': 5, 'FLW-0004': 6, // Atoz: Default (2 flows) + SME app
+  'FLW-0005': 20, // Vantage
+  'FLW-0006': 16, 'FLW-0013': 4, // Tesla: 20 % share on the strict flow
+  'FLW-0007': 12, 'FLW-0008': 3, // Boring: the Express pilot is retiring
+  'FLW-0009': 8, 'FLW-0010': 5, 'FLW-0011': 2, // 3Nova: Default, Wallet app, archived Pilot 2025
+}
+const INACTIVE_BEFORE_DAYS = 60
+
+function scoreIn(f: Faker, t: Thresholds, band: 'PASS' | 'REVIEW' | 'REJECT'): number {
   const r = (min: number, max: number) => f.number.float({ min, max, fractionDigits: 1 })
-  if (band === 'PASS') return r(p.autoPass, 99.9)
-  if (band === 'REVIEW') return r(p.autoReject, p.autoPass - 0.1)
-  return r(Math.max(0, p.autoReject - 30), p.autoReject - 0.1)
+  if (band === 'PASS') return r(t.autoPass, 99.9)
+  if (band === 'REVIEW') return r(t.autoReject, t.autoPass - 0.1)
+  return r(Math.max(0, t.autoReject - 30), t.autoReject - 0.1)
 }
 
-function scores(f: Faker, cfg: MerchantConfig, phases: readonly CapturePhase[], override?: { phase: CapturePhase; band: Band }) {
-  const out: Attempt['phaseScores'] = {}
-  for (const phase of phases) {
-    const p = cfg.phases.find((c) => c.phase === phase)!
-    out[phase] = score(f, override?.phase === phase ? override.band : 'PASS', p)
-  }
-  return out
-}
+/** Per-check submissions for a profile. V3/V4 score face match on every liveness submission, so both lists have the same length. */
+function submissionsFor(f: Faker, profile: Profile, rev: FlowRevision, entry: RegistryEntry): Partial<Record<Check, number[]>> {
+  const t = (c: Check) => resolveThreshold(c, rev.settings.checks[c].threshold)
+  const retries = (c: Check) => rev.settings.checks[c].retriesAllowed
+  const below = (c: Check) => scoreIn(f, t(c), f.helpers.arrayElement(['REVIEW', 'REJECT'] as const))
+  const pass = (c: Check) => scoreIn(f, t(c), 'PASS')
+  const paired = entry.faceMatchMethod === 'ID_VS_LIVENESS'
+  const target = f.helpers.arrayElement(entry.configurableChecks)
+  const other: Check = target === 'FACE_MATCH' ? 'LIVENESS' : 'FACE_MATCH'
 
-const phasesBefore = (phase: CapturePhase) => CAPTURE_PHASES.slice(0, CAPTURE_PHASES.indexOf(phase))
-
-function attemptsFor(f: Faker, profile: Profile, cfg: MerchantConfig, start: Date): Attempt[] {
-  const maxFor = (phase: CapturePhase) => cfg.phases.find((p) => p.phase === phase)!.maxAttempts
-  let t = start.getTime()
-  const next = () => {
-    const at = new Date(t).toISOString()
-    t += f.number.int({ min: 3, max: 15 }) * MIN
-    return at
+  /** `n` submissions on the target check, ending with `last`; the other check passes (on every round when paired). */
+  const build = (n: number, last: () => number, otherEmpty = false): Partial<Record<Check, number[]>> => {
+    const main = [...Array.from({ length: n - 1 }, () => below(target)), last()]
+    const others = otherEmpty ? [] : Array.from({ length: paired ? n : 1 }, () => pass(other))
+    return { [target]: main, [other]: others }
   }
-  const done = (attemptNo: number, override?: { phase: CapturePhase; band: Band }): Attempt => ({
-    attemptNo,
-    phase: 'LIVENESS',
-    startedAt: next(),
-    outcome: 'COMPLETED',
-    isUserRetake: attemptNo > 1,
-    phaseScores: scores(f, cfg, CAPTURE_PHASES, override),
-  })
-  const stop = (attemptNo: number, phase: CapturePhase, outcome: Attempt['outcome']): Attempt => ({
-    attemptNo,
-    phase,
-    startedAt: next(),
-    outcome,
-    isUserRetake: attemptNo > 1,
-    phaseScores: {
-      ...scores(f, cfg, phasesBefore(phase)),
-      ...(outcome === 'FAILED_RETAKE' ? { [phase]: score(f, 'REJECT', cfg.phases.find((p) => p.phase === phase)!) } : {}),
-    },
-  })
 
   switch (profile) {
     case 'CLEAN':
-      return [done(1)]
+      return { FACE_MATCH: [pass('FACE_MATCH')], LIVENESS: [pass('LIVENESS')] }
+    case 'RETAKE_THEN_CLEAN':
+      return build(f.number.int({ min: 2, max: retries(target) + 1 }), () => pass(target))
     case 'REVIEW':
-    case 'REJECT':
-      return [done(1, { phase: f.helpers.arrayElement(CAPTURE_PHASES), band: profile })]
-    case 'PROCESSING': {
-      const phase = f.helpers.arrayElement(CAPTURE_PHASES)
-      const n = f.number.int({ min: 1, max: maxFor(phase) - 1 })
-      const outcome = f.helpers.arrayElement(['ABORTED', 'TIMED_OUT', 'FAILED_RETAKE'] as const)
-      return Array.from({ length: n }, (_, i) => stop(i + 1, phase, i === n - 1 ? outcome : 'FAILED_RETAKE'))
-    }
-    case 'LIMIT': {
-      const phase = f.helpers.arrayElement(['SELFIE', 'FACE_MATCH', 'LIVENESS'] as const)
-      return Array.from({ length: maxFor(phase) }, (_, i) => stop(i + 1, phase, 'FAILED_RETAKE'))
-    }
-    case 'RETAKE_THEN_CLEAN': {
-      const k = f.number.int({ min: 1, max: maxFor('LIVENESS') - 1 })
-      return [...Array.from({ length: k }, (_, i) => stop(i + 1, 'LIVENESS', 'FAILED_RETAKE')), done(k + 1)]
-    }
+      return build(retries(target) + 1, () => scoreIn(f, t(target), 'REVIEW'))
+    case 'REJECT': // a final reject ends the session: V1 never reaches liveness after a face match reject
+      return build(retries(target) + 1, () => scoreIn(f, t(target), 'REJECT'), !paired && target === 'FACE_MATCH')
+    case 'RETRYING':
+      return build(f.number.int({ min: 1, max: retries(target) }), () => below(target), !paired && target === 'FACE_MATCH')
+    case 'ABANDONED':
+      return {}
   }
 }
 
@@ -120,11 +102,10 @@ function riskScore(f: Faker): number {
 }
 
 function decisionFor(f: Faker, reason: string | undefined) {
-  const approveChance = reason === REASONS.BETWEEN_THRESHOLDS ? 0.7 : reason === REASONS.RISK_NOT_PASSED ? 0.5 : 0.4
-  const approve = f.number.float({ min: 0, max: 1 }) < approveChance
+  const approve = f.number.float({ min: 0, max: 1 }) < (reason === RISK_NOT_PASSED ? 0.5 : 0.6)
   const r = f.helpers.arrayElement(approve ? REASON_CODES.APPROVE : REASON_CODES.REJECT)
   return {
-    decision: { outcome: approve ? ('APPROVE' as const) : ('REJECT' as const), reasonCode: r.code, comment: approve ? 'Checked document and selfie manually; consistent.' : 'Inconsistencies found during manual review.' },
+    decision: { outcome: approve ? ('APPROVE' as const) : ('REJECT' as const), reasonCode: r.code, comment: approve ? 'Checked document and liveness manually; consistent.' : 'Inconsistencies found during manual review.' },
     label: r.label,
   }
 }
@@ -133,11 +114,19 @@ export function seedDatabase(now: Date): MockDbState {
   const f = new Faker({ locale: [en] })
   f.seed(SEED)
   const configs = makeConfigs(MERCHANTS, now)
+  const catalog = buildCatalog(now)
   const audit: AuditEntry[] = []
-  const reviewersOf = (merchantId: string) => USERS.filter((u) => u.merchantId === merchantId)
+  const accounts = buildAccounts(now)
+  // REQ: DEC-70 — only active users who may claim in the case's project review it (Platform Admin never decides).
+  const reviewersOf = (v: Verification): Actor[] =>
+    accounts
+      .filter((a) => a.status === 'ACTIVE' && canInProject(a, 'claimCase', { projectId: v.projectId, merchantId: v.merchantId }))
+      .map((a) => ({ userId: a.userId, fullName: a.fullName, role: 'MERCHANT_REVIEWER', merchantId: a.merchantId }))
   const admin = USERS.find((u) => u.role === 'PLATFORM_ADMIN')!
+  const merchantOf = (id: string) => MERCHANTS.find((m) => m.merchantId === id)!
+  const entryOf = (code: string) => catalog.registry.find((e) => e.code === code)!
 
-  // Config deployment history.
+  // Legacy config deployment history (current eKYC Workflow screen).
   for (const rec of Object.values(configs)) {
     rec.history.forEach((c, i) =>
       audit.push(
@@ -161,27 +150,40 @@ export function seedDatabase(now: Date): MockDbState {
   }).sort((a, b) => b.daysAgo * 1440 + b.minutesAgo - (a.daysAgo * 1440 + a.minutesAgo))
 
   const verifications: Verification[] = starts.map((s, i) => {
-    const merchant = f.helpers.weightedArrayElement(MERCHANTS.filter((m) => MERCHANT_WEIGHTS[m.merchantId]).map((m) => ({ value: m, weight: MERCHANT_WEIGHTS[m.merchantId] })))
+    const start = new Date(now.getTime() - s.daysAgo * DAY - s.minutesAgo * MIN)
+    const eligible = catalog.flows.filter(
+      (fl) => FLOW_WEIGHTS[fl.flowId] && Date.parse(fl.createdAt) <= start.getTime() && (fl.status !== 'INACTIVE' || s.daysAgo > INACTIVE_BEFORE_DAYS),
+    )
+    const flow = f.helpers.weightedArrayElement(eligible.map((fl) => ({ value: fl, weight: FLOW_WEIGHTS[fl.flowId] })))
+    const entry = entryOf(flow.workflowVersion)
+    const rev = revisionAt(catalog.flowRevisions, flow.flowId, start)!
     let profile = f.helpers.weightedArrayElement<Profile>([
       { value: 'CLEAN', weight: 55 },
+      { value: 'RETAKE_THEN_CLEAN', weight: 8 },
       { value: 'REVIEW', weight: 15 },
       { value: 'REJECT', weight: 10 },
-      { value: 'PROCESSING', weight: 10 },
-      { value: 'LIMIT', weight: 5 },
-      { value: 'RETAKE_THEN_CLEAN', weight: 5 },
+      { value: 'RETRYING', weight: 7 },
+      { value: 'ABANDONED', weight: 5 },
     ])
-    if (profile === 'PROCESSING' && s.daysAgo > 2) profile = 'CLEAN' // in-flight sessions are recent
-    const start = new Date(now.getTime() - s.daysAgo * DAY - s.minutesAgo * MIN)
-    const cfg = configAt(configs[merchant.merchantId], start)
-    const p = person(f, now, f.number.int({ min: 1, max: 100 }) <= 8 ? 'PASSPORT' : 'MYKAD')
-    return buildVerification({
+    if ((profile === 'RETRYING' || profile === 'ABANDONED') && s.daysAgo > 2) profile = 'CLEAN' // in-flight sessions are recent
+    const docs = rev.settings.acceptedDocuments
+    const documentType = docs.length === 1 ? docs[0] : f.number.int({ min: 1, max: 100 }) <= 8 ? 'PASSPORT' : 'MYKAD'
+    const p = person(f, now, documentType)
+    return buildCase({
       referenceNo: refNo(start, i + 1),
-      merchant,
-      configs: configs[merchant.merchantId],
+      merchant: merchantOf(flow.merchantId),
+      merchantConfigs: configs[flow.merchantId],
+      flow,
+      revisions: catalog.flowRevisions,
+      entry,
       person: p,
       metadata: clientMetadata(f, p.city),
-      attempts: attemptsFor(f, profile, cfg, start),
-      riskScore: merchant.workflowVersion === 'V4' ? riskScore(f) : undefined,
+      startedAt: start,
+      submissions: submissionsFor(f, profile, rev, entry),
+      stepMin: f.number.int({ min: 3, max: 15 }),
+      riskScore: riskScore(f),
+      softRejects: f.helpers.weightedArrayElement([{ value: 0, weight: 70 }, { value: 1, weight: 20 }, { value: 2, weight: 10 }]),
+      abandoned: f.helpers.arrayElement(['ABORTED', 'TIMED_OUT'] as const),
     })
   })
 
@@ -189,8 +191,7 @@ export function seedDatabase(now: Date): MockDbState {
   for (let i = 0; i < verifications.length; i++) {
     const v = verifications[i]
     if (v.status !== 'PENDING_REVIEW') continue
-    const reviewers = reviewersOf(v.merchantId)
-    const actor = f.number.int({ min: 1, max: 10 }) === 1 ? admin : f.helpers.arrayElement(reviewers)
+    const actor = f.helpers.arrayElement(reviewersOf(v))
     const cfg = configs[v.merchantId].deployed
     const age = now.getTime() - Date.parse(v.lastUpdatedAt)
     const ip = fakeIp(f)
@@ -227,7 +228,7 @@ export function seedDatabase(now: Date): MockDbState {
   }
   audit.push(makeAudit({ id: '', now: new Date(now.getTime() - 7 * DAY), action: 'CREDENTIAL_ROTATION', actor: admin, ip: fakeIp(f), merchantId: 'MER-0001', details: { fromKeyId: 'key_mock_mer-0001_01', keyId: 'key_mock_mer-0001_02' } }))
 
-  const edge = buildEdgeCases({ now, merchants: MERCHANTS, configs })
+  const edge = buildEdgeCases({ now, merchants: MERCHANTS, configs, catalog })
   const allAudit = [...audit, ...edge.audit].sort((a, b) => a.at.localeCompare(b.at)).map((e, i) => ({ ...e, id: `AUD-${String(i + 1).padStart(6, '0')}` }))
 
   return {
@@ -240,7 +241,7 @@ export function seedDatabase(now: Date): MockDbState {
     verifications: [...verifications, ...edge.verifications],
     audit: allAudit,
     auditSeq: allAudit.length,
-    ...buildCatalog(now),
-    accounts: buildAccounts(now),
+    ...catalog,
+    accounts,
   }
 }

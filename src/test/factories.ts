@@ -60,6 +60,12 @@ export function verification(overrides: Partial<Verification> = {}): Verificatio
     metrics: [],
     images: { docFront: '/mock/mykad-front.svg', selfie: '/mock/selfie.svg' },
     charged: true,
+    projectId: 'PRJ-0001',
+    flowId: 'FLW-0001',
+    configRevision: 2,
+    createdAt: NOW.toISOString(),
+    submissions: { FACE_MATCH: [95], LIVENESS: [95] },
+    idCaptureSoftRejects: 0,
     ...overrides,
   }
 }

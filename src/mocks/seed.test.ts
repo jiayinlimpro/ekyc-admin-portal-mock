@@ -1,17 +1,20 @@
 import { describe, expect, it } from 'vitest'
+import { canInProject, roleInProject } from '@/domain/access'
+import { evaluateCase } from '@/domain/checkRules'
 import { isClaimActive } from '@/domain/claimRules'
-import { deriveStatus } from '@/domain/statusRules'
+import { inCooldown, revisionLabel, validateProjectName } from '@/domain/flowRules'
+import { validateFlow } from '@/domain/flowSettings'
+import { hasRisk, validateRegistryInput } from '@/domain/registryRules'
 import { VERIFICATION_STATUSES } from '@/domain/types'
 import { NOW } from '@/test/factories'
-import { roleInProject } from '@/domain/access'
-import { revisionLabel, validateProjectName } from '@/domain/flowRules'
-import { validateFlow } from '@/domain/flowSettings'
-import { validateRegistryInput } from '@/domain/registryRules'
 import { EDGE_CASES } from './fixtures/edgeCases'
 import { seedDatabase } from './seed'
 
 const db = seedDatabase(NOW)
-const configFor = (merchantId: string, version: string) => db.configs[merchantId].history.find((c) => c.version === version)!
+const flowOf = (id: string) => db.flows.find((f) => f.flowId === id)!
+const entryOf = (code: string) => db.registry.find((e) => e.code === code)!
+const revisionOf = (flowId: string, revision: number) => db.flowRevisions.find((r) => r.flowId === flowId && r.revision === revision)!
+const byRef = (ref: string) => db.verifications.find((v) => v.referenceNo === ref)!
 
 describe('seedDatabase', () => {
   it('Given the same now, then the data is identical (deterministic)', () => {
@@ -24,11 +27,46 @@ describe('seedDatabase', () => {
     for (const r of refs) expect(r).toMatch(/^KYC-\d{6}-\d{6}$/)
   })
 
-  it('Given a SYSTEM-updated record, then its status equals deriveStatus with its own config version (no random statuses)', () => {
+  it('Given a SYSTEM-updated record, then its status and reason equal evaluateCase with its own flow revision (no random statuses)', () => {
     for (const v of db.verifications.filter((x) => x.lastUpdatedBy.kind === 'SYSTEM')) {
-      const cfg = configFor(v.merchantId, v.configVersion)
-      expect(cfg, v.referenceNo).toBeDefined()
-      expect(v.status, v.referenceNo).toBe(deriveStatus(v, cfg).status)
+      const flow = flowOf(v.flowId)
+      const entry = entryOf(flow.workflowVersion)
+      const rev = revisionOf(v.flowId, v.configRevision)
+      expect(rev, v.referenceNo).toBeDefined()
+      const ev = evaluateCase(
+        { submissions: v.submissions, riskLevel: v.riskLevel },
+        { checks: entry.configurableChecks, faceMatchMethod: entry.faceMatchMethod, hasRisk: hasRisk(entry), settings: rev.settings },
+      )
+      expect(v.status, v.referenceNo).toBe(ev.status)
+      if (v.status === 'PENDING_REVIEW' || v.status === 'REJECTED') expect(v.statusReason, v.referenceNo).toBe(ev.reason)
+    }
+  })
+
+  it('Given every case, then its flow belongs to its project and merchant, the revision was live at session start, and its document is accepted', () => {
+    for (const v of db.verifications) {
+      const flow = flowOf(v.flowId)
+      expect(flow.projectId, v.referenceNo).toBe(v.projectId)
+      expect(flow.merchantId, v.referenceNo).toBe(v.merchantId)
+      expect(v.workflowVersion, v.referenceNo).toBe(flow.workflowVersion)
+      const rev = revisionOf(v.flowId, v.configRevision)
+      expect(Date.parse(rev.savedAt), v.referenceNo).toBeLessThanOrEqual(Date.parse(v.createdAt))
+      expect(rev.settings.acceptedDocuments, v.referenceNo).toContain(v.documentType)
+    }
+  })
+
+  it('Given flow statuses, then Draft flows have no cases and every Retiring flow still has a case in flight (DEC-94)', () => {
+    for (const f of db.flows.filter((x) => x.status === 'DRAFT')) expect(db.verifications.some((v) => v.flowId === f.flowId), f.flowId).toBe(false)
+    for (const f of db.flows.filter((x) => x.status === 'RETIRING')) {
+      expect(db.verifications.some((v) => v.flowId === f.flowId && (v.status === 'PROCESSING' || v.status === 'PENDING_REVIEW')), f.flowId).toBe(true)
+    }
+  })
+
+  it('Given a claim or a manual decision, then the user may claim in that case’s project (DEC-70)', () => {
+    for (const v of db.verifications) {
+      const userId = v.claimedBy?.userId ?? (v.lastUpdatedBy.kind === 'USER' ? v.lastUpdatedBy.userId : undefined)
+      if (!userId) continue
+      const account = db.accounts.find((a) => a.userId === userId)!
+      expect(canInProject(account, 'claimCase', { projectId: v.projectId, merchantId: v.merchantId }), `${v.referenceNo} ${userId}`).toBe(true)
     }
   })
 
@@ -57,13 +95,13 @@ describe('seedDatabase', () => {
     }
   })
 
-  it('only V4 records carry a risk result', () => {
-    for (const v of db.verifications.filter((x) => x.workflowVersion !== 'V4')) expect(v.riskLevel).toBeUndefined()
+  it('only cases on a version with Risk Assessment carry a risk result (DEC-13)', () => {
+    for (const v of db.verifications.filter((x) => !hasRisk(entryOf(x.workflowVersion)))) expect(v.riskLevel, v.referenceNo).toBeUndefined()
   })
 
-  it('covers every status × V1/V4 combination, both manual and system decisions, and all risk levels', () => {
+  it('covers every status × V1/V3/V4 combination, both manual and system decisions, and all risk levels', () => {
     for (const status of VERIFICATION_STATUSES) {
-      for (const wf of ['V1', 'V4']) {
+      for (const wf of ['V1', 'V3', 'V4']) {
         expect(db.verifications.some((v) => v.status === status && v.workflowVersion === wf), `${status} × ${wf}`).toBe(true)
       }
     }
@@ -101,10 +139,33 @@ describe('named scenarios (docs/SCENARIOS.md)', () => {
     if (e.claimedByUserId) expect(v.claimedBy?.userId).toBe(e.claimedByUserId)
     if (e.lastUpdatedBy) expect(v.lastUpdatedBy.kind).toBe(e.lastUpdatedBy)
     if (e.configVersion) expect(v.configVersion).toBe(e.configVersion)
+    if (e.configRevision) expect(v.configRevision).toBe(e.configRevision)
+    expect(v.flowId).toBe(e.flowId)
   })
 
-  it('S06 keeps one Reference No across 3 attempts', () => {
-    expect(db.verifications.find((v) => v.referenceNo === 'KYC-260901-900006')!.attempts).toHaveLength(3)
+  it('S06 keeps one Reference No across 4 liveness submissions (3 retries, DEC-18)', () => {
+    const v = byRef('KYC-260901-900006')
+    expect(v.submissions.LIVENESS).toHaveLength(4)
+    expect(v.attempts).toHaveLength(4)
+  })
+
+  it('S12 started on V4-R1 and is still evaluated with it after R2 was saved (DEC-52)', () => {
+    const v = byRef('KYC-260901-900012')
+    expect(v.configRevision).toBe(1)
+    expect(flowOf(v.flowId).revision).toBe(2)
+  })
+
+  it('S16 is in the SME app project, where Ali is only a Viewer', () => {
+    const v = byRef('KYC-260901-900016')
+    const ali = db.accounts.find((a) => a.userId === 'USR-2026-0012')!
+    expect(v.projectId).toBe('PRJ-0002')
+    expect(canInProject(ali, 'viewCases', { projectId: v.projectId, merchantId: v.merchantId })).toBe(true)
+    expect(canInProject(ali, 'claimCase', { projectId: v.projectId, merchantId: v.merchantId })).toBe(false)
+  })
+
+  it('S18 was rejected inside a 120-minute cooldown that is still running at seed time (DEC-26)', () => {
+    const v = byRef('KYC-260901-900018')
+    expect(inCooldown(v.lastUpdatedAt, flowOf(v.flowId).settings.cooldownMin, NOW)).toBe(true)
   })
 
   it('S13 has exactly 2 user retakes', () => {

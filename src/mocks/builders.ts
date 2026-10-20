@@ -1,17 +1,24 @@
-// Shared builders for seeded and hand-written records. Status is always computed by deriveStatus, never random.
+// Shared builders for seeded and hand-written records. Status is always computed by checkRules.evaluateCase, never random.
+import { evaluateCase, type CaseEvaluation, type FlowContext } from '@/domain/checkRules'
 import { DEFAULT_CLAIM_TIMEOUT_MIN, DEFAULT_CLAIM_WARNING_MIN, DEFAULT_PHASE_THRESHOLDS, DEFAULT_RISK_MAX_ALLOWED, riskLevelFromScore } from '@/domain/openQuestions'
-import { deriveStatus, derivePhaseResult, riskPasses, thresholdLabel } from '@/domain/statusRules'
+import { hasRisk } from '@/domain/registryRules'
 import {
   CAPTURE_PHASES,
+  RISK_LEVELS,
   type Attempt,
-  type CapturePhase,
+  type Check,
   type ClientMetadata,
+  type Flow,
+  type FlowRevision,
   type Merchant,
   type MerchantConfig,
-  type MetricResult,
   type PhaseMetric,
+  type RegistryEntry,
+  type RiskLevel,
   type Verification,
+  type WorkflowVersion,
 } from '@/domain/types'
+import { revisionAt } from './fixtures/catalog'
 import type { Person } from './malaysia'
 
 export interface ConfigRecord {
@@ -57,83 +64,103 @@ export function configAt(rec: ConfigRecord, when: string | Date): MerchantConfig
   return live.at(-1) ?? rec.history[0]
 }
 
-const toMetric = (r: ReturnType<typeof derivePhaseResult>): MetricResult => (r === 'REJECT' ? 'FAIL' : r)
+const CHECK_METRIC: Record<Check, string> = { FACE_MATCH: 'Face Similarity', LIVENESS: 'Liveness Score' }
 
-const PRIMARY_METRIC: Record<CapturePhase, string> = {
-  DOCUMENT: 'Document Authenticity',
-  SELFIE: 'Image Quality',
-  FACE_MATCH: 'Face Similarity',
-  LIVENESS: 'Liveness Score',
-}
-
-/** Display-only metrics grouped by phase (DEC-10), from the last attempt's scores. */
-export function metricsFor(attempt: Attempt | undefined, cfg: MerchantConfig, risk?: { score: number; level: Verification['riskLevel'] }): PhaseMetric[] {
+/** Display-only scores for the current Detail screen: the last score per check against the revision's thresholds. */
+function metricsFor(ev: CaseEvaluation, risk: { score: number; level: RiskLevel; maxAllowed: RiskLevel } | undefined): PhaseMetric[] {
   const out: PhaseMetric[] = []
-  if (!attempt) return out
-  for (const p of cfg.phases) {
-    const score = attempt.phaseScores[p.phase]
-    if (score === undefined) continue
-    const result = toMetric(derivePhaseResult(score, p))
-    out.push({ phase: p.phase, name: PRIMARY_METRIC[p.phase], detected: score, threshold: thresholdLabel(p), result })
-    const ok = result !== 'FAIL'
-    if (p.phase === 'DOCUMENT') {
-      out.push({ phase: p.phase, name: 'OCR Confidence', detected: Math.min(99.9, Math.round((score + 3.2) * 10) / 10), result: 'PASS' })
-      out.push({ phase: p.phase, name: 'Tamper Detection', detected: ok ? 'Not detected' : 'Suspected', result: ok ? 'PASS' : 'FAIL' })
-    }
-    if (p.phase === 'SELFIE') out.push({ phase: p.phase, name: 'Face Detected', detected: 'Yes', result: 'PASS' })
-    if (p.phase === 'LIVENESS') {
-      out.push({ phase: p.phase, name: 'Spoof Detection', detected: ok ? 'Not detected' : 'Suspected', result: ok ? 'PASS' : 'FAIL' })
-    }
+  for (const c of ev.checks) {
+    if (c.lastScore === undefined) continue
+    const r = c.lastScore >= c.thresholds.autoPass ? 'PASS' : c.lastScore < c.thresholds.autoReject ? 'FAIL' : 'REVIEW'
+    out.push({ phase: c.check, name: CHECK_METRIC[c.check], detected: c.lastScore, threshold: `Pass ≥ ${c.thresholds.autoPass} · Reject < ${c.thresholds.autoReject}`, result: r })
   }
-  if (risk && cfg.risk?.enabled) {
-    const passes = riskPasses({ riskLevel: risk.level }, cfg)
-    out.push({ phase: 'RISK_ASSESSMENT', name: 'Risk Score', detected: risk.score, threshold: `Max allowed level: ${cfg.risk.maxAllowedLevel}`, result: passes ? 'PASS' : 'REVIEW' })
-    out.push({ phase: 'RISK_ASSESSMENT', name: 'Risk Level', detected: risk.level!, result: passes ? 'PASS' : 'REVIEW' })
+  if (risk) {
+    const passes = RISK_LEVELS.indexOf(risk.level) <= RISK_LEVELS.indexOf(risk.maxAllowed)
+    out.push({ phase: 'RISK_ASSESSMENT', name: 'Risk Score', detected: risk.score, threshold: `Max allowed level: ${risk.maxAllowed}`, result: passes ? 'PASS' : 'REVIEW' })
+    out.push({ phase: 'RISK_ASSESSMENT', name: 'Risk Level', detected: risk.level, result: passes ? 'PASS' : 'REVIEW' })
   }
   return out
 }
 
-export interface BuildSpec {
+export interface CaseSpec {
   referenceNo: string
   merchant: Merchant
-  configs: ConfigRecord
+  merchantConfigs: ConfigRecord // legacy: only for `configVersion` on the current screens
+  flow: Flow
+  revisions: readonly FlowRevision[]
+  entry: RegistryEntry
   person: Person
   metadata: ClientMetadata
-  attempts: Attempt[]
-  riskScore?: number // V4: engine output, only used when the last attempt completed
+  startedAt: Date
+  /** Scores per check in submission order. Empty = the session stopped before the first liveness / selfie submission. */
+  submissions: Partial<Record<Check, number[]>>
+  /** Minutes between submissions (default 6). */
+  stepMin?: number
+  riskScore?: number // V4: engine output, used once every check has a non-reject result
+  softRejects?: number
+  abandoned?: 'ABORTED' | 'TIMED_OUT'
 }
 
-/** Builds a record in its SYSTEM-assigned state. Manual decisions and claims are applied afterwards. */
-export function buildVerification(spec: BuildSpec): Verification {
-  const cfg = configAt(spec.configs, spec.attempts[0].startedAt)
-  const last = spec.attempts.at(-1)!
-  const hasRisk = cfg.workflowVersion === 'V4' && last.outcome === 'COMPLETED' && spec.riskScore !== undefined
-  const riskLevel = hasRisk ? riskLevelFromScore(spec.riskScore!) : undefined
-  const derived = deriveStatus({ attempts: spec.attempts, riskLevel }, cfg)
+/** Builds a case in its SYSTEM-assigned state (checkRules.evaluateCase). Manual decisions and claims are applied afterwards. */
+export function buildCase(spec: CaseSpec): Verification {
+  const rev = revisionAt(spec.revisions, spec.flow.flowId, spec.startedAt)!
+  const flow: FlowContext = { checks: spec.entry.configurableChecks, faceMatchMethod: spec.entry.faceMatchMethod, hasRisk: hasRisk(spec.entry), settings: rev.settings }
+  const pre = evaluateCase({ submissions: spec.submissions }, flow)
+  // Risk runs once onboarding completes without a reject (FRS AWS flow: V4 runs risk after onboarding).
+  const riskRan = flow.hasRisk && spec.riskScore !== undefined && pre.checks.every((c) => c.state === 'PASS' || c.state === 'REVIEW')
+  const riskLevel = riskRan ? riskLevelFromScore(spec.riskScore!) : undefined
+  const ev = evaluateCase({ submissions: spec.submissions, riskLevel }, flow)
+
+  // Legacy attempts: one per submission round (liveness, or selfie for V1), so the current screens and KPIs still work.
+  const step = (spec.stepMin ?? 6) * 60_000
+  const rounds = Math.max(0, ...Object.values(spec.submissions).map((s) => s?.length ?? 0))
+  const at = (i: number) => new Date(spec.startedAt.getTime() + i * step).toISOString()
+  const attempts: Attempt[] =
+    rounds === 0
+      ? [{ attemptNo: 1, phase: 'DOCUMENT', startedAt: at(0), outcome: spec.abandoned ?? 'ABORTED', isUserRetake: false, phaseScores: {} }]
+      : Array.from({ length: rounds }, (_, i) => {
+          // Fixed passing document/selfie scores keep the legacy eKYC Workflow what-if meaningful until Phase 9 retires it.
+          const scores: Attempt['phaseScores'] = { DOCUMENT: 94.2, SELFIE: 91.8 }
+          for (const c of flow.checks) {
+            const s = spec.submissions[c]
+            if (s?.length) scores[c] = s[Math.min(i, s.length - 1)]
+          }
+          const final = i === rounds - 1 && ev.status !== 'PROCESSING'
+          return { attemptNo: i + 1, phase: 'LIVENESS', startedAt: at(i), outcome: final ? 'COMPLETED' : 'FAILED_RETAKE', isUserRetake: i > 0, phaseScores: scores }
+        })
+
   // REQ: DEC-03 — lastUpdatedAt only moves on status change: PROCESSING was set when the user entered the flow.
-  const lastUpdatedAt =
-    derived.status === 'PROCESSING' ? spec.attempts[0].startedAt : new Date(Date.parse(last.startedAt) + 3 * 60_000).toISOString()
+  const lastUpdatedAt = ev.status === 'PROCESSING' ? at(0) : new Date(Date.parse(attempts.at(-1)!.startedAt) + 3 * 60_000).toISOString()
+  const decisive = ev.status === 'PENDING_REVIEW' || ev.status === 'REJECTED'
   const passport = spec.person.documentType === 'PASSPORT'
   return {
     referenceNo: spec.referenceNo,
     merchantId: spec.merchant.merchantId,
-    workflowVersion: cfg.workflowVersion,
-    configVersion: cfg.version,
-    status: derived.status,
-    statusReason: derived.reason,
+    workflowVersion: spec.flow.workflowVersion as WorkflowVersion,
+    configVersion: configAt(spec.merchantConfigs, spec.startedAt).version,
+    status: ev.status,
+    statusReason: decisive ? ev.reason : undefined,
+    statusDetail: decisive ? ev.detail : undefined,
     lastUpdatedBy: { kind: 'SYSTEM' },
     lastUpdatedAt,
-    attempts: spec.attempts,
+    attempts,
     riskLevel,
-    riskScore: hasRisk ? spec.riskScore : undefined,
+    riskScore: riskRan ? spec.riskScore : undefined,
     documentType: spec.person.documentType,
     pii: spec.person.pii,
     clientMetadata: spec.metadata,
-    metrics: metricsFor(last, cfg, hasRisk ? { score: spec.riskScore!, level: riskLevel } : undefined),
+    metrics: metricsFor(ev, riskRan ? { score: spec.riskScore!, level: riskLevel!, maxAllowed: rev.settings.risk!.maxAllowedLevel } : undefined),
     images: { docFront: passport ? '/mock/passport.svg' : '/mock/mykad-front.svg', selfie: '/mock/selfie.svg' },
     charged: true,
+    projectId: spec.flow.projectId,
+    flowId: spec.flow.flowId,
+    configRevision: rev.revision,
+    createdAt: at(0),
+    submissions: spec.submissions,
+    idCaptureSoftRejects: spec.softRejects ?? 0,
   }
 }
+
 
 export function refNo(date: Date, seq: number): string {
   // Reference date in MYT (UTC+8).
