@@ -36,8 +36,8 @@ describe('Project Settings › General and Review operations', () => {
 })
 
 describe('Project Settings › Integration (DEC-54, DEC-75)', () => {
-  it('Given the Platform Admin, then integration is refused: merchant secrets stay with the merchant', async () => {
-    await expect(svc.get('PRJ-0001', ADMIN)).rejects.toMatchObject({ code: 'FORBIDDEN' })
+  it('Given the Platform Admin, then integration is open to them too (DEC-75)', async () => {
+    expect((await svc.get('PRJ-0001', ADMIN)).keys.length).toBeGreaterThan(0)
   })
 
   it('Given a new key, then the secret is returned once and only a hint is stored; rotate and revoke are audited', async () => {

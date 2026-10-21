@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { canInMerchant, canInProject, canOnPlatform, hasProject, projectsWhere, roleNamesInProject, type ProjectAction } from './access'
+import { canInMerchant, canInProject, canOnPlatform, hasProject, PROJECT_ACTIONS, projectsWhere, roleNamesInProject, type ProjectAction } from './access'
 import { SYSTEM_DEFAULT_ROLES, SYSTEM_ROLE_IDS } from './roles'
 import type { AssignmentScope, Grant, Permission, Project, UserAccess } from './types'
 
@@ -85,13 +85,9 @@ describe('access: Platform Admin (DEC-70, DEC-75)', () => {
     expect(can(OWNER, 'setAdvancedThresholds')).toBe(false)
   })
 
-  it('Given a Platform Admin, then never API keys or webhooks (merchant secrets), and never claim or decide', () => {
-    for (const a of ['manageIntegration', 'claimCase', 'decideCase'] as const) expect(can(PLATFORM, a)).toBe(false)
-  })
-
-  it('Given OQ-20 = no (default), then Platform Admin cannot view cases; when yes, they can', () => {
-    expect(can(PLATFORM, 'viewCases')).toBe(false)
-    expect(canInProject(PLATFORM, 'viewCases', RETAIL, { platformAdminCaseAccess: true })).toBe(true)
+  it('Given a Platform Admin, then every action in every merchant: cases, claim, decide, API keys and webhooks (DEC-75)', () => {
+    for (const a of PROJECT_ACTIONS) expect(can(PLATFORM, a, OTHER_MERCHANT), a).toBe(true)
+    expect(canInMerchant(PLATFORM, 'manageBilling', 'MER-0002')).toBe(true)
   })
 
   it('Given the registry and merchants screens, then only Platform Admin', () => {
@@ -123,6 +119,6 @@ describe('access: merchant-wide actions and scope (DEC-86, DEC-72)', () => {
 
   it('Given a case list, then only projects where the user may view cases (others are "not found")', () => {
     expect(projectsWhere(PROJECT_ADMIN, 'viewCases', [RETAIL, SME]).map((p) => p.projectId)).toEqual(['PRJ-0001'])
-    expect(projectsWhere(PLATFORM, 'viewCases', [RETAIL, SME])).toEqual([])
+    expect(projectsWhere(PLATFORM, 'viewCases', [RETAIL, SME, OTHER_MERCHANT])).toHaveLength(3)
   })
 })

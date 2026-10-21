@@ -33,17 +33,18 @@ describe('accessGuard (DEC-71, DEC-72)', () => {
     expect([...projectIdsWhere(ALI, 'viewCases')].sort()).toEqual(['PRJ-0001', 'PRJ-0002'])
   })
 
-  it('Given the Platform Admin, then no case access by default (OQ-20)', () => {
-    expect(projectIdsWhere(ADMIN, 'viewCases').size).toBe(0)
+  it('Given the Platform Admin, then cases in every project (DEC-75)', () => {
+    expect(projectIdsWhere(ADMIN, 'viewCases').size).toBe(db.state().projects.length)
+    expect(mayInProject(ADMIN, 'manageIntegration', 'PRJ-0003')).toBe(true)
     expect(projectIdsWhere(ADMIN, 'manageFlows').size).toBe(db.state().projects.length)
   })
 })
 
 describe('userService', () => {
   it('Given Ali, then reviewers are the active users who may claim in his projects', async () => {
-    // Tan Mei Ling (owner), Hafiz (Project Admin SME app), Siti and Nurul (Reviewers). Not Yap (suspended), not Lim (admin).
-    expect(ids(await userService.listReviewers(ALI))).toEqual(['USR-2026-0002', 'USR-2026-0012', 'USR-2026-0020', 'USR-2026-0031', 'USR-2026-0033'])
-    expect(ids(await userService.listReviewers(ALI, 'PRJ-0001'))).toEqual(['USR-2026-0002', 'USR-2026-0012', 'USR-2026-0031'])
+    // Lim and Nor Aisyah (Platform Admins, DEC-75), Tan Mei Ling (owner), Hafiz (Project Admin SME app), Siti and Nurul. Not Yap (suspended).
+    expect(ids(await userService.listReviewers(ALI))).toEqual(['USR-2026-0001', 'USR-2026-0002', 'USR-2026-0005', 'USR-2026-0012', 'USR-2026-0020', 'USR-2026-0031', 'USR-2026-0033'])
+    expect(ids(await userService.listReviewers(ALI, 'PRJ-0001'))).toEqual(['USR-2026-0001', 'USR-2026-0002', 'USR-2026-0005', 'USR-2026-0012', 'USR-2026-0031'])
   })
 
   it('Given Ali, then the directory is his merchant plus Platform Admins', async () => {

@@ -94,7 +94,7 @@ export const NAV_ITEMS: NavItem[] = [
     icon: ScanFace,
     group: 'eKYC',
     inMenu: true,
-    access: { project: 'viewCases' }, // Platform Admin: OQ-20
+    access: { project: 'viewCases' },
     priority: 'P0',
     built: true,
     notes: [

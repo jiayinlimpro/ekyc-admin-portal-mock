@@ -86,7 +86,7 @@ describe('verificationService.list', () => {
     expect(o.flows.map((f) => f.flowId)).toEqual(['FLW-0001', 'FLW-0002', 'FLW-0004']) // FLW-0003 is Draft
     expect(o.flows.find((f) => f.flowId === 'FLW-0004')!.runsRisk).toBe(false)
     expect(o.flows.find((f) => f.flowId === 'FLW-0001')!.runsRisk).toBe(true)
-    expect((await svc.filterOptions(ADMIN)).projects).toEqual([]) // OQ-20
+    expect((await svc.filterOptions(ADMIN)).projects.length).toBeGreaterThan(2) // every merchant (DEC-75)
   })
 
   it('filters by status, Last Updated By, claim and name', async () => {
@@ -128,9 +128,13 @@ describe('per-project case access (DEC-70, DEC-72)', () => {
     await expectError(svc.get(S(2), OTHER_MERCHANT_REVIEWER), 'NOT_FOUND')
   })
 
-  it('Given the Platform Admin, then no case access by default (OQ-20)', async () => {
-    expect((await svc.list({}, ADMIN)).total).toBe(0)
-    await expectError(svc.get(S(2), ADMIN), 'NOT_FOUND')
+  it('Given the Platform Admin, then every case is visible, each open is audited, and they can claim and decide (DEC-75)', async () => {
+    expect((await svc.list({ pageSize: 500 }, ADMIN)).total).toBeGreaterThan((await svc.list({ pageSize: 500 }, OWNER)).total)
+    await svc.get(S(10), ADMIN)
+    expect((await auditService.list({ actions: ['SENSITIVE_PII_VIEW'] }, ADMIN)).items[0]).toMatchObject({ referenceNo: S(10), actorRole: 'Platform Admin' })
+    await svc.claim(S(10), ADMIN)
+    const v = await svc.decide(S(10), ADMIN, { outcome: 'APPROVE' })
+    expect(v).toMatchObject({ status: 'APPROVED', lastUpdatedBy: { kind: 'USER', userId: ADMIN.userId } })
   })
 
   it('Given the Merchant Owner, then cases from every Atoz project are visible; a one-project admin sees fewer', async () => {

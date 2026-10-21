@@ -116,10 +116,10 @@ describe('Verifications List', () => {
     await screen.findByText('No verifications match these filters')
   })
 
-  it('Given the Platform Admin, then Verifications is "No access": no case access by default (OQ-20, DEC-72)', async () => {
+  it('Given the Platform Admin, then cases of every merchant are listed (DEC-75)', async () => {
     useSession.getState().switchUser(ADMIN)
-    renderAt('/verifications')
-    await screen.findByRole('heading', { name: 'No access' })
+    renderAt('/verifications?status=ALL&referenceNo=KYC-260901-900013')
+    await screen.findByRole('rowheader', { name: 'KYC-260901-900013' }) // a Vantage case, outside any merchant of his
   })
 
   it('Given the service fails, then an error with Try again; when it recovers, then rows load', async () => {

@@ -1,6 +1,5 @@
 // Access checks from scoped role assignments (DEC-70, DEC-72, DEC-75, DEC-86): permissions are the union of the grants
 // covering a project. REQ: DEC-71 — UI-only checks. The real backend must enforce the same rules.
-import { POLICY, type Policy } from './openQuestions'
 import { coversProject, merchantWidePermissions, permissionsIn, PLATFORM_ADMIN_PERMISSIONS, roleNamesIn } from './roles'
 import type { Permission, Project, UserAccess } from './types'
 
@@ -49,12 +48,8 @@ const NEEDS: Record<ProjectAction, readonly Permission[]> = {
   viewAudit: ['VIEW_AUDIT_LOG'],
 }
 
-type CasePolicy = Pick<Policy, 'platformAdminCaseAccess'>
-
-/** REQ: DEC-70 / DEC-75 — Platform Admin's fixed rights in any merchant; cases follow OQ-20. */
-function platformAdminPermissions(policy: CasePolicy): Set<Permission> {
-  return new Set<Permission>(policy.platformAdminCaseAccess ? [...PLATFORM_ADMIN_PERMISSIONS, 'VIEW_CASES'] : PLATFORM_ADMIN_PERMISSIONS)
-}
+/** REQ: DEC-70 / DEC-75 — Platform Admin's rights: every permission, in any merchant. */
+const platformAdminPermissions = () => new Set<Permission>(PLATFORM_ADMIN_PERMISSIONS)
 
 function allows(have: Set<Permission>, action: ProjectAction, isPlatformAdmin: boolean): boolean {
   if (action === 'setAdvancedThresholds') return isPlatformAdmin
@@ -68,8 +63,8 @@ export function hasProject(user: UserAccess, project: Pick<Project, 'projectId' 
 }
 
 /** The user's permissions in one project (union of the grants covering it). */
-export function permissionsInProject(user: UserAccess, project: Pick<Project, 'projectId' | 'merchantId'>, policy: CasePolicy = POLICY): Set<Permission> {
-  if (user.level === 'PLATFORM_ADMIN') return platformAdminPermissions(policy)
+export function permissionsInProject(user: UserAccess, project: Pick<Project, 'projectId' | 'merchantId'>): Set<Permission> {
+  if (user.level === 'PLATFORM_ADMIN') return platformAdminPermissions()
   if (user.merchantId !== project.merchantId) return new Set()
   return permissionsIn(user.grants, project.projectId)
 }
@@ -80,16 +75,16 @@ export function roleNamesInProject(user: UserAccess, project: Pick<Project, 'pro
   return user.merchantId === project.merchantId ? roleNamesIn(user.grants, project.projectId) : []
 }
 
-export function canInProject(user: UserAccess, action: ProjectAction, project: Pick<Project, 'projectId' | 'merchantId'>, policy: CasePolicy = POLICY): boolean {
-  return allows(permissionsInProject(user, project, policy), action, user.level === 'PLATFORM_ADMIN')
+export function canInProject(user: UserAccess, action: ProjectAction, project: Pick<Project, 'projectId' | 'merchantId'>): boolean {
+  return allows(permissionsInProject(user, project), action, user.level === 'PLATFORM_ADMIN')
 }
 
 /**
  * Merchant-wide actions (create a project, manage users and roles, merchant-level audit entries): Platform Admin, or a
  * user holding the permission through an All projects assignment in that merchant.
  */
-export function canInMerchant(user: UserAccess, action: ProjectAction, merchantId: string, policy: CasePolicy = POLICY): boolean {
-  if (user.level === 'PLATFORM_ADMIN') return allows(platformAdminPermissions(policy), action, true)
+export function canInMerchant(user: UserAccess, action: ProjectAction, merchantId: string): boolean {
+  if (user.level === 'PLATFORM_ADMIN') return allows(platformAdminPermissions(), action, true)
   return user.merchantId === merchantId && allows(merchantWidePermissions(user.grants), action, false)
 }
 
@@ -101,6 +96,6 @@ export function canOnPlatform(user: UserAccess, _action: PlatformAction): boolea
  * Projects where the user may do `action`: the project switcher, "All my projects" case lists and dashboard scope (DEC-86).
  * REQ: DEC-72 — services return "not found" for a case whose project is not in this list.
  */
-export function projectsWhere<P extends Pick<Project, 'projectId' | 'merchantId'>>(user: UserAccess, action: ProjectAction, projects: readonly P[], policy: CasePolicy = POLICY): P[] {
-  return projects.filter((p) => canInProject(user, action, p, policy))
+export function projectsWhere<P extends Pick<Project, 'projectId' | 'merchantId'>>(user: UserAccess, action: ProjectAction, projects: readonly P[]): P[] {
+  return projects.filter((p) => canInProject(user, action, p))
 }

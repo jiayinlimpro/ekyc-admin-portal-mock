@@ -27,18 +27,8 @@ export const SYSTEM_DEFAULT_ROLES: readonly Pick<Role, 'roleId' | 'name' | 'perm
   { roleId: SYSTEM_ROLE_IDS.VIEWER, name: 'Viewer', permissions: ['VIEW_CASES', 'VIEW_PROJECT_REPORTS'] },
 ]
 
-/** REQ: DEC-70 / DEC-75 — Platform Admin (internal) in any merchant: never API keys / webhooks, never claim or decide. Cases: OQ-20. */
-export const PLATFORM_ADMIN_PERMISSIONS: readonly Permission[] = [
-  'MANAGE_USERS_ROLES',
-  'MANAGE_PROJECTS',
-  'VIEW_MERCHANT_REPORTS',
-  'MANAGE_PROJECT_SETTINGS',
-  'MANAGE_FLOWS',
-  'CHANGE_VERIFICATION_LEVEL',
-  'MANAGE_MEMBERS',
-  'VIEW_PROJECT_REPORTS',
-  'VIEW_AUDIT_LOG',
-]
+/** REQ: DEC-70 / DEC-75 — Platform Admin (internal): every permission, in every merchant. */
+export const PLATFORM_ADMIN_PERMISSIONS: readonly Permission[] = [...PERMISSIONS]
 
 const MERCHANT_LEVEL: ReadonlySet<Permission> = new Set(MERCHANT_PERMISSIONS)
 

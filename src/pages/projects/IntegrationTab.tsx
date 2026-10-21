@@ -39,7 +39,7 @@ function SecretDialog({ title, secret, onClose }: { title: string; secret: strin
 
 const lines = (s: string) => s.split('\n').map((x) => x.trim()).filter(Boolean)
 
-// REQ: DEC-54 / DEC-75 — merchant-only: Merchant Owner and the project's Project Admin.
+// REQ: DEC-54 / DEC-75 — Manage API keys and webhook (and Platform Admin).
 export function IntegrationTab({ project }: { project: Project }) {
   const actor = useSession((s) => s.actor)
   const data = useLoad(() => integrationService.get(project.projectId, actor), [project.projectId, actor.userId])

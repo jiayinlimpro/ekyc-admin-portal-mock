@@ -221,9 +221,9 @@ Rules changed on 2026-10-20 (Projects & Flows restructure) are marked **(changed
   - **System Default roles** (locked, the same for every merchant): **Merchant Owner** (every permission), **Project Admin**
     (every project-level permission), **Reviewer** (view, claim, approve / reject, project reports), **Viewer** (view cases,
     project reports). Merchants add **Custom** roles. Role names are OQ-09.
-  - **Platform Admin** (internal) is not a merchant role. It keeps: Workflow Registry, Merchants, Advanced thresholds
-    (DEC-19), dashboards, Audit Log, users and roles, projects, project settings and flows in **any** merchant
-    (DEC-75); never API keys / webhooks; never claim or decide; cases per OQ-20 (default: no).
+  - **Platform Admin** (internal) is not a merchant role. **(changed)** It holds **every permission in every merchant**
+    (cases, claim and approve / reject, API keys and webhook included), plus Workflow Registry, Merchants, Admins and
+    Advanced thresholds (DEC-19) (DEC-75). [PO 2026-10-21]
 - **DEC-71** Client-side permission checks are UI only, not security. The real backend must enforce them.
 - **DEC-72** **(changed)** Every page checks the user's access to the project; hiding a menu item is not enough. A case from
   a project the user's assignments don't cover returns "not found" (not "forbidden"). [MS]
@@ -253,8 +253,13 @@ Rules changed on 2026-10-20 (Projects & Flows restructure) are marked **(changed
   - Not used [PO 2026-10-21]: access end dates (temporary cover), and per-flow scope (DEC-70; two users with the same role
     can already work in different projects, because the scope belongs to each assignment).
   - The Users screen lists merchant users only; Platform Admins are managed on **Admins** (DEC-79).
-- **DEC-75** **(new)** Platform Admin may manage flows in any merchant for onboarding and support; API keys and webhooks stay
-  merchant-only because they carry the merchant's secrets. [PO 2026-10-20]
+- **DEC-75** **(changed)** Platform Admin can do everything a Merchant Owner can, in any merchant, for onboarding and support:
+  view cases (OQ-20 answered yes), claim and approve / reject, API keys and webhooks. The list shows no sensitive data
+  (DEC-40); every case they open is audited as `SENSITIVE_PII_VIEW` (DEC-41), and their decisions show their name as
+  "Last updated by". [PO 2026-10-21]
+  - Risk noted for compliance sign-off: under KYC rules the merchant is the accountable party, so a case decided by
+    platform staff is decided by a third party. The merchant agreement should allow it.
+  - Superseded: "API keys and webhooks stay merchant-only" and "never claim or decide" [PO 2026-10-20].
 - **DEC-76** **(new)** **Roles** screen ([FRS] User Management › Roles): Role ID (`ROL-2026-XXXX`), Role Name, Merchant
   (Platform Admin only), Role Type (`System Default` / `Custom`), Status, Users, Created At. The detail / create modal holds
   the grouped permission checkboxes (at least one: "Roles require at least one action permission flag"). System Default
@@ -336,7 +341,7 @@ These keep the mock runnable. They are not signed-off requirements; change them 
   (DEC-92) gets the same, plus its first user as an Invited Merchant Owner.
 - **MOCK-13** **(new)** Calls made where the decisions are silent [Claude, 2026-10-20]:
   - Project Settings › General and Review operations are edited by the roles that manage flows (Platform Admin, Merchant
-    Owner, the project's Project Admin); Integration stays merchant-only (DEC-75).
+    Owner, the project's Project Admin); Integration is merchant-only (superseded: DEC-75 now gives it to Platform Admin).
   - Flows List / Flow Detail: members without the manage-flows right get "No access"; outside the project, "not found".
   - Users and Access: nobody changes their own access; Merchant Owners are not changed there; only Platform Admin or the
     Merchant Owner deactivates (account-wide). Becoming Viewer also releases the user's claims in that project.

@@ -16,8 +16,8 @@ export interface UserService {
   /** The signed-in user's account: the UI decides what to show from it (DEC-71); services check it again. */
   me(actor: Actor): Promise<AccountAccess>
   /**
-   * Active users who may claim cases (DEC-70), limited to projects whose cases the actor can see; one project when given.
-   * Platform Admins never claim.
+   * Active users who may claim cases (DEC-70; Platform Admins too, DEC-75), limited to projects whose cases the actor can
+   * see; one project when given.
    */
   listReviewers(actor: Actor, projectId?: string): Promise<UserSummary[]>
   /** Everyone the actor may see: all users for Platform Admin; own-merchant users (and Platform Admins, as audit actors) otherwise. */

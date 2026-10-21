@@ -1,5 +1,5 @@
-// Project Settings › Integration API (mock). DEC-54, DEC-75: merchant-only (Merchant Owner, the project's Project Admin);
-// Platform Admin never sees or changes a merchant's keys or webhook. Secrets are mock values, shown once.
+// Project Settings › Integration API (mock). DEC-54, DEC-75: users with Manage API keys and webhook, and Platform Admin.
+// Secrets are mock values, shown once; every change is audited.
 //   GET    /projects/{id}/integration          get          → 200 Integration | 403
 //   POST   /projects/{id}/api-keys             createKey    → 201 { key, secret }
 //   POST   /api-keys/{keyId}/rotate            rotateKey    → 200 { key, secret }

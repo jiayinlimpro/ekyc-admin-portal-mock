@@ -21,7 +21,6 @@ Each question is a **parameter**, not a fact. The mock uses the default below. I
 | OQ-17 | Is Reference ID unique per merchant or per project? (MS OQ-1) | Per project; the Project column makes duplicates across projects clear | Project setting (shown read-only) |
 | OQ-18 | Are routing rules and percentage splits set only through the API, or also edited in the portal? (MS OQ-2) | API only; portal shows them read-only | Project Settings › Routing |
 | OQ-19 | Default session expiry and accepted documents for a new flow (MS OQ-4) | Required fields with no default on a new flow; seeded flows use 30 min and MyKad + Passport | Flow Detail |
-| OQ-20 | Can internal staff (Platform Admin) view merchant cases for support? (MS OQ-7) | No access | `POLICY.platformAdminCaseAccess` |
 | OQ-21 | Project data retention period | Not set; shown as a placeholder | Project Settings › General |
 | OQ-22 | Cooldown after a rejection (DEC-26): how is the "same end user" identified, and does the wait apply to this flow only or the whole project? | Same ID document number (NRIC / passport no.), same flow | Flow `cooldownMin`, `flowRules.ts` |
 | OQ-24 | Does the claim timeout run from claim time or from the last activity? (FRS TBC) | From claim time | `claimRules.ts` |
@@ -33,7 +32,8 @@ Each question is a **parameter**, not a fact. The mock uses the default below. I
 | ID | Question | Answer |
 |---|---|---|
 | OQ-07 | Are retakes charged per attempt? | Tokens per liveness submission; ID capture and selfie retakes are free (DEC-60) |
-| OQ-08 | Can Platform Admin claim and decide? | No (DEC-70) |
+| OQ-08 | Can Platform Admin claim and decide? | Yes, changed 2026-10-21 (DEC-75); was No (DEC-70) |
+| OQ-20 | Can internal staff (Platform Admin) view merchant cases for support? (MS OQ-7) | Yes; every open is audited (DEC-75) |
 | OQ-10 | Decision reason code list | Reject: conditions from DEC-35; approve: no code; note optional (DEC-31) |
 | OQ-15 | Which 3 KPIs does the Overview show? | Total Submissions, Auto-Clear Rate, Active Review Queue ([FRS], DEC-85) |
 | OQ-16 | Should user and merchant changes be audited? | Yes (DEC-42) |

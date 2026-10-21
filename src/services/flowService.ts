@@ -63,7 +63,7 @@ const by = (actor: Actor) => ({ userId: actor.userId, fullName: actor.fullName }
 const entryOf = (code: string) => db.state().registry.find((e) => e.code === code)
 const inFlight = (flowId: string) => db.state().verifications.filter((v) => v.flowId === flowId && IN_FLIGHT_STATUSES.includes(v.status)).length
 
-// REQ: DEC-70 / DEC-75 — flows are managed by Platform Admin (any merchant), Merchant Owner and the project's Project Admin.
+// REQ: DEC-70 / DEC-75 — flows are managed with Manage flows, and by Platform Admin in any merchant.
 function loadFlow(actor: Actor, flowId: string): { flow: Flow; project: Project } {
   const flow = db.state().flows.find((f) => f.flowId === flowId)
   const project = flow && projectById(flow.projectId)

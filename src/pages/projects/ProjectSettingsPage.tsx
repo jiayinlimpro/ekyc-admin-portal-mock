@@ -204,7 +204,7 @@ function Settings({ selected }: { selected: MyProject }) {
             (may('manageIntegration') ? (
               <IntegrationTab project={p} />
             ) : (
-              <ReadOnlyNote>API keys and webhooks carry the merchant’s secrets, so only the Merchant Owner and the project’s Project Admin manage them (DEC-75).</ReadOnlyNote>
+              <ReadOnlyNote>API keys and webhooks need the Manage API keys and webhook permission.</ReadOnlyNote>
             ))}
           {tab === 'review' && <ReviewTab key={p.projectId} project={p} canEdit={may('manageProjectSettings')} onSaved={project.reload} />}
           {tab === 'routing' && <RoutingTab project={p} />}

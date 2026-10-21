@@ -64,13 +64,12 @@ describe('AppShell', () => {
     await mainNav().findByRole('link', { name: /Audit Logs/ })
   })
 
-  it('Given a Platform Admin, then admin screens are in the menu and Verifications is not (OQ-20)', async () => {
+  it('Given a Platform Admin, then admin screens and Verifications are in the menu (DEC-75)', async () => {
     useSession.getState().switchUser(ADMIN)
     renderAt('/')
     await mainNav().findByRole('link', { name: /Merchants/ })
-    for (const shown of ['Users', 'Roles', /Billing/, /Audit Logs/, 'Workflow Registry', 'Projects', 'Flows', 'Merchants']) expect(mainNav().getByRole('link', { name: shown })).toBeTruthy()
+    for (const shown of ['Users', 'Roles', /Billing/, /Audit Logs/, 'Workflow Registry', 'Projects', 'Flows', 'Merchants', 'Admins', 'Verifications']) expect(mainNav().getByRole('link', { name: shown })).toBeTruthy()
     for (const retired of [/eKYC Workflow/, /Developers/, 'Users and Access', /Merchant Workflow Directory/]) expect(mainNav().queryByRole('link', { name: retired })).toBeNull()
-    expect(mainNav().queryByRole('link', { name: 'Verifications' })).toBeNull()
   })
 
   it('Given a Reviewer opens the Audit Log URL directly, then "No access" (DEC-72)', async () => {

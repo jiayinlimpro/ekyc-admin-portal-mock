@@ -65,11 +65,11 @@ describe('Project Settings (DEC-54, DEC-96)', () => {
     expect((await p.findByRole('alert')).textContent).toBe('Webhook URL must start with https://')
   })
 
-  it('Given the Platform Admin, then Integration is merchant-only and General is editable (DEC-75)', async () => {
+  it('Given the Platform Admin, then Integration and General are open to them (DEC-75)', async () => {
     useSession.getState().switchUser(ADMIN)
     useSession.getState().selectProject('PRJ-0003')
     renderAt('/project-settings?tab=integration')
-    expect((await panel()).getByText(/only the Merchant Owner and the project’s Project Admin manage them/)).toBeTruthy()
+    expect(await (await panel()).findByRole('button', { name: /Create key/ })).toBeTruthy()
     tab('General')
     expect((await panel()).getByRole('button', { name: 'Save general settings' })).toBeTruthy()
   })

@@ -121,10 +121,11 @@ export function seedDatabase(now: Date): MockDbState {
   const accounts = buildAccounts(now)
   const roles = buildRoles(now)
   const accessOf = (a: UserAccount) => ({ ...a, grants: grantsOf(a.assignments, roles) })
-  // REQ: DEC-70 — only active users who may claim in the case's project review it (Platform Admin never decides).
+  // REQ: DEC-70 — seeded reviews are by the merchant's own active users who may claim there (Platform Admin could, DEC-75,
+  // but the demo history is the merchant's).
   const reviewersOf = (v: Verification): Actor[] =>
     accounts
-      .filter((a) => a.status === 'ACTIVE' && canInProject(accessOf(a), 'claimCase', { projectId: v.projectId, merchantId: v.merchantId }))
+      .filter((a) => a.level === 'MERCHANT_USER' && a.status === 'ACTIVE' && canInProject(accessOf(a), 'claimCase', { projectId: v.projectId, merchantId: v.merchantId }))
       .map(actorOf)
   const roleOf = (a: Actor, v: Verification) => roleNamesInProject(accessOf(accounts.find((x) => x.userId === a.userId)!), v).join(', ')
   const entryOf = (code: string) => catalog.registry.find((e) => e.code === code)!
