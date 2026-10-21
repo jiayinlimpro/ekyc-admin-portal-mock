@@ -13,7 +13,7 @@ Each question is a **parameter**, not a fact. The mock uses the default below. I
 | OQ-04 | Default auto-release claim timeout and warning time (MS OQ-4) | 30 min timeout, warning 5 min before expiry | Project `claimTimeoutMin` / `POLICY.claimWarningMin` |
 | OQ-05 | Is V4 Risk configured by a maximum allowed level (mock) or by scores? Can risk auto-reject? V5: per-component thresholds or only the final action? (MS OQ-6) | V4: max allowed level `MEDIUM`, risk never auto-rejects. V5 risk form not built | Flow `risk` |
 | OQ-06 | Risk score → level bands, and risk weighting | score < 40 LOW, < 70 MEDIUM, else HIGH; weighting not modelled | `POLICY.riskBands` |
-| OQ-09 | Final role names, System Default roles and the permission list (MS OQ-3; the FRS "User Access Matrix" spreadsheet) | System Default: Merchant Owner, Project Admin, Reviewer, Viewer; permissions as in DEC-70 | `src/domain/roles.ts` |
+| OQ-09 | Final role names, System Default roles and the permission list (MS OQ-3; the FRS "User Access Matrix" spreadsheet). Also: are separate read and edit permissions needed (e.g. see users without changing them)? | System Default: Merchant Owner, Project Admin, Reviewer, Viewer; permissions as in DEC-70, one per area (no read-only variants) | `src/domain/roles.ts` |
 | OQ-11 | Does a claim end when the reviewer logs out or closes the tab? | No: only Release, timeout, decision or removal from the project | `claimRules.ts` |
 | OQ-12 | Can a reviewer re-claim straight after their own claim times out? | Yes | `claimRules.ts` |
 | OQ-13 | What does the page show if the claim expires while the reviewer is typing? | Buttons disable; save fails with "This case is no longer assigned to you"; typed text is kept | Detail page |

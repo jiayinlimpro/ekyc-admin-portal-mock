@@ -244,6 +244,15 @@ Rules changed on 2026-10-20 (Projects & Flows restructure) are marked **(changed
   - Removing an assignment (or suspending) releases the user's open claims in projects where they can no longer claim.
   - At least one active Merchant Owner (All projects) must remain.
   - Nobody changes their own access.
+  - Presentation [PO 2026-10-21]: access is always written as one chip, `Role · Scope` ("Reviewer · SME app",
+    "Merchant Owner · All projects"), the same on the Users list, User detail and Members; an archived project shows as
+    "SME app (archived)" and its rows are read-only. User detail also shows **Effective access** for a chosen project:
+    each permission with a "Comes from" chip naming the access row that grants it. The Add / Edit access dialog shows a
+    plain-language preview ("Ali will be able to … in SME app") and lists only roles the actor may give. A user with no
+    access shows "No access yet. Add access so they can use the portal." with Add access.
+  - Not used [PO 2026-10-21]: access end dates (temporary cover), and per-flow scope (DEC-70; two users with the same role
+    can already work in different projects, because the scope belongs to each assignment).
+  - The Users screen lists merchant users only; Platform Admins are managed on **Admins** (DEC-79).
 - **DEC-75** **(new)** Platform Admin may manage flows in any merchant for onboarding and support; API keys and webhooks stay
   merchant-only because they carry the merchant's secrets. [PO 2026-10-20]
 - **DEC-76** **(new)** **Roles** screen ([FRS] User Management › Roles): Role ID (`ROL-2026-XXXX`), Role Name, Merchant
@@ -253,16 +262,31 @@ Rules changed on 2026-10-20 (Projects & Flows restructure) are marked **(changed
   users" before saving. Roles are never deleted; deactivating one still assigned is refused: "Operation rejected. This role
   is currently assigned to active records inside the system." Managed by users with Manage users and roles and by Platform
   Admin. [FRS][PO 2026-10-20]
+  - **Duplicate** any role (System Default included) into a new Custom role, "Copy of …", to edit from there. The impact
+    note reads "Affects N users in M projects". [PO 2026-10-21]
 - **DEC-77** **(new)** Project Settings › **Members** tab: everyone with access to the project and their role, including
   users with All projects access (marked "inherited"). Adding a member creates an assignment scoped to that project. An
-  archived project keeps its assignments read-only and leaves the switcher. [PO 2026-10-20]
+  archived project keeps its assignments read-only and leaves the switcher. [PO 2026-10-20] Adding from this tab fixes the
+  project (shown, not changeable) and lists only roles the actor may give; inherited rows link to the user's details when
+  the actor may open them. [PO 2026-10-21]
+- **DEC-78** **(new)** Hide or disable, one rule for every screen [PO 2026-10-21]:
+  - **Hide** an action the user can never do with their access (a Reviewer never sees "Add member").
+  - **Disable with a tooltip** an action blocked by the current state, where knowing it exists matters (Remove on the last
+    Merchant Owner: "At least one Merchant Owner (All projects) is required").
+  - Services check every action anyway (DEC-71). Screens a user can't open show "No access"; a case or project outside
+    their access is "not found" (DEC-72).
+- **DEC-79** **(new)** **Admins** (Platform menu, Platform Admin only): the internal Platform Admin accounts, kept apart from
+  merchant users. Columns User ID, Full Name, Email, Status, Created At; sorted by Created At, newest first. New admin = full
+  name and work email; starts Pending (Resend invitation); Suspend / Reactivate; never deleted. No roles or scopes: Platform
+  Admin rights are fixed (DEC-70). At least one active Platform Admin must remain; nobody suspends themselves. Audited with
+  the DEC-42 user events. [Dev 2026-10-21]
 
 ## Screens and navigation
 - **DEC-84** **(new)** No Home page. **Everyone lands on Overview.** UAT scenario links are on a mock-only page in the Dev
   menu. [PO 2026-10-20]
 - **DEC-85** **(new)** Screens: Overview, System Intelligence, Billing (all roles, DEC-86), Verifications List, Verification
   Detail, Projects, Project Settings, Flows List, Flow Detail, Users, Roles, Audit Log; Platform Admin only: Merchants,
-  Workflow Registry. Replaced: eKYC Workflow → Flows List + Flow Detail; Developers → Project Settings › Integration;
+  Workflow Registry, Admins (DEC-79). Replaced: eKYC Workflow → Flows List + Flow Detail; Developers → Project Settings › Integration;
   Users and Access → Users + Roles ([FRS] method, DEC-74, DEC-76); Merchant Workflow Directory → Workflow Registry ("flows using it"); the [MS] Reports
   module → folded into the three dashboards (DEC-86). Overview, System Intelligence, Billing and Merchants otherwise follow
   [FRS]. [MS][PO 2026-10-20]
