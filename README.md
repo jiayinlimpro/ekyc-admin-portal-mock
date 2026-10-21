@@ -37,7 +37,7 @@ If `npm` scripts are blocked in PowerShell: `Set-ExecutionPolicy -Scope CurrentU
 
 | User | Access (role · scope) | Merchant |
 |---|---|---|
-| Lim Wei Jie (USR-2026-0001) | Platform Admin: all merchants; no case access by default (OQ-20) | — |
+| Lim Wei Jie (USR-2026-0001) | Platform Admin: everything in every merchant, cases included (DEC-75) | — |
 | Nor Aisyah Binti Hamid (USR-2026-0005) | Platform Admin (second one, for the Admins screen) | — |
 | Tan Mei Ling (USR-2026-0002) | Merchant Owner · All projects | Atoz Software Tech |
 | Ali Bin Ahmad (USR-2026-0012) | Reviewer · Default; Viewer · SME app | Atoz Software Tech |
