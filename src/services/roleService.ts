@@ -22,8 +22,8 @@ export interface RoleInput {
   permissions: Permission[]
 }
 
-/** A row on the Roles screen. `users`: holders in the viewer's scope; "Affects N users" before a save. */
-export type RoleRow = Role & { merchantName?: string; users: number; heldForSelectedProjects: boolean }
+/** A row on the Roles screen. `users` / `projects`: holders in the viewer's scope; "Affects N users in M projects" (DEC-76). */
+export type RoleRow = Role & { merchantName?: string; users: number; projects: number; heldForSelectedProjects: boolean }
 
 export interface RoleService {
   list(actor: Actor, merchantId?: string): Promise<RoleRow[]>
@@ -78,6 +78,13 @@ export const mockRoleService: RoleService = {
             ...r,
             merchantName: merchantName(r.merchantId),
             users: holders.length,
+            projects: new Set(
+              holders.flatMap((a) =>
+                a.assignments
+                  .filter((x) => x.roleId === r.roleId)
+                  .flatMap((x) => (x.scope.kind === 'PROJECTS' ? x.scope.projectIds : db.state().projects.filter((p) => p.merchantId === a.merchantId).map((p) => p.projectId))),
+              ),
+            ).size,
             heldForSelectedProjects: holders.some((a) => a.assignments.some((x) => x.roleId === r.roleId && x.scope.kind === 'PROJECTS')),
           }
         })

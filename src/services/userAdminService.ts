@@ -57,6 +57,8 @@ export interface AssignmentRow {
   addedAt: string
   /** The viewer may edit or remove it (never when every project in it is archived). */
   editable: boolean
+  /** REQ: DEC-78 — Remove is shown but disabled, with this reason (the last Merchant Owner). */
+  removeBlocked?: string
 }
 
 export interface UserDetail extends UserRow {
@@ -66,6 +68,8 @@ export interface UserDetail extends UserRow {
   isSelf: boolean
   /** The viewer may add access, resend the invitation, suspend and reactivate. */
   canManage: boolean
+  /** REQ: DEC-78 — Suspend is shown but disabled, with this reason (the last Merchant Owner). */
+  suspendBlocked?: string
   /** REQ: DEC-74 — per project of the merchant: each permission and the access rows ("Comes from") that grant it. */
   effective: { projectId: string; projectName: string; permissions: { permission: Permission; from: string[] }[] }[]
 }
@@ -181,10 +185,14 @@ function checkAssignment(me: AccountAccess, merchantId: string, input: Assignmen
 }
 
 /** REQ: DEC-74 — at least one Merchant Owner (All projects) remains among the merchant's users that are not suspended. */
-function requireOwnerRemains(merchantId: string, changed: UserAccount) {
+function ownerErrors(merchantId: string, changed: UserAccount): RuleError[] {
   const users = db.state().accounts.filter((a) => a.merchantId === merchantId)
   const live = (us: UserAccount[]) => us.filter((a) => a.status !== 'SUSPENDED')
-  const errors: RuleError[] = lastOwnerError(live(users), live(users.map((a) => (a.userId === changed.userId ? changed : a))))
+  return lastOwnerError(live(users), live(users.map((a) => (a.userId === changed.userId ? changed : a))))
+}
+
+function requireOwnerRemains(merchantId: string, changed: UserAccount) {
+  const errors = ownerErrors(merchantId, changed)
   if (errors.length) throw validation(errors)
 }
 
@@ -228,6 +236,7 @@ function detailOf(actor: Actor, a: UserAccount & { merchantId: string }): UserDe
     lastActiveAt: a.lastActiveAt,
     isSelf,
     canManage: !isSelf && canInMerchant(me, 'manageUsersRoles', a.merchantId),
+    suspendBlocked: ownerErrors(a.merchantId, { ...a, status: 'SUSPENDED' })[0]?.message,
     effective: db
       .state()
       .projects.filter((p) => p.merchantId === a.merchantId)
@@ -245,6 +254,7 @@ function detailOf(actor: Actor, a: UserAccount & { merchantId: string }): UserDe
       addedBy: x.addedBy,
       addedAt: x.addedAt,
       editable: !isSelf && !allArchived(x.scope, isArchived) && mayManageScope(me, a.merchantId, x.scope),
+      removeBlocked: ownerErrors(a.merchantId, { ...a, assignments: a.assignments.filter((y) => y.assignmentId !== x.assignmentId) })[0]?.message,
     })),
   }
 }

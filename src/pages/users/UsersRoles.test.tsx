@@ -121,6 +121,25 @@ describe('Roles (DEC-76)', () => {
     const r = await row('Compliance Auditor')
     expect(r.textContent).toContain('Vantage')
     fireEvent.click(within(r).getByRole('button', { name: 'Compliance Auditor' }))
-    expect((await screen.findByRole('status')).textContent).toContain('Affects 1 user')
+    expect((await screen.findByRole('status')).textContent).toContain('Affects 1 user in 1 project')
+  })
+
+  it('Given a System Default role, when duplicated, then a Custom copy with its permissions is created', async () => {
+    renderAt('/roles')
+    fireEvent.click(within(await row('Reviewer')).getByRole('button', { name: 'Reviewer' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Duplicate' }))
+    expect(((await screen.findByLabelText('Role name')) as HTMLInputElement).value).toBe('Copy of Reviewer')
+    expect((screen.getByRole('checkbox', { name: 'Claim cases' }) as HTMLInputElement).checked).toBe(true)
+    fireEvent.click(screen.getByRole('button', { name: 'Create role' }))
+    expect((await row('Copy of Reviewer')).textContent).toContain('Custom')
+  })
+
+  it('Given the only Merchant Owner, then Remove and Suspend are shown disabled with the reason (DEC-78)', async () => {
+    useSession.getState().switchUser(ADMIN)
+    renderAt('/users?user=USR-2026-0002')
+    const remove = await screen.findByRole('button', { name: 'Remove Merchant Owner · All projects' })
+    expect((remove as HTMLButtonElement).disabled).toBe(true)
+    expect(remove.parentElement!.getAttribute('title')).toBe('At least one Merchant Owner (All projects) is required.')
+    expect((screen.getByRole('button', { name: 'Suspend' }) as HTMLButtonElement).disabled).toBe(true)
   })
 })

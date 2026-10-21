@@ -178,6 +178,8 @@ export function holdersOf<U extends { assignments: readonly RoleAssignment[] }>(
   return users.filter((u) => u.assignments.some((a) => a.roleId === roleId))
 }
 
+export const LAST_OWNER = 'At least one Merchant Owner (All projects) is required.'
+
 const isOwnerAssignment = (a: RoleAssignment) => a.roleId === SYSTEM_ROLE_IDS.MERCHANT_OWNER && a.scope.kind === 'ALL_PROJECTS'
 
 /**
@@ -186,5 +188,5 @@ const isOwnerAssignment = (a: RoleAssignment) => a.roleId === SYSTEM_ROLE_IDS.ME
  */
 export function lastOwnerError(before: readonly { assignments: readonly RoleAssignment[] }[], after: readonly { assignments: readonly RoleAssignment[] }[]): RuleError[] {
   const owners = (us: typeof before) => us.filter((u) => u.assignments.some(isOwnerAssignment)).length
-  return owners(before) > 0 && owners(after) === 0 ? [{ field: 'roleId', message: 'This merchant needs at least one Merchant Owner with All projects access.' }] : []
+  return owners(before) > 0 && owners(after) === 0 ? [{ field: 'roleId', message: LAST_OWNER }] : []
 }

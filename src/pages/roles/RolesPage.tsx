@@ -43,15 +43,31 @@ function PermissionGroup({ title, hint, permissions, value, onChange, disabled }
   )
 }
 
-type Editing = { mode: 'create' } | { mode: 'edit'; row: RoleRow }
+type Editing = { mode: 'create'; from?: RoleRow } | { mode: 'edit'; row: RoleRow }
 
-function RoleDialog({ editing, merchants, defaultMerchantId, onClose, onSaved }: { editing: Editing; merchants: { merchantId: string; name: string }[]; defaultMerchantId?: string; onClose: () => void; onSaved: () => void }) {
+function RoleDialog({
+  editing,
+  merchants,
+  defaultMerchantId,
+  onClose,
+  onSaved,
+  onDuplicate,
+}: {
+  editing: Editing
+  merchants: { merchantId: string; name: string }[]
+  defaultMerchantId?: string
+  onClose: () => void
+  onSaved: () => void
+  onDuplicate: (row: RoleRow) => void
+}) {
   const actor = useSession((s) => s.actor)
   const row = editing.mode === 'edit' ? editing.row : undefined
   const locked = row?.type === 'SYSTEM_DEFAULT'
-  const [merchantId, setMerchantId] = useState(row?.merchantId ?? defaultMerchantId ?? '')
-  const [name, setName] = useState(row?.name ?? '')
-  const [permissions, setPermissions] = useState<Permission[]>(row?.permissions ?? [])
+  // REQ: DEC-76 — Duplicate starts a new Custom role from a copy of another (System Default included).
+  const from = editing.mode === 'create' ? editing.from : undefined
+  const [merchantId, setMerchantId] = useState(row?.merchantId ?? from?.merchantId ?? defaultMerchantId ?? '')
+  const [name, setName] = useState(row?.name ?? (from ? `Copy of ${from.name}` : ''))
+  const [permissions, setPermissions] = useState<Permission[]>(row?.permissions ?? from?.permissions ?? [])
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [busy, setBusy] = useState(false)
 
@@ -79,7 +95,7 @@ function RoleDialog({ editing, merchants, defaultMerchantId, onClose, onSaved }:
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
         <form onSubmit={submit} noValidate className="space-y-4">
           <DialogHeader>
-            <DialogTitle>{row ? row.name : 'New role'}</DialogTitle>
+            <DialogTitle>{row ? row.name : from ? `New role from ${from.name}` : 'New role'}</DialogTitle>
             <DialogDescription>
               {locked
                 ? 'System Default roles are the same for every merchant and can’t be changed.'
@@ -115,7 +131,7 @@ function RoleDialog({ editing, merchants, defaultMerchantId, onClose, onSaved }:
           </div>
           {row && !locked && row.users > 0 && (
             <p className="rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:bg-amber-500/10 dark:text-amber-200" role="status">
-              Affects {row.users} user{row.users === 1 ? '' : 's'}: changes apply at once wherever they hold this role.
+              Affects {row.users} user{row.users === 1 ? '' : 's'} in {row.projects} project{row.projects === 1 ? '' : 's'}: changes apply at once wherever they hold this role.
             </p>
           )}
           {errors.form && (
@@ -138,6 +154,11 @@ function RoleDialog({ editing, merchants, defaultMerchantId, onClose, onSaved }:
                 onClick={() => void run(() => roleService.setStatus(row.roleId, row.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE', actor), row.status === 'ACTIVE' ? `${row.name} deactivated` : `${row.name} activated`)}
               >
                 {row.status === 'ACTIVE' ? 'Deactivate' : 'Activate'}
+              </Button>
+            )}
+            {row && (
+              <Button type="button" variant="outline" disabled={busy} onClick={() => onDuplicate(row)}>
+                Duplicate
               </Button>
             )}
             <Button type="button" variant="outline" disabled={busy} onClick={onClose}>
@@ -208,7 +229,9 @@ export function RolesPage() {
       </section>
       {editing && (
         <RoleDialog
+          key={editing.mode === 'edit' ? editing.row.roleId : `new-${editing.from?.roleId ?? ''}`}
           editing={editing}
+          onDuplicate={(from) => setEditing({ mode: 'create', from })}
           merchants={isAdmin ? (merchants.data ?? []) : []}
           defaultMerchantId={isAdmin ? undefined : account?.merchantId}
           onClose={() => setEditing(undefined)}

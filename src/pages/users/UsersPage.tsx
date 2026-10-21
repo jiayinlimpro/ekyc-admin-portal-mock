@@ -240,14 +240,18 @@ function UserDialog({ userId, onClose, onChanged }: { userId: string; onClose: (
                               <Button variant="ghost" size="icon-sm" aria-label={`Edit ${a.roleName} · ${a.scopeLabel}`} onClick={() => setEditing({ mode: 'edit', row: a })}>
                                 <Pencil aria-hidden />
                               </Button>
-                              <Button
-                                variant="ghost"
-                                size="icon-sm"
-                                aria-label={`Remove ${a.roleName} · ${a.scopeLabel}`}
-                                onClick={() => window.confirm(`Remove ${a.roleName} · ${a.scopeLabel} from ${u.fullName}? Their open claims there are released.`) && void act(() => userAdminService.removeAssignment(u.userId, a.assignmentId, actor), 'Access removed')}
-                              >
-                                <Trash2 aria-hidden />
-                              </Button>
+                              <span title={a.removeBlocked} className="inline-flex">
+                                <Button
+                                  variant="ghost"
+                                  size="icon-sm"
+                                  disabled={!!a.removeBlocked}
+                                  aria-label={`Remove ${a.roleName} · ${a.scopeLabel}`}
+                                  aria-description={a.removeBlocked}
+                                  onClick={() => window.confirm(`Remove ${a.roleName} · ${a.scopeLabel} from ${u.fullName}? Their open claims there are released.`) && void act(() => userAdminService.removeAssignment(u.userId, a.assignmentId, actor), 'Access removed')}
+                                >
+                                  <Trash2 aria-hidden />
+                                </Button>
+                              </span>
                             </>
                           )}
                         </td>
@@ -255,7 +259,16 @@ function UserDialog({ userId, onClose, onChanged }: { userId: string; onClose: (
                     ))}
                   </tbody>
                 </table>
-                {!u.assignments.length && <p className="px-3 py-4 text-sm text-muted-foreground">No access yet: this user can sign in but sees no project.</p>}
+                {!u.assignments.length && (
+                  <div className="flex flex-wrap items-center justify-between gap-2 px-3 py-4 text-sm text-muted-foreground">
+                    No access yet. Add access so they can use the portal.
+                    {u.canManage && (
+                      <Button size="sm" onClick={() => setEditing({ mode: 'add' })}>
+                        <Plus aria-hidden /> Add access
+                      </Button>
+                    )}
+                  </div>
+                )}
               </div>
             </section>
             <EffectiveAccess key={u.userId} user={u} />
@@ -268,9 +281,11 @@ function UserDialog({ userId, onClose, onChanged }: { userId: string; onClose: (
             </Button>
           )}
           {u?.canManage && u.status !== 'SUSPENDED' && (
-            <Button variant="destructive" onClick={() => window.confirm(`Suspend ${u.fullName}? They can’t sign in and their open claims are released.`) && void act(() => userAdminService.suspend(u.userId, actor), `${u.fullName} suspended`)}>
-              Suspend
-            </Button>
+            <span title={u.suspendBlocked} className="inline-flex">
+              <Button variant="destructive" disabled={!!u.suspendBlocked} aria-description={u.suspendBlocked} onClick={() => window.confirm(`Suspend ${u.fullName}? They can’t sign in and their open claims are released.`) && void act(() => userAdminService.suspend(u.userId, actor), `${u.fullName} suspended`)}>
+                Suspend
+              </Button>
+            </span>
           )}
           {u?.canManage && u.status === 'SUSPENDED' && (
             <Button variant="outline" onClick={() => void act(() => userAdminService.reactivate(u.userId, actor), `${u.fullName} reactivated`)}>

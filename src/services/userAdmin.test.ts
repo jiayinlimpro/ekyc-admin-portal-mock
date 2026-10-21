@@ -72,6 +72,13 @@ describe('userAdminService: the Users screen (DEC-74)', () => {
     expect(d.effective.find((e) => e.projectId === 'PRJ-0001')!.permissions.find((p) => p.permission === 'CLAIM_CASES')!.from).toEqual(['Reviewer · Default'])
   })
 
+  it('Given the only Merchant Owner, then Remove and Suspend are blocked with the reason before anyone clicks (DEC-78)', async () => {
+    const d = await users.get(OWNER.userId, ADMIN)
+    expect(d.assignments[0].removeBlocked).toBe('At least one Merchant Owner (All projects) is required.')
+    expect(d.suspendBlocked).toBe('At least one Merchant Owner (All projects) is required.')
+    expect((await users.get(ALI.userId, OWNER)).assignments.every((x) => !x.removeBlocked)).toBe(true)
+  })
+
   it('Given anyone, then they cannot change their own access', async () => {
     await expect(users.addAssignment(OWNER.userId, { roleId: REVIEWER, scope: only('PRJ-0001') }, OWNER)).rejects.toThrow('You can’t change your own access.')
   })
@@ -170,7 +177,8 @@ describe('roleService: the Roles screen (DEC-76)', () => {
     expect(rows.map((r) => r.name)).toEqual(['Merchant Owner', 'Project Admin', 'Reviewer', 'Viewer'])
     expect(rows.find((r) => r.name === 'Reviewer')!.users).toBe(4) // Ali, Siti, Nurul, Yap (suspended still holds it)
     const all = await roleService.list(ADMIN)
-    expect(all.find((r) => r.name === 'Compliance Auditor')).toMatchObject({ type: 'CUSTOM', merchantName: 'Vantage', users: 1 })
+    expect(all.find((r) => r.name === 'Compliance Auditor')).toMatchObject({ type: 'CUSTOM', merchantName: 'Vantage', users: 1, projects: 1 })
+    expect(rows.find((r) => r.name === 'Reviewer')!.projects).toBe(2) // Default and SME app
   })
 
   it('Given a new role, then at least one permission; Claim ticks View cases; audited', async () => {
