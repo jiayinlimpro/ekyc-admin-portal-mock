@@ -50,11 +50,11 @@ describe('Verifications List', () => {
     expect(screen.queryByLabelText(/^Merchant/)).toBeNull() // no merchant filter
   })
 
-  it('Given Ali sees two projects, then Project, Flow, Version, Risk and Claim expires columns; Project disappears with one project in the header (DEC-40)', async () => {
+  it('Given Ali sees two projects, then Project and Risk columns, with version under Flow and no Actions column; Project disappears with one project in the header (DEC-40)', async () => {
     renderAt('/verifications?status=ALL')
     await dataRows()
     const headers = within(table()).getAllByRole('columnheader').map((h) => h.textContent)
-    expect(headers).toEqual(['Reference ID', 'Full Name', 'Project', 'Flow', 'Version', 'Document', 'Status', 'Risk Level', 'Claimed By', 'Claim expires', 'Created', 'Last Updated By', 'Last updated', 'Actions'])
+    expect(headers).toEqual(['Reference ID', 'Full Name', 'Project', 'Flow', 'Document', 'Status', 'Risk Level', 'Claimed By', 'Created (MYT)', 'Last updated (MYT)'])
     cleanup()
     useSession.getState().switchUser(HAFIZ) // one project (SME app, V3: no risk)
     renderAt('/verifications?status=ALL')
@@ -88,7 +88,7 @@ describe('Verifications List', () => {
     for (const r of rows) expect(r.textContent).toContain('Processing')
   })
 
-  it('Given Claim = Claimed by me, then S07 and S08 show with a "You" marker and a countdown in Claim expires', async () => {
+  it('Given Claim = Claimed by me, then S07 and S08 show with a "You" marker and the countdown under Claimed By', async () => {
     renderAt('/verifications')
     await dataRows()
     fireEvent.change(screen.getByLabelText('Claim'), { target: { value: 'MINE' } })
@@ -119,7 +119,8 @@ describe('Verifications List', () => {
   it('Given the Platform Admin, then cases of every merchant are listed (DEC-75)', async () => {
     useSession.getState().switchUser(ADMIN)
     renderAt('/verifications?status=ALL&referenceNo=KYC-260901-900013')
-    await screen.findByRole('rowheader', { name: 'KYC-260901-900013' }) // a Vantage case, outside any merchant of his
+    const row = (await screen.findByRole('rowheader', { name: 'KYC-260901-900013' })).closest('tr')!
+    expect(row.textContent).toContain('Vantage') // across merchants, the merchant shows under the project
   })
 
   it('Given the service fails, then an error with Try again; when it recovers, then rows load', async () => {

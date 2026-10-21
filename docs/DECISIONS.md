@@ -121,6 +121,10 @@ Rules changed on 2026-10-20 (Projects & Flows restructure) are marked **(changed
   Flow, Workflow version, Document type, Status, Risk level (only when a flow in view runs risk), Claimed by (or "Unclaimed"),
   Claim expires, Created, Last updated. No other PII, no client metadata, no duplicate-user information. Enforced by the
   `VerificationSummary` type. [MS][FRS][PO 2026-10-20]
+  - Layout, same information [PO 2026-10-21]: the list must fit a desktop screen without scrolling sideways, so related
+    values share a column on a second line: Flow / version, Claimed by / countdown and expiry time, Last updated / by whom
+    (SYSTEM or the user), Project / merchant (only when the rows span merchants, i.e. Platform Admin). Times are MYT (in the
+    header). No Actions column: the Reference ID opens the case.
 - **DEC-41** Detail view: full unmasked PII + client metadata. **Every** open writes a `SENSITIVE_PII_VIEW` audit entry.
 - **DEC-42** **(changed)** Every mutation writes an audit entry (actor or SYSTEM, role, project, event, target, old and new
   value, IP). Event actions:

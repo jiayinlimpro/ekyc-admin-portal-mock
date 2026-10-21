@@ -129,6 +129,7 @@ export function VerificationsListPage() {
                 skeletonRows={Math.min(params.pageSize, 10)}
                 showProject={options.projects.length > 1}
                 showRisk={options.flows.some((f) => f.runsRisk)}
+                showMerchant={new Set(options.projects.map((p) => p.merchantId)).size > 1}
               />
             )}
             {data && data.total > 0 && (
