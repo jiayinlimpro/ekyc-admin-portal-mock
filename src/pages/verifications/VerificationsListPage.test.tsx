@@ -8,6 +8,7 @@ import { devService } from '@/services/devService'
 import { DEFAULT_DEV_FLAGS, useDevFlags } from '@/stores/devFlagsStore'
 import { useSession } from '@/stores/sessionStore'
 import { ADMIN, ALI, EMPTY_OWNER, HAFIZ } from '@/test/factories'
+import { fx } from '@/lib/ids'
 
 function renderAt(path: string) {
   const router = createMemoryRouter(routes, { initialEntries: [path] })
@@ -68,10 +69,10 @@ describe('Verifications List', () => {
   it('Given Project = SME app, then every row is from that project and the Flow filter lists only its flows', async () => {
     const router = renderAt('/verifications?status=ALL')
     await dataRows()
-    fireEvent.change(screen.getByLabelText('Project'), { target: { value: 'PRJ-0002' } })
+    fireEvent.change(screen.getByLabelText('Project'), { target: { value: fx('PRJ-0002') } })
     expect(within(screen.getByLabelText('Flow')).getAllByRole('option').map((o) => o.textContent)).toEqual(['All flows', 'SME director check (V3)'])
     search()
-    await waitFor(() => expect(router.state.location.search).toBe('?status=ALL&project=PRJ-0002'))
+    await waitFor(() => expect(router.state.location.search).toBe(`?status=ALL&project=${fx('PRJ-0002')}`))
     for (const r of await dataRows()) expect(r.textContent).toContain('SME app')
   })
 

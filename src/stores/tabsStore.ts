@@ -23,7 +23,7 @@ export const useTabs = create<TabsStore>()(
         return r.navigateTo
       },
     }),
-    // Per browser tab, like the session. v1: Home tab removed, so older saved tabs are dropped.
-    { name: 'ekyc-mock-tabs', storage: createJSONStorage(() => sessionStorage), version: 1, migrate: () => ({ tabs: [LANDING_TAB] }) },
+    // Per browser tab, like the session. v1: Home tab removed; v2: internal IDs in paths (DEC-97). Older saved tabs are dropped.
+    { name: 'ekyc-mock-tabs', storage: createJSONStorage(() => sessionStorage), version: 2, migrate: () => ({ tabs: [LANDING_TAB] }) },
   ),
 )

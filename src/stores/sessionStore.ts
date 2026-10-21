@@ -24,6 +24,7 @@ export const useSession = create<SessionStore>()(
       selectProject: (projectId) => set({ projectId }),
     }),
     // sessionStorage: each browser tab can be a different user, so two tabs can race for a claim (S10).
-    { name: 'ekyc-mock-session', storage: createJSONStorage(() => sessionStorage) },
+    // Version 1: internal IDs (DEC-97); an older session's user ID no longer exists, so start again as the default user.
+    { name: 'ekyc-mock-session', storage: createJSONStorage(() => sessionStorage), version: 1, migrate: () => ({ actor: DEFAULT_USER, projectId: ALL_PROJECTS }) },
   ),
 )

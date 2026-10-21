@@ -1,13 +1,14 @@
 import { describe, expect, it } from 'vitest'
 import type { AuditEntry } from '@/domain/types'
 import { auditCsv, summarizeAudit } from './auditFormat'
+import { fx } from '@/lib/ids'
 
 const e = (action: AuditEntry['action'], details: Record<string, unknown> = {}): AuditEntry => ({
   id: 'AUD-000001',
   at: '2026-09-25T02:00:00.000Z',
   action,
-  actor: { kind: 'USER', userId: 'USR-2026-0012', fullName: 'Ali Bin Ahmad' },
-  merchantId: 'MER-0001',
+  actor: { kind: 'USER', userId: fx('USR-2026-0012'), fullName: 'Ali Bin Ahmad' },
+  merchantId: fx('MER-0001'),
   referenceNo: 'KYC-260901-900003',
   ip: '203.0.113.9',
   details,
@@ -25,8 +26,8 @@ describe('summarizeAudit', () => {
   })
 
   it('CASE_CLAIM_EXPIRED names whose claim expired, in MYT', () => {
-    expect(summarizeAudit(e('CASE_CLAIM_EXPIRED', { claimedBy: { userId: 'USR-2026-0012', fullName: 'Ali Bin Ahmad' }, claimExpiresAt: '2026-09-25T02:30:00.000Z' }))).toBe(
-      'Claim by Ali Bin Ahmad (USR-2026-0012) expired at 25 Sep 2026, 10:30 MYT',
+    expect(summarizeAudit(e('CASE_CLAIM_EXPIRED', { claimedBy: { userId: fx('USR-2026-0012'), fullName: 'Ali Bin Ahmad' }, claimExpiresAt: '2026-09-25T02:30:00.000Z' }))).toBe(
+      'Claim by Ali Bin Ahmad expired at 25 Sep 2026, 10:30 MYT',
     )
   })
 

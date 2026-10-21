@@ -21,7 +21,8 @@ import { db } from '@/mocks/mockDb'
 import { accountOf, projectById, requireActive } from './accessGuard'
 import { ServiceError } from './errors'
 import { simulateNetwork, wire } from './network'
-import { auditProject, loadProject, nextId, requireInProject, validation } from './projectService'
+import { auditProject, loadProject, requireInProject, validation } from './projectService'
+import { newId } from '@/lib/ids'
 
 export interface FlowDetail {
   flow: Flow
@@ -121,7 +122,7 @@ export const mockFlowService: FlowService = {
     if (!entry) throw validation([{ field: 'workflowVersion', message: 'Choose an active workflow version.' }])
     if (!input.name.trim()) throw validation([{ field: 'name', message: 'Flow name is required' }])
     const at = now()
-    const flow = createFlow({ flowId: nextId('FLW-', db.state().flows.map((f) => f.flowId)), project }, input, entry, at, by(actor))
+    const flow = createFlow({ flowId: newId('flw'), project }, input, entry, at, by(actor))
     db.setState((st) => ({ flows: [...st.flows, flow] }))
     auditProject(actor, 'FLOW_CREATED', project, { flowId: flow.flowId, name: flow.name, workflowVersion: flow.workflowVersion }, at)
     return wire(flow)
@@ -133,7 +134,7 @@ export const mockFlowService: FlowService = {
     const { flow, project } = loadFlow(actor, flowId)
     if (project.status === 'ARCHIVED') throw validation([{ field: 'form', message: 'This project is archived, so it cannot get new flows.' }])
     const at = now()
-    const copy = duplicateFlow(flow, nextId('FLW-', db.state().flows.map((f) => f.flowId)), at, by(actor))
+    const copy = duplicateFlow(flow, newId('flw'), at, by(actor))
     db.setState((st) => ({ flows: [...st.flows, copy] }))
     auditProject(actor, 'FLOW_CREATED', project, { flowId: copy.flowId, name: copy.name, workflowVersion: copy.workflowVersion, duplicatedFrom: flowId }, at)
     return wire(copy)

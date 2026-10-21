@@ -52,7 +52,7 @@ describe('Verification Detail', () => {
     fillDecision(/Confirm Manual Pass/, [], 'Compared selfie with MyKad photo.')
     fireEvent.click(await screen.findByRole('button', { name: 'Confirm Approved' }))
 
-    await screen.findByText(/Decision is final — Ali Bin Ahmad \(USR-2026-0012\)/)
+    await screen.findByText(/Decision is final — Ali Bin Ahmad\b/)
     expect(screen.getAllByText('Approved').length).toBeGreaterThan(0)
     expect(decision().getByRole('status').textContent).toBe('Decision is final')
     expect(await audit(S(3), ['CASE_CLAIMED', 'CASE_DECISION_APPROVED'])).toEqual(['CASE_CLAIMED', 'CASE_DECISION_APPROVED'])
@@ -107,7 +107,7 @@ describe('Verification Detail', () => {
   it('Given S11 manually approved, then "Decision is final" (S11)', async () => {
     await open(S(11))
     expect(decision().getByRole('status').textContent).toBe('Decision is final')
-    expect(screen.getByText(/Decision is final — Ali Bin Ahmad \(USR-2026-0012\)/)).toBeTruthy()
+    expect(screen.getByText(/Decision is final — Ali Bin Ahmad\b/)).toBeTruthy()
   })
 
   it('Given S06, then the reason banner shows the final liveness condition and Liveness shows 4 scores, 3 of 3 retries (DEC-16, DEC-35, DEC-44)', async () => {

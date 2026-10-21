@@ -10,6 +10,7 @@ import { useSession } from '@/stores/sessionStore'
 import { useTabs } from '@/stores/tabsStore'
 import { useUi } from '@/stores/uiStore'
 import { routes } from './routes'
+import { fx } from '@/lib/ids'
 
 function renderAt(path: string) {
   const router = createMemoryRouter(routes, { initialEntries: [path] })
@@ -84,7 +85,7 @@ describe('AppShell', () => {
     expect(options.map((o) => o.textContent)).toEqual(['All my projects', 'DefaultReviewer', 'SME appViewer'])
     fireEvent.click(options[2])
     await screen.findByRole('button', { name: 'Switch project. Current: SME app' })
-    expect(useSession.getState()).toMatchObject({ projectId: 'PRJ-0002' })
+    expect(useSession.getState()).toMatchObject({ projectId: fx('PRJ-0002') })
     fireEvent.click(screen.getByRole('button', { name: 'Account: Ali Bin Ahmad' }))
     expect((await screen.findByLabelText('Your role')).textContent).toBe('Viewer · SME app')
     expect(screen.getByText('ali.ahmad@atoz.example')).toBeTruthy()
@@ -103,7 +104,7 @@ describe('AppShell', () => {
     fireEvent.click(await screen.findByRole('button', { name: /Switch project/ }))
     const vantage = within((await screen.findByText('Vantage')).closest('[role="group"]') as HTMLElement)
     fireEvent.click(vantage.getByRole('menuitemradio', { name: /Default/ }))
-    await waitFor(() => expect(useSession.getState()).toMatchObject({ projectId: 'PRJ-0003' }))
+    await waitFor(() => expect(useSession.getState()).toMatchObject({ projectId: fx('PRJ-0003') }))
   })
 
   it('Given I open the portal root, then I land on Overview and there is no Home page, tab or menu item', async () => {
@@ -125,9 +126,9 @@ describe('AppShell', () => {
     expect(tabs().queryByRole('button', { name: 'Close Overview' })).toBeNull()
   })
 
-  it('Given ?as=USR-2026-0031, then the session switches to Siti and the parameter is removed', async () => {
-    const router = renderAt('/verifications/KYC-260901-900010?as=USR-2026-0031')
-    await waitFor(() => expect(useSession.getState().actor.userId).toBe('USR-2026-0031'))
+  it('Given ?as=<email>, then the session switches to Siti and the parameter is removed', async () => {
+    const router = renderAt('/verifications/KYC-260901-900010?as=siti.yusof@atoz.example')
+    await waitFor(() => expect(useSession.getState().actor.userId).toBe(fx('USR-2026-0031')))
     await waitFor(() => expect(router.state.location.search).toBe(''))
   })
 

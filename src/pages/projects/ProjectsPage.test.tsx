@@ -8,6 +8,7 @@ import { devService } from '@/services/devService'
 import { DEFAULT_DEV_FLAGS, useDevFlags } from '@/stores/devFlagsStore'
 import { useSession } from '@/stores/sessionStore'
 import { ADMIN, ALI, HAFIZ, OWNER } from '@/test/factories'
+import { fx } from '@/lib/ids'
 
 function renderAt(path: string) {
   const router = createMemoryRouter(routes, { initialEntries: [path] })
@@ -100,6 +101,6 @@ describe('Projects (DEC-90, DEC-93)', () => {
     const router = renderAt('/projects')
     fireEvent.click(within(await rowOf('SME app')).getByRole('button', { name: 'Flows of SME app' }))
     await waitFor(() => expect(router.state.location.pathname).toBe('/flows'))
-    expect(useSession.getState().projectId).toBe('PRJ-0002')
+    expect(useSession.getState().projectId).toBe(fx('PRJ-0002'))
   })
 })

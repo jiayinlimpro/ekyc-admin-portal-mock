@@ -11,13 +11,14 @@ import {
   type RoleAssignment,
   type RuleError,
 } from './types'
+import { fx } from '@/lib/ids'
 
 // REQ: DEC-70 — the System Default roles. Names and permissions are OQ-09 (the FRS access matrix is not available).
 export const SYSTEM_ROLE_IDS = {
-  MERCHANT_OWNER: 'ROL-2026-0001',
-  PROJECT_ADMIN: 'ROL-2026-0002',
-  REVIEWER: 'ROL-2026-0003',
-  VIEWER: 'ROL-2026-0004',
+  MERCHANT_OWNER: fx('ROL-2026-0001'),
+  PROJECT_ADMIN: fx('ROL-2026-0002'),
+  REVIEWER: fx('ROL-2026-0003'),
+  VIEWER: fx('ROL-2026-0004'),
 } as const
 
 export const SYSTEM_DEFAULT_ROLES: readonly Pick<Role, 'roleId' | 'name' | 'permissions'>[] = [

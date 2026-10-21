@@ -9,6 +9,7 @@ import { devService } from '@/services/devService'
 import { DEFAULT_DEV_FLAGS, useDevFlags } from '@/stores/devFlagsStore'
 import { useSession } from '@/stores/sessionStore'
 import { ADMIN, ALI, OWNER } from '@/test/factories'
+import { fx } from '@/lib/ids'
 
 function renderAt(path: string) {
   const router = createMemoryRouter(routes, { initialEntries: [path] })
@@ -75,9 +76,9 @@ describe('Overview by project and flow (DEC-86)', () => {
     const router = renderAt('/dashboard?days=90')
     await screen.findByRole('region', { name: 'By flow' })
     const all = await analyticsService.overview({ days: 90 }, OWNER)
-    const one = await analyticsService.overview({ days: 90, flowId: 'FLW-0002' }, OWNER)
-    fireEvent.change(await screen.findByLabelText('Flow'), { target: { value: 'FLW-0002' } })
-    await waitFor(() => expect(router.state.location.search).toContain('flow=FLW-0002'))
+    const one = await analyticsService.overview({ days: 90, flowId: fx('FLW-0002') }, OWNER)
+    fireEvent.change(await screen.findByLabelText('Flow'), { target: { value: fx('FLW-0002') } })
+    await waitFor(() => expect(router.state.location.search).toContain(`flow=${fx('FLW-0002')}`))
     await waitFor(() => expect(tile('Total verifications').textContent).toContain(String(one.total)))
     expect(one.total).toBeLessThan(all.total)
     expect(screen.queryByRole('region', { name: 'By flow' })).toBeNull()
@@ -86,11 +87,11 @@ describe('Overview by project and flow (DEC-86)', () => {
 
 describe('System Intelligence (DEC-18, DEC-86)', () => {
   it('Given one flow, then the histograms carry its threshold lines and the retry KPIs match the service', async () => {
-    renderAt('/intelligence?days=90&flow=FLW-0001')
+    renderAt(`/intelligence?days=90&flow=${fx('FLW-0001')}`)
     const card = within(await screen.findByRole('region', { name: 'Score distribution' }))
     await waitFor(() => expect(card.getByText('Reject < 85')).toBeTruthy()) // face match, Standard
     expect(card.getByText('Reject < 70')).toBeTruthy() // liveness, Standard
-    const stats = await analyticsService.intelligence({ days: 90, flowId: 'FLW-0001' }, ALI)
+    const stats = await analyticsService.intelligence({ days: 90, flowId: fx('FLW-0001') }, ALI)
     expect(tile('Average retries').textContent).toContain(`${stats.retries} face match and liveness retries`)
   })
 

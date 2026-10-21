@@ -11,8 +11,9 @@ import { userAdminService } from '@/services/userAdminService'
 import { DEFAULT_DEV_FLAGS, useDevFlags } from '@/stores/devFlagsStore'
 import { useSession } from '@/stores/sessionStore'
 import { ADMIN, OWNER } from '@/test/factories'
+import { fx } from '@/lib/ids'
 
-const AISYAH = { userId: 'USR-2026-0005', fullName: 'Nor Aisyah Binti Hamid' }
+const AISYAH = { userId: fx('USR-2026-0005'), fullName: 'Nor Aisyah Binti Hamid' }
 const renderAt = (path: string) => render(<RouterProvider router={createMemoryRouter(routes, { initialEntries: [path] })} />)
 
 beforeEach(async () => {

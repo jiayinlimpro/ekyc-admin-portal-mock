@@ -38,17 +38,19 @@ describe('Merchants (DEC-92)', () => {
     fireEvent.change(screen.getByLabelText('Merchant Owner: email'), { target: { value: 'aminah@nusantara.example' } })
     fireEvent.click(screen.getByRole('button', { name: 'Create merchant' }))
     const r = await row('Nusantara Pay')
-    expect(r.textContent).toContain('MER-0007')
+    const merchantId = db.state().merchants.find((m) => m.name === 'Nusantara Pay')!.merchantId
+    expect(merchantId).toMatch(/^mer_/)
+    expect(r.textContent).toContain(merchantId)
     expect(r.textContent).toContain('aminah@nusantara.example · Pending')
-    const project = db.state().projects.find((p) => p.merchantId === 'MER-0007')!
+    const project = db.state().projects.find((p) => p.merchantId === merchantId)!
     expect(project).toMatchObject({ name: 'Default', isDefault: true })
     expect(db.state().flows.find((f) => f.flowId === project.defaultFlowId)).toMatchObject({ status: 'DRAFT', workflowVersion: 'V1' })
-    expect((await auditService.list({ merchantId: 'MER-0007' }, ADMIN)).items.map((e) => e.action).sort()).toEqual(['FLOW_CREATED', 'MERCHANT_CREATED', 'PROJECT_CREATED', 'USER_INVITED'])
+    expect((await auditService.list({ merchantId: merchantId }, ADMIN)).items.map((e) => e.action).sort()).toEqual(['FLOW_CREATED', 'MERCHANT_CREATED', 'PROJECT_CREATED', 'USER_INVITED'])
 
     vi.spyOn(window, 'confirm').mockReturnValue(true)
     fireEvent.click(within(r).getByRole('button', { name: 'Delete Nusantara Pay' }))
     await waitFor(() => expect(screen.queryByRole('rowheader', { name: 'Nusantara Pay' })).toBeNull())
-    expect(db.state().projects.some((p) => p.merchantId === 'MER-0007')).toBe(false)
+    expect(db.state().projects.some((p) => p.merchantId === merchantId)).toBe(false)
   })
 
   it('Given a duplicate name, then the field shows the error', async () => {

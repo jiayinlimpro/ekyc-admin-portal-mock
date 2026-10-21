@@ -9,6 +9,7 @@ import { devService } from '@/services/devService'
 import { DEFAULT_DEV_FLAGS, useDevFlags } from '@/stores/devFlagsStore'
 import { useSession } from '@/stores/sessionStore'
 import { ADMIN, ALI, OWNER } from '@/test/factories'
+import { fx } from '@/lib/ids'
 
 function renderAt(path: string) {
   render(<RouterProvider router={createMemoryRouter(routes, { initialEntries: [path] })} />)
@@ -30,7 +31,7 @@ describe('Users (DEC-74)', () => {
     renderAt('/users')
     expect((await row('Ali Bin Ahmad')).textContent).toContain('Reviewer · DefaultViewer · SME app')
     const headers = within(screen.getByRole('region', { name: 'User list' })).getAllByRole('columnheader').map((h) => h.textContent)
-    expect(headers).toEqual(['User ID', 'Full Name', 'Email', 'Access', 'Status', 'Created At'])
+    expect(headers).toEqual(['Full Name', 'Email', 'Access', 'Status', 'Created At'])
     fireEvent.change(screen.getByLabelText('Status'), { target: { value: 'PENDING' } })
     fireEvent.click(screen.getByRole('button', { name: /Search/ }))
     await waitFor(() => expect(screen.queryByRole('rowheader', { name: 'Ali Bin Ahmad' })).toBeNull())
@@ -45,7 +46,7 @@ describe('Users (DEC-74)', () => {
     fireEvent.change(screen.getByLabelText('Work email'), { target: { value: 'aishah@atoz.example' } })
     const role = screen.getByLabelText('Role')
     await waitFor(() => expect(within(role).getAllByRole('option').length).toBeGreaterThan(1))
-    fireEvent.change(role, { target: { value: 'ROL-2026-0003' } })
+    fireEvent.change(role, { target: { value: fx('ROL-2026-0003') } })
     fireEvent.click(screen.getByRole('checkbox', { name: 'SME app' }))
     expect(screen.getByRole('status').textContent).toBe('Aishah Binti Omar will be able to view cases, claim cases, approve / reject cases, view project reports in SME app.')
     fireEvent.click(screen.getByRole('button', { name: 'Invite user' }))
@@ -60,7 +61,7 @@ describe('Users (DEC-74)', () => {
     fireEvent.click(screen.getByRole('button', { name: /New user/ }))
     const role = await screen.findByLabelText('Role')
     await waitFor(() => expect(within(role).getAllByRole('option').length).toBeGreaterThan(1))
-    fireEvent.change(role, { target: { value: 'ROL-2026-0001' } })
+    fireEvent.change(role, { target: { value: fx('ROL-2026-0001') } })
     expect((screen.getByRole('radio', { name: /Selected projects/ }) as HTMLInputElement).disabled).toBe(true)
     expect((screen.getByRole('radio', { name: /^All projects/ }) as HTMLInputElement).checked).toBe(true)
   })
@@ -76,10 +77,10 @@ describe('Users (DEC-74)', () => {
   })
 
   it('Given Ali’s details, when SME app is chosen under Effective access, then only Viewer permissions, from Viewer · SME app', async () => {
-    renderAt('/users?user=USR-2026-0012')
+    renderAt(`/users?user=${fx('USR-2026-0012')}`)
     const ea = await screen.findByRole('region', { name: 'Effective access' })
     expect(within(ea).getByRole('rowheader', { name: 'Claim cases' }).closest('tr')!.textContent).toContain('Reviewer · Default')
-    fireEvent.change(within(ea).getByLabelText('Project'), { target: { value: 'PRJ-0002' } })
+    fireEvent.change(within(ea).getByLabelText('Project'), { target: { value: fx('PRJ-0002') } })
     expect(within(ea).queryByRole('rowheader', { name: 'Claim cases' })).toBeNull()
     expect(within(ea).getByRole('rowheader', { name: 'View cases' }).closest('tr')!.textContent).toContain('Viewer · SME app')
   })
@@ -136,7 +137,7 @@ describe('Roles (DEC-76)', () => {
 
   it('Given the only Merchant Owner, then Remove and Suspend are shown disabled with the reason (DEC-78)', async () => {
     useSession.getState().switchUser(ADMIN)
-    renderAt('/users?user=USR-2026-0002')
+    renderAt(`/users?user=${fx('USR-2026-0002')}`)
     const remove = await screen.findByRole('button', { name: 'Remove Merchant Owner · All projects' })
     expect((remove as HTMLButtonElement).disabled).toBe(true)
     expect(remove.parentElement!.getAttribute('title')).toBe('At least one Merchant Owner (All projects) is required.')

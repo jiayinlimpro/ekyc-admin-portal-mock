@@ -183,7 +183,7 @@ export function RolesPage() {
   const rows = useLoad(() => roleService.list(actor), [actor.userId])
   const merchants = useLoad(() => merchantService.list(actor), [actor.userId])
   const [editing, setEditing] = useState<Editing>()
-  const headers = ['Role ID', 'Role Name', ...(isAdmin ? ['Merchant'] : []), 'Role Type', 'Status', 'Users', 'Created At']
+  const headers = ['Role Name', ...(isAdmin ? ['Merchant'] : []), 'Role Type', 'Status', 'Users', 'Created At']
 
   if (rows.error && !rows.data) return <ErrorState message={rows.error} onRetry={rows.reload} />
   return (
@@ -211,7 +211,6 @@ export function RolesPage() {
           <tbody>
             {(rows.data ?? []).map((r) => (
               <tr key={r.roleId} className="border-t">
-                <td className="px-3 py-2 font-mono text-xs whitespace-nowrap">{r.roleId}</td>
                 <th scope="row" className="px-3 py-2 text-left font-normal">
                   <button type="button" className="font-medium text-blue-700 hover:underline dark:text-blue-400" onClick={() => setEditing({ mode: 'edit', row: r })}>
                     {r.name}

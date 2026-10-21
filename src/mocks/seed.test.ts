@@ -10,6 +10,7 @@ import { VERIFICATION_STATUSES, type UserAccount } from '@/domain/types'
 import { NOW } from '@/test/factories'
 import { EDGE_CASES } from './fixtures/edgeCases'
 import { seedDatabase } from './seed'
+import { fx } from '@/lib/ids'
 
 const db = seedDatabase(NOW)
 const flowOf = (id: string) => db.flows.find((f) => f.flowId === id)!
@@ -128,7 +129,7 @@ describe('seedDatabase', () => {
   })
 
   it('Empty Demo Merchant has no records (S14)', () => {
-    expect(db.verifications.filter((v) => v.merchantId === 'MER-0006')).toHaveLength(0)
+    expect(db.verifications.filter((v) => v.merchantId === fx('MER-0006'))).toHaveLength(0)
   })
 })
 
@@ -158,8 +159,8 @@ describe('named scenarios (docs/SCENARIOS.md)', () => {
 
   it('S16 is in the SME app project, where Ali is only a Viewer', () => {
     const v = byRef('KYC-260901-900016')
-    const ali = accessOf(db.accounts.find((a) => a.userId === 'USR-2026-0012')!)
-    expect(v.projectId).toBe('PRJ-0002')
+    const ali = accessOf(db.accounts.find((a) => a.userId === fx('USR-2026-0012'))!)
+    expect(v.projectId).toBe(fx('PRJ-0002'))
     expect(canInProject(ali, 'viewCases', { projectId: v.projectId, merchantId: v.merchantId })).toBe(true)
     expect(canInProject(ali, 'claimCase', { projectId: v.projectId, merchantId: v.merchantId })).toBe(false)
   })
@@ -226,11 +227,11 @@ describe('projects, flows and registry (DEC-56 … DEC-58, DEC-90 … DEC-95)', 
   it('covers every flow status, Advanced thresholds by Platform Admin, rule and share routing, and a multi-revision flow', () => {
     expect(new Set(db.flows.map((f) => f.status))).toEqual(new Set(['ACTIVE', 'DRAFT', 'RETIRING', 'INACTIVE']))
     const advanced = db.flowRevisions.find((r) => r.settings.checks.FACE_MATCH.threshold.preset === 'ADVANCED')!
-    expect(advanced.savedBy.userId).toBe('USR-2026-0001')
+    expect(advanced.savedBy.userId).toBe(fx('USR-2026-0001'))
     expect(db.flows.some((f) => f.routing.kind === 'RULE')).toBe(true)
     expect(db.flows.some((f) => f.routing.kind === 'SHARE')).toBe(true)
-    expect(revisionLabel(db.flows.find((f) => f.flowId === 'FLW-0001')!)).toBe('V4-R2')
-    expect(db.flowRevisions.find((r) => r.flowId === 'FLW-0001' && r.revision === 2)!.changes.length).toBeGreaterThan(0)
+    expect(revisionLabel(db.flows.find((f) => f.flowId === fx('FLW-0001'))!)).toBe('V4-R2')
+    expect(db.flowRevisions.find((r) => r.flowId === fx('FLW-0001') && r.revision === 2)!.changes.length).toBeGreaterThan(0)
   })
 })
 
@@ -266,12 +267,12 @@ describe('accounts (DEC-70, DEC-74)', () => {
     const held = new Set(db.accounts.flatMap((a) => a.assignments.map((x) => x.roleId)))
     for (const r of db.roles) expect(held.has(r.roleId), r.name).toBe(true)
     expect(db.roles.some((r) => r.type === 'CUSTOM')).toBe(true)
-    expect(roleNamesInProject(accessOf(account('USR-2026-0012')), project('PRJ-0001'))).toEqual(['Reviewer'])
-    expect(roleNamesInProject(accessOf(account('USR-2026-0012')), project('PRJ-0002'))).toEqual(['Viewer'])
+    expect(roleNamesInProject(accessOf(account(fx('USR-2026-0012'))), project(fx('PRJ-0001')))).toEqual(['Reviewer'])
+    expect(roleNamesInProject(accessOf(account(fx('USR-2026-0012'))), project(fx('PRJ-0002')))).toEqual(['Viewer'])
     expect(db.accounts.map((a) => a.status)).toEqual(expect.arrayContaining(['PENDING', 'SUSPENDED']))
   })
 
   it('Given the scenario personas, then each exists as an account', () => {
-    for (const id of ['USR-2026-0001', 'USR-2026-0002', 'USR-2026-0012', 'USR-2026-0031', 'USR-2026-0044']) expect(account(id), id).toBeDefined()
+    for (const id of [fx('USR-2026-0001'), fx('USR-2026-0002'), fx('USR-2026-0012'), fx('USR-2026-0031'), fx('USR-2026-0044')]) expect(account(id), id).toBeDefined()
   })
 })

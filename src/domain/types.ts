@@ -216,7 +216,7 @@ export const PROJECT_STATUSES = ['ACTIVE', 'ARCHIVED'] as const
 export type ProjectStatus = (typeof PROJECT_STATUSES)[number]
 
 export interface Project {
-  projectId: string // PRJ-0001
+  projectId: string // prj_… (DEC-97)
   merchantId: string
   name: string
   status: ProjectStatus
@@ -285,7 +285,7 @@ export interface FlowSettings {
 export type FlowRouting = { kind: 'NONE' } | { kind: 'RULE'; priority: number; summary: string } | { kind: 'SHARE'; percent: number }
 
 export interface Flow {
-  flowId: string // FLW-0001
+  flowId: string // flw_… (DEC-97)
   projectId: string
   merchantId: string
   name: string

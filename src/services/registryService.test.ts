@@ -9,6 +9,7 @@ import { devService } from './devService'
 import { isServiceError } from './errors'
 import { flowService } from './flowService'
 import { registryService } from './registryService'
+import { fx } from '@/lib/ids'
 
 beforeEach(async () => {
   vi.useFakeTimers({ toFake: ['Date'] })
@@ -62,7 +63,7 @@ describe('registryService flows using a version (DEC-85)', () => {
   it('Given V3, then the flows on it with their project and merchant', async () => {
     const flows = await registryService.flowsUsing('V3', ADMIN)
     expect(flows.map((f) => f.flowId).sort()).toEqual(db.state().flows.filter((f) => f.workflowVersion === 'V3').map((f) => f.flowId).sort())
-    expect(flows.find((f) => f.flowId === 'FLW-0004')).toMatchObject({ projectName: 'SME app', merchantName: 'Atoz Software Tech' })
+    expect(flows.find((f) => f.flowId === fx('FLW-0004'))).toMatchObject({ projectName: 'SME app', merchantName: 'Atoz Software Tech' })
   })
 })
 
@@ -99,7 +100,7 @@ describe('registryService lifecycle (DEC-56, DEC-57)', () => {
     expect(db.state().registry.filter((e) => e.isDefault).map((e) => e.code)).toEqual(['V3'])
     await expectError(registryService.changeStatus('V3', 'DEPRECATED', 'Replaced', ADMIN), 'VALIDATION', 'Set another version as default before deprecating this version')
     await registryService.changeStatus('V1', 'DEPRECATED', 'Replaced by V3', ADMIN)
-    await expectError(flowService.create('PRJ-0001', { name: 'Old style', description: '', workflowVersion: 'V1' }, OWNER), 'VALIDATION', 'Choose an active workflow version.')
+    await expectError(flowService.create(fx('PRJ-0001'), { name: 'Old style', description: '', workflowVersion: 'V1' }, OWNER), 'VALIDATION', 'Choose an active workflow version.')
     expect((await auditService.list({ actions: ['WORKFLOW_DEFAULT_CHANGED'] }, ADMIN)).items[0].details.changes).toEqual([{ field: 'Default for new merchants', from: 'V1', to: 'V3' }])
   })
 })

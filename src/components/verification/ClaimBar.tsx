@@ -78,7 +78,7 @@ export function ClaimBar({
     body = (
       <>
         <strong>
-          Claimed by {v.claimedBy!.fullName} ({v.claimedBy!.userId})
+          Claimed by {v.claimedBy!.fullName}
         </strong>{' '}
         · {formatRemaining(claimRemainingMs(v, now))}. You can view it; only they can decide.
       </>

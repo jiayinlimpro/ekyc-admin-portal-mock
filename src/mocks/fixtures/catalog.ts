@@ -5,11 +5,12 @@ import { diffFlow, newFlowSettings } from '@/domain/flowSettings'
 import { DEFAULT_RISK_MAX_ALLOWED } from '@/domain/openQuestions'
 import { PROJECT_SETTING_DEFAULTS } from '@/domain/projectSettings'
 import type { DocumentType, Flow, FlowRevision, FlowRouting, FlowSettings, FlowStatus, Project, RegistryEntry, ThresholdChoice } from '@/domain/types'
+import { fx } from '@/lib/ids'
 
 const HOUR = 3_600_000
 const DAY = 24 * HOUR
 const ARN = (name: string, env: 'sand' | 'prod') => `arn:aws:states:ap-southeast-1:123456789012:stateMachine:ekyc_${env}_${name}`
-const ADMIN = { userId: 'USR-2026-0001', fullName: 'Lim Wei Jie' }
+const ADMIN = { userId: fx('USR-2026-0001'), fullName: 'Lim Wei Jie' }
 const SYSTEM = { userId: 'SYSTEM' as const, fullName: 'SYSTEM' as const }
 
 export function buildRegistry(now: Date): RegistryEntry[] {
@@ -70,81 +71,81 @@ interface ProjectSpec extends Omit<Project, 'createdAt' | 'createdBy' | keyof ty
 // Owners per merchant (see fixtures/users.ts). Default projects are created by SYSTEM with the merchant (DEC-92).
 const PROJECTS: ProjectSpec[] = [
   {
-    projectId: 'PRJ-0001', merchantId: 'MER-0001', name: 'Default', status: 'ACTIVE', isDefault: true, defaultFlowId: 'FLW-0001', claimTimeoutMin: 30, createdDaysAgo: 400, createdBy: 'SYSTEM',
+    projectId: fx('PRJ-0001'), merchantId: fx('MER-0001'), name: 'Default', status: 'ACTIVE', isDefault: true, defaultFlowId: fx('FLW-0001'), claimTimeoutMin: 30, createdDaysAgo: 400, createdBy: 'SYSTEM',
     branding: { primaryColor: '#1D4ED8' }, language: 'en',
     redirectUrls: ['https://app.atoz.example/kyc/done'], allowedOrigins: ['https://app.atoz.example'], ipAllowlist: ['203.0.113.0/24'],
   },
-  { projectId: 'PRJ-0002', merchantId: 'MER-0001', name: 'SME app', status: 'ACTIVE', isDefault: false, defaultFlowId: 'FLW-0004', claimTimeoutMin: 45, createdDaysAgo: 60, createdBy: 'Tan Mei Ling' },
-  { projectId: 'PRJ-0003', merchantId: 'MER-0002', name: 'Default', status: 'ACTIVE', isDefault: true, defaultFlowId: 'FLW-0005', claimTimeoutMin: 30, createdDaysAgo: 400, createdBy: 'SYSTEM' },
-  { projectId: 'PRJ-0004', merchantId: 'MER-0003', name: 'Default', status: 'ACTIVE', isDefault: true, defaultFlowId: 'FLW-0006', claimTimeoutMin: 30, createdDaysAgo: 300, createdBy: 'SYSTEM' },
-  { projectId: 'PRJ-0005', merchantId: 'MER-0004', name: 'Default', status: 'ACTIVE', isDefault: true, defaultFlowId: 'FLW-0007', claimTimeoutMin: 20, createdDaysAgo: 300, createdBy: 'SYSTEM' },
-  { projectId: 'PRJ-0006', merchantId: 'MER-0005', name: 'Default', status: 'ACTIVE', isDefault: true, defaultFlowId: 'FLW-0009', claimTimeoutMin: 30, createdDaysAgo: 250, createdBy: 'SYSTEM' },
-  { projectId: 'PRJ-0007', merchantId: 'MER-0005', name: 'Wallet app', status: 'ACTIVE', isDefault: false, defaultFlowId: 'FLW-0010', claimTimeoutMin: 30, createdDaysAgo: 90, createdBy: 'Ng Chee Keong' },
-  { projectId: 'PRJ-0008', merchantId: 'MER-0005', name: 'Pilot 2025', status: 'ARCHIVED', isDefault: false, defaultFlowId: 'FLW-0011', claimTimeoutMin: 30, createdDaysAgo: 240, createdBy: 'Ng Chee Keong' },
-  { projectId: 'PRJ-0009', merchantId: 'MER-0006', name: 'Default', status: 'ACTIVE', isDefault: true, defaultFlowId: 'FLW-0012', claimTimeoutMin: 30, createdDaysAgo: 20, createdBy: 'SYSTEM' },
+  { projectId: fx('PRJ-0002'), merchantId: fx('MER-0001'), name: 'SME app', status: 'ACTIVE', isDefault: false, defaultFlowId: fx('FLW-0004'), claimTimeoutMin: 45, createdDaysAgo: 60, createdBy: 'Tan Mei Ling' },
+  { projectId: fx('PRJ-0003'), merchantId: fx('MER-0002'), name: 'Default', status: 'ACTIVE', isDefault: true, defaultFlowId: fx('FLW-0005'), claimTimeoutMin: 30, createdDaysAgo: 400, createdBy: 'SYSTEM' },
+  { projectId: fx('PRJ-0004'), merchantId: fx('MER-0003'), name: 'Default', status: 'ACTIVE', isDefault: true, defaultFlowId: fx('FLW-0006'), claimTimeoutMin: 30, createdDaysAgo: 300, createdBy: 'SYSTEM' },
+  { projectId: fx('PRJ-0005'), merchantId: fx('MER-0004'), name: 'Default', status: 'ACTIVE', isDefault: true, defaultFlowId: fx('FLW-0007'), claimTimeoutMin: 20, createdDaysAgo: 300, createdBy: 'SYSTEM' },
+  { projectId: fx('PRJ-0006'), merchantId: fx('MER-0005'), name: 'Default', status: 'ACTIVE', isDefault: true, defaultFlowId: fx('FLW-0009'), claimTimeoutMin: 30, createdDaysAgo: 250, createdBy: 'SYSTEM' },
+  { projectId: fx('PRJ-0007'), merchantId: fx('MER-0005'), name: 'Wallet app', status: 'ACTIVE', isDefault: false, defaultFlowId: fx('FLW-0010'), claimTimeoutMin: 30, createdDaysAgo: 90, createdBy: 'Ng Chee Keong' },
+  { projectId: fx('PRJ-0008'), merchantId: fx('MER-0005'), name: 'Pilot 2025', status: 'ARCHIVED', isDefault: false, defaultFlowId: fx('FLW-0011'), claimTimeoutMin: 30, createdDaysAgo: 240, createdBy: 'Ng Chee Keong' },
+  { projectId: fx('PRJ-0009'), merchantId: fx('MER-0006'), name: 'Default', status: 'ACTIVE', isDefault: true, defaultFlowId: fx('FLW-0012'), claimTimeoutMin: 30, createdDaysAgo: 20, createdBy: 'SYSTEM' },
 ]
 
-const OWNER_ATOZ = { userId: 'USR-2026-0002', fullName: 'Tan Mei Ling' }
+const OWNER_ATOZ = { userId: fx('USR-2026-0002'), fullName: 'Tan Mei Ling' }
 
 const FLOWS: FlowSpec[] = [
   {
-    flowId: 'FLW-0001', projectId: 'PRJ-0001', name: 'Malaysian onboarding', description: 'Malaysians with MyKad', version: 'V4', status: 'ACTIVE', createdDaysAgo: 400,
+    flowId: fx('FLW-0001'), projectId: fx('PRJ-0001'), name: 'Malaysian onboarding', description: 'Malaysians with MyKad', version: 'V4', status: 'ACTIVE', createdDaysAgo: 400,
     revisions: [
       { hoursAgo: 120 * 24, reason: 'Flow activated', settings: settings({ fm: preset('LOW'), l: preset('LOW'), risk: true }) },
       { hoursAgo: 2, by: OWNER_ATOZ, reason: 'Tighten face match and liveness after a fraud review', settings: settings({ risk: true }) }, // S12 is still on R1
     ],
   },
   {
-    flowId: 'FLW-0002', projectId: 'PRJ-0001', name: 'Foreigner onboarding', description: 'Passport holders', version: 'V4', status: 'ACTIVE', createdDaysAgo: 200,
+    flowId: fx('FLW-0002'), projectId: fx('PRJ-0001'), name: 'Foreigner onboarding', description: 'Passport holders', version: 'V4', status: 'ACTIVE', createdDaysAgo: 200,
     routing: { kind: 'RULE', priority: 1, summary: 'Document type is Passport' },
     revisions: [{ hoursAgo: 200 * 24, by: OWNER_ATOZ, reason: 'Flow activated', settings: settings({ fm: preset('HIGH'), cooldownMin: 120, docs: ['PASSPORT'], risk: true }) }],
   },
   {
-    flowId: 'FLW-0003', projectId: 'PRJ-0001', name: 'Tourist onboarding', description: 'Short-stay visitors (draft)', version: 'V4', status: 'DRAFT', createdDaysAgo: 3,
+    flowId: fx('FLW-0003'), projectId: fx('PRJ-0001'), name: 'Tourist onboarding', description: 'Short-stay visitors (draft)', version: 'V4', status: 'DRAFT', createdDaysAgo: 3,
     revisions: [], draftSettings: { ...newFlowSettings({ phases: ['ID_CAPTURE', 'LIVENESS_CHECK', 'RISK_ASSESSMENT'] }), acceptedDocuments: ['PASSPORT'] },
   },
   {
-    flowId: 'FLW-0004', projectId: 'PRJ-0002', name: 'SME director check', description: 'Directors of SME customers', version: 'V3', status: 'ACTIVE', createdDaysAgo: 60,
+    flowId: fx('FLW-0004'), projectId: fx('PRJ-0002'), name: 'SME director check', description: 'Directors of SME customers', version: 'V3', status: 'ACTIVE', createdDaysAgo: 60,
     revisions: [{ hoursAgo: 60 * 24, by: OWNER_ATOZ, reason: 'Flow activated', settings: settings({ retries: 2, docs: ['MYKAD', 'PASSPORT'], expiry: 60 }) }],
   },
   {
-    flowId: 'FLW-0005', projectId: 'PRJ-0003', name: 'Standard onboarding', description: 'All Vantage customers', version: 'V1', status: 'ACTIVE', createdDaysAgo: 400,
+    flowId: fx('FLW-0005'), projectId: fx('PRJ-0003'), name: 'Standard onboarding', description: 'All Vantage customers', version: 'V1', status: 'ACTIVE', createdDaysAgo: 400,
     revisions: [
       { hoursAgo: 120 * 24, reason: 'Flow activated', settings: settings({ docs: ['MYKAD', 'PASSPORT'] }) },
       { hoursAgo: 30 * 24, by: ADMIN, reason: 'Custom face match band agreed with Vantage risk team', settings: settings({ fm: { preset: 'ADVANCED', autoReject: 82, autoPass: 93 }, docs: ['MYKAD', 'PASSPORT', 'DRIVING_LICENSE'] }) },
     ],
   },
   {
-    flowId: 'FLW-0006', projectId: 'PRJ-0004', name: 'Customer onboarding', description: 'All Tesla customers', version: 'V4', status: 'ACTIVE', createdDaysAgo: 300,
+    flowId: fx('FLW-0006'), projectId: fx('PRJ-0004'), name: 'Customer onboarding', description: 'All Tesla customers', version: 'V4', status: 'ACTIVE', createdDaysAgo: 300,
     revisions: [{ hoursAgo: 300 * 24, reason: 'Flow activated', settings: settings({ risk: true }) }],
   },
   {
-    flowId: 'FLW-0013', projectId: 'PRJ-0004', name: 'Customer onboarding (strict)', description: 'A/B test of stricter thresholds', version: 'V4', status: 'ACTIVE', createdDaysAgo: 45,
+    flowId: fx('FLW-0013'), projectId: fx('PRJ-0004'), name: 'Customer onboarding (strict)', description: 'A/B test of stricter thresholds', version: 'V4', status: 'ACTIVE', createdDaysAgo: 45,
     routing: { kind: 'SHARE', percent: 20 },
-    revisions: [{ hoursAgo: 45 * 24, by: { userId: 'USR-2026-0052', fullName: 'Wong Kah Heng' }, reason: 'Flow activated', settings: settings({ fm: preset('HIGH'), l: preset('HIGH'), risk: true }) }],
+    revisions: [{ hoursAgo: 45 * 24, by: { userId: fx('USR-2026-0052'), fullName: 'Wong Kah Heng' }, reason: 'Flow activated', settings: settings({ fm: preset('HIGH'), l: preset('HIGH'), risk: true }) }],
   },
   {
-    flowId: 'FLW-0007', projectId: 'PRJ-0005', name: 'Standard onboarding', description: 'All Boring Company customers', version: 'V1', status: 'ACTIVE', createdDaysAgo: 300,
+    flowId: fx('FLW-0007'), projectId: fx('PRJ-0005'), name: 'Standard onboarding', description: 'All Boring Company customers', version: 'V1', status: 'ACTIVE', createdDaysAgo: 300,
     revisions: [{ hoursAgo: 300 * 24, reason: 'Flow activated', settings: settings({}) }],
   },
   {
-    flowId: 'FLW-0008', projectId: 'PRJ-0005', name: 'Express (pilot)', description: 'Pilot without selfie, being retired', version: 'V3', status: 'RETIRING', createdDaysAgo: 120,
-    revisions: [{ hoursAgo: 120 * 24, by: { userId: 'USR-2026-0063', fullName: 'Farah Binti Ismail' }, reason: 'Flow activated', settings: settings({ l: preset('LOW') }) }],
+    flowId: fx('FLW-0008'), projectId: fx('PRJ-0005'), name: 'Express (pilot)', description: 'Pilot without selfie, being retired', version: 'V3', status: 'RETIRING', createdDaysAgo: 120,
+    revisions: [{ hoursAgo: 120 * 24, by: { userId: fx('USR-2026-0063'), fullName: 'Farah Binti Ismail' }, reason: 'Flow activated', settings: settings({ l: preset('LOW') }) }],
   },
   {
-    flowId: 'FLW-0009', projectId: 'PRJ-0006', name: 'Onboarding', description: 'All 3Nova customers', version: 'V4', status: 'ACTIVE', createdDaysAgo: 250,
+    flowId: fx('FLW-0009'), projectId: fx('PRJ-0006'), name: 'Onboarding', description: 'All 3Nova customers', version: 'V4', status: 'ACTIVE', createdDaysAgo: 250,
     revisions: [{ hoursAgo: 250 * 24, reason: 'Flow activated', settings: settings({ risk: true }) }],
   },
   {
-    flowId: 'FLW-0010', projectId: 'PRJ-0007', name: 'Wallet KYC', description: 'Wallet app sign-ups', version: 'V4', status: 'ACTIVE', createdDaysAgo: 90,
-    revisions: [{ hoursAgo: 90 * 24, by: { userId: 'USR-2026-0071', fullName: 'Ng Chee Keong' }, reason: 'Flow activated', settings: settings({ docs: ['MYKAD', 'PASSPORT'], risk: true }) }],
+    flowId: fx('FLW-0010'), projectId: fx('PRJ-0007'), name: 'Wallet KYC', description: 'Wallet app sign-ups', version: 'V4', status: 'ACTIVE', createdDaysAgo: 90,
+    revisions: [{ hoursAgo: 90 * 24, by: { userId: fx('USR-2026-0071'), fullName: 'Ng Chee Keong' }, reason: 'Flow activated', settings: settings({ docs: ['MYKAD', 'PASSPORT'], risk: true }) }],
   },
   {
-    flowId: 'FLW-0011', projectId: 'PRJ-0008', name: 'Pilot flow', description: '2025 pilot (project archived)', version: 'V1', status: 'INACTIVE', createdDaysAgo: 240,
-    revisions: [{ hoursAgo: 240 * 24, by: { userId: 'USR-2026-0071', fullName: 'Ng Chee Keong' }, reason: 'Flow activated', settings: settings({}) }],
+    flowId: fx('FLW-0011'), projectId: fx('PRJ-0008'), name: 'Pilot flow', description: '2025 pilot (project archived)', version: 'V1', status: 'INACTIVE', createdDaysAgo: 240,
+    revisions: [{ hoursAgo: 240 * 24, by: { userId: fx('USR-2026-0071'), fullName: 'Ng Chee Keong' }, reason: 'Flow activated', settings: settings({}) }],
   },
   {
-    flowId: 'FLW-0012', projectId: 'PRJ-0009', name: 'Default flow', description: 'Created with the merchant', version: 'V1', status: 'ACTIVE', createdDaysAgo: 20,
+    flowId: fx('FLW-0012'), projectId: fx('PRJ-0009'), name: 'Default flow', description: 'Created with the merchant', version: 'V1', status: 'ACTIVE', createdDaysAgo: 20,
     revisions: [{ hoursAgo: 20 * 24, reason: 'Flow activated', settings: settings({}) }],
   },
 ]

@@ -35,7 +35,7 @@ function useTabTracking() {
   }, [pathname, search, open])
 }
 
-/** UAT deep links: ?as=USR-2026-0031 signs in as that user, then the parameter is removed. */
+/** UAT deep links: ?as=siti.yusof@atoz.example signs in as that user (the internal user ID works too), then the parameter is removed. */
 function useAsParam() {
   const [params, setParams] = useSearchParams()
   const as = params.get('as')
@@ -45,7 +45,7 @@ function useAsParam() {
     let live = true
     void devService.listUsers().then((users) => {
       if (!live) return
-      const u = users.find((x) => x.userId === as)
+      const u = users.find((x) => x.email === as.toLowerCase() || x.userId === as)
       if (u) {
         if (useSession.getState().actor.userId !== u.userId) {
           switchUser(u)

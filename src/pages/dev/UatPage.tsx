@@ -16,6 +16,7 @@ export function UatPage() {
   }, [])
 
   const userName = (id: string) => users.find((u) => u.userId === id)?.fullName ?? id
+  const userEmail = (id: string) => users.find((u) => u.userId === id)?.email ?? id
 
   return (
     <div className="mx-auto max-w-6xl space-y-6">
@@ -68,7 +69,7 @@ export function UatPage() {
                     <StatusBadge status={s.expectedStatus} />
                   </td>
                   <td className="px-4 py-2">
-                    <Link to={`/verifications/${s.referenceNo}?as=${s.asUserId}`} className="text-blue-700 underline-offset-2 hover:underline dark:text-blue-400">
+                    <Link to={`/verifications/${s.referenceNo}?as=${userEmail(s.asUserId)}`} className="text-blue-700 underline-offset-2 hover:underline dark:text-blue-400">
                       {userName(s.asUserId)}
                     </Link>
                   </td>

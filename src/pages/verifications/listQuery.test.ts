@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { formatRemaining, mytDateToUtcIso } from '@/lib/format'
 import { DEFAULT_FILTERS, DEFAULT_PAGE_SIZE, isDefaultView, parseListParams, toQuery, toSearchParams, validateFilters, type ListParams } from './listQuery'
+import { fx } from '@/lib/ids'
 
 const parse = (qs: string) => parseListParams(new URLSearchParams(qs))
 
@@ -16,8 +17,8 @@ describe('parseListParams / toSearchParams', () => {
         referenceNo: 'KYC-2609',
         fullName: 'tan',
         statuses: ['PENDING_REVIEW', 'REJECTED'],
-        projectId: 'PRJ-0002',
-        flowId: 'FLW-0004',
+        projectId: fx('PRJ-0002'),
+        flowId: fx('FLW-0004'),
         workflowVersion: 'V3',
         claim: 'OTHERS',
         createdFrom: '2026-09-01',
@@ -61,9 +62,9 @@ describe('toQuery', () => {
   })
 
   it('Given the header shows several projects, then the Project filter narrows within them; one outside is ignored', () => {
-    expect(toQuery(parse(''), ['PRJ-0001', 'PRJ-0002']).projectIds).toEqual(['PRJ-0001', 'PRJ-0002'])
-    expect(toQuery(parse('project=PRJ-0002'), ['PRJ-0001', 'PRJ-0002']).projectIds).toEqual(['PRJ-0002'])
-    expect(toQuery(parse('project=PRJ-0003'), ['PRJ-0001']).projectIds).toEqual(['PRJ-0001'])
+    expect(toQuery(parse(''), [fx('PRJ-0001'), fx('PRJ-0002')]).projectIds).toEqual([fx('PRJ-0001'), fx('PRJ-0002')])
+    expect(toQuery(parse(`project=${fx('PRJ-0002')}`), [fx('PRJ-0001'), fx('PRJ-0002')]).projectIds).toEqual([fx('PRJ-0002')])
+    expect(toQuery(parse(`project=${fx('PRJ-0003')}`), [fx('PRJ-0001')]).projectIds).toEqual([fx('PRJ-0001')])
   })
 
   it('leaves empty filters out of the service query', () => {

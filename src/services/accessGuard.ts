@@ -3,6 +3,7 @@
 import { canInProject, projectsWhere, roleNamesInProject, type ProjectAction } from '@/domain/access'
 import { grantsOf } from '@/domain/roles'
 import type { Actor, Project, UserAccess, UserAccount } from '@/domain/types'
+import { newId } from '@/lib/ids'
 import { db } from '@/mocks/mockDb'
 import { ServiceError } from './errors'
 
@@ -40,11 +41,8 @@ export function roleIn(actor: Pick<Actor, 'userId'>, projectId: string): string 
   return (p && roleNamesInProject(accountOf(actor), p).join(', ')) || undefined
 }
 
-/** A new assignment id: ASG-2026-XXXX, unique across all accounts. */
-export function nextAssignmentId(): string {
-  const ids = db.state().accounts.flatMap((a) => a.assignments.map((x) => Number(x.assignmentId.slice('ASG-2026-'.length))))
-  return `ASG-2026-${String(Math.max(0, ...ids.filter(Number.isFinite)) + 1).padStart(4, '0')}`
-}
+/** A new role assignment ID (DEC-97). */
+export const nextAssignmentId = () => newId('asg')
 
 /**
  * A merchant the user may pick in a filter: any merchant for Platform Admin, otherwise only their own (DEC-86). Anything else

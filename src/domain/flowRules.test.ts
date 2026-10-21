@@ -15,17 +15,18 @@ import {
   versionLocked,
 } from './flowRules'
 import type { Flow, Project } from './types'
+import { fx } from '@/lib/ids'
 
 const NOW = new Date('2026-10-20T02:00:00.000Z')
-const OWNER = { userId: 'USR-2026-0002', fullName: 'Tan Mei Ling' }
+const OWNER = { userId: fx('USR-2026-0002'), fullName: 'Tan Mei Ling' }
 
 const project = (overrides: Partial<Project> = {}): Project => ({
-  projectId: 'PRJ-0001',
-  merchantId: 'MER-0001',
+  projectId: fx('PRJ-0001'),
+  merchantId: fx('MER-0001'),
   name: 'Default',
   status: 'ACTIVE',
   isDefault: true,
-  defaultFlowId: 'FLW-0001',
+  defaultFlowId: fx('FLW-0001'),
   claimTimeoutMin: 30,
   createdAt: NOW.toISOString(),
   createdBy: 'SYSTEM',
@@ -37,9 +38,9 @@ const project = (overrides: Partial<Project> = {}): Project => ({
 })
 
 const flow = (overrides: Partial<Flow> = {}): Flow => ({
-  flowId: 'FLW-0002',
-  projectId: 'PRJ-0001',
-  merchantId: 'MER-0001',
+  flowId: fx('FLW-0002'),
+  projectId: fx('PRJ-0001'),
+  merchantId: fx('MER-0001'),
   name: 'Foreigner onboarding',
   description: 'Passport holders',
   workflowVersion: 'V4',
@@ -71,7 +72,7 @@ describe('projects (DEC-93)', () => {
   it("Given the Default project is the merchant's only active project, then it cannot be archived", () => {
     const def = project()
     expect(archiveError(def, [def])).toBe("The Default project can't be archived while it is the merchant's only active project.")
-    expect(archiveError(def, [def, project({ projectId: 'PRJ-0002', isDefault: false })])).toBeUndefined()
+    expect(archiveError(def, [def, project({ projectId: fx('PRJ-0002'), isDefault: false })])).toBeUndefined()
     expect(archiveError(project({ status: 'ARCHIVED' }), [])).toBe('This project is already archived.')
   })
 })
@@ -100,7 +101,7 @@ describe('flow lifecycle (DEC-94, DEC-51)', () => {
   })
 
   it('Given the default flow, when retiring, then refused until a new default is chosen', () => {
-    expect(retireError(flow({ flowId: 'FLW-0001' }), project())).toBe('Choose a new default flow before retiring this one.')
+    expect(retireError(flow({ flowId: fx('FLW-0001') }), project())).toBe('Choose a new default flow before retiring this one.')
     expect(retireError(flow(), project())).toBeUndefined()
   })
 
@@ -115,13 +116,13 @@ describe('flow lifecycle (DEC-94, DEC-51)', () => {
   it('Given set as default, then only an active flow of the same project', () => {
     expect(setDefaultFlowError(project(), flow())).toBeUndefined()
     expect(setDefaultFlowError(project(), flow({ status: 'DRAFT' }))).toBe('Only an active flow can be the default.')
-    expect(setDefaultFlowError(project(), flow({ projectId: 'PRJ-0002' }))).toBe('This flow belongs to another project.')
+    expect(setDefaultFlowError(project(), flow({ projectId: fx('PRJ-0002') }))).toBe('This flow belongs to another project.')
   })
 
   it('Given a duplicate, then a Draft copy with no revision, no routing and independent settings', () => {
     const src = flow()
-    const copy = duplicateFlow(src, 'FLW-0003', NOW, OWNER)
-    expect(copy).toMatchObject({ flowId: 'FLW-0003', name: 'Foreigner onboarding (copy)', status: 'DRAFT', revision: 0, routing: { kind: 'NONE' } })
+    const copy = duplicateFlow(src, fx('FLW-0003'), NOW, OWNER)
+    expect(copy).toMatchObject({ flowId: fx('FLW-0003'), name: 'Foreigner onboarding (copy)', status: 'DRAFT', revision: 0, routing: { kind: 'NONE' } })
     copy.settings.cooldownMin = 60
     expect(src.settings.cooldownMin).toBe(0)
   })

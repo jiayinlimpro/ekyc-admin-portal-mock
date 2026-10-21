@@ -8,6 +8,7 @@ import { devService } from './devService'
 import { isServiceError } from './errors'
 import { merchantService } from './merchantService'
 import { verificationService as svc } from './verificationService'
+import { fx } from '@/lib/ids'
 
 const S = (n: number) => `KYC-260901-${900000 + n}`
 
@@ -44,22 +45,22 @@ describe('verificationService.list', () => {
 
   it("Given a Reviewer, then only their projects are visible, even when another merchant's project is requested (DEC-72)", async () => {
     const own = await svc.list({ pageSize: 500 }, ALI)
-    expect(own.items.every((r) => r.merchantId === 'MER-0001')).toBe(true)
-    expect((await svc.list({ projectIds: ['PRJ-0003'] }, ALI)).total).toBe(0)
+    expect(own.items.every((r) => r.merchantId === fx('MER-0001'))).toBe(true)
+    expect((await svc.list({ projectIds: [fx('PRJ-0003')] }, ALI)).total).toBe(0)
   })
 
   it('Given a list row, then it names its project and flow and carries Created (DEC-40)', async () => {
     const row = (await svc.list({ referenceNo: S(16) }, ALI)).items[0]
-    expect(row).toMatchObject({ projectId: 'PRJ-0002', projectName: 'SME app', flowId: 'FLW-0004', flowName: 'SME director check', workflowVersion: 'V3' })
+    expect(row).toMatchObject({ projectId: fx('PRJ-0002'), projectName: 'SME app', flowId: fx('FLW-0004'), flowName: 'SME director check', workflowVersion: 'V3' })
     expect(row.createdAt).toBe((await svc.get(S(16), ALI)).createdAt)
   })
 
   it('Given project, flow and version filters, then only matching rows', async () => {
-    const sme = await svc.list({ projectIds: ['PRJ-0002'], pageSize: 500 }, ALI)
+    const sme = await svc.list({ projectIds: [fx('PRJ-0002')], pageSize: 500 }, ALI)
     expect(sme.total).toBeGreaterThan(0)
-    expect(sme.items.every((r) => r.projectId === 'PRJ-0002')).toBe(true)
-    const foreigner = await svc.list({ flowId: 'FLW-0002', pageSize: 500 }, ALI)
-    expect(foreigner.items.every((r) => r.flowId === 'FLW-0002')).toBe(true)
+    expect(sme.items.every((r) => r.projectId === fx('PRJ-0002'))).toBe(true)
+    const foreigner = await svc.list({ flowId: fx('FLW-0002'), pageSize: 500 }, ALI)
+    expect(foreigner.items.every((r) => r.flowId === fx('FLW-0002'))).toBe(true)
     expect((await svc.list({ workflowVersion: 'V3', pageSize: 500 }, ALI)).items.every((r) => r.workflowVersion === 'V3')).toBe(true)
   })
 
@@ -82,10 +83,10 @@ describe('verificationService.list', () => {
 
   it('Given filter options, then only projects and flows in the case scope, with whether each flow runs risk', async () => {
     const o = await svc.filterOptions(ALI)
-    expect(o.projects.map((p) => p.projectId)).toEqual(['PRJ-0001', 'PRJ-0002'])
-    expect(o.flows.map((f) => f.flowId)).toEqual(['FLW-0001', 'FLW-0002', 'FLW-0004']) // FLW-0003 is Draft
-    expect(o.flows.find((f) => f.flowId === 'FLW-0004')!.runsRisk).toBe(false)
-    expect(o.flows.find((f) => f.flowId === 'FLW-0001')!.runsRisk).toBe(true)
+    expect(o.projects.map((p) => p.projectId)).toEqual([fx('PRJ-0001'), fx('PRJ-0002')])
+    expect(o.flows.map((f) => f.flowId)).toEqual([fx('FLW-0001'), fx('FLW-0002'), fx('FLW-0004')]) // FLW-0003 is Draft
+    expect(o.flows.find((f) => f.flowId === fx('FLW-0004'))!.runsRisk).toBe(false)
+    expect(o.flows.find((f) => f.flowId === fx('FLW-0001'))!.runsRisk).toBe(true)
     expect((await svc.filterOptions(ADMIN)).projects.length).toBeGreaterThan(2) // every merchant (DEC-75)
   })
 
@@ -141,7 +142,7 @@ describe('per-project case access (DEC-70, DEC-72)', () => {
     const owner = (await svc.list({}, OWNER)).total
     expect(owner).toBe((await svc.list({}, ALI)).total) // Ali is a member of both Atoz projects
     expect((await svc.list({}, HAFIZ)).total).toBeLessThan(owner)
-    expect((await svc.get(S(16), OWNER)).projectId).toBe('PRJ-0002')
+    expect((await svc.get(S(16), OWNER)).projectId).toBe(fx('PRJ-0002'))
   })
 
   it('Given S16 in SME app, when Ali (Viewer) tries to claim, then FORBIDDEN; Nurul (Reviewer) gets the 45-min project timeout (S16, DEC-22)', async () => {
@@ -254,7 +255,7 @@ describe('decide (DEC-24, DEC-30)', () => {
     expect(d.lastUpdatedAt).toBe(new Date(NOW.getTime() + minutes(1)).toISOString())
     expect((await auditFor(S(7))).at(-1)).toBe('CASE_DECISION_APPROVED')
     const [entry] = (await auditService.list({ referenceNo: S(7), actions: ['CASE_DECISION_APPROVED'] }, ADMIN)).items
-    expect(entry).toMatchObject({ actorRole: 'Reviewer', projectId: 'PRJ-0001', details: { fromStatus: 'PENDING_REVIEW', toStatus: 'APPROVED' } })
+    expect(entry).toMatchObject({ actorRole: 'Reviewer', projectId: fx('PRJ-0001'), details: { fromStatus: 'PENDING_REVIEW', toStatus: 'APPROVED' } })
     await expectError(svc.decide(S(7), ALI, approve), 'OWNERSHIP_CONFLICT', 'This record has already been decided. No changes saved.')
   })
 
@@ -284,16 +285,16 @@ describe('decide (DEC-24, DEC-30)', () => {
 describe('auditService and merchantService scoping (DEC-70, DEC-72)', () => {
   it('Given the Merchant Owner, then audit entries and merchants are limited to their merchant', async () => {
     const log = await auditService.list({ pageSize: 1000 }, OWNER)
-    expect(log.items.every((e) => e.merchantId === 'MER-0001')).toBe(true)
+    expect(log.items.every((e) => e.merchantId === fx('MER-0001'))).toBe(true)
     expect(log.items.some((e) => e.action === 'API_KEY_ROTATED')).toBe(true) // merchant-wide entries included
-    expect((await merchantService.list(ALI)).map((m) => m.merchantId)).toEqual(['MER-0001'])
+    expect((await merchantService.list(ALI)).map((m) => m.merchantId)).toEqual([fx('MER-0001')])
     expect((await merchantService.list(ADMIN)).length).toBe(6)
   })
 
   it('Given a Project Admin, then only their project entries; merchant-wide entries are not theirs', async () => {
     const log = await auditService.list({ pageSize: 1000 }, HAFIZ)
     expect(log.total).toBeGreaterThan(0)
-    expect(log.items.every((e) => e.projectId === 'PRJ-0002')).toBe(true)
+    expect(log.items.every((e) => e.projectId === fx('PRJ-0002'))).toBe(true)
   })
 
   it('Given a Reviewer, then the Audit Log is refused', async () => {
@@ -301,8 +302,8 @@ describe('auditService and merchantService scoping (DEC-70, DEC-72)', () => {
   })
 
   it('Given a project filter, then only that project', async () => {
-    const log = await auditService.list({ projectId: 'PRJ-0002', pageSize: 1000 }, OWNER)
-    expect(log.items.every((e) => e.projectId === 'PRJ-0002')).toBe(true)
+    const log = await auditService.list({ projectId: fx('PRJ-0002'), pageSize: 1000 }, OWNER)
+    expect(log.items.every((e) => e.projectId === fx('PRJ-0002'))).toBe(true)
   })
 })
 
@@ -323,12 +324,12 @@ describe('analyticsService scoping (DEC-86)', () => {
 
   it('Given a Reviewer, then Billing is available with their projects only', async () => {
     const report = await analyticsService.billing({ period: NOW.toISOString().slice(0, 7) }, ALI)
-    expect(report.byMerchant.every((m) => m.key === 'MER-0001')).toBe(true)
-    expect(report.byProject.every((p) => ['PRJ-0001', 'PRJ-0002'].includes(p.key))).toBe(true)
+    expect(report.byMerchant.every((m) => m.key === fx('MER-0001'))).toBe(true)
+    expect(report.byProject.every((p) => [fx('PRJ-0001'), fx('PRJ-0002')].includes(p.key))).toBe(true)
   })
 
   it("Given another merchant's id, then NOT_FOUND for merchant users; Platform Admin may filter any merchant", async () => {
-    await expectError(analyticsService.overview({ days: 30, merchantId: 'MER-0002' }, OWNER), 'NOT_FOUND')
-    expect(await total(ADMIN, 'MER-0006')).toBe(0)
+    await expectError(analyticsService.overview({ days: 30, merchantId: fx('MER-0002') }, OWNER), 'NOT_FOUND')
+    expect(await total(ADMIN, fx('MER-0006'))).toBe(0)
   })
 })

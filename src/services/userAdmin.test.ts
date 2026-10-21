@@ -9,6 +9,7 @@ import { auditService } from './auditService'
 import { devService } from './devService'
 import { roleService } from './roleService'
 import { userAdminService as users } from './userAdminService'
+import { fx } from '@/lib/ids'
 
 beforeEach(async () => {
   vi.useFakeTimers({ toFake: ['Date'] })
@@ -23,13 +24,13 @@ const account = (userId: string) => db.state().accounts.find((a) => a.userId ===
 const caseOf = (ref: string) => db.state().verifications.find((v) => v.referenceNo === ref)!
 const lastAudit = async (action: AuditAction) => (await auditService.list({ actions: [action] }, ADMIN)).items[0]
 const aliAssignment = (projectId: string) => account(ALI.userId).assignments.find((x) => x.scope.kind === 'PROJECTS' && x.scope.projectIds.includes(projectId))!
-const VANTAGE_OWNER = { userId: 'USR-2026-0045', fullName: 'Ahmad Faiz Bin Zulkifli' }
-const KAVITHA = { userId: 'USR-2026-0044', fullName: 'Kavitha A/P Subramaniam' }
+const VANTAGE_OWNER = { userId: fx('USR-2026-0045'), fullName: 'Ahmad Faiz Bin Zulkifli' }
+const KAVITHA = { userId: fx('USR-2026-0044'), fullName: 'Kavitha A/P Subramaniam' }
 
 describe('userAdminService: the Users screen (DEC-74)', () => {
   it('Given the Merchant Owner, then their merchant’s users, newest first, with the Access column; no Platform Admin', async () => {
     const rows = await users.list(OWNER)
-    expect(rows.every((r) => r.merchantId === 'MER-0001')).toBe(true)
+    expect(rows.every((r) => r.merchantId === fx('MER-0001'))).toBe(true)
     expect(rows.map((r) => r.createdAt)).toEqual([...rows.map((r) => r.createdAt)].sort().reverse())
     expect(rows.find((r) => r.userId === ALI.userId)!.access.map((c) => c.label)).toEqual(['Reviewer · Default', 'Viewer · SME app'])
     expect(rows.find((r) => r.userId === OWNER.userId)!.access.map((c) => c.label)).toEqual(['Merchant Owner · All projects'])
@@ -43,14 +44,14 @@ describe('userAdminService: the Users screen (DEC-74)', () => {
   })
 
   it('Given an invitation, then the user is Pending with the first assignment, audited in that project', async () => {
-    const row = await users.invite('MER-0001', { fullName: 'Aishah Binti Omar', email: 'Aishah@atoz.example', assignment: { roleId: REVIEWER, scope: only('PRJ-0002') } }, OWNER)
+    const row = await users.invite(fx('MER-0001'), { fullName: 'Aishah Binti Omar', email: 'Aishah@atoz.example', assignment: { roleId: REVIEWER, scope: only(fx('PRJ-0002')) } }, OWNER)
     expect(row).toMatchObject({ status: 'PENDING', email: 'aishah@atoz.example', access: [{ label: 'Reviewer · SME app', archived: false }] })
-    expect(await lastAudit('USER_INVITED')).toMatchObject({ projectId: 'PRJ-0002', actorRole: 'Merchant Owner', details: { access: 'Reviewer · SME app' } })
-    await expect(users.invite('MER-0001', { fullName: 'Aishah Again', email: 'aishah@atoz.example', assignment: { roleId: REVIEWER, scope: only('PRJ-0002') } }, OWNER)).rejects.toMatchObject({ code: 'VALIDATION', message: 'A user with this email already exists' })
+    expect(await lastAudit('USER_INVITED')).toMatchObject({ projectId: fx('PRJ-0002'), actorRole: 'Merchant Owner', details: { access: 'Reviewer · SME app' } })
+    await expect(users.invite(fx('MER-0001'), { fullName: 'Aishah Again', email: 'aishah@atoz.example', assignment: { roleId: REVIEWER, scope: only(fx('PRJ-0002')) } }, OWNER)).rejects.toMatchObject({ code: 'VALIDATION', message: 'A user with this email already exists' })
   })
 
   it('Given Merchant Owner for selected projects, then refused: merchant-level permissions need All projects', async () => {
-    await expect(users.invite('MER-0001', { fullName: 'Aishah Binti Omar', email: 'aishah@atoz.example', assignment: { roleId: MERCHANT_OWNER, scope: only('PRJ-0001') } }, OWNER)).rejects.toMatchObject({ message: MERCHANT_LEVEL_SCOPE })
+    await expect(users.invite(fx('MER-0001'), { fullName: 'Aishah Binti Omar', email: 'aishah@atoz.example', assignment: { roleId: MERCHANT_OWNER, scope: only(fx('PRJ-0001')) } }, OWNER)).rejects.toMatchObject({ message: MERCHANT_LEVEL_SCOPE })
   })
 
   it('Given a second owner, then the first can be demoted; the last one cannot be removed or suspended', async () => {
@@ -64,12 +65,12 @@ describe('userAdminService: the Users screen (DEC-74)', () => {
 
   it('Given Ali’s details, then Effective access shows each permission and the row it comes from, per project', async () => {
     const d = await users.get(ALI.userId, OWNER)
-    const sme = d.effective.find((e) => e.projectId === 'PRJ-0002')!
+    const sme = d.effective.find((e) => e.projectId === fx('PRJ-0002'))!
     expect(sme.permissions).toEqual([
       { permission: 'VIEW_CASES', from: ['Viewer · SME app'] },
       { permission: 'VIEW_PROJECT_REPORTS', from: ['Viewer · SME app'] },
     ])
-    expect(d.effective.find((e) => e.projectId === 'PRJ-0001')!.permissions.find((p) => p.permission === 'CLAIM_CASES')!.from).toEqual(['Reviewer · Default'])
+    expect(d.effective.find((e) => e.projectId === fx('PRJ-0001'))!.permissions.find((p) => p.permission === 'CLAIM_CASES')!.from).toEqual(['Reviewer · Default'])
   })
 
   it('Given the only Merchant Owner, then Remove and Suspend are blocked with the reason before anyone clicks (DEC-78)', async () => {
@@ -80,14 +81,14 @@ describe('userAdminService: the Users screen (DEC-74)', () => {
   })
 
   it('Given anyone, then they cannot change their own access', async () => {
-    await expect(users.addAssignment(OWNER.userId, { roleId: REVIEWER, scope: only('PRJ-0001') }, OWNER)).rejects.toThrow('You can’t change your own access.')
+    await expect(users.addAssignment(OWNER.userId, { roleId: REVIEWER, scope: only(fx('PRJ-0001')) }, OWNER)).rejects.toThrow('You can’t change your own access.')
   })
 
   it('Given Ali becomes a Viewer in Default, then his claim there is released and the change is audited', async () => {
     expect(caseOf('KYC-260901-900007').claimedBy?.userId).toBe(ALI.userId)
-    await users.changeAssignment(ALI.userId, aliAssignment('PRJ-0001').assignmentId, { roleId: VIEWER, scope: only('PRJ-0001') }, OWNER)
+    await users.changeAssignment(ALI.userId, aliAssignment(fx('PRJ-0001')).assignmentId, { roleId: VIEWER, scope: only(fx('PRJ-0001')) }, OWNER)
     expect(caseOf('KYC-260901-900007').claimedBy).toBeUndefined()
-    expect(await lastAudit('USER_ACCESS_CHANGED')).toMatchObject({ projectId: 'PRJ-0001', details: { changes: [{ from: 'Reviewer · Default', to: 'Viewer · Default' }] } })
+    expect(await lastAudit('USER_ACCESS_CHANGED')).toMatchObject({ projectId: fx('PRJ-0001'), details: { changes: [{ from: 'Reviewer · Default', to: 'Viewer · Default' }] } })
     expect(await lastAudit('CASE_RELEASED')).toMatchObject({ referenceNo: expect.stringMatching(/^KYC-/), details: { reason: 'Access changed' } })
   })
 
@@ -101,37 +102,37 @@ describe('userAdminService: the Users screen (DEC-74)', () => {
   })
 
   it('Given a Pending user, then the invitation can be resent; for an Active user it cannot', async () => {
-    await users.resendInvitation('USR-2026-0035', OWNER)
+    await users.resendInvitation(fx('USR-2026-0035'), OWNER)
     expect((await lastAudit('USER_INVITATION_RESENT')).details).toMatchObject({ email: 'peishan.chong@atoz.example' })
     await expect(users.resendInvitation(ALI.userId, OWNER)).rejects.toMatchObject({ code: 'VALIDATION' })
   })
 
   it('Given a user desk role (Manage users and roles only), then they give only access they hold themselves', async () => {
-    const desk = await roleService.create('MER-0001', { name: 'User desk', permissions: ['MANAGE_USERS_ROLES'] }, OWNER)
+    const desk = await roleService.create(fx('MER-0001'), { name: 'User desk', permissions: ['MANAGE_USERS_ROLES'] }, OWNER)
     await users.addAssignment(SITI.userId, { roleId: desk.roleId, scope: ALL }, OWNER)
-    const invite = (scope: AssignmentScope, email: string) => users.invite('MER-0001', { fullName: 'New Reviewer', email, assignment: { roleId: REVIEWER, scope } }, SITI)
-    expect((await invite(only('PRJ-0001'), 'r1@atoz.example')).access[0].label).toBe('Reviewer · Default') // Siti is Reviewer there
-    await expect(invite(only('PRJ-0002'), 'r2@atoz.example')).rejects.toMatchObject({ code: 'FORBIDDEN', message: GRANT_TOO_POWERFUL })
+    const invite = (scope: AssignmentScope, email: string) => users.invite(fx('MER-0001'), { fullName: 'New Reviewer', email, assignment: { roleId: REVIEWER, scope } }, SITI)
+    expect((await invite(only(fx('PRJ-0001')), 'r1@atoz.example')).access[0].label).toBe('Reviewer · Default') // Siti is Reviewer there
+    await expect(invite(only(fx('PRJ-0002')), 'r2@atoz.example')).rejects.toMatchObject({ code: 'FORBIDDEN', message: GRANT_TOO_POWERFUL })
   })
 
   it('Given Hafiz on SME app, then only roles he may give there are offered; the owner gets every role', async () => {
-    expect((await roleService.assignable('MER-0001', HAFIZ, 'PRJ-0002')).map((r) => r.name)).toEqual(['Project Admin', 'Reviewer', 'Viewer'])
-    await expect(roleService.assignable('MER-0001', HAFIZ, 'PRJ-0001')).resolves.toEqual([])
-    expect((await roleService.assignable('MER-0001', OWNER)).map((r) => r.name)).toEqual(['Merchant Owner', 'Project Admin', 'Reviewer', 'Viewer'])
+    expect((await roleService.assignable(fx('MER-0001'), HAFIZ, fx('PRJ-0002'))).map((r) => r.name)).toEqual(['Project Admin', 'Reviewer', 'Viewer'])
+    await expect(roleService.assignable(fx('MER-0001'), HAFIZ, fx('PRJ-0001'))).resolves.toEqual([])
+    expect((await roleService.assignable(fx('MER-0001'), OWNER)).map((r) => r.name)).toEqual(['Merchant Owner', 'Project Admin', 'Reviewer', 'Viewer'])
   })
 
   it('Given a user desk role, then roles it can’t give anywhere are not offered', async () => {
-    const desk = await roleService.create('MER-0001', { name: 'User desk', permissions: ['MANAGE_USERS_ROLES'] }, OWNER)
+    const desk = await roleService.create(fx('MER-0001'), { name: 'User desk', permissions: ['MANAGE_USERS_ROLES'] }, OWNER)
     await users.addAssignment(SITI.userId, { roleId: desk.roleId, scope: ALL }, OWNER)
     // Siti is a Reviewer in Default only: she can give Reviewer or Viewer there, and her own User desk role; nothing broader.
-    expect((await roleService.assignable('MER-0001', SITI)).map((r) => r.name)).toEqual(['Reviewer', 'Viewer', 'User desk'])
+    expect((await roleService.assignable(fx('MER-0001'), SITI)).map((r) => r.name)).toEqual(['Reviewer', 'Viewer', 'User desk'])
   })
 
   it('Given an archived project, then its access is labelled and read-only', async () => {
     // Ng Chee Keong owns MER-0005, whose Pilot 2025 (PRJ-0008) is archived.
-    await users.invite('MER-0005', { fullName: 'Pilot Reviewer', email: 'pilot@3nova.example', assignment: { roleId: REVIEWER, scope: only('PRJ-0007') } }, ADMIN)
-    const id = account((await users.list(ADMIN, 'MER-0005')).find((r) => r.fullName === 'Pilot Reviewer')!.userId)
-    db.setState((st) => ({ accounts: st.accounts.map((a) => (a.userId === id.userId ? { ...a, assignments: [{ ...a.assignments[0], scope: only('PRJ-0008') }] } : a)) }))
+    await users.invite(fx('MER-0005'), { fullName: 'Pilot Reviewer', email: 'pilot@3nova.example', assignment: { roleId: REVIEWER, scope: only(fx('PRJ-0007')) } }, ADMIN)
+    const id = account((await users.list(ADMIN, fx('MER-0005'))).find((r) => r.fullName === 'Pilot Reviewer')!.userId)
+    db.setState((st) => ({ accounts: st.accounts.map((a) => (a.userId === id.userId ? { ...a, assignments: [{ ...a.assignments[0], scope: only(fx('PRJ-0008')) }] } : a)) }))
     const d = await users.get(id.userId, ADMIN)
     expect(d.access).toEqual([{ label: 'Reviewer · Pilot 2025 (archived)', archived: true }])
     expect(d.assignments[0].editable).toBe(false)
@@ -144,30 +145,30 @@ describe('userAdminService: the Users screen (DEC-74)', () => {
 
 describe('userAdminService: a project’s Members tab (DEC-77)', () => {
   it('Given SME app, then its members include the Merchant Owner as inherited, not removable there', async () => {
-    const rows = await users.listMembers('PRJ-0002', HAFIZ)
-    expect(rows.map((r) => r.userId)).toEqual(expect.arrayContaining([OWNER.userId, HAFIZ.userId, ALI.userId, 'USR-2026-0033']))
+    const rows = await users.listMembers(fx('PRJ-0002'), HAFIZ)
+    expect(rows.map((r) => r.userId)).toEqual(expect.arrayContaining([OWNER.userId, HAFIZ.userId, ALI.userId, fx('USR-2026-0033')]))
     expect(rows.find((r) => r.userId === OWNER.userId)!.roles).toEqual([expect.objectContaining({ roleName: 'Merchant Owner', inherited: true, removable: false })])
     expect(rows.find((r) => r.userId === ALI.userId)!.roles).toEqual([expect.objectContaining({ roleName: 'Viewer', inherited: false, removable: true })])
     expect(rows.some((r) => r.userId === SITI.userId)).toBe(false)
   })
 
   it('Given Hafiz (Project Admin of SME app), then he adds Siti there, but not in Default, and not as Merchant Owner', async () => {
-    expect((await users.addMember('PRJ-0002', SITI.userId, REVIEWER, HAFIZ)).find((r) => r.userId === SITI.userId)!.roles[0].roleName).toBe('Reviewer')
-    expect(mayInProject(SITI, 'claimCase', 'PRJ-0002')).toBe(true)
-    expect(await lastAudit('USER_ACCESS_ADDED')).toMatchObject({ projectId: 'PRJ-0002', actorRole: 'Project Admin' })
-    await expect(users.listMembers('PRJ-0001', HAFIZ)).rejects.toMatchObject({ code: 'NOT_FOUND' })
-    await expect(users.addMember('PRJ-0002', 'USR-2026-0035', MERCHANT_OWNER, HAFIZ)).rejects.toMatchObject({ message: MERCHANT_LEVEL_SCOPE })
+    expect((await users.addMember(fx('PRJ-0002'), SITI.userId, REVIEWER, HAFIZ)).find((r) => r.userId === SITI.userId)!.roles[0].roleName).toBe('Reviewer')
+    expect(mayInProject(SITI, 'claimCase', fx('PRJ-0002'))).toBe(true)
+    expect(await lastAudit('USER_ACCESS_ADDED')).toMatchObject({ projectId: fx('PRJ-0002'), actorRole: 'Project Admin' })
+    await expect(users.listMembers(fx('PRJ-0001'), HAFIZ)).rejects.toMatchObject({ code: 'NOT_FOUND' })
+    await expect(users.addMember(fx('PRJ-0002'), fx('USR-2026-0035'), MERCHANT_OWNER, HAFIZ)).rejects.toMatchObject({ message: MERCHANT_LEVEL_SCOPE })
   })
 
   it('Given an assignment for two projects, when removed from one on its Members tab, then it stays for the other', async () => {
-    const d = await users.addAssignment('USR-2026-0035', { roleId: VIEWER, scope: only('PRJ-0001', 'PRJ-0002') }, OWNER)
+    const d = await users.addAssignment(fx('USR-2026-0035'), { roleId: VIEWER, scope: only(fx('PRJ-0001'), fx('PRJ-0002')) }, OWNER)
     const id = d.assignments.at(-1)!.assignmentId
-    await users.removeMember('PRJ-0002', 'USR-2026-0035', id, HAFIZ)
-    expect(account('USR-2026-0035').assignments.find((x) => x.assignmentId === id)!.scope).toEqual(only('PRJ-0001'))
+    await users.removeMember(fx('PRJ-0002'), fx('USR-2026-0035'), id, HAFIZ)
+    expect(account(fx('USR-2026-0035')).assignments.find((x) => x.assignmentId === id)!.scope).toEqual(only(fx('PRJ-0001')))
   })
 
   it('Given an archived project, then it takes no new members', async () => {
-    await expect(users.addMember('PRJ-0008', 'USR-2026-0071', VIEWER, ADMIN)).rejects.toMatchObject({ code: 'VALIDATION' })
+    await expect(users.addMember(fx('PRJ-0008'), fx('USR-2026-0071'), VIEWER, ADMIN)).rejects.toMatchObject({ code: 'VALIDATION' })
   })
 })
 
@@ -182,11 +183,11 @@ describe('roleService: the Roles screen (DEC-76)', () => {
   })
 
   it('Given a new role, then at least one permission; Claim ticks View cases; audited', async () => {
-    await expect(roleService.create('MER-0001', { name: 'Empty', permissions: [] }, OWNER)).rejects.toMatchObject({ message: ROLE_NEEDS_PERMISSION })
-    const r = await roleService.create('MER-0001', { name: 'Claimer', permissions: ['CLAIM_CASES'] }, OWNER)
-    expect(r).toMatchObject({ roleId: 'ROL-2026-0006', type: 'CUSTOM', permissions: ['VIEW_CASES', 'CLAIM_CASES'] })
-    expect(await lastAudit('ROLE_CREATED')).toMatchObject({ merchantId: 'MER-0001', actorRole: 'Merchant Owner' })
-    await expect(roleService.create('MER-0001', { name: 'Mine', permissions: ['VIEW_CASES'] }, ALI)).rejects.toMatchObject({ code: 'FORBIDDEN' })
+    await expect(roleService.create(fx('MER-0001'), { name: 'Empty', permissions: [] }, OWNER)).rejects.toMatchObject({ message: ROLE_NEEDS_PERMISSION })
+    const r = await roleService.create(fx('MER-0001'), { name: 'Claimer', permissions: ['CLAIM_CASES'] }, OWNER)
+    expect(r).toMatchObject({ roleId: expect.stringMatching(/^rol_/), type: 'CUSTOM', permissions: ['VIEW_CASES', 'CLAIM_CASES'] })
+    expect(await lastAudit('ROLE_CREATED')).toMatchObject({ merchantId: fx('MER-0001'), actorRole: 'Merchant Owner' })
+    await expect(roleService.create(fx('MER-0001'), { name: 'Mine', permissions: ['VIEW_CASES'] }, ALI)).rejects.toMatchObject({ code: 'FORBIDDEN' })
   })
 
   it('Given a System Default role, then it cannot be edited', async () => {
@@ -194,21 +195,21 @@ describe('roleService: the Roles screen (DEC-76)', () => {
   })
 
   it('Given the Compliance Auditor loses View audit log, then Kavitha loses it at once (role edits apply to every holder)', async () => {
-    expect(mayInProject(KAVITHA, 'viewAudit', 'PRJ-0003')).toBe(true)
-    await roleService.update('ROL-2026-0005', { name: 'Compliance Auditor', permissions: ['VIEW_CASES', 'VIEW_PROJECT_REPORTS'] }, VANTAGE_OWNER)
-    expect(mayInProject(KAVITHA, 'viewAudit', 'PRJ-0003')).toBe(false)
+    expect(mayInProject(KAVITHA, 'viewAudit', fx('PRJ-0003'))).toBe(true)
+    await roleService.update(fx('ROL-2026-0005'), { name: 'Compliance Auditor', permissions: ['VIEW_CASES', 'VIEW_PROJECT_REPORTS'] }, VANTAGE_OWNER)
+    expect(mayInProject(KAVITHA, 'viewAudit', fx('PRJ-0003'))).toBe(false)
     expect(await lastAudit('ROLE_UPDATED')).toMatchObject({ details: { users: 1, changes: [{ to: 'View cases, View project reports' }] } })
   })
 
   it('Given a role still assigned, then it cannot be deactivated; once unassigned it can', async () => {
-    await expect(roleService.setStatus('ROL-2026-0005', 'INACTIVE', VANTAGE_OWNER)).rejects.toMatchObject({ message: ROLE_IN_USE })
-    const r = await roleService.create('MER-0001', { name: 'Spare', permissions: ['VIEW_CASES'] }, OWNER)
+    await expect(roleService.setStatus(fx('ROL-2026-0005'), 'INACTIVE', VANTAGE_OWNER)).rejects.toMatchObject({ message: ROLE_IN_USE })
+    const r = await roleService.create(fx('MER-0001'), { name: 'Spare', permissions: ['VIEW_CASES'] }, OWNER)
     expect((await roleService.setStatus(r.roleId, 'INACTIVE', OWNER)).status).toBe('INACTIVE')
   })
 
   it('Given a Custom role held for selected projects, then a merchant-level permission can’t be added', async () => {
-    const r = await roleService.create('MER-0001', { name: 'Desk', permissions: ['VIEW_CASES'] }, OWNER)
-    await users.addAssignment(SITI.userId, { roleId: r.roleId, scope: only('PRJ-0001') }, OWNER)
+    const r = await roleService.create(fx('MER-0001'), { name: 'Desk', permissions: ['VIEW_CASES'] }, OWNER)
+    await users.addAssignment(SITI.userId, { roleId: r.roleId, scope: only(fx('PRJ-0001')) }, OWNER)
     await expect(roleService.update(r.roleId, { name: 'Desk', permissions: ['VIEW_CASES', 'MANAGE_BILLING'] }, OWNER)).rejects.toMatchObject({ code: 'VALIDATION' })
   })
 })

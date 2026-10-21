@@ -32,5 +32,5 @@ export function makeAudit(args: {
 }
 
 export function formatUpdatedBy(u: UpdatedBy): string {
-  return u.kind === 'SYSTEM' ? 'SYSTEM' : `${u.fullName} (${u.userId})`
+  return u.kind === 'SYSTEM' ? 'SYSTEM' : u.fullName // REQ: DEC-97 — names on screen, not user IDs
 }

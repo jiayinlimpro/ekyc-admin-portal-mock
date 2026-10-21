@@ -18,7 +18,8 @@ import { db } from '@/mocks/mockDb'
 import { accountOf, nextAssignmentId, requireActive } from './accessGuard'
 import { ServiceError } from './errors'
 import { clientIpFor, simulateNetwork, wire } from './network'
-import { auditProject, nextId, validation } from './projectService'
+import { auditProject, validation } from './projectService'
+import { newId } from '@/lib/ids'
 
 export interface MerchantRow extends Merchant {
   owner?: { fullName: string; email: string; status: UserAccount['status'] }
@@ -93,10 +94,10 @@ export const mockMerchantAdminService: MerchantAdminService = {
     if (!entry) throw validation([{ field: 'form', message: 'No default workflow version is set in the registry.' }])
 
     const at = now()
-    const merchant: Merchant = { merchantId: nextId('MER-', s.merchants.map((m) => m.merchantId)), name }
-    const flowId = nextId('FLW-', s.flows.map((f) => f.flowId))
+    const merchant: Merchant = { merchantId: newId('mer'), name }
+    const flowId = newId('flw')
     const project: Project = {
-      projectId: nextId('PRJ-', s.projects.map((p) => p.projectId)),
+      projectId: newId('prj'),
       merchantId: merchant.merchantId,
       name: 'Default',
       status: 'ACTIVE',
@@ -109,7 +110,7 @@ export const mockMerchantAdminService: MerchantAdminService = {
     }
     const flow = createFlow({ flowId, project }, { name: 'Default flow', description: 'Created with the merchant' }, entry, at, { userId: 'SYSTEM', fullName: 'SYSTEM' })
     const owner: UserAccount = {
-      userId: nextId('USR-2026-', s.accounts.map((a) => a.userId)),
+      userId: newId('usr'),
       fullName: input.ownerName.trim(),
       email,
       level: 'MERCHANT_USER',

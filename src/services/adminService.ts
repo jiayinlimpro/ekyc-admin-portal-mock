@@ -12,8 +12,9 @@ import { db } from '@/mocks/mockDb'
 import { accountOf, requireActive } from './accessGuard'
 import { ServiceError } from './errors'
 import { clientIpFor, simulateNetwork, wire } from './network'
-import { nextId, validation } from './projectService'
+import { validation } from './projectService'
 import { requireNewUser } from './userAdminService'
+import { newId } from '@/lib/ids'
 
 export interface AdminRow {
   userId: string
@@ -86,7 +87,7 @@ export const mockAdminService: AdminService = {
     requireAdmins(actor)
     const email = requireNewUser(input)
     const account: UserAccount = {
-      userId: nextId('USR-2026-', db.state().accounts.map((a) => a.userId)),
+      userId: newId('usr'),
       fullName: input.fullName.trim(),
       email,
       level: 'PLATFORM_ADMIN',

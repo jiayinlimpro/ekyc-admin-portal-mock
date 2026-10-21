@@ -21,6 +21,7 @@ import { db } from '@/mocks/mockDb'
 import { accountOf, projectById, requireActive, roleIn } from './accessGuard'
 import { ServiceError } from './errors'
 import { clientIpFor, simulateNetwork, wire } from './network'
+import { newId } from '@/lib/ids'
 
 /** A project the user can reach, with their role names in it (DEC-73: switcher and "roles in the current project"). */
 export type MyProject = Project & { roles: string[] }
@@ -49,11 +50,6 @@ export interface ProjectService {
   updateGeneral(projectId: string, input: GeneralSettings, actor: Actor): Promise<Project>
   /** REQ: DEC-22 / DEC-53 — applies to claims made from now on. */
   updateClaimTimeout(projectId: string, claimTimeoutMin: number, actor: Actor): Promise<Project>
-}
-
-export function nextId(prefix: string, ids: readonly string[], width = 4): string {
-  const max = ids.map((id) => Number(id.slice(prefix.length))).filter(Number.isFinite).reduce((a, b) => Math.max(a, b), 0)
-  return `${prefix}${String(max + 1).padStart(width, '0')}`
 }
 
 export const validation = (errors: RuleError[]) => new ServiceError('VALIDATION', errors[0].message, errors)
@@ -159,8 +155,8 @@ export const mockProjectService: ProjectService = {
     const entry = defaultVersion(s.registry)
     if (!entry) throw validation([{ field: 'form', message: 'No default workflow version is set in the registry.' }])
     const at = now()
-    const projectId = nextId('PRJ-', s.projects.map((p) => p.projectId))
-    const flowId = nextId('FLW-', s.flows.map((f) => f.flowId))
+    const projectId = newId('prj')
+    const flowId = newId('flw')
     const project: Project = {
       projectId,
       merchantId,

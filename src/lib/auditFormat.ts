@@ -17,7 +17,7 @@ export function summarizeAudit(e: AuditEntry): string {
       return 'Reviewer released their claim'
     case 'CASE_CLAIM_EXPIRED': {
       const who = d.claimedBy as ClaimHolder | undefined
-      return `Claim by ${who ? `${who.fullName} (${who.userId})` : 'unknown'} expired${str(d.claimExpiresAt) ? ` at ${formatMyt(str(d.claimExpiresAt)!)} MYT` : ''}`
+      return `Claim by ${who ? who.fullName : 'unknown'} expired${str(d.claimExpiresAt) ? ` at ${formatMyt(str(d.claimExpiresAt)!)} MYT` : ''}`
     }
     case 'CASE_DECISION_APPROVED':
     case 'CASE_DECISION_REJECTED': {

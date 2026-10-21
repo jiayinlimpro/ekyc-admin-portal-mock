@@ -9,6 +9,7 @@ import { verificationService } from '@/services/verificationService'
 import { DEFAULT_DEV_FLAGS, useDevFlags } from '@/stores/devFlagsStore'
 import { useSession } from '@/stores/sessionStore'
 import { ALI, OWNER, minutes } from '@/test/factories'
+import { fx } from '@/lib/ids'
 
 function renderAt(path: string) {
   const router = createMemoryRouter(routes, { initialEntries: [path] })
@@ -35,11 +36,11 @@ describe('Audit Logs', () => {
     expect(r.length).toBeGreaterThan(0)
     expect(screen.queryByRole('columnheader', { name: 'Merchant' })).toBeNull()
     for (const row of r) expect(['Default', 'SME app', '—']).toContain(within(row).getAllByRole('cell')[3].textContent)
-    expect(r.some((x) => /· Reviewer/.test(x.textContent!))).toBe(true)
+    expect(r.some((x) => /Ali Bin AhmadReviewer|Siti Aminah Binti YusofReviewer/.test(x.textContent!))).toBe(true) // name, then role
   })
 
   it('Given SME app in the header, then only that project’s entries', async () => {
-    useSession.getState().selectProject('PRJ-0002')
+    useSession.getState().selectProject(fx('PRJ-0002'))
     renderAt('/audit?size=100')
     const r = await rows('Audit entries')
     expect(r.length).toBeGreaterThan(0)
@@ -70,7 +71,7 @@ describe('Audit Logs', () => {
     const r = await rows('Audit entries')
     expect(r.length).toBeGreaterThan(0)
     expect(r.every((x) => x.textContent!.includes('CASE_CLAIM_EXPIRED'))).toBe(true)
-    expect(screen.getAllByText(/Claim by Ali Bin Ahmad \(USR-2026-0012\) expired/).length).toBeGreaterThan(0)
+    expect(screen.getAllByText(/Claim by Ali Bin Ahmad expired/).length).toBeGreaterThan(0)
   })
 
   it('Given a live action elsewhere, then it appears on the next load', async () => {

@@ -1,14 +1,15 @@
 import { describe, expect, it } from 'vitest'
 import { advancedErrors, createFlow, diffFlow, newFlowSettings, saveFlow, validateFlow } from './flowSettings'
 import type { Flow, FlowSettings, RegistryEntry } from './types'
+import { fx } from '@/lib/ids'
 
 const NOW = new Date('2026-10-20T02:00:00.000Z')
-const OWNER = { userId: 'USR-2026-0002', fullName: 'Tan Mei Ling' }
+const OWNER = { userId: fx('USR-2026-0002'), fullName: 'Tan Mei Ling' }
 const V4: Pick<RegistryEntry, 'code' | 'phases' | 'configurableChecks'> = { code: 'V4', phases: ['ID_CAPTURE', 'LIVENESS_CHECK', 'RISK_ASSESSMENT'], configurableChecks: ['FACE_MATCH', 'LIVENESS'] }
 const V1: typeof V4 = { code: 'V1', phases: ['ID_CAPTURE', 'SELFIE_CAPTURE', 'LIVENESS_CHECK'], configurableChecks: ['FACE_MATCH', 'LIVENESS'] }
 
 const complete = (s: FlowSettings): FlowSettings => ({ ...s, acceptedDocuments: ['MYKAD'], sessionExpiryMin: 30 })
-const draft = () => createFlow({ flowId: 'FLW-0009', project: { projectId: 'PRJ-0001', merchantId: 'MER-0001' } }, { name: ' Malaysian onboarding ', description: '' }, V4, NOW, OWNER)
+const draft = () => createFlow({ flowId: fx('FLW-0009'), project: { projectId: fx('PRJ-0001'), merchantId: fx('MER-0001') } }, { name: ' Malaysian onboarding ', description: '' }, V4, NOW, OWNER)
 const active = (): Flow => ({ ...draft(), status: 'ACTIVE', revision: 2, settings: complete(draft().settings) })
 const fields = (e: { field: string }[]) => e.map((x) => x.field)
 

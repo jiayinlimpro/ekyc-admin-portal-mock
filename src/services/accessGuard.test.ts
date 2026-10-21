@@ -5,6 +5,7 @@ import { ADMIN, ALI, NOW } from '@/test/factories'
 import { accountOf, mayInProject, projectIdsWhere, requireActive } from './accessGuard'
 import { devService } from './devService'
 import { userService } from './userService'
+import { fx } from '@/lib/ids'
 
 beforeEach(async () => {
   vi.useFakeTimers({ toFake: ['Date'] })
@@ -16,26 +17,26 @@ const ids = (rows: { userId: string }[]) => rows.map((r) => r.userId).sort()
 
 describe('accessGuard (DEC-71, DEC-72)', () => {
   it('Given a session for a user with no account, then FORBIDDEN', () => {
-    expect(() => accountOf({ userId: 'USR-2026-9999' })).toThrow(expect.objectContaining({ code: 'FORBIDDEN' }))
+    expect(() => accountOf({ userId: fx('USR-2026-9999') })).toThrow(expect.objectContaining({ code: 'FORBIDDEN' }))
   })
 
   it('Given a Pending or Suspended account, then it may not change anything', () => {
-    expect(() => requireActive({ userId: 'USR-2026-0035' })).toThrow('Your account is inactive.') // Chong Pei Shan, Pending
-    expect(() => requireActive({ userId: 'USR-2026-0039' })).toThrow('Your account is inactive.') // Yap Li Wen, Suspended
+    expect(() => requireActive({ userId: fx('USR-2026-0035') })).toThrow('Your account is inactive.') // Chong Pei Shan, Pending
+    expect(() => requireActive({ userId: fx('USR-2026-0039') })).toThrow('Your account is inactive.') // Yap Li Wen, Suspended
     expect(requireActive(ALI).level).toBe('MERCHANT_USER')
   })
 
   it('Given Ali (Reviewer in Default, Viewer in SME app), then rights come from his project roles, not the session role', () => {
-    expect(mayInProject(ALI, 'claimCase', 'PRJ-0001')).toBe(true)
-    expect(mayInProject(ALI, 'claimCase', 'PRJ-0002')).toBe(false)
-    expect(mayInProject(ALI, 'viewCases', 'PRJ-0003')).toBe(false) // another merchant
-    expect(mayInProject(ALI, 'viewCases', 'PRJ-9999')).toBe(false)
-    expect([...projectIdsWhere(ALI, 'viewCases')].sort()).toEqual(['PRJ-0001', 'PRJ-0002'])
+    expect(mayInProject(ALI, 'claimCase', fx('PRJ-0001'))).toBe(true)
+    expect(mayInProject(ALI, 'claimCase', fx('PRJ-0002'))).toBe(false)
+    expect(mayInProject(ALI, 'viewCases', fx('PRJ-0003'))).toBe(false) // another merchant
+    expect(mayInProject(ALI, 'viewCases', fx('PRJ-9999'))).toBe(false)
+    expect([...projectIdsWhere(ALI, 'viewCases')].sort()).toEqual([fx('PRJ-0001'), fx('PRJ-0002')].sort())
   })
 
   it('Given the Platform Admin, then cases in every project (DEC-75)', () => {
     expect(projectIdsWhere(ADMIN, 'viewCases').size).toBe(db.state().projects.length)
-    expect(mayInProject(ADMIN, 'manageIntegration', 'PRJ-0003')).toBe(true)
+    expect(mayInProject(ADMIN, 'manageIntegration', fx('PRJ-0003'))).toBe(true)
     expect(projectIdsWhere(ADMIN, 'manageFlows').size).toBe(db.state().projects.length)
   })
 })
@@ -43,14 +44,14 @@ describe('accessGuard (DEC-71, DEC-72)', () => {
 describe('userService', () => {
   it('Given Ali, then reviewers are the active users who may claim in his projects', async () => {
     // Lim and Nor Aisyah (Platform Admins, DEC-75), Tan Mei Ling (owner), Hafiz (Project Admin SME app), Siti and Nurul. Not Yap (suspended).
-    expect(ids(await userService.listReviewers(ALI))).toEqual(['USR-2026-0001', 'USR-2026-0002', 'USR-2026-0005', 'USR-2026-0012', 'USR-2026-0020', 'USR-2026-0031', 'USR-2026-0033'])
-    expect(ids(await userService.listReviewers(ALI, 'PRJ-0001'))).toEqual(['USR-2026-0001', 'USR-2026-0002', 'USR-2026-0005', 'USR-2026-0012', 'USR-2026-0031'])
+    expect(ids(await userService.listReviewers(ALI))).toEqual([fx('USR-2026-0001'), fx('USR-2026-0002'), fx('USR-2026-0005'), fx('USR-2026-0012'), fx('USR-2026-0020'), fx('USR-2026-0031'), fx('USR-2026-0033')].sort())
+    expect(ids(await userService.listReviewers(ALI, fx('PRJ-0001')))).toEqual([fx('USR-2026-0001'), fx('USR-2026-0002'), fx('USR-2026-0005'), fx('USR-2026-0012'), fx('USR-2026-0031')].sort())
   })
 
   it('Given Ali, then the directory is his merchant plus Platform Admins', async () => {
     const users = await userService.list(ALI)
-    expect(users.every((u) => u.merchantId === 'MER-0001' || u.level === 'PLATFORM_ADMIN')).toBe(true)
-    expect(ids(users)).toContain('USR-2026-0001')
+    expect(users.every((u) => u.merchantId === fx('MER-0001') || u.level === 'PLATFORM_ADMIN')).toBe(true)
+    expect(ids(users)).toContain(fx('USR-2026-0001'))
     expect((await userService.list(ADMIN)).length).toBe(db.state().accounts.length)
   })
 })

@@ -22,7 +22,8 @@ import { db } from '@/mocks/mockDb'
 import { accountOf, nextAssignmentId, requireActive, roleIn, withAccess, type AccountAccess } from './accessGuard'
 import { ServiceError } from './errors'
 import { clientIpFor, simulateNetwork, wire } from './network'
-import { nextId, validation } from './projectService'
+import { validation } from './projectService'
+import { newId } from '@/lib/ids'
 
 export interface AssignmentInput {
   roleId: string
@@ -338,7 +339,7 @@ export const mockUserAdminService: UserAdminService = {
     checkAssignment(me, merchantId, input.assignment)
     const at = now().toISOString()
     const account: UserAccount & { merchantId: string } = {
-      userId: nextId('USR-2026-', db.state().accounts.map((a) => a.userId)),
+      userId: newId('usr'),
       fullName: input.fullName.trim(),
       email,
       level: 'MERCHANT_USER',

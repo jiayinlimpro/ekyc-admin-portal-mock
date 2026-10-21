@@ -14,11 +14,12 @@ import { buildEdgeCases } from './fixtures/edgeCases'
 import { MERCHANTS } from './fixtures/merchants'
 import { actorOf, buildAccounts, buildRoles } from './fixtures/users'
 import { clientMetadata, fakeIp, person } from './malaysia'
+import { fx } from '@/lib/ids'
 
 export const SEED = 2026
 export const BACKGROUND_COUNT = 300
 /** Bump when the shape of MockDbState changes: persisted demo data is then re-seeded. */
-export const DB_VERSION = 10
+export const DB_VERSION = 11
 
 export interface MockDbState {
   dbVersion: number
@@ -46,11 +47,11 @@ const DAY = 24 * 60 * MIN
 
 /** Share of background cases per flow (DRAFT flows never get cases; INACTIVE ones only before they were retired). */
 const FLOW_WEIGHTS: Record<string, number> = {
-  'FLW-0001': 22, 'FLW-0002': 5, 'FLW-0004': 6, // Atoz: Default (2 flows) + SME app
-  'FLW-0005': 20, // Vantage
-  'FLW-0006': 16, 'FLW-0013': 4, // Tesla: 20 % share on the strict flow
-  'FLW-0007': 12, 'FLW-0008': 3, // Boring: the Express pilot is retiring
-  'FLW-0009': 8, 'FLW-0010': 5, 'FLW-0011': 2, // 3Nova: Default, Wallet app, archived Pilot 2025
+  [fx('FLW-0001')]: 22, [fx('FLW-0002')]: 5, [fx('FLW-0004')]: 6, // Atoz: Default (2 flows) + SME app
+  [fx('FLW-0005')]: 20, // Vantage
+  [fx('FLW-0006')]: 16, [fx('FLW-0013')]: 4, // Tesla: 20 % share on the strict flow
+  [fx('FLW-0007')]: 12, [fx('FLW-0008')]: 3, // Boring: the Express pilot is retiring
+  [fx('FLW-0009')]: 8, [fx('FLW-0010')]: 5, [fx('FLW-0011')]: 2, // 3Nova: Default, Wallet app, archived Pilot 2025
 }
 const INACTIVE_BEFORE_DAYS = 60
 
@@ -201,9 +202,9 @@ export function seedDatabase(now: Date): MockDbState {
   }
 
   // Atoz Default's production key was rotated by the Merchant Owner a week ago (DEC-54).
-  const owner = accounts.find((a) => a.userId === 'USR-2026-0002')!
+  const owner = accounts.find((a) => a.userId === fx('USR-2026-0002'))!
   audit.push(
-    makeAudit({ id: '', now: new Date(now.getTime() - 7 * DAY), action: 'API_KEY_ROTATED', actor: owner, actorRole: 'Merchant Owner', ip: fakeIp(f), merchantId: 'MER-0001', projectId: 'PRJ-0001', details: { keyId: 'key_mock_prj-0001_01' } }),
+    makeAudit({ id: '', now: new Date(now.getTime() - 7 * DAY), action: 'API_KEY_ROTATED', actor: owner, actorRole: 'Merchant Owner', ip: fakeIp(f), merchantId: fx('MER-0001'), projectId: fx('PRJ-0001'), details: { keyId: 'key_mock_prj-0001_01' } }),
   )
 
   const edge = buildEdgeCases({ now, catalog })
@@ -230,6 +231,6 @@ export function seedDatabase(now: Date): MockDbState {
       createdBy: p.createdBy,
       lastUsedAt: p.status === 'ACTIVE' ? new Date(now.getTime() - f.number.int({ min: 5, max: 600 }) * MIN).toISOString() : undefined,
     })),
-    webhooks: [{ projectId: 'PRJ-0001', url: 'https://hooks.atoz.example/ekyc', events: ['verification.status_changed'], secretHint: 'whsec_mock_…a1b2', updatedAt: new Date(now.getTime() - 30 * DAY).toISOString(), updatedBy: 'Tan Mei Ling' }],
+    webhooks: [{ projectId: fx('PRJ-0001'), url: 'https://hooks.atoz.example/ekyc', events: ['verification.status_changed'], secretHint: 'whsec_mock_…a1b2', updatedAt: new Date(now.getTime() - 30 * DAY).toISOString(), updatedBy: 'Tan Mei Ling' }],
   }
 }

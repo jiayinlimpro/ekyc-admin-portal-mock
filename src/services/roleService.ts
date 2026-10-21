@@ -6,7 +6,7 @@
 //   PUT  /roles/{id}                update      → 200 Role | 403 | 422
 //   POST /roles/{id}/status         setStatus   → 200 Role | 422 (still assigned)
 import { canInMerchant, canInProject } from '@/domain/access'
-import { canGrant, GRANT_TOO_POWERFUL, holdersOf, isMerchantLevel, validateRole, validateRoleStatus, withImpliedPermissions } from '@/domain/roles'
+import { canGrant, GRANT_TOO_POWERFUL, holdersOf, isMerchantLevel, SYSTEM_DEFAULT_ROLES, validateRole, validateRoleStatus, withImpliedPermissions } from '@/domain/roles'
 import type { Actor, Permission, Role, RoleStatus } from '@/domain/types'
 import { now } from '@/lib/clock'
 import { permissionList } from '@/lib/labels'
@@ -14,8 +14,9 @@ import { db } from '@/mocks/mockDb'
 import { accountOf, requireActive, type AccountAccess } from './accessGuard'
 import { ServiceError } from './errors'
 import { simulateNetwork, wire } from './network'
-import { nextId, validation } from './projectService'
+import { validation } from './projectService'
 import { auditAccess, releaseLostClaims } from './userAdminService'
+import { newId } from '@/lib/ids'
 
 export interface RoleInput {
   name: string
@@ -37,6 +38,8 @@ export interface RoleService {
   setStatus(roleId: string, status: RoleStatus, actor: Actor): Promise<Role>
 }
 
+// System Default roles first, in catalogue order; then Custom roles by created time (DEC-97: never by ID).
+const systemOrder = (r: Role) => (r.type === 'SYSTEM_DEFAULT' ? SYSTEM_DEFAULT_ROLES.findIndex((x) => x.roleId === r.roleId) : SYSTEM_DEFAULT_ROLES.length)
 const merchantName = (id?: string) => db.state().merchants.find((m) => m.merchantId === id)?.name
 const by = (actor: Actor): Actor => ({ userId: actor.userId, fullName: actor.fullName })
 
@@ -88,7 +91,7 @@ export const mockRoleService: RoleService = {
             heldForSelectedProjects: holders.some((a) => a.assignments.some((x) => x.roleId === r.roleId && x.scope.kind === 'PROJECTS')),
           }
         })
-        .sort((a, b) => Number(b.type === 'SYSTEM_DEFAULT') - Number(a.type === 'SYSTEM_DEFAULT') || a.roleId.localeCompare(b.roleId)),
+        .sort((a, b) => systemOrder(a) - systemOrder(b) || a.createdAt.localeCompare(b.createdAt)),
     )
   },
 
@@ -116,7 +119,7 @@ export const mockRoleService: RoleService = {
     if (!canGrant(granter(me), permissions, { kind: 'ALL_PROJECTS' })) throw new ServiceError('FORBIDDEN', GRANT_TOO_POWERFUL)
     const at = now().toISOString()
     const role: Role = {
-      roleId: nextId('ROL-2026-', db.state().roles.map((r) => r.roleId)),
+      roleId: newId('rol'),
       merchantId,
       name: input.name.trim(),
       type: 'CUSTOM',

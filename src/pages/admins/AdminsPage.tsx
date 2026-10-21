@@ -26,7 +26,7 @@ function InviteAdminDialog({ onClose, onSaved }: { onClose: () => void; onSaved:
     setErrors({})
     try {
       const a = await adminService.invite({ fullName, email }, actor)
-      toast.success(`${a.fullName} invited (${a.userId})`, { description: 'Pending until they accept the invitation.' })
+      toast.success(`${a.fullName} invited`, { description: 'Pending until they accept the invitation.' })
       onSaved()
     } catch (err) {
       setErrors(fieldErrors(err))
@@ -126,7 +126,7 @@ export function AdminsPage() {
         <table className={cn('w-full text-sm', rows.loading && rows.data && 'opacity-60')} aria-busy={rows.loading}>
           <thead className="bg-muted/50 text-left text-xs text-muted-foreground">
             <tr>
-              {['User ID', 'Full Name', 'Email', 'Status', 'Created At', 'Last active'].map((h) => (
+              {['Full Name', 'Email', 'Status', 'Created At', 'Last active'].map((h) => (
                 <th key={h} scope="col" className="px-3 py-2 font-medium whitespace-nowrap">
                   {h}
                 </th>
@@ -139,7 +139,6 @@ export function AdminsPage() {
           <tbody>
             {(rows.data ?? []).map((r) => (
               <tr key={r.userId} className="border-t">
-                <td className="px-3 py-2 font-mono text-xs whitespace-nowrap">{r.userId}</td>
                 <th scope="row" className="px-3 py-2 text-left font-medium">
                   {r.fullName}
                   {r.userId === actor.userId && <span className="ml-2 text-xs font-normal text-muted-foreground">(you)</span>}

@@ -49,7 +49,7 @@ function InviteDialog({ merchants, defaultMerchantId, onClose, onSaved }: { merc
     setErrors({})
     try {
       const u = await userAdminService.invite(merchantId, { fullName, email, assignment }, actor)
-      toast.success(`${u.fullName} invited (${u.userId})`, { description: 'Pending until they accept the invitation.' })
+      toast.success(`${u.fullName} invited`, { description: 'Pending until they accept the invitation.' })
       onSaved()
     } catch (err) {
       setErrors(fieldErrors(err))
@@ -184,7 +184,7 @@ function UserDialog({ userId, onClose, onChanged }: { userId: string; onClose: (
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-3xl">
         <DialogHeader>
           <DialogTitle>{u ? u.fullName : 'User'}</DialogTitle>
-          <DialogDescription>{u ? `${u.userId} · ${u.email} · ${u.merchantName}` : 'Loading…'}</DialogDescription>
+          <DialogDescription>{u ? `${u.email} · ${u.merchantName}` : 'Loading…'}</DialogDescription>
         </DialogHeader>
         {user.error && !u && <ErrorState message={user.error} onRetry={user.reload} />}
         {u && (
@@ -316,7 +316,7 @@ type Filters = { q: string; status: '' | UserStatus; merchantId: string }
 
 const matches = (r: UserRow, f: Filters) => {
   const q = f.q.trim().toLowerCase()
-  return (!q || [r.userId, r.fullName, r.email].some((x) => x.toLowerCase().includes(q))) && (!f.status || r.status === f.status) && (!f.merchantId || r.merchantId === f.merchantId)
+  return (!q || [r.fullName, r.email].some((x) => x.toLowerCase().includes(q))) && (!f.status || r.status === f.status) && (!f.merchantId || r.merchantId === f.merchantId)
 }
 
 export function UsersPage() {
@@ -339,7 +339,7 @@ export function UsersPage() {
   }
   const filtered = (rows.data ?? []).filter((r) => matches(r, applied))
   const shown = filtered.slice((page - 1) * pageSize, page * pageSize)
-  const headers = ['User ID', 'Full Name', 'Email', ...(isAdmin ? ['Merchant'] : []), 'Access', 'Status', 'Created At']
+  const headers = ['Full Name', 'Email', ...(isAdmin ? ['Merchant'] : []), 'Access', 'Status', 'Created At']
 
   if (rows.error && !rows.data) return <ErrorState message={rows.error} onRetry={rows.reload} />
   return (
@@ -361,7 +361,7 @@ export function UsersPage() {
           apply(form)
         }}
       >
-        <FormField id="uf-q" label="User ID, name or email" className="w-64">
+        <FormField id="uf-q" label="Name or email" className="w-64">
           <Input id="uf-q" value={form.q} onChange={(e) => setForm({ ...form, q: e.target.value })} />
         </FormField>
         <FormField id="uf-status" label="Status" className="w-40">
@@ -409,7 +409,6 @@ export function UsersPage() {
           <tbody>
             {shown.map((r) => (
               <tr key={r.userId} className="border-t">
-                <td className="px-3 py-2 font-mono text-xs whitespace-nowrap">{r.userId}</td>
                 <th scope="row" className="px-3 py-2 text-left font-normal">
                   <button type="button" className="font-medium text-blue-700 hover:underline dark:text-blue-400" onClick={() => setOpen(r.userId)}>
                     {r.fullName}

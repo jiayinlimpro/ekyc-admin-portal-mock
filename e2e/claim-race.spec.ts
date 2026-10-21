@@ -5,11 +5,11 @@ import { expect, test } from '@playwright/test'
 test('S10: first reviewer wins the claim, the second is refused and sees who holds it', async ({ context }) => {
   const ref = 'KYC-260901-900010'
   const ali = await context.newPage()
-  await ali.goto(`/verifications/${ref}?as=USR-2026-0012`)
+  await ali.goto(`/verifications/${ref}?as=ali.ahmad@atoz.example`)
   await expect(ali.getByRole('heading', { level: 1, name: ref })).toBeVisible()
 
   const siti = await context.newPage()
-  await siti.goto(`/verifications/${ref}?as=USR-2026-0031`)
+  await siti.goto(`/verifications/${ref}?as=siti.yusof@atoz.example`)
   await expect(siti.getByRole('heading', { level: 1, name: ref })).toBeVisible()
   await expect(siti.getByRole('button', { name: 'Assign to me' })).toBeVisible()
 
@@ -18,7 +18,7 @@ test('S10: first reviewer wins the claim, the second is refused and sees who hol
   await expect(ali.getByText('You are reviewing this record.')).toBeVisible()
 
   // Siti's tab refreshes live and shows the claim — no Assign button any more.
-  await expect(siti.getByText(/Claimed by Ali Bin Ahmad \(USR-2026-0012\)/)).toBeVisible()
+  await expect(siti.getByText(/Claimed by Ali Bin Ahmad/).first()).toBeVisible()
   await expect(siti.getByRole('button', { name: 'Assign to me' })).toHaveCount(0)
   await expect(siti.getByRole('region', { name: 'Decision' }).getByRole('status')).toHaveText('Claimed by Ali Bin Ahmad')
 })
@@ -27,8 +27,8 @@ test('S10 (true race): both click Assign before either tab refreshes — the ser
   const ref = 'KYC-260901-900010'
   const ali = await context.newPage()
   const siti = await context.newPage()
-  await ali.goto(`/verifications/${ref}?as=USR-2026-0012`)
-  await siti.goto(`/verifications/${ref}?as=USR-2026-0031`)
+  await ali.goto(`/verifications/${ref}?as=ali.ahmad@atoz.example`)
+  await siti.goto(`/verifications/${ref}?as=siti.yusof@atoz.example`)
   await expect(ali.getByRole('button', { name: 'Assign to me' })).toBeVisible()
   await expect(siti.getByRole('button', { name: 'Assign to me' })).toBeVisible()
 

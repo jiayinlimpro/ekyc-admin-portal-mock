@@ -22,8 +22,9 @@ import {
   type Grant,
 } from './roles'
 import type { AssignmentScope, Permission, Role, RoleAssignment } from './types'
+import { fx } from '@/lib/ids'
 
-const by = { userId: 'USR-2026-0002', fullName: 'Tan Mei Ling' }
+const by = { userId: fx('USR-2026-0002'), fullName: 'Tan Mei Ling' }
 const AT = '2026-10-01T00:00:00.000Z'
 const ROLES: Role[] = SYSTEM_DEFAULT_ROLES.map((r) => ({ ...r, type: 'SYSTEM_DEFAULT', status: 'ACTIVE', createdAt: AT, createdBy: by, updatedAt: AT, updatedBy: by }))
 const role = (roleId: string) => ROLES.find((r) => r.roleId === roleId)!
@@ -34,44 +35,44 @@ const grant = (roleId: string, scope: AssignmentScope): Grant => ({ roleId, role
 
 const { MERCHANT_OWNER, PROJECT_ADMIN, REVIEWER, VIEWER } = SYSTEM_ROLE_IDS
 // The paste's example: Mei is Reviewer in Retail and Viewer in SME.
-const MEI = [grant(REVIEWER, only('PRJ-0001')), grant(VIEWER, only('PRJ-0002'))]
+const MEI = [grant(REVIEWER, only(fx('PRJ-0001'))), grant(VIEWER, only(fx('PRJ-0002')))]
 
 describe('roles: permissions from scoped assignments (DEC-70)', () => {
   it('Given a user with two assignments, then each project gets the union of the grants covering it', () => {
-    expect(permissionsIn(MEI, 'PRJ-0001').has('CLAIM_CASES')).toBe(true)
-    expect(permissionsIn(MEI, 'PRJ-0002').has('CLAIM_CASES')).toBe(false)
-    expect(permissionsIn(MEI, 'PRJ-0002').has('VIEW_CASES')).toBe(true)
-    expect(coversProject(MEI, 'PRJ-0003')).toBe(false)
-    expect(roleNamesIn([...MEI, grant(VIEWER, only('PRJ-0001'))], 'PRJ-0001')).toEqual(['Reviewer', 'Viewer'])
+    expect(permissionsIn(MEI, fx('PRJ-0001')).has('CLAIM_CASES')).toBe(true)
+    expect(permissionsIn(MEI, fx('PRJ-0002')).has('CLAIM_CASES')).toBe(false)
+    expect(permissionsIn(MEI, fx('PRJ-0002')).has('VIEW_CASES')).toBe(true)
+    expect(coversProject(MEI, fx('PRJ-0003'))).toBe(false)
+    expect(roleNamesIn([...MEI, grant(VIEWER, only(fx('PRJ-0001')))], fx('PRJ-0001'))).toEqual(['Reviewer', 'Viewer'])
   })
 
   it('Given an All projects assignment, then it covers projects created later too', () => {
-    expect(permissionsIn([grant(PROJECT_ADMIN, ALL)], 'PRJ-0099').has('MANAGE_FLOWS')).toBe(true)
+    expect(permissionsIn([grant(PROJECT_ADMIN, ALL)], fx('PRJ-0099')).has('MANAGE_FLOWS')).toBe(true)
   })
 
   it('Given a role with a merchant-level permission scoped to selected projects, then that permission does not count', () => {
-    const odd: Grant = { roleId: 'ROL-2026-0100', roleName: 'Odd', permissions: ['MANAGE_PROJECTS', 'VIEW_CASES'], scope: only('PRJ-0001') }
-    expect([...permissionsIn([odd], 'PRJ-0001')]).toEqual(['VIEW_CASES'])
+    const odd: Grant = { roleId: fx('ROL-2026-0100'), roleName: 'Odd', permissions: ['MANAGE_PROJECTS', 'VIEW_CASES'], scope: only(fx('PRJ-0001')) }
+    expect([...permissionsIn([odd], fx('PRJ-0001'))]).toEqual(['VIEW_CASES'])
   })
 
   it('Given overlapping grants, then Effective access names every grant each permission comes from', () => {
-    const both = [grant(REVIEWER, only('PRJ-0001')), grant(VIEWER, ALL), grant(MERCHANT_OWNER, only('PRJ-0001'))]
-    const rows = effectivePermissions(both, 'PRJ-0001')
+    const both = [grant(REVIEWER, only(fx('PRJ-0001'))), grant(VIEWER, ALL), grant(MERCHANT_OWNER, only(fx('PRJ-0001')))]
+    const rows = effectivePermissions(both, fx('PRJ-0001'))
     expect(rows.find((r) => r.permission === 'VIEW_CASES')!.from.map((g) => g.roleName)).toEqual(['Reviewer', 'Viewer', 'Merchant Owner'])
     expect(rows.find((r) => r.permission === 'CLAIM_CASES')!.from.map((g) => g.roleName)).toEqual(['Reviewer', 'Merchant Owner'])
     expect(rows.some((r) => r.permission === 'MANAGE_PROJECTS')).toBe(false) // merchant-level, not from a project scope
-    expect(effectivePermissions(both, 'PRJ-0002').map((r) => r.permission)).toEqual(['VIEW_CASES', 'VIEW_PROJECT_REPORTS'])
+    expect(effectivePermissions(both, fx('PRJ-0002')).map((r) => r.permission)).toEqual(['VIEW_CASES', 'VIEW_PROJECT_REPORTS'])
   })
 
   it('Given an inactive role, then its assignment grants nothing', () => {
     const roles = ROLES.map((r) => (r.roleId === VIEWER ? { ...r, status: 'INACTIVE' as const } : r))
-    expect(grantsOf([assign(VIEWER, ALL), assign(REVIEWER, only('PRJ-0001'), 2)], roles).map((g) => g.roleName)).toEqual(['Reviewer'])
+    expect(grantsOf([assign(VIEWER, ALL), assign(REVIEWER, only(fx('PRJ-0001')), 2)], roles).map((g) => g.roleName)).toEqual(['Reviewer'])
   })
 
   it('Given grants, then each reads as one Role · Scope chip; an all-archived scope is marked archived', () => {
-    const names: Record<string, string> = { 'PRJ-0001': 'Retail app', 'PRJ-0002': 'SME app (archived)' }
+    const names: Record<string, string> = { [fx('PRJ-0001')]: 'Retail app', [fx('PRJ-0002')]: 'SME app (archived)' }
     expect(accessSummary(MEI, (id) => names[id])).toBe('Reviewer · Retail app; Viewer · SME app (archived)')
-    expect(accessChips(MEI, (id) => names[id], (id) => id === 'PRJ-0002').map((c) => c.archived)).toEqual([false, true])
+    expect(accessChips(MEI, (id) => names[id], (id) => id === fx('PRJ-0002')).map((c) => c.archived)).toEqual([false, true])
     expect(accessSummary([grant(MERCHANT_OWNER, ALL)], (id) => id)).toBe('Merchant Owner · All projects')
   })
 
@@ -81,29 +82,29 @@ describe('roles: permissions from scoped assignments (DEC-70)', () => {
 })
 
 describe('roles: giving access (DEC-70, DEC-74, DEC-77)', () => {
-  const open = ['PRJ-0001', 'PRJ-0002']
+  const open = [fx('PRJ-0001'), fx('PRJ-0002')]
 
   it('Given a role with merchant-level permissions, when it is scoped to selected projects, then it is refused', () => {
-    expect(validateAssignment(role(MERCHANT_OWNER), only('PRJ-0001'), open)).toEqual([{ field: 'scope', message: MERCHANT_LEVEL_SCOPE }])
+    expect(validateAssignment(role(MERCHANT_OWNER), only(fx('PRJ-0001')), open)).toEqual([{ field: 'scope', message: MERCHANT_LEVEL_SCOPE }])
     expect(validateAssignment(role(MERCHANT_OWNER), ALL, open)).toEqual([])
   })
 
   it('Given selected projects, when none is chosen or one is archived, then it is refused', () => {
     expect(validateAssignment(role(REVIEWER), only(), open)[0].field).toBe('scope')
-    expect(validateAssignment(role(REVIEWER), only('PRJ-0008'), open)[0].message).toMatch(/Archived/)
-    expect(validateAssignment(role(REVIEWER), only('PRJ-0002'), open)).toEqual([])
+    expect(validateAssignment(role(REVIEWER), only(fx('PRJ-0008')), open)[0].message).toMatch(/Archived/)
+    expect(validateAssignment(role(REVIEWER), only(fx('PRJ-0002')), open)).toEqual([])
   })
 
   it('Given a Project Admin of one project, then they can give Reviewer there but not elsewhere, nor All projects', () => {
-    const hafiz = [grant(PROJECT_ADMIN, only('PRJ-0002'))]
+    const hafiz = [grant(PROJECT_ADMIN, only(fx('PRJ-0002')))]
     const reviewer = role(REVIEWER).permissions
-    expect(canGrant(hafiz, reviewer, only('PRJ-0002'))).toBe(true)
-    expect(canGrant(hafiz, reviewer, only('PRJ-0001'))).toBe(false)
+    expect(canGrant(hafiz, reviewer, only(fx('PRJ-0002')))).toBe(true)
+    expect(canGrant(hafiz, reviewer, only(fx('PRJ-0001')))).toBe(false)
     expect(canGrant(hafiz, reviewer, ALL)).toBe(false)
   })
 
   it('Given a Reviewer, when they try to give Project Admin, then they cannot grant more than they have', () => {
-    expect(canGrant(MEI, role(PROJECT_ADMIN).permissions, only('PRJ-0001'))).toBe(false)
+    expect(canGrant(MEI, role(PROJECT_ADMIN).permissions, only(fx('PRJ-0001')))).toBe(false)
   })
 
   it('Given a Merchant Owner or Platform Admin, then they can give any role for All projects', () => {
@@ -140,7 +141,7 @@ describe('roles: the Roles screen (DEC-76)', () => {
   })
 
   it('Given a Custom role held for selected projects, when a merchant-level permission is added, then it is refused', () => {
-    const custom = { roleId: 'ROL-2026-0100', type: 'CUSTOM' as const, heldForSelectedProjects: true }
+    const custom = { roleId: fx('ROL-2026-0100'), type: 'CUSTOM' as const, heldForSelectedProjects: true }
     const perms: Permission[] = ['VIEW_CASES', 'MANAGE_BILLING']
     expect(validateRole({ name: 'Ops', permissions: perms }, others, custom)[0].field).toBe('permissions')
     expect(validateRole({ name: 'Ops', permissions: perms }, others, { ...custom, heldForSelectedProjects: false })).toEqual([])
@@ -152,7 +153,7 @@ describe('roles: the Roles screen (DEC-76)', () => {
   })
 
   it('Given users with several assignments, then each holder of the role is counted once', () => {
-    const users = [{ assignments: [assign(REVIEWER, only('PRJ-0001')), assign(REVIEWER, only('PRJ-0002'), 2)] }, { assignments: [assign(VIEWER, ALL)] }]
+    const users = [{ assignments: [assign(REVIEWER, only(fx('PRJ-0001'))), assign(REVIEWER, only(fx('PRJ-0002')), 2)] }, { assignments: [assign(VIEWER, ALL)] }]
     expect(holdersOf(REVIEWER, users)).toHaveLength(1)
   })
 })

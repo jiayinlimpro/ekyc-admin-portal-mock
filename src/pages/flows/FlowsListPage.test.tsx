@@ -9,6 +9,7 @@ import { devService } from '@/services/devService'
 import { DEFAULT_DEV_FLAGS, useDevFlags } from '@/stores/devFlagsStore'
 import { useSession } from '@/stores/sessionStore'
 import { ADMIN, OWNER } from '@/test/factories'
+import { fx } from '@/lib/ids'
 
 function renderAt(path: string) {
   const router = createMemoryRouter(routes, { initialEntries: [path] })
@@ -25,7 +26,7 @@ beforeEach(async () => {
   useDevFlags.setState({ ...DEFAULT_DEV_FLAGS, simulateLatency: false })
   await devService.resetDemoData()
   useSession.getState().switchUser(OWNER)
-  useSession.getState().selectProject('PRJ-0001')
+  useSession.getState().selectProject(fx('PRJ-0001'))
 })
 afterEach(cleanup)
 
@@ -51,7 +52,7 @@ describe('Flows List (DEC-94)', () => {
   it('Given Set as default on Foreigner, then it carries the Default tag', async () => {
     renderAt('/flows')
     fireEvent.click((await menu('Foreigner onboarding')).find((m) => m.textContent === 'Set as default')!)
-    await waitFor(() => expect(db.state().projects.find((p) => p.projectId === 'PRJ-0001')!.defaultFlowId).toBe('FLW-0002'))
+    await waitFor(() => expect(db.state().projects.find((p) => p.projectId === fx('PRJ-0001'))!.defaultFlowId).toBe(fx('FLW-0002')))
     await waitFor(async () => expect((await row('Foreigner onboarding')).textContent).toContain('Default'))
   })
 
@@ -62,7 +63,7 @@ describe('Flows List (DEC-94)', () => {
     await waitFor(() => expect(within(version).getAllByRole('option').map((o) => o.getAttribute('value'))).toEqual(['V1', 'V3', 'V4']))
     fireEvent.change(screen.getByLabelText('Flow name'), { target: { value: 'Students' } })
     fireEvent.click(screen.getByRole('button', { name: 'Create flow' }))
-    await waitFor(() => expect(router.state.location.pathname).toMatch(/^\/flows\/FLW-\d{4}$/))
+    await waitFor(() => expect(router.state.location.pathname).toMatch(/^\/flows\/flw_[a-z0-9]{24}$/))
   })
 
   it('Given a Draft, when duplicated, then a "(copy)" Draft appears', async () => {
@@ -73,7 +74,7 @@ describe('Flows List (DEC-94)', () => {
 
   it('Given the Platform Admin on Vantage, then they manage its flows too (DEC-75)', async () => {
     useSession.getState().switchUser(ADMIN)
-    useSession.getState().selectProject('PRJ-0003')
+    useSession.getState().selectProject(fx('PRJ-0003'))
     renderAt('/flows')
     expect(await row('Standard onboarding')).toBeTruthy()
     expect(screen.getByRole('button', { name: /New flow/ })).toBeTruthy()

@@ -60,7 +60,7 @@ function Filters({ initial, onSearch, onReset, merchants, users, showMerchant }:
             <option value="SYSTEM">SYSTEM</option>
             {users.map((u) => (
               <option key={u.userId} value={u.userId}>
-                {u.fullName} ({u.userId})
+                {u.fullName}
               </option>
             ))}
           </NativeSelect>
@@ -254,10 +254,7 @@ export function AuditLogsPage() {
                       ) : (
                         <>
                           {e.actor.fullName}
-                          <div className="text-xs text-muted-foreground">
-                            {e.actor.userId}
-                            {e.actorRole && ` · ${e.actorRole}`}
-                          </div>
+                          {e.actorRole && <div className="text-xs text-muted-foreground">{e.actorRole}</div>}
                         </>
                       )}
                     </td>
