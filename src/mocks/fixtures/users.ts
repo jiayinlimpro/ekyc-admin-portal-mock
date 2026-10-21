@@ -24,6 +24,8 @@ const VANTAGE_OWNER: Actor = { userId: 'USR-2026-0045', fullName: 'Ahmad Faiz Bi
 
 const ACCOUNT_SPECS: AccountSpec[] = [
   { ...PLATFORM_ADMIN, email: 'weijie.lim@ekyc-platform.example', level: 'PLATFORM_ADMIN', access: [], addedBy: PLATFORM_ADMIN, status: 'ACTIVE', invitedDaysAgo: 400, lastActiveHoursAgo: 1 },
+  // A second Platform Admin, so the Admins screen (DEC-79) can show Suspend without hitting "at least one".
+  { userId: 'USR-2026-0005', fullName: 'Nor Aisyah Binti Hamid', email: 'aisyah.hamid@ekyc-platform.example', level: 'PLATFORM_ADMIN', access: [], addedBy: PLATFORM_ADMIN, status: 'ACTIVE', invitedDaysAgo: 120, lastActiveHoursAgo: 26 },
   // Atoz Software Tech: owner, a Project Admin for SME app, reviewers, one user with a role in each project.
   { ...ATOZ_OWNER, email: 'meiling.tan@atoz.example', level: 'MERCHANT_USER', merchantId: 'MER-0001', access: [['MERCHANT_OWNER', ALL]], addedBy: PLATFORM_ADMIN, status: 'ACTIVE', invitedDaysAgo: 400, lastActiveHoursAgo: 2 },
   { userId: 'USR-2026-0012', fullName: 'Ali Bin Ahmad', email: 'ali.ahmad@atoz.example', level: 'MERCHANT_USER', merchantId: 'MER-0001', access: [['REVIEWER', only('PRJ-0001')], ['VIEWER', only('PRJ-0002')]], addedBy: ATOZ_OWNER, status: 'ACTIVE', invitedDaysAgo: 300, lastActiveHoursAgo: 1 },

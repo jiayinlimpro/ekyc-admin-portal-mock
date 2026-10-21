@@ -5,7 +5,7 @@ import { coversProject, merchantWidePermissions, permissionsIn, PLATFORM_ADMIN_P
 import type { Permission, Project, UserAccess } from './types'
 
 /** Platform-wide actions: no project involved. */
-export const PLATFORM_ACTIONS = ['manageRegistry', 'manageMerchants'] as const
+export const PLATFORM_ACTIONS = ['manageRegistry', 'manageMerchants', 'manageAdmins'] as const
 export type PlatformAction = (typeof PLATFORM_ACTIONS)[number]
 
 /** Actions checked against one project; the merchant-level ones hold only through an All projects assignment. */

@@ -137,6 +137,17 @@ export function auditAccess(actor: Actor, action: AuditAction, merchantId: strin
   )
 }
 
+/** REQ: DEC-74 / DEC-79 — name and email of a new user (any account, merchant user or Platform Admin); returns the email. */
+export function requireNewUser(input: { fullName: string; email: string }): string {
+  const errors: RuleError[] = []
+  const email = input.email.trim().toLowerCase()
+  if (input.fullName.trim().length < 3) errors.push({ field: 'fullName', message: 'Full name must be at least 3 characters' })
+  if (!EMAIL.test(email)) errors.push({ field: 'email', message: 'Enter a valid email address' })
+  else if (db.state().accounts.some((a) => a.email.toLowerCase() === email)) errors.push({ field: 'email', message: 'A user with this email already exists' })
+  if (errors.length) throw validation(errors)
+  return email
+}
+
 const singleProject = (scope: AssignmentScope) => (scope.kind === 'PROJECTS' && scope.projectIds.length === 1 ? scope.projectIds[0] : undefined)
 
 /**
@@ -323,12 +334,7 @@ export const mockUserAdminService: UserAdminService = {
     const me = requireActive(actor)
     if (!db.state().merchants.some((m) => m.merchantId === merchantId) || (me.level !== 'PLATFORM_ADMIN' && me.merchantId !== merchantId)) throw new ServiceError('NOT_FOUND', `Merchant ${merchantId} not found.`)
     requireUsersScreen(me, merchantId)
-    const errors: RuleError[] = []
-    const email = input.email.trim().toLowerCase()
-    if (input.fullName.trim().length < 3) errors.push({ field: 'fullName', message: 'Full name must be at least 3 characters' })
-    if (!EMAIL.test(email)) errors.push({ field: 'email', message: 'Enter a valid email address' })
-    else if (db.state().accounts.some((a) => a.email.toLowerCase() === email)) errors.push({ field: 'email', message: 'A user with this email already exists' })
-    if (errors.length) throw validation(errors)
+    const email = requireNewUser(input)
     checkAssignment(me, merchantId, input.assignment)
     const at = now().toISOString()
     const account: UserAccount & { merchantId: string } = {

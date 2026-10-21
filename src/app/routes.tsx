@@ -16,6 +16,7 @@ const PAGES: Partial<Record<string, ComponentType>> = {
   '/project-settings': page(() => import('@/pages/projects/ProjectSettingsPage'), 'ProjectSettingsPage'),
   '/flows': page(() => import('@/pages/flows/FlowsListPage'), 'FlowsListPage'),
   '/flows/:flowId': page(() => import('@/pages/flows/FlowDetailPage'), 'FlowDetailPage'),
+  '/admins': page(() => import('@/pages/admins/AdminsPage'), 'AdminsPage'),
   '/users': page(() => import('@/pages/users/UsersPage'), 'UsersPage'),
   '/roles': page(() => import('@/pages/roles/RolesPage'), 'RolesPage'),
   '/registry': page(() => import('@/pages/registry/RegistryPage'), 'RegistryPage'),
