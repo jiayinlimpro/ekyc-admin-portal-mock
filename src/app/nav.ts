@@ -10,7 +10,6 @@ import {
   FolderKanban,
   Gauge,
   GitBranch,
-  Landmark,
   Library,
   Settings,
   Settings2,
@@ -24,7 +23,9 @@ import {
 } from 'lucide-react'
 import type { AccessRule } from './access'
 
-export const NAV_GROUPS = ['Dashboards', 'eKYC', 'Projects & Flows', 'Governance', 'Access Management', 'Platform'] as const
+// Most-used first: dashboards (everyone), case review, configuration, then admin-only groups.
+// Governance = who may do what (Users, Roles) next to the record of what they did (Audit Logs).
+export const NAV_GROUPS = ['Dashboards', 'eKYC', 'Projects & Flows', 'Governance', 'Platform'] as const
 export type NavGroup = (typeof NAV_GROUPS)[number]
 
 /** The icon on each group's header in the sidebar (the items themselves show their icon only when the sidebar is narrow). */
@@ -32,8 +33,7 @@ export const NAV_GROUP_ICONS: Record<NavGroup, LucideIcon> = {
   Dashboards: Gauge,
   eKYC: ClipboardList,
   'Projects & Flows': FolderKanban,
-  Governance: Landmark,
-  'Access Management': UserRound,
+  Governance: UserRound,
   Platform: Settings,
 }
 
@@ -75,6 +75,17 @@ export const NAV_ITEMS: NavItem[] = [
     priority: 'P2',
     built: true,
     notes: ['Retry KPI counts user retakes only (DEC-18).', 'Charts show two threshold lines: Auto-Pass and Auto-Reject (DEC-11).'],
+  },
+  {
+    path: '/billing',
+    label: 'Billing',
+    icon: ReceiptText,
+    group: 'Dashboards',
+    inMenu: true,
+    access: { project: 'viewDashboards' }, // every role, data scoped (DEC-86)
+    priority: 'P2',
+    built: true,
+    notes: ['Every verification is charged on entry; column "Verification Status" (DEC-60).', '"Cost of Retries" depends on OQ-07 (per-attempt charging).'],
   },
   {
     path: '/verifications',
@@ -153,28 +164,6 @@ export const NAV_ITEMS: NavItem[] = [
     notes: ['Low / Standard / High presets with a 0–100 band bar; Advanced for Platform Admin only; retries allowed 1–5 (DEC-18, DEC-19, DEC-50).'],
   },
   {
-    path: '/audit',
-    label: 'Audit Logs',
-    icon: ClipboardList,
-    group: 'Governance',
-    inMenu: true,
-    access: { project: 'viewAudit' },
-    priority: 'P1',
-    built: true,
-    notes: ['Events: DEC-42 names (cases, flows, projects, integration, users, registry, merchants), with the actor role and project.'],
-  },
-  {
-    path: '/billing',
-    label: 'Billing',
-    icon: ReceiptText,
-    group: 'Governance',
-    inMenu: true,
-    access: { project: 'viewDashboards' }, // every role, data scoped (DEC-86)
-    priority: 'P2',
-    built: true,
-    notes: ['Every verification is charged on entry; column "Verification Status" (DEC-60).', '"Cost of Retries" depends on OQ-07 (per-attempt charging).'],
-  },
-  {
     path: '/merchants',
     label: 'Merchants',
     icon: Building2,
@@ -189,7 +178,7 @@ export const NAV_ITEMS: NavItem[] = [
     path: '/users',
     label: 'Users',
     icon: Users,
-    group: 'Access Management',
+    group: 'Governance',
     inMenu: true,
     access: { project: 'manageUsersRoles' },
     priority: 'P1',
@@ -203,12 +192,23 @@ export const NAV_ITEMS: NavItem[] = [
     path: '/roles',
     label: 'Roles',
     icon: ShieldCheck,
-    group: 'Access Management',
+    group: 'Governance',
     inMenu: true,
     access: { project: 'manageUsersRoles' },
     priority: 'P1',
     built: true,
     notes: ['[FRS] Roles: grouped permission checkboxes; System Default roles locked; "Affects N users" before saving (DEC-76).'],
+  },
+  {
+    path: '/audit',
+    label: 'Audit Logs',
+    icon: ClipboardList,
+    group: 'Governance',
+    inMenu: true,
+    access: { project: 'viewAudit' },
+    priority: 'P1',
+    built: true,
+    notes: ['Events: DEC-42 names (cases, flows, projects, integration, users, registry, merchants), with the actor role and project.'],
   },
   {
     path: '/registry',
