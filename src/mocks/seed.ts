@@ -182,7 +182,7 @@ export function seedDatabase(now: Date): MockDbState {
     const timeoutMin = catalog.projects.find((p) => p.projectId === v.projectId)!.claimTimeoutMin // REQ: DEC-22
     const age = now.getTime() - Date.parse(v.lastUpdatedAt)
     const ip = fakeIp(f)
-    const ref = { merchantId: v.merchantId, projectId: v.projectId, referenceNo: v.referenceNo, ip, actorRole: roleOf(actor, v) }
+    const ref = { merchantId: v.merchantId, projectId: v.projectId, caseId: v.caseId, referenceNo: v.referenceNo, ip, actorRole: roleOf(actor, v) }
 
     if (age > DAY && f.number.float({ min: 0, max: 1 }) < 0.7) {
       const decidedAt = new Date(Math.min(Date.parse(v.lastUpdatedAt) + f.number.int({ min: 30, max: 2880 }) * MIN, now.getTime() - 10 * MIN))

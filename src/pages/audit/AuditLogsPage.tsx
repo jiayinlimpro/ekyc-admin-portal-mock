@@ -50,7 +50,7 @@ function Filters({ initial, onSearch, onReset, merchants, users, showMerchant }:
     <form role="search" aria-label="Filter audit log" noValidate onSubmit={submit} className="space-y-4 rounded-lg border bg-card p-4">
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
         <div>
-          <label htmlFor="a-ref" className="mb-1 block text-xs font-medium text-muted-foreground">Reference No</label>
+          <label htmlFor="a-ref" className="mb-1 block text-xs font-medium text-muted-foreground">Reference ID</label>
           <Input id="a-ref" value={f.referenceNo} onChange={(e) => set('referenceNo', e.target.value)} placeholder="Exact, e.g. KYC-260901-900003" autoComplete="off" />
         </div>
         <div>
@@ -222,7 +222,7 @@ export function AuditLogsPage() {
             <table className={cn('w-full text-sm', loading && data && 'opacity-60')} aria-busy={loading}>
               <thead className="bg-muted/50 text-left text-xs text-muted-foreground">
                 <tr>
-                  {['Time (MYT)', 'Event', 'Actor', 'Project', ...(isAdmin ? ['Merchant'] : []), 'Reference No', 'IP', 'Details'].map((h) => (
+                  {['Time (MYT)', 'Event', 'Actor', 'Project', ...(isAdmin ? ['Merchant'] : []), 'Reference ID', 'IP', 'Details'].map((h) => (
                     <th key={h} scope="col" className="px-3 py-2 font-medium whitespace-nowrap">
                       {h}
                     </th>
@@ -262,7 +262,7 @@ export function AuditLogsPage() {
                     {isAdmin && <td className="px-3 py-2 whitespace-nowrap">{merchantName(e.merchantId)}</td>}
                     <td className="px-3 py-2">
                       {e.referenceNo ? (
-                        <Link to={`/verifications/${e.referenceNo}`} className="font-mono text-xs whitespace-nowrap text-blue-700 hover:underline dark:text-blue-400">
+                        <Link to={`/verifications/${e.caseId}`} className="font-mono text-xs whitespace-nowrap text-blue-700 hover:underline dark:text-blue-400">
                           {e.referenceNo}
                         </Link>
                       ) : (

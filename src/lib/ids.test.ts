@@ -21,3 +21,9 @@ describe('ids (DEC-97)', () => {
     expect(() => fx('XYZ-1')).toThrow('Unknown fixture handle')
   })
 })
+
+describe('ids used outside the app', () => {
+  it('Given S10, then its case ID is the one hard-coded in the e2e test', () => {
+    expect(caseIdOf('KYC-260901-900010')).toBe('ver_ngbokaq0u76jcmczfoi2vr52')
+  })
+})

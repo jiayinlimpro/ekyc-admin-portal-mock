@@ -207,6 +207,7 @@ export function intelligenceStats(records: readonly Verification[], range: DateR
 
 /** REQ: DEC-60 — tokens = liveness submissions, whatever the final status; ID capture and selfie retakes are free. */
 export interface BillingLine {
+  caseId: string
   referenceNo: string
   merchantId: string
   projectId: string
@@ -232,6 +233,7 @@ const round2 = (n: number) => Math.round(n * 100) / 100
 export function billingLine(v: Verification, tokenPrice: number): BillingLine {
   const tokens = v.submissions.LIVENESS?.length ?? 0
   return {
+    caseId: v.caseId,
     referenceNo: v.referenceNo,
     merchantId: v.merchantId,
     projectId: v.projectId,

@@ -5,6 +5,7 @@ import { hasRisk } from '@/domain/registryRules'
 import type { Attempt, Check, ClientMetadata, Flow, FlowRevision, RegistryEntry, Verification, WorkflowVersion } from '@/domain/types'
 import { revisionAt } from './fixtures/catalog'
 import type { Person } from './malaysia'
+import { caseIdOf } from '@/lib/ids'
 
 const HOUR = 3_600_000
 
@@ -59,6 +60,7 @@ export function buildCase(spec: CaseSpec): Verification {
   // REQ: DEC-44 — V4/V5 sessions require an email; reserved .example domain, never a real address.
   const email = spec.entry.requiredInputs.includes('EMAIL') ? emailFor(spec.person.pii.fullName, spec.referenceNo) : undefined
   return {
+    caseId: caseIdOf(spec.referenceNo), // REQ: DEC-97 — stable for seeded cases (MOCK-05)
     referenceNo: spec.referenceNo,
     merchantId: spec.flow.merchantId,
     workflowVersion: spec.flow.workflowVersion as WorkflowVersion,

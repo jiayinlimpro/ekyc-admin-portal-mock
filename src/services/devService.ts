@@ -7,6 +7,7 @@ import { now } from '@/lib/clock'
 import { EDGE_CASES } from '@/mocks/fixtures/edgeCases'
 import { db } from '@/mocks/mockDb'
 import { wire } from './network'
+import { caseIdOf } from '@/lib/ids'
 
 /** A demo user for "Switch user" and the mock login: the session part plus a one-line description of their access. */
 export type DevUser = Actor & { email: string; level: AccessLevel; status: UserStatus; merchantId?: string; merchantName?: string; access: string }
@@ -14,6 +15,7 @@ export type DevUser = Actor & { email: string; level: AccessLevel; status: UserS
 export interface ScenarioSummary {
   id: string // S01 …
   title: string
+  caseId: string
   referenceNo: string
   expectedStatus: VerificationStatus
   asUserId: string
@@ -35,7 +37,7 @@ export const devService = {
 
   /** Named UAT scenarios from docs/SCENARIOS.md. */
   async listScenarios(): Promise<ScenarioSummary[]> {
-    return EDGE_CASES.map((e) => ({ id: e.id, title: e.title, referenceNo: e.referenceNo, expectedStatus: e.status, asUserId: e.asUserId }))
+    return EDGE_CASES.map((e) => ({ id: e.id, title: e.title, caseId: caseIdOf(e.referenceNo), referenceNo: e.referenceNo, expectedStatus: e.status, asUserId: e.asUserId }))
   },
 
   /** Re-seed all demo data with claims relative to now (run before a UAT session; see docs/SCENARIOS.md). */

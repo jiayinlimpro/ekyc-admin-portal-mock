@@ -26,6 +26,7 @@ export const ALL_PASS = { DOCUMENT: 95, SELFIE: 95, FACE_MATCH: 95, LIVENESS: 95
 
 export function verification(overrides: Partial<Verification> = {}): Verification {
   return {
+    caseId: 'ver_testcase0000000000000001',
     referenceNo: 'KYC-260925-000001',
     merchantId: fx('MER-0001'),
     workflowVersion: 'V4',

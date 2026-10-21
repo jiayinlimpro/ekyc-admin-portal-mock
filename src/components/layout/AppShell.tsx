@@ -31,7 +31,9 @@ function useTabTracking() {
   const open = useTabs((s) => s.open)
   useEffect(() => {
     const meta = routeMetaFor(pathname)
-    if (meta) open({ key: pathname, to: pathname + search, title: meta.title })
+    // A page may have renamed its tab (the case page shows the Reference ID, DEC-97): keep that name.
+    const named = useTabs.getState().tabs.find((t) => t.key === pathname)?.title
+    if (meta) open({ key: pathname, to: pathname + search, title: named ?? meta.title })
   }, [pathname, search, open])
 }
 

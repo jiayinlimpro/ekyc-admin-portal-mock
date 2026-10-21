@@ -48,8 +48,8 @@ describe('closeTab', () => {
 })
 
 describe('routeMetaFor', () => {
-  it('uses the Reference No as the detail tab title', () => {
-    expect(routeMetaFor('/verifications/KYC-260901-900003')).toMatchObject({ title: 'KYC-260901-900003', item: { label: 'Verification Detail' } })
+  it('matches a case URL by its case ID; the page renames the tab to the Reference ID once loaded (DEC-97)', () => {
+    expect(routeMetaFor('/verifications/ver_abc')).toMatchObject({ title: 'Verification Detail', item: { label: 'Verification Detail' } })
   })
 
   it('matches menu pages and returns undefined for unknown paths', () => {

@@ -24,8 +24,8 @@ const PAGE_SIZES = [25, 50, 100] as const
 
 function csvFor(r: BillingReport, names: { projectName: (id: string) => string; flowName: (id: string) => string }) {
   const cell = (v: string | number) => (/[",\n]/.test(String(v)) ? `"${String(v).replaceAll('"', '""')}"` : String(v))
-  const head = ['Reference No', 'Project', 'Flow', 'Created (MYT)', 'Verification Status', 'Workflow', 'Tokens', 'Retry tokens', 'Cost (RM)']
-  const rows = r.lines.map((l) => [l.referenceNo, names.projectName(l.projectId), names.flowName(l.flowId), formatMyt(l.chargedAt), STATUS_LABELS[l.status], l.workflowVersion, l.tokens, l.retryTokens, l.cost.toFixed(2)])
+  const head = ['Reference ID', 'Case ID', 'Project', 'Flow', 'Created (MYT)', 'Verification Status', 'Workflow', 'Tokens', 'Retry tokens', 'Cost (RM)']
+  const rows = r.lines.map((l) => [l.referenceNo, l.caseId, names.projectName(l.projectId), names.flowName(l.flowId), formatMyt(l.chargedAt), STATUS_LABELS[l.status], l.workflowVersion, l.tokens, l.retryTokens, l.cost.toFixed(2)])
   return [head, ...rows].map((row) => row.map(cell).join(',')).join('\n')
 }
 
@@ -114,7 +114,7 @@ export function BillingPage() {
             <table className={cn('w-full text-sm', loading && r && 'opacity-60')} aria-busy={loading}>
               <thead className="bg-muted/50 text-left text-xs text-muted-foreground">
                 <tr>
-                  {['Reference No', 'Project', 'Flow', 'Created (MYT)', 'Verification Status', 'Tokens', 'Retry tokens', 'Cost'].map((h, i) => (
+                  {['Reference ID', 'Project', 'Flow', 'Created (MYT)', 'Verification Status', 'Tokens', 'Retry tokens', 'Cost'].map((h, i) => (
                     <th key={h} scope="col" className={cn('px-3 py-2 font-medium whitespace-nowrap', i >= 5 && 'text-right')}>
                       {h}
                     </th>
@@ -133,7 +133,7 @@ export function BillingPage() {
                 {r?.lines.slice((page - 1) * pageSize, page * pageSize).map((l) => (
                   <tr key={l.referenceNo} className="border-t">
                     <td className="px-3 py-2">
-                      <Link to={`/verifications/${l.referenceNo}`} className="font-mono text-xs text-blue-700 hover:underline dark:text-blue-400">
+                      <Link to={`/verifications/${l.caseId}`} className="font-mono text-xs text-blue-700 hover:underline dark:text-blue-400">
                         {l.referenceNo}
                       </Link>
                     </td>

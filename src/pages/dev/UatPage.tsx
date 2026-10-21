@@ -50,7 +50,7 @@ export function UatPage() {
               <tr>
                 <th scope="col" className="px-4 py-2 font-medium">ID</th>
                 <th scope="col" className="px-4 py-2 font-medium">Scenario</th>
-                <th scope="col" className="px-4 py-2 font-medium">Reference No</th>
+                <th scope="col" className="px-4 py-2 font-medium">Reference ID</th>
                 <th scope="col" className="px-4 py-2 font-medium">Expected at seed time</th>
                 <th scope="col" className="px-4 py-2 font-medium">Open as</th>
               </tr>
@@ -61,7 +61,7 @@ export function UatPage() {
                   <td className="px-4 py-2 font-mono text-xs">{s.id}</td>
                   <td className="px-4 py-2">{s.title}</td>
                   <td className="px-4 py-2 font-mono text-xs">
-                    <Link to={`/verifications/${s.referenceNo}`} className="text-blue-700 underline-offset-2 hover:underline dark:text-blue-400">
+                    <Link to={`/verifications/${s.caseId}`} className="text-blue-700 underline-offset-2 hover:underline dark:text-blue-400">
                       {s.referenceNo}
                     </Link>
                   </td>
@@ -69,7 +69,7 @@ export function UatPage() {
                     <StatusBadge status={s.expectedStatus} />
                   </td>
                   <td className="px-4 py-2">
-                    <Link to={`/verifications/${s.referenceNo}?as=${userEmail(s.asUserId)}`} className="text-blue-700 underline-offset-2 hover:underline dark:text-blue-400">
+                    <Link to={`/verifications/${s.caseId}?as=${userEmail(s.asUserId)}`} className="text-blue-700 underline-offset-2 hover:underline dark:text-blue-400">
                       {userName(s.asUserId)}
                     </Link>
                   </td>

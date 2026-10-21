@@ -117,7 +117,7 @@ export function VerificationTable({
           {rows.map((r) => (
             <tr key={r.referenceNo} className="group border-t hover:bg-muted">
               <th scope="row" className={cn('px-2 py-2 text-left font-normal', STICKY)}>
-                <Link to={`/verifications/${r.referenceNo}`} className="font-mono text-xs whitespace-nowrap text-blue-700 underline-offset-2 hover:underline dark:text-blue-400">
+                <Link to={`/verifications/${r.caseId}`} className="font-mono text-xs whitespace-nowrap text-blue-700 underline-offset-2 hover:underline dark:text-blue-400">
                   {r.referenceNo}
                 </Link>
               </th>

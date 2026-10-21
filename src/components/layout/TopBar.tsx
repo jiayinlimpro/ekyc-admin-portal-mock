@@ -20,12 +20,13 @@ import { Input } from '@/components/ui/input'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import type { Merchant } from '@/domain/types'
 import { merchantService } from '@/services/merchantService'
+import { verificationService } from '@/services/verificationService'
 import type { MyProject } from '@/services/projectService'
 import { ALL_PROJECTS, useSession } from '@/stores/sessionStore'
 import { useUi } from '@/stores/uiStore'
 import { DevMenu } from './DevMenu'
+import { useTabs } from '@/stores/tabsStore'
 
-const REF_PATTERN = /^KYC-\d{6}-\d{6}$/i
 
 function IconButton({ label, onClick, children }: { label: string; onClick?: () => void; children: React.ReactNode }) {
   return (
@@ -45,8 +46,9 @@ function IconButton({ label, onClick, children }: { label: string; onClick?: () 
 function Breadcrumb() {
   const { pathname } = useLocation()
   const meta = routeMetaFor(pathname)
+  const tabTitle = useTabs((s) => s.tabs.find((t) => t.key === pathname)?.title) // e.g. the case's Reference ID
   if (!meta) return null
-  const parts = [meta.item.group !== meta.title ? meta.item.group : undefined, meta.item.path === '/verifications/:referenceNo' ? 'Verifications' : undefined, meta.title].filter(Boolean)
+  const parts = [meta.item.group !== meta.title ? meta.item.group : undefined, meta.item.path === '/verifications/:caseId' ? 'Verifications' : undefined, tabTitle ?? meta.title].filter(Boolean)
   return (
     <nav aria-label="Breadcrumb" className="min-w-0">
       <ol className="flex items-center gap-1 text-sm text-muted-foreground">
@@ -184,20 +186,28 @@ function RoleLines() {
   )
 }
 
+// REQ: DEC-97 — the Reference ID is the merchant's (no fixed format): one exact match opens the case, otherwise the list.
 function RefSearch() {
   const navigate = useNavigate()
+  const actor = useSession((s) => s.actor)
   const [q, setQ] = useState('')
-  const onSubmit = (e: FormEvent) => {
+  const onSubmit = async (e: FormEvent) => {
     e.preventDefault()
     const v = q.trim()
     if (!v) return
-    navigate(REF_PATTERN.test(v) ? `/verifications/${v.toUpperCase()}` : `/verifications?referenceNo=${encodeURIComponent(v)}`)
     setQ('')
+    const toList = `/verifications?status=ALL&referenceNo=${encodeURIComponent(v)}`
+    try {
+      const exact = (await verificationService.list({ referenceNo: v, pageSize: 50 }, actor)).items.filter((r) => r.referenceNo.toLowerCase() === v.toLowerCase())
+      navigate(exact.length === 1 ? `/verifications/${exact[0].caseId}` : toList)
+    } catch {
+      navigate(toList)
+    }
   }
   return (
-    <form role="search" onSubmit={onSubmit} className="relative hidden md:block">
+    <form role="search" onSubmit={(e) => void onSubmit(e)} className="relative hidden md:block">
       <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
-      <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Reference No" aria-label="Go to Reference No" className="h-8 w-52 pl-8" />
+      <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Reference ID" aria-label="Go to Reference ID" className="h-8 w-52 pl-8" />
     </form>
   )
 }

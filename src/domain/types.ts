@@ -80,7 +80,8 @@ export interface ClaimHolder {
 }
 
 export interface Verification {
-  referenceNo: string // KYC-YYMMDD-NNNNNN, unchanged across retries (DEC-17)
+  caseId: string // ver_… — the case's own ID: URLs, webhooks, audit (DEC-97)
+  referenceNo: string // the merchant's own Reference ID, sent at session creation; never the key (DEC-97, OQ-28)
   merchantId: string
   workflowVersion: WorkflowVersion
   status: VerificationStatus
@@ -112,6 +113,7 @@ export interface Verification {
 
 // REQ: DEC-40 — list rows carry no PII beyond name/ref, no client metadata and no duplicate-user information.
 export interface VerificationSummary {
+  caseId: string
   referenceNo: string
   merchantId: string
   merchantName: string
@@ -189,6 +191,7 @@ export interface AuditEntry {
   actorRole?: string // REQ: DEC-42 — the actor's role names in the project, or "Platform Admin"; absent for SYSTEM
   merchantId?: string
   projectId?: string
+  caseId?: string // REQ: DEC-97 — the case this entry is about; Reference ID kept for search and display
   referenceNo?: string
   ip: string
   details: Record<string, unknown>

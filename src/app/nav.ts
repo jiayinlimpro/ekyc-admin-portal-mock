@@ -104,7 +104,7 @@ export const NAV_ITEMS: NavItem[] = [
     ],
   },
   {
-    path: '/verifications/:referenceNo',
+    path: '/verifications/:caseId',
     label: 'Verification Detail',
     icon: FileSearch,
     group: 'eKYC',
@@ -243,7 +243,8 @@ export interface RouteMeta {
 export function routeMetaFor(pathname: string): RouteMeta | undefined {
   for (const item of NAV_ITEMS) {
     const m = matchPath({ path: item.path, end: true }, pathname)
-    if (m) return { item, title: m.params.referenceNo ?? item.label }
+    // The case page renames its tab to the Reference ID once loaded (DEC-97: the URL has the case ID).
+    if (m) return { item, title: item.label }
   }
   return undefined
 }

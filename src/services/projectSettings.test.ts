@@ -7,7 +7,7 @@ import { devService } from './devService'
 import { integrationService as svc } from './integrationService'
 import { projectService } from './projectService'
 import { verificationService } from './verificationService'
-import { fx } from '@/lib/ids'
+import { fx, caseIdOf } from '@/lib/ids'
 
 beforeEach(async () => {
   vi.useFakeTimers({ toFake: ['Date'] })
@@ -27,7 +27,7 @@ describe('Project Settings › General and Review operations', () => {
   it('Given a new claim timeout, then new claims use it (DEC-22) and a timeout below 1 is refused (DEC-53)', async () => {
     await expect(projectService.updateClaimTimeout(fx('PRJ-0001'), 0, OWNER)).rejects.toMatchObject({ code: 'VALIDATION' })
     await projectService.updateClaimTimeout(fx('PRJ-0001'), 10, OWNER)
-    const v = await verificationService.claim('KYC-260901-900010', ALI)
+    const v = await verificationService.claim(caseIdOf('KYC-260901-900010'), ALI)
     expect(Date.parse(v.claimExpiresAt!) - Date.parse(v.claimedAt!)).toBe(10 * 60_000)
   })
 

@@ -87,7 +87,7 @@ export function buildEdgeCases(ctx: { now: Date; catalog: Catalog }): {
   const claimFor = (v: Verification, actor: Actor, claimedMinAgo: number): Verification => {
     const timeoutMin = catalog.projects.find((p) => p.projectId === v.projectId)!.claimTimeoutMin // REQ: DEC-22
     const claimedAt = ago(claimedMinAgo)
-    const ref = { merchantId: v.merchantId, projectId: v.projectId, referenceNo: v.referenceNo, actorRole: 'Reviewer' } // Ali and Siti review Atoz Default
+    const ref = { merchantId: v.merchantId, projectId: v.projectId, caseId: v.caseId, referenceNo: v.referenceNo, actorRole: 'Reviewer' } // Ali and Siti review Atoz Default
     audit.push(makeAudit({ id: '', now: new Date(claimedAt.getTime() - MIN), action: 'SENSITIVE_PII_VIEW', actor, ip: fakeIp(f), ...ref }))
     audit.push(
       makeAudit({
@@ -140,7 +140,7 @@ export function buildEdgeCases(ctx: { now: Date; catalog: Catalog }): {
 
   // S16: Nurul (Reviewer, SME app) looked at it a few minutes ago without claiming it.
   const s16 = out.find((v) => v.referenceNo === 'KYC-260901-900016')!
-  audit.push(makeAudit({ id: '', now: ago(5), action: 'SENSITIVE_PII_VIEW', actor: { userId: fx('USR-2026-0033'), fullName: 'Nurul Huda Binti Kamaruddin' }, actorRole: 'Reviewer', ip: fakeIp(f), merchantId: s16.merchantId, projectId: s16.projectId, referenceNo: s16.referenceNo }))
+  audit.push(makeAudit({ id: '', now: ago(5), action: 'SENSITIVE_PII_VIEW', actor: { userId: fx('USR-2026-0033'), fullName: 'Nurul Huda Binti Kamaruddin' }, actorRole: 'Reviewer', ip: fakeIp(f), merchantId: s16.merchantId, projectId: s16.projectId, caseId: s16.caseId, referenceNo: s16.referenceNo }))
 
   // S11: manually approved by Ali 10 minutes ago.
   const s11 = out.findIndex((v) => v.referenceNo === 'KYC-260901-900011')
@@ -158,6 +158,7 @@ export function buildEdgeCases(ctx: { now: Date; catalog: Catalog }): {
       ip: fakeIp(f),
       merchantId: out[s11].merchantId,
       projectId: out[s11].projectId,
+      caseId: out[s11].caseId,
       referenceNo: out[s11].referenceNo,
       details: { ...decision, fromStatus: 'PENDING_REVIEW', toStatus: 'APPROVED' },
     }),

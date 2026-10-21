@@ -42,7 +42,7 @@ const csvCell = (v: string) => (/[",\n]/.test(v) ? `"${v.replaceAll('"', '""')}"
 
 /** CSV of audit entries (MYT times). */
 export function auditCsv(entries: AuditEntry[], merchantName: (id?: string) => string): string {
-  const header = ['Audit ID', 'Time (MYT)', 'Action', 'Actor', 'Actor ID', 'Merchant', 'Reference No', 'IP', 'Summary']
+  const header = ['Event ID', 'Time (MYT)', 'Action', 'Actor', 'Actor ID', 'Merchant', 'Reference ID', 'Case ID', 'IP', 'Summary']
   const rows = entries.map((e) => [
     e.id,
     formatMyt(e.at),
@@ -51,6 +51,7 @@ export function auditCsv(entries: AuditEntry[], merchantName: (id?: string) => s
     e.actor.kind === 'SYSTEM' ? 'SYSTEM' : e.actor.userId,
     merchantName(e.merchantId),
     e.referenceNo ?? '',
+    e.caseId ?? '',
     e.ip,
     summarizeAudit(e),
   ])

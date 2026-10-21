@@ -10,7 +10,7 @@ import { useSession } from '@/stores/sessionStore'
 import { useTabs } from '@/stores/tabsStore'
 import { useUi } from '@/stores/uiStore'
 import { routes } from './routes'
-import { fx } from '@/lib/ids'
+import { caseIdOf, fx } from '@/lib/ids'
 
 function renderAt(path: string) {
   const router = createMemoryRouter(routes, { initialEntries: [path] })
@@ -116,18 +116,18 @@ describe('AppShell', () => {
     expect(screen.queryByRole('link', { name: 'UAT scenarios' })).toBeNull()
   })
 
-  it('Given a page visit, then a tab opens; the detail tab is titled with the Reference No; closing the active tab goes left', async () => {
+  it('Given a page visit, then a tab opens; the case tab is renamed to its Reference ID; closing the active tab goes left', async () => {
     const router = renderAt('/billing')
     expect(tabs().getByRole('link', { name: 'Billing' })).toBeTruthy()
-    await act(() => router.navigate('/verifications/KYC-260901-900003'))
-    expect(tabs().getByRole('link', { name: 'KYC-260901-900003' })).toBeTruthy()
+    await act(() => router.navigate(`/verifications/${caseIdOf('KYC-260901-900003')}`))
+    expect(await tabs().findByRole('link', { name: 'KYC-260901-900003' })).toBeTruthy()
     fireEvent.click(tabs().getByRole('button', { name: 'Close KYC-260901-900003' }))
     await waitFor(() => expect(router.state.location.pathname).toBe('/billing'))
     expect(tabs().queryByRole('button', { name: 'Close Overview' })).toBeNull()
   })
 
   it('Given ?as=<email>, then the session switches to Siti and the parameter is removed', async () => {
-    const router = renderAt('/verifications/KYC-260901-900010?as=siti.yusof@atoz.example')
+    const router = renderAt(`/verifications/${caseIdOf('KYC-260901-900010')}?as=siti.yusof@atoz.example`)
     await waitFor(() => expect(useSession.getState().actor.userId).toBe(fx('USR-2026-0031')))
     await waitFor(() => expect(router.state.location.search).toBe(''))
   })

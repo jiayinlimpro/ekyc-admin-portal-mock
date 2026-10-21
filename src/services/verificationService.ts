@@ -1,10 +1,11 @@
 // Verification API (mock implementation). Signatures are the draft contract for the real REST API:
 //   GET  /verifications?…            list      → 200 Paged<VerificationSummary>
 //   GET  /verifications/filters      filterOptions → 200 FilterOptions (projects and flows in the user's case scope)
-//   GET  /verifications/{ref}        get       → 200 VerificationDetail (server writes SENSITIVE_PII_VIEW)
-//   POST /verifications/{ref}/claim  claim     → 200 | 409 ALREADY_CLAIMED / NOT_CLAIMABLE
-//   DELETE /verifications/{ref}/claim release → 200 | 409 NOT_CLAIM_OWNER
-//   POST /verifications/{ref}/decision decide  → 200 | 409 OWNERSHIP_CONFLICT | 422 VALIDATION
+//   GET  /verifications/{caseId}        get       → 200 VerificationDetail (server writes SENSITIVE_PII_VIEW)
+//   POST /verifications/{caseId}/claim  claim     → 200 | 409 ALREADY_CLAIMED / NOT_CLAIMABLE
+//   DELETE /verifications/{caseId}/claim release → 200 | 409 NOT_CLAIM_OWNER
+//   POST /verifications/{caseId}/decision decide  → 200 | 409 OWNERSHIP_CONFLICT | 422 VALIDATION
+// REQ: DEC-97 — cases are addressed by their case ID (ver_…); the Reference ID is the merchant's and only searched.
 import { makeAudit } from '@/domain/audit'
 import { applyDecision, checkOwnershipAtSave, decisionReason, claim as claimRule, isClaimActive, release as releaseRule, validateDecision } from '@/domain/claimRules'
 import { evaluateCase } from '@/domain/checkRules'
@@ -48,10 +49,10 @@ export interface FilterOptions {
 export interface VerificationService {
   list(q: VerificationQuery, actor: Actor): Promise<Paged<VerificationSummary>>
   filterOptions(actor: Actor): Promise<FilterOptions>
-  get(ref: string, actor: Actor, opts?: { requestId?: string }): Promise<VerificationDetail>
-  claim(ref: string, actor: Actor): Promise<VerificationDetail>
-  release(ref: string, actor: Actor): Promise<VerificationDetail>
-  decide(ref: string, actor: Actor, d: Decision): Promise<VerificationDetail>
+  get(caseId: string, actor: Actor, opts?: { requestId?: string }): Promise<VerificationDetail>
+  claim(caseId: string, actor: Actor): Promise<VerificationDetail>
+  release(caseId: string, actor: Actor): Promise<VerificationDetail>
+  decide(caseId: string, actor: Actor, d: Decision): Promise<VerificationDetail>
 }
 
 const merchantName = (id: string) => db.state().merchants.find((m) => m.merchantId === id)?.name ?? id
@@ -62,7 +63,7 @@ const flowName = (id: string) => db.state().flows.find((f) => f.flowId === id)?.
 function toSummary(v: Verification, at: Date): VerificationSummary {
   const active = isClaimActive(v, at)
   return {
-    referenceNo: v.referenceNo,
+    caseId: v.caseId, referenceNo: v.referenceNo,
     merchantId: v.merchantId,
     merchantName: merchantName(v.merchantId),
     projectId: v.projectId,
@@ -96,7 +97,7 @@ function activityOf(v: Verification): CaseActivity[] {
   // The automated result; for a manual decision the audit entry below records the change instead (DEC-03).
   if (v.status !== 'PROCESSING' && v.lastUpdatedBy.kind === 'SYSTEM') out.push({ at: v.lastUpdatedAt, kind: 'SYSTEM_RESULT', by: system, detail: [v.status, v.statusReason].filter(Boolean).join(' · ') })
   for (const e of db.state().audit) {
-    if (e.referenceNo !== v.referenceNo || !TIMELINE_ACTIONS.includes(e.action)) continue
+    if (e.caseId !== v.caseId || !TIMELINE_ACTIONS.includes(e.action)) continue
     const d = e.details as { reasons?: string; note?: string; reason?: string }
     out.push({ at: e.at, kind: e.action, by: e.actor, detail: [d.reasons, d.note && `“${d.note}”`, d.reason].filter(Boolean).join(' · ') || undefined })
   }
@@ -127,16 +128,16 @@ function toDetail(v: Verification): VerificationDetail {
 }
 
 // REQ: DEC-72 — the same response for "not found" and "not in your projects", so references can't be probed.
-function load(ref: string, actor: Actor): Verification {
-  const v = db.findVerification(ref)
-  if (!v || !mayInProject(actor, 'viewCases', v.projectId)) throw new ServiceError('NOT_FOUND', `Verification ${ref} not found.`)
+function load(caseId: string, actor: Actor): Verification {
+  const v = db.findVerification(caseId)
+  if (!v || !mayInProject(actor, 'viewCases', v.projectId)) throw new ServiceError('NOT_FOUND', `Verification ${caseId} not found.`)
   return v
 }
 
 function audit(actor: Actor, action: Parameters<typeof makeAudit>[0]['action'], v: Verification, at: Date, details?: Record<string, unknown>) {
   // REQ: DEC-42 — actor, their role in the case's project, project, target and old/new values.
   db.appendAudit(
-    makeAudit({ id: '', now: at, action, actor, actorRole: roleIn(actor, v.projectId), ip: clientIpFor(actor), merchantId: v.merchantId, projectId: v.projectId, referenceNo: v.referenceNo, details }),
+    makeAudit({ id: '', now: at, action, actor, actorRole: roleIn(actor, v.projectId), ip: clientIpFor(actor), merchantId: v.merchantId, projectId: v.projectId, caseId: v.caseId, referenceNo: v.referenceNo, details }),
   )
 }
 
@@ -200,12 +201,12 @@ export const mockVerificationService: VerificationService = {
   },
 
   // REQ: DEC-41 — every open writes SENSITIVE_PII_VIEW. requestId dedupes React StrictMode's double effect in dev.
-  async get(ref, actor, opts) {
+  async get(caseId, actor, opts) {
     await simulateNetwork('get verification')
     const at = now()
     sweepExpiredClaims(at)
-    const v = load(ref, actor) // REQ: DEC-25 / DEC-41 — every project member who can view the case sees its full detail
-    const key = opts?.requestId ? `${actor.userId}:${ref}:${opts.requestId}` : undefined
+    const v = load(caseId, actor) // REQ: DEC-25 / DEC-41 — every project member who can view the case sees its full detail
+    const key = opts?.requestId ? `${actor.userId}:${caseId}:${opts.requestId}` : undefined
     if (!key || !loggedPiiViews.has(key)) {
       if (key) loggedPiiViews.add(key)
       audit(actor, 'SENSITIVE_PII_VIEW', v, at, { requestId: opts?.requestId })
@@ -213,42 +214,42 @@ export const mockVerificationService: VerificationService = {
     return toDetail(v)
   },
 
-  async claim(ref, actor) {
+  async claim(caseId, actor) {
     await simulateNetwork('claim')
     requireActive(actor)
     const at = now()
     sweepExpiredClaims(at)
-    const v = load(ref, actor)
+    const v = load(caseId, actor)
     const r = claimRule(v, actor, { mayClaim: mayInProject(actor, 'claimCase', v.projectId), claimTimeoutMin: projectById(v.projectId)!.claimTimeoutMin }, at)
     if (!r.ok) throw new ServiceError(r.code, r.message)
     // REQ: DEC-03 — claiming does not touch lastUpdatedBy / lastUpdatedAt.
-    const updated = db.updateVerification(ref, (x) => ({ ...x, ...r.value }))
+    const updated = db.updateVerification(caseId, (x) => ({ ...x, ...r.value }))
     audit(actor, 'CASE_CLAIMED', updated, at, { claimExpiresAt: r.value.claimExpiresAt })
     return toDetail(updated)
   },
 
-  async release(ref, actor) {
+  async release(caseId, actor) {
     await simulateNetwork('release claim')
     requireActive(actor)
     const at = now()
     sweepExpiredClaims(at)
-    const v = load(ref, actor)
+    const v = load(caseId, actor)
     const r = releaseRule(v, actor, at)
     if (!r.ok) throw new ServiceError(r.code, r.message)
-    const updated = db.updateVerification(ref, (x) => ({ ...x, ...r.value }))
+    const updated = db.updateVerification(caseId, (x) => ({ ...x, ...r.value }))
     audit(actor, 'CASE_RELEASED', updated, at, { claimedAt: v.claimedAt })
     return toDetail(updated)
   },
 
   // REQ: DEC-24 / DEC-30 / DEC-31
-  async decide(ref, actor, d) {
+  async decide(caseId, actor, d) {
     await simulateNetwork('save decision')
     requireActive(actor)
     const valid = validateDecision(d)
     if (!valid.ok) throw new ServiceError(valid.code, valid.message)
     const at = now()
     // Re-read at save time. Check ownership BEFORE sweeping, so an expired claim of the actor's own is recognised.
-    const v = load(ref, actor)
+    const v = load(caseId, actor)
     if (!mayInProject(actor, 'decideCase', v.projectId)) throw new ServiceError('FORBIDDEN', 'You do not have review permission for this project.')
     const owner = checkOwnershipAtSave(v, actor, at)
     if (!owner.ok) {
@@ -256,7 +257,7 @@ export const mockVerificationService: VerificationService = {
       audit(actor, 'CASE_DECISION_BLOCKED', v, at, { attempted: d.outcome, reason: owner.message })
       throw new ServiceError(owner.code, owner.message)
     }
-    const updated = db.updateVerification(ref, (x) => applyDecision(x, actor, d, at))
+    const updated = db.updateVerification(caseId, (x) => applyDecision(x, actor, d, at))
     audit(actor, d.outcome === 'APPROVE' ? 'CASE_DECISION_APPROVED' : 'CASE_DECISION_REJECTED', updated, at, {
       ...d,
       reasons: d.outcome === 'REJECT' ? decisionReason(d) : undefined,

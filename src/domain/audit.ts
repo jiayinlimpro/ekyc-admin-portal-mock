@@ -14,6 +14,7 @@ export function makeAudit(args: {
   ip: string
   merchantId?: string
   projectId?: string
+  caseId?: string
   referenceNo?: string
   details?: Record<string, unknown>
 }): AuditEntry {
@@ -25,6 +26,7 @@ export function makeAudit(args: {
     actorRole: args.actor === 'SYSTEM' ? undefined : args.actorRole,
     merchantId: args.merchantId,
     projectId: args.projectId,
+    caseId: args.caseId,
     referenceNo: args.referenceNo,
     ip: args.ip,
     details: args.details ?? {},

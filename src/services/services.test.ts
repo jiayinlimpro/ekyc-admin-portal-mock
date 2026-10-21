@@ -8,9 +8,10 @@ import { devService } from './devService'
 import { isServiceError } from './errors'
 import { merchantService } from './merchantService'
 import { verificationService as svc } from './verificationService'
-import { fx } from '@/lib/ids'
+import { fx, caseIdOf } from '@/lib/ids'
 
-const S = (n: number) => `KYC-260901-${900000 + n}`
+const S = (n: number) => `KYC-260901-${900000 + n}` // Reference ID
+const C = (n: number) => caseIdOf(S(n)) // case ID (DEC-97)
 
 beforeEach(async () => {
   vi.useFakeTimers({ toFake: ['Date'] })
@@ -52,7 +53,7 @@ describe('verificationService.list', () => {
   it('Given a list row, then it names its project and flow and carries Created (DEC-40)', async () => {
     const row = (await svc.list({ referenceNo: S(16) }, ALI)).items[0]
     expect(row).toMatchObject({ projectId: fx('PRJ-0002'), projectName: 'SME app', flowId: fx('FLW-0004'), flowName: 'SME director check', workflowVersion: 'V3' })
-    expect(row.createdAt).toBe((await svc.get(S(16), ALI)).createdAt)
+    expect(row.createdAt).toBe((await svc.get(C(16), ALI)).createdAt)
   })
 
   it('Given project, flow and version filters, then only matching rows', async () => {
@@ -97,7 +98,7 @@ describe('verificationService.list', () => {
     expect(pending.items.every((r) => r.status === 'PENDING_REVIEW')).toBe(true)
     const mine = await svc.list({ claim: 'MINE' }, ALI)
     expect(mine.items.map((r) => r.referenceNo).sort()).toEqual(expect.arrayContaining([S(7), S(8)]))
-    const target = (await svc.get(S(3), ALI)).pii.fullName
+    const target = (await svc.get(C(3), ALI)).pii.fullName
     expect((await svc.list({ fullName: target.toLowerCase() }, ALI)).items.map((r) => r.referenceNo)).toContain(S(3))
   })
 
@@ -121,20 +122,20 @@ describe('per-project case access (DEC-70, DEC-72)', () => {
 
   it('Given Hafiz (Project Admin of SME app only), then Default cases are "not found", not "forbidden"', async () => {
     expect((await svc.list({ pageSize: 1000 }, HAFIZ)).items.map((r) => r.referenceNo)).toEqual(expect.arrayContaining([S(16)]))
-    await expectError(svc.get(S(2), HAFIZ), 'NOT_FOUND', `Verification ${S(2)} not found.`)
-    await expectError(svc.claim(S(10), HAFIZ), 'NOT_FOUND')
+    await expectError(svc.get(C(2), HAFIZ), 'NOT_FOUND', `Verification ${C(2)} not found.`)
+    await expectError(svc.claim(C(10), HAFIZ), 'NOT_FOUND')
   })
 
   it('Given a reviewer from another merchant, then NOT_FOUND', async () => {
-    await expectError(svc.get(S(2), OTHER_MERCHANT_REVIEWER), 'NOT_FOUND')
+    await expectError(svc.get(C(2), OTHER_MERCHANT_REVIEWER), 'NOT_FOUND')
   })
 
   it('Given the Platform Admin, then every case is visible, each open is audited, and they can claim and decide (DEC-75)', async () => {
     expect((await svc.list({ pageSize: 500 }, ADMIN)).total).toBeGreaterThan((await svc.list({ pageSize: 500 }, OWNER)).total)
-    await svc.get(S(10), ADMIN)
+    await svc.get(C(10), ADMIN)
     expect((await auditService.list({ actions: ['SENSITIVE_PII_VIEW'] }, ADMIN)).items[0]).toMatchObject({ referenceNo: S(10), actorRole: 'Platform Admin' })
-    await svc.claim(S(10), ADMIN)
-    const v = await svc.decide(S(10), ADMIN, { outcome: 'APPROVE' })
+    await svc.claim(C(10), ADMIN)
+    const v = await svc.decide(C(10), ADMIN, { outcome: 'APPROVE' })
     expect(v).toMatchObject({ status: 'APPROVED', lastUpdatedBy: { kind: 'USER', userId: ADMIN.userId } })
   })
 
@@ -142,20 +143,20 @@ describe('per-project case access (DEC-70, DEC-72)', () => {
     const owner = (await svc.list({}, OWNER)).total
     expect(owner).toBe((await svc.list({}, ALI)).total) // Ali is a member of both Atoz projects
     expect((await svc.list({}, HAFIZ)).total).toBeLessThan(owner)
-    expect((await svc.get(S(16), OWNER)).projectId).toBe(fx('PRJ-0002'))
+    expect((await svc.get(C(16), OWNER)).projectId).toBe(fx('PRJ-0002'))
   })
 
   it('Given S16 in SME app, when Ali (Viewer) tries to claim, then FORBIDDEN; Nurul (Reviewer) gets the 45-min project timeout (S16, DEC-22)', async () => {
-    await expect(svc.get(S(16), ALI)).resolves.toBeTruthy()
-    await expectError(svc.claim(S(16), ALI), 'FORBIDDEN', 'You do not have review permission for this project.')
-    const v = await svc.claim(S(16), NURUL)
+    await expect(svc.get(C(16), ALI)).resolves.toBeTruthy()
+    await expectError(svc.claim(C(16), ALI), 'FORBIDDEN', 'You do not have review permission for this project.')
+    const v = await svc.claim(C(16), NURUL)
     expect(Date.parse(v.claimExpiresAt!) - Date.parse(v.claimedAt!)).toBe(minutes(45))
   })
 })
 
 describe('verificationService.get detail sections (DEC-44)', () => {
   it('Given S03, then project, flow, revision, steps and each check with threshold applied and retries used / allowed', async () => {
-    const d = await svc.get(S(3), ALI)
+    const d = await svc.get(C(3), ALI)
     expect(d).toMatchObject({ projectName: 'Default', flowName: 'Malaysian onboarding', revisionLabel: 'V4-R2', steps: { runsRisk: true, faceMatchMethod: 'ID_VS_LIVENESS' } })
     const fm = d.checks.find((c) => c.check === 'FACE_MATCH')!
     expect(fm).toMatchObject({ state: 'REVIEW', thresholds: { autoReject: 85, autoPass: 95 }, lastScore: 88.5, submissions: 4, retriesUsed: 3, retriesAllowed: 3 })
@@ -163,22 +164,22 @@ describe('verificationService.get detail sections (DEC-44)', () => {
   })
 
   it('Given S12 started on R1, then Rules applied are R1 even though R2 is live (DEC-52)', async () => {
-    const d = await svc.get(S(12), ALI)
+    const d = await svc.get(C(12), ALI)
     expect(d.revisionLabel).toBe('V4-R1')
     expect(d.rulesApplied.checks.LIVENESS.threshold).toEqual({ preset: 'LOW' })
   })
 
   it('Given S18 rejected with a 120-min cooldown, then "New case allowed from" is 2 h after the rejection (DEC-26)', async () => {
-    const d = await svc.get(S(18), ALI)
+    const d = await svc.get(C(18), ALI)
     expect(d.status).toBe('REJECTED')
     expect(Date.parse(d.newCaseAllowedAt!) - Date.parse(d.lastUpdatedAt)).toBe(minutes(120))
-    expect((await svc.get(S(4), ALI)).newCaseAllowedAt).toBeUndefined() // cooldown 0
+    expect((await svc.get(C(4), ALI)).newCaseAllowedAt).toBeUndefined() // cooldown 0
   })
 
   it('Given S11, then the activity timeline runs session start → submissions → claim → decision, without PII views', async () => {
-    const kinds = (await svc.get(S(11), ALI)).activity.map((a) => a.kind)
+    const kinds = (await svc.get(C(11), ALI)).activity.map((a) => a.kind)
     expect(kinds).toEqual(['SESSION_STARTED', 'SUBMISSION', 'SUBMISSION', 'SUBMISSION', 'SUBMISSION', 'CASE_CLAIMED', 'CASE_DECISION_APPROVED'])
-    const s04 = (await svc.get(S(4), ALI)).activity
+    const s04 = (await svc.get(C(4), ALI)).activity
     expect(s04.at(-1)).toMatchObject({ kind: 'SYSTEM_RESULT', detail: 'REJECTED · Face not live (Retry Not Allowed)' })
   })
 })
@@ -186,52 +187,52 @@ describe('verificationService.get detail sections (DEC-44)', () => {
 describe('verificationService.get (DEC-41)', () => {
   it('Given a detail open, then full PII is returned and one SENSITIVE_PII_VIEW is written per request id', async () => {
     const before = (await auditFor(S(10), ['SENSITIVE_PII_VIEW'])).length
-    const d = await svc.get(S(10), ALI, { requestId: 'r-1' })
-    await svc.get(S(10), ALI, { requestId: 'r-1' }) // StrictMode double effect
+    const d = await svc.get(C(10), ALI, { requestId: 'r-1' })
+    await svc.get(C(10), ALI, { requestId: 'r-1' }) // StrictMode double effect
     expect(d.pii.nric).toMatch(/999\d$/)
     expect(d.clientMetadata.ip).toMatch(/^(192\.0\.2|198\.51\.100|203\.0\.113)\./)
     expect((await auditFor(S(10), ['SENSITIVE_PII_VIEW'])).length).toBe(before + 1)
-    await svc.get(S(10), ALI, { requestId: 'r-2' })
+    await svc.get(C(10), ALI, { requestId: 'r-2' })
     expect((await auditFor(S(10), ['SENSITIVE_PII_VIEW'])).length).toBe(before + 2)
   })
 
   it('Given the same request id on two different records, then each record gets its own SENSITIVE_PII_VIEW', async () => {
     const a = (await auditFor(S(3), ['SENSITIVE_PII_VIEW'])).length
     const b = (await auditFor(S(4), ['SENSITIVE_PII_VIEW'])).length
-    await svc.get(S(3), ALI, { requestId: 'page-1' })
-    await svc.get(S(4), ALI, { requestId: 'page-1' })
+    await svc.get(C(3), ALI, { requestId: 'page-1' })
+    await svc.get(C(4), ALI, { requestId: 'page-1' })
     expect((await auditFor(S(3), ['SENSITIVE_PII_VIEW'])).length).toBe(a + 1)
     expect((await auditFor(S(4), ['SENSITIVE_PII_VIEW'])).length).toBe(b + 1)
   })
 
   it("Given another merchant's record, then NOT_FOUND", async () => {
-    await expectError(svc.get(S(1), ALI), 'NOT_FOUND') // S01 belongs to Vantage
+    await expectError(svc.get(C(1), ALI), 'NOT_FOUND') // S01 belongs to Vantage
   })
 })
 
 describe('claim and release', () => {
   it('Given S10 unclaimed, when Ali then Siti click Assign, then Ali wins and Siti gets ALREADY_CLAIMED (S10)', async () => {
-    const d = await svc.claim(S(10), ALI)
+    const d = await svc.claim(C(10), ALI)
     expect(d.claimedBy?.userId).toBe(ALI.userId)
-    await expectError(svc.claim(S(10), SITI), 'ALREADY_CLAIMED', 'Already claimed by Ali Bin Ahmad.')
+    await expectError(svc.claim(C(10), SITI), 'ALREADY_CLAIMED', 'Already claimed by Ali Bin Ahmad.')
     expect(await auditFor(S(10), ['CASE_CLAIMED'])).toEqual(['CASE_CLAIMED'])
   })
 
   it('Given a claim, then status, lastUpdatedBy and lastUpdatedAt are unchanged (DEC-03, DEC-20)', async () => {
-    const before = await svc.get(S(10), ALI)
-    const after = await svc.claim(S(10), ALI)
+    const before = await svc.get(C(10), ALI)
+    const after = await svc.claim(C(10), ALI)
     expect(after.status).toBe('PENDING_REVIEW')
     expect(after.lastUpdatedBy).toEqual(before.lastUpdatedBy)
     expect(after.lastUpdatedAt).toBe(before.lastUpdatedAt)
   })
 
   it('Given a PROCESSING record, then it cannot be claimed (S05)', async () => {
-    await expectError(svc.claim(S(5), ALI), 'NOT_CLAIMABLE')
+    await expectError(svc.claim(C(5), ALI), 'NOT_CLAIMABLE')
   })
 
   it("Given Siti's claim, when Ali cancels, then NOT_CLAIM_OWNER; when Siti cancels, then CASE_RELEASED", async () => {
-    await expectError(svc.release(S(9), ALI), 'NOT_CLAIM_OWNER')
-    const d = await svc.release(S(9), SITI)
+    await expectError(svc.release(C(9), ALI), 'NOT_CLAIM_OWNER')
+    const d = await svc.release(C(9), SITI)
     expect(d.claimedBy).toBeUndefined()
     expect(await auditFor(S(9), ['CASE_RELEASED'])).toEqual(['CASE_RELEASED'])
   })
@@ -240,7 +241,7 @@ describe('claim and release', () => {
     vi.setSystemTime(NOW.getTime() + minutes(3)) // S07 had ~2 min left
     await svc.list({}, ALI)
     await svc.list({}, ALI) // idempotent
-    expect((await svc.get(S(7), ALI)).claimedBy).toBeUndefined()
+    expect((await svc.get(C(7), ALI)).claimedBy).toBeUndefined()
     expect(await auditFor(S(7), ['CASE_CLAIM_EXPIRED'])).toEqual(['CASE_CLAIM_EXPIRED'])
   })
 })
@@ -250,35 +251,35 @@ describe('decide (DEC-24, DEC-30)', () => {
 
   it('Given Ali holds the S07 claim, when he approves, then APPROVED by Ali and a CASE_DECISION_APPROVED entry with his project role', async () => {
     vi.setSystemTime(NOW.getTime() + minutes(1))
-    const d = await svc.decide(S(7), ALI, approve)
+    const d = await svc.decide(C(7), ALI, approve)
     expect(d).toMatchObject({ status: 'APPROVED', lastUpdatedBy: { kind: 'USER', userId: ALI.userId }, statusReason: 'Confirmed manual pass by reviewer', claimedBy: undefined })
     expect(d.lastUpdatedAt).toBe(new Date(NOW.getTime() + minutes(1)).toISOString())
     expect((await auditFor(S(7))).at(-1)).toBe('CASE_DECISION_APPROVED')
     const [entry] = (await auditService.list({ referenceNo: S(7), actions: ['CASE_DECISION_APPROVED'] }, ADMIN)).items
     expect(entry).toMatchObject({ actorRole: 'Reviewer', projectId: fx('PRJ-0001'), details: { fromStatus: 'PENDING_REVIEW', toStatus: 'APPROVED' } })
-    await expectError(svc.decide(S(7), ALI, approve), 'OWNERSHIP_CONFLICT', 'This record has already been decided. No changes saved.')
+    await expectError(svc.decide(C(7), ALI, approve), 'OWNERSHIP_CONFLICT', 'This record has already been decided. No changes saved.')
   })
 
   it("Given Ali's S08 claim expires while he types, when he saves, then nothing is saved and CASE_CLAIM_EXPIRED + CASE_DECISION_BLOCKED are audited (S08, DEC-24)", async () => {
     vi.setSystemTime(NOW.getTime() + minutes(11)) // S08 had ~10 min left
-    await expectError(svc.decide(S(8), ALI, approve), 'OWNERSHIP_CONFLICT', 'Your claim expired. No changes saved.')
-    const d = await svc.get(S(8), ALI)
+    await expectError(svc.decide(C(8), ALI, approve), 'OWNERSHIP_CONFLICT', 'Your claim expired. No changes saved.')
+    const d = await svc.get(C(8), ALI)
     expect(d.status).toBe('PENDING_REVIEW')
     expect(d.lastUpdatedBy.kind).toBe('SYSTEM')
     expect((await auditFor(S(8), ['CASE_CLAIM_EXPIRED', 'CASE_DECISION_BLOCKED']))).toEqual(['CASE_CLAIM_EXPIRED', 'CASE_DECISION_BLOCKED'])
   })
 
   it('Given Siti holds the claim, when Ali saves, then OWNERSHIP_CONFLICT (S09)', async () => {
-    await expectError(svc.decide(S(9), ALI, approve), 'OWNERSHIP_CONFLICT')
+    await expectError(svc.decide(C(9), ALI, approve), 'OWNERSHIP_CONFLICT')
   })
 
   it('Given Reject without a reason, then VALIDATION and nothing is written (DEC-31)', async () => {
-    await expectError(svc.decide(S(7), ALI, { outcome: 'REJECT', reasonIds: [] }), 'VALIDATION', 'Choose at least one reason for the rejection.')
+    await expectError(svc.decide(C(7), ALI, { outcome: 'REJECT', reasonIds: [] }), 'VALIDATION', 'Choose at least one reason for the rejection.')
     expect(await auditFor(S(7), ['CASE_DECISION_APPROVED', 'CASE_DECISION_REJECTED', 'CASE_DECISION_BLOCKED'])).toEqual([])
   })
 
   it('Given S11 manually approved, then any save is refused (decisions are final)', async () => {
-    await expectError(svc.decide(S(11), ALI, approve), 'OWNERSHIP_CONFLICT')
+    await expectError(svc.decide(C(11), ALI, approve), 'OWNERSHIP_CONFLICT')
   })
 })
 

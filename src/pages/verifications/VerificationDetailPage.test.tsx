@@ -10,11 +10,12 @@ import { devService } from '@/services/devService'
 import { DEFAULT_DEV_FLAGS, useDevFlags } from '@/stores/devFlagsStore'
 import { useSession } from '@/stores/sessionStore'
 import { ADMIN, ALI, NURUL, OTHER_MERCHANT_REVIEWER, minutes } from '@/test/factories'
+import { caseIdOf } from '@/lib/ids'
 
 const S = (n: number) => `KYC-260901-${900000 + n}`
 
 async function open(ref: string) {
-  const router = createMemoryRouter(routes, { initialEntries: [`/verifications/${ref}`] })
+  const router = createMemoryRouter(routes, { initialEntries: [`/verifications/${caseIdOf(ref)}`] })
   render(<RouterProvider router={router} />)
   await screen.findByRole('heading', { level: 1, name: ref })
   return router
@@ -178,9 +179,9 @@ describe('Verification Detail', () => {
   })
 
   it("Given another merchant's record, then not found", async () => {
-    const router = createMemoryRouter(routes, { initialEntries: [`/verifications/${S(1)}`] })
+    const router = createMemoryRouter(routes, { initialEntries: [`/verifications/${caseIdOf(S(1))}`] })
     render(<RouterProvider router={router} />)
-    await screen.findByText(`${S(1)} not found`)
+    await screen.findByText('Case not found')
   })
 
   it('Given UI claim checks on, when Ali’s claim expires while viewing, then the overlay disables and offers Assign again', async () => {

@@ -117,7 +117,7 @@ describe('Billing (DEC-60, DEC-86)', () => {
     expect(await screen.findByRole('region', { name: 'By project' })).toBeTruthy()
     expect(screen.getByRole('region', { name: 'By flow' })).toBeTruthy()
     const lines = within(screen.getByRole('region', { name: 'Line items' }))
-    expect(lines.getAllByRole('columnheader').map((h) => h.textContent)).toEqual(['Reference No', 'Project', 'Flow', 'Created (MYT)', 'Verification Status', 'Tokens', 'Retry tokens', 'Cost'])
+    expect(lines.getAllByRole('columnheader').map((h) => h.textContent)).toEqual(['Reference ID', 'Project', 'Flow', 'Created (MYT)', 'Verification Status', 'Tokens', 'Retry tokens', 'Cost'])
   })
 
   it('Given a Reviewer, then Billing opens with their own projects only (DEC-86)', async () => {
