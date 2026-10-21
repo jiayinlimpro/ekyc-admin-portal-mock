@@ -28,6 +28,8 @@ Each question is a **parameter**, not a fact. The mock uses the default below. I
 | OQ-26 | A case in review only because Risk Assessment did not pass (DEC-13): which reason does a reviewer give to Reject it? The DEC-35 catalogue has no risk condition | Any catalogue condition may be chosen | `conditions.REJECT_REASONS` |
 | OQ-27 | On a project's Members tab (DEC-77), can a user with Manage project members invite someone new, or only add existing users of the merchant? | Existing users only; new people are invited on the Users screen (Manage users and roles) | `userAdminService.addMember` |
 | OQ-28 | Must the merchant always send a Reference ID when creating a session (DEC-97)? If not, does the platform generate one? | Required; the mock always has one | `Verification.referenceNo` |
+| OQ-29 | How long are a Terminated merchant's cases and audit log kept, and are they then archived or deleted? Keeping them is required for compliance; the PDPA says not longer than needed (DEC-98) | Kept; nothing is deleted | — (backend policy) |
+| OQ-30 | Are invoices issued from this portal? If so, merchants also need registered address, TIN, SST number and a billing email (MyInvois) (DEC-98) | No; only the FRS fields | `Merchant` |
 
 ## Answered (kept for traceability)
 | ID | Question | Answer |

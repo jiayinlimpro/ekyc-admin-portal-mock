@@ -290,6 +290,30 @@ Rules changed on 2026-10-20 (Projects & Flows restructure) are marked **(changed
   Admin rights are fixed (DEC-70). At least one active Platform Admin must remain; nobody suspends themselves. Audited with
   the DEC-42 user events. [Dev 2026-10-21]
 
+## Merchants
+- **DEC-98** **(new)** **Merchants** screen (Platform Admin) follows [FRS] Merchant Management; DEC-92 still adds the Default
+  project, default flow and first owner. [FRS][PO 2026-10-21]
+  - **List:** Merchant ID, Merchant Name, Country, Status (colour badge), Created At, Actions (⋮). Search by name or ID,
+    filter by status, applied on Search; newest first; 10 / 20 / 50 per page; "No Records Found". Owner, projects, users
+    and cases are in the read-only detail panel.
+  - **Create:** Merchant Name\* ("Company name cannot be empty", "Invalid characters detected"), Registration No\*
+    ("Business registration number is required", "Registration number already exists" within the same country),
+    Country\* (country of incorporation; "Please select a valid base jurisdiction"), Primary contact name\* (added: the first
+    owner needs a name), Primary contact email\* ("Email format is incorrect", "Email address already active in system user
+    directories"), Contact phone (optional; "Phone number format is invalid"). For Malaysia the registration number is the
+    SSM 12-digit format (year, entity type, running number, e.g. `201901000005`); other countries are free text. The
+    primary contact becomes the first Merchant Owner (Pending, invited; FRS "Option B").
+  - **Edit:** name and contact phone. Registration No, Country and the primary contact email are locked after creation.
+  - **Status:** `Onboarding` (new; users can sign in and test, live API calls are refused: sandbox only) → `Active` (live)
+    → `Suspended` (temporary freeze: missed payment, suspected fraud) → `Terminated` (contract ended; final). Allowed:
+    Onboarding → Active or Terminated; Active → Suspended or Terminated; Suspended → Active or Terminated; Terminated →
+    nothing. (The FRS transition table is garbled in the PDF; this is its reading.) Every change needs a reason and is
+    audited (`MERCHANT_STATUS_CHANGED`). Suspended or Terminated: the merchant's users can't sign in or act, and its API
+    keys stop at once.
+  - **No delete:** merchants are never deleted; Terminated keeps the records (retention: OQ-29).
+  - **Resend invitation** while the merchant is Onboarding and its first owner is still Pending.
+  - Not added for now: registered address, TIN / SST, billing email, compliance contact (OQ-30).
+
 ## Identifiers
 - **DEC-97** **(new)** Identifiers [PO 2026-10-21]:
   - Every stored record has an **internal ID**: a type prefix and a cuid2 body, e.g. `prj_k3x9…`. Prefixes: `mer` merchant,
@@ -358,7 +382,9 @@ These keep the mock runnable. They are not signed-off requirements; change them 
 - **MOCK-08** Cross-tab sync uses localStorage (last writer wins). It demonstrates the race; the real API needs an atomic
   conditional write (see docs/HANDOFF.md).
 - **MOCK-09** **(changed)** Creating a merchant creates its Default project, a default flow on the registry default version
-  (revision R1) and a Merchant Owner user, each audited.
+  (Draft) and a Merchant Owner user, each audited. Demo registration numbers and phone numbers are made up (Malaysian ones
+  follow the SSM format but belong to no company); the mock has no sandbox / live API, so Onboarding is a label on the
+  API keys.
 - **MOCK-10** **(changed)** Flow Detail's what-if preview re-runs the status rules over the flow's finished sessions. It is
   read-only and never changes decided records.
 - **MOCK-11** **(new)** Login, portal login security and webhook delivery are simulated; no real auth or HTTP calls.
