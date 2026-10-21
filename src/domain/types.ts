@@ -44,12 +44,19 @@ export type DocumentType = 'MYKAD' | 'PASSPORT' | 'DRIVING_LICENSE'
 export type AttemptOutcome = 'COMPLETED' | 'ABORTED' | 'TIMED_OUT' | 'FAILED_RETAKE'
 
 export interface Attempt {
+  attemptId: string // att_… (DEC-97); shown as "Attempt 1, 2, 3", never by ID
   attemptNo: number
   phase: CapturePhase // phase where the attempt stopped (last phase if COMPLETED) — MOCK-01
   startedAt: string // ISO UTC
   outcome: AttemptOutcome
   isUserRetake: boolean // REQ: DEC-18 — Retry KPI counts only these
   phaseScores: Partial<Record<CapturePhase, number>>
+}
+
+/** An uploaded image (ID document, selfie, liveness frame). `url` is a sample image in the mock. */
+export interface StoredFile {
+  fileId: string // file_…
+  url: string
 }
 
 export interface Pii {
@@ -98,7 +105,7 @@ export interface Verification {
   documentType: DocumentType
   pii: Pii
   clientMetadata: ClientMetadata
-  images: { docFront: string; selfie: string }
+  images: { docFront: StoredFile; selfie: StoredFile } // REQ: DEC-97 — uploaded files have their own ID
   charged: true // REQ: DEC-60 — every verification is charged
   // Projects & Flows (DEC-44, DEC-52). `status` and `statusReason` come from checkRules.evaluateCase over `submissions`
   // with the settings of `configRevision`.
@@ -238,7 +245,7 @@ export interface Project {
 
 /** REQ: DEC-54 — an API key of one project. The secret is shown once, when created or rotated; only a hint is kept. */
 export interface ProjectApiKey {
-  keyId: string
+  keyId: string // key_… — shown masked (key_…a91f); the secret is separate and never stored (DEC-97)
   projectId: string
   name: string
   secretHint: string // e.g. "sk_mock_…3f9a"
@@ -251,6 +258,7 @@ export interface ProjectApiKey {
 
 /** REQ: DEC-54 / DEC-55 — the project's webhook. Deliveries are simulated in the mock (MOCK-11). */
 export interface ProjectWebhook {
+  webhookId: string // whk_…
   projectId: string
   url: string
   events: 'verification.status_changed'[]
@@ -380,6 +388,7 @@ export type FaceMatchMethod = 'ID_VS_SELFIE' | 'ID_VS_LIVENESS'
 export type SessionInput = 'EMAIL'
 
 export interface RegistryEntry {
+  entryId: string // wfv_… — the internal key; people use the code (V1 … V5) (DEC-97)
   code: WorkflowCode
   name: string
   description: string // purpose, e.g. "V3 + risk assessment"
@@ -414,6 +423,7 @@ export interface SettingChange {
 
 // REQ: DEC-51 — every saved revision of an active flow, oldest first. A case's "Rules applied" is its revision's settings.
 export interface FlowRevision {
+  revisionId: string // rev_…; shown as V4-R2
   flowId: string
   revision: number // 1, 2, …
   savedAt: string
@@ -433,6 +443,8 @@ export interface UserAccount {
   level: AccessLevel
   merchantId?: string // required unless PLATFORM_ADMIN
   assignments: RoleAssignment[] // empty for Platform Admin
+  /** REQ: DEC-74 / DEC-97 — the open invitation while Pending; a resend replaces it. */
+  invitationId?: string // inv_…
   fullName: string
   email: string
   status: UserStatus

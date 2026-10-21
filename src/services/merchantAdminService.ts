@@ -118,6 +118,7 @@ export const mockMerchantAdminService: MerchantAdminService = {
       // REQ: DEC-92 — the first user is Merchant Owner for All projects.
       assignments: [{ assignmentId: nextAssignmentId(), roleId: SYSTEM_ROLE_IDS.MERCHANT_OWNER, scope: { kind: 'ALL_PROJECTS' }, addedBy: { userId: actor.userId, fullName: actor.fullName }, addedAt: at.toISOString() }],
       status: 'PENDING',
+      invitationId: newId('inv'),
       invitedAt: at.toISOString(),
     }
     db.setState((st) => ({ merchants: [...st.merchants, merchant], projects: [...st.projects, project], flows: [...st.flows, flow], accounts: [...st.accounts, owner] }))

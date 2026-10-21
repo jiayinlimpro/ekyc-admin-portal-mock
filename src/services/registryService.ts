@@ -16,6 +16,7 @@ import { accountOf, requireActive } from './accessGuard'
 import { ServiceError } from './errors'
 import { clientIpFor, simulateNetwork, wire } from './network'
 import { validation } from './projectService'
+import { newId } from '@/lib/ids'
 
 /** Registry row with "flows using it" (DEC-85: replaces the Merchant Workflow Directory). */
 export type RegistryRow = RegistryEntry & { flowsUsing: number }
@@ -131,6 +132,7 @@ export const mockRegistryService: RegistryService = {
     if (errors.length) throw validation(errors)
     const at = now().toISOString()
     const entry: RegistryEntry = {
+      entryId: newId('wfv'),
       code: input.code.trim(),
       ...fields(input),
       releaseNotes: [{ at, by: actor.fullName, text: input.releaseNote.trim() }],

@@ -25,6 +25,7 @@ import { useSession } from '@/stores/sessionStore'
 import { FlowStatusBadge } from './FlowsListPage'
 import { ThresholdCard } from './ThresholdCard'
 import { Card } from '../projects/settingsUi'
+import { CopyId } from '@/components/common/CopyId'
 
 const DOCUMENTS: DocumentType[] = ['MYKAD', 'PASSPORT', 'DRIVING_LICENSE']
 
@@ -215,12 +216,13 @@ function Editor({ detail, onSaved }: { detail: FlowDetail; onSaved: () => void }
 
       <Card title="Developer info">
         <p className="text-sm">
-          Flow ID <code className="rounded bg-muted px-1 font-mono text-xs">{flow.flowId}</code>
+          <CopyId label="Flow ID" value={flow.flowId} className="text-sm" />
         </p>
         <pre className="mt-2 overflow-x-auto rounded-md bg-muted p-3 font-mono text-xs" aria-label="Sample create-session request">
           {`POST /v1/sessions   (sample, mock)
 {
-  "flowId": "${flow.flowId}",${entry.requiredInputs.includes('EMAIL') ? '\n  "email": "user@mail.example",' : ''}
+  "flowId": "${flow.flowId}",
+  "referenceId": "your-own-reference-for-this-user",${entry.requiredInputs.includes('EMAIL') ? '\n  "email": "user@mail.example",' : ''}
   "redirectUrl": "https://app.example/kyc/done"
 }`}
         </pre>

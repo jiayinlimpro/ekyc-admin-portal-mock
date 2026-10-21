@@ -1,6 +1,6 @@
 import { SYSTEM_DEFAULT_ROLES, SYSTEM_ROLE_IDS } from '@/domain/roles'
 import type { Actor, AssignmentScope, Role, UserAccount } from '@/domain/types'
-import { fx } from '@/lib/ids'
+import { fx, stableId } from '@/lib/ids'
 
 // ---------------------------------------------------------------------------------------------------------------------
 // Accounts and roles under the scoped-assignment model (DEC-70, DEC-74, DEC-76): the only user list. Emails use the
@@ -83,6 +83,7 @@ export function buildAccounts(now: Date): UserAccount[] {
       addedAt: ago(invitedDaysAgo * 24),
     })),
     invitedAt: ago(invitedDaysAgo * 24),
+    invitationId: a.status === 'PENDING' ? stableId('inv', a.userId) : undefined,
     lastActiveAt: lastActiveHoursAgo === undefined ? undefined : ago(lastActiveHoursAgo),
   }))
 }

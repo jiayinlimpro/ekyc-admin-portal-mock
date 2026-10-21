@@ -10,7 +10,7 @@ import { VERIFICATION_STATUSES, type UserAccount } from '@/domain/types'
 import { NOW } from '@/test/factories'
 import { EDGE_CASES } from './fixtures/edgeCases'
 import { seedDatabase } from './seed'
-import { fx } from '@/lib/ids'
+import { fx, isId } from '@/lib/ids'
 
 const db = seedDatabase(NOW)
 const flowOf = (id: string) => db.flows.find((f) => f.flowId === id)!
@@ -120,12 +120,36 @@ describe('seedDatabase', () => {
     expect(db.verifications.every((v) => v.charged === true)).toBe(true)
   })
 
-  it('audit ids are sequential and entries are in time order', () => {
+  it('audit entries have unique event IDs and are in time order (DEC-97)', () => {
     db.audit.forEach((e, i) => {
-      expect(e.id).toBe(`AUD-${String(i + 1).padStart(6, '0')}`)
+      expect(isId('evt', e.id), e.id).toBe(true)
       if (i > 0) expect(e.at >= db.audit[i - 1].at).toBe(true)
     })
-    expect(db.auditSeq).toBe(db.audit.length)
+    expect(new Set(db.audit.map((e) => e.id)).size).toBe(db.audit.length)
+  })
+
+  it('every stored record has an internal ID of its type (DEC-97)', () => {
+    const all: [Parameters<typeof isId>[0], string[]][] = [
+      ['mer', db.merchants.map((m) => m.merchantId)],
+      ['prj', db.projects.map((p) => p.projectId)],
+      ['flw', db.flows.map((f) => f.flowId)],
+      ['rev', db.flowRevisions.map((r) => r.revisionId)],
+      ['ver', db.verifications.map((v) => v.caseId)],
+      ['att', db.verifications.flatMap((v) => v.attempts.map((a) => a.attemptId))],
+      ['file', db.verifications.flatMap((v) => [v.images.docFront.fileId, v.images.selfie.fileId])],
+      ['usr', db.accounts.map((a) => a.userId)],
+      ['rol', db.roles.map((r) => r.roleId)],
+      ['asg', db.accounts.flatMap((a) => a.assignments.map((x) => x.assignmentId))],
+      ['inv', db.accounts.flatMap((a) => (a.invitationId ? [a.invitationId] : []))],
+      ['key', db.projectKeys.map((k) => k.keyId)],
+      ['whk', db.webhooks.map((w) => w.webhookId)],
+      ['wfv', db.registry.map((e) => e.entryId)],
+    ]
+    for (const [prefix, ids] of all) {
+      expect(ids.length, prefix).toBeGreaterThan(0)
+      for (const id of ids) expect(isId(prefix, id), `${prefix}: ${id}`).toBe(true)
+      expect(new Set(ids).size, prefix).toBe(ids.length)
+    }
   })
 
   it('Empty Demo Merchant has no records (S14)', () => {

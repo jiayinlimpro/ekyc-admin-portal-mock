@@ -15,6 +15,7 @@ import { requireActive } from './accessGuard'
 import { ServiceError } from './errors'
 import { simulateNetwork, wire } from './network'
 import { auditProject, loadProject, requireInProject, saveSettings, validation } from './projectService'
+import { newId } from '@/lib/ids'
 
 export interface Integration {
   keys: ProjectApiKey[] // newest first
@@ -75,7 +76,7 @@ export const mockIntegrationService: IntegrationService = {
     if (existing.some((k) => k.status === 'ACTIVE' && k.name.toLowerCase() === n.toLowerCase())) throw validation([{ field: 'name', message: 'An active key with this name already exists' }])
     const secret = mockSecret()
     const key: ProjectApiKey = {
-      keyId: `key_mock_${projectId.toLowerCase()}_${String(existing.length + 1).padStart(2, '0')}`,
+      keyId: newId('key'),
       projectId,
       name: n,
       secretHint: hint(secret),
@@ -122,6 +123,7 @@ export const mockIntegrationService: IntegrationService = {
     const before = db.state().webhooks.find((w) => w.projectId === projectId)
     const secret = !before || input.regenerateSecret ? `whsec_${mockSecret().slice(8)}` : undefined
     const webhook: ProjectWebhook = {
+      webhookId: before?.webhookId ?? newId('whk'),
       projectId,
       url,
       events: ['verification.status_changed'],

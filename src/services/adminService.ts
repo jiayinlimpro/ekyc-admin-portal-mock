@@ -93,6 +93,7 @@ export const mockAdminService: AdminService = {
       level: 'PLATFORM_ADMIN',
       assignments: [],
       status: 'PENDING',
+      invitationId: newId('inv'),
       invitedAt: now().toISOString(),
     }
     db.setState((st) => ({ accounts: [...st.accounts, account] }))
@@ -106,7 +107,9 @@ export const mockAdminService: AdminService = {
     requireAdmins(actor)
     const a = loadAdmin(userId)
     if (a.status !== 'PENDING') throw validation([{ field: 'status', message: 'Only Pending users have an invitation to resend.' }])
-    audit(actor, 'USER_INVITATION_RESENT', { userId, fullName: a.fullName, email: a.email, summary: `Invitation resent to ${a.email}` })
+    const invitationId = newId('inv') // a resend replaces the invitation: the old link stops working
+    putAccount({ ...a, invitationId })
+    audit(actor, 'USER_INVITATION_RESENT', { userId, fullName: a.fullName, email: a.email, invitationId, summary: `Invitation resent to ${a.email}` })
     return wire(rowOf(actor, a))
   },
 

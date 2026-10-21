@@ -37,6 +37,9 @@ function SecretDialog({ title, secret, onClose }: { title: string; secret: strin
   )
 }
 
+/** REQ: DEC-97 — an API key's ID is shown masked: key_…a91f. */
+const maskId = (id: string) => `${id.slice(0, id.indexOf('_') + 1)}…${id.slice(-4)}`
+
 const lines = (s: string) => s.split('\n').map((x) => x.trim()).filter(Boolean)
 
 // REQ: DEC-54 / DEC-75 — Manage API keys and webhook (and Platform Admin).
@@ -136,7 +139,7 @@ export function IntegrationTab({ project }: { project: Project }) {
               {d.keys.map((k) => (
                 <tr key={k.keyId} className="border-t">
                   <th scope="row" className="px-4 py-2 text-left font-medium">{k.name}</th>
-                  <td className="px-4 py-2 font-mono text-xs">{k.keyId}</td>
+                  <td className="px-4 py-2 font-mono text-xs" title="Key ID, masked (DEC-97)">{maskId(k.keyId)}</td>
                   <td className="px-4 py-2 font-mono text-xs">{k.secretHint}</td>
                   <td className="px-4 py-2">{k.status === 'ACTIVE' ? 'Active' : `Revoked ${formatMyt(k.revokedAt!).split(', ')[0]}`}</td>
                   <td className="px-4 py-2 whitespace-nowrap">{formatMyt(k.createdAt).split(', ')[0]}<div className="text-xs text-muted-foreground">{k.createdBy}</div></td>

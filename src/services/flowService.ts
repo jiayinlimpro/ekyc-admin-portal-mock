@@ -153,7 +153,7 @@ export const mockFlowService: FlowService = {
     const r = saveFlow(flow, next, { entry: entryOf(flow.workflowVersion)!, canSetAdvanced, reason }, at, by(actor))
     if ('errors' in r) throw validation(r.errors)
     const revision: FlowRevision | undefined =
-      flow.status === 'ACTIVE' ? { flowId, revision: r.flow.revision, savedAt: at.toISOString(), savedBy: by(actor), reason: reason.trim(), settings: structuredClone(r.flow.settings), changes: r.changes } : undefined
+      flow.status === 'ACTIVE' ? { revisionId: newId('rev'), flowId, revision: r.flow.revision, savedAt: at.toISOString(), savedBy: by(actor), reason: reason.trim(), settings: structuredClone(r.flow.settings), changes: r.changes } : undefined
     db.setState((st) => ({
       flows: st.flows.map((f) => (f.flowId === flowId ? r.flow : f)),
       flowRevisions: revision ? [...st.flowRevisions, revision] : st.flowRevisions,
@@ -178,7 +178,7 @@ export const mockFlowService: FlowService = {
     db.setState((st) => ({
       flows: st.flows.map((f) => (f.flowId === flowId ? active : f)),
       flowRevisions: first
-        ? [...st.flowRevisions, { flowId, revision: 1, savedAt: at.toISOString(), savedBy: by(actor), reason: 'Activated', settings: structuredClone(active.settings), changes: [] }]
+        ? [...st.flowRevisions, { revisionId: newId('rev'), flowId, revision: 1, savedAt: at.toISOString(), savedBy: by(actor), reason: 'Activated', settings: structuredClone(active.settings), changes: [] }]
         : st.flowRevisions,
     }))
     auditProject(actor, 'FLOW_ACTIVATED', project, { flowId, revision: active.revision, changes: [{ field: 'Status', from: flow.status, to: 'ACTIVE' }] }, at)

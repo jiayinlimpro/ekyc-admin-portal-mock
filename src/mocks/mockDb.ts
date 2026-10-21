@@ -5,6 +5,7 @@ import { createJSONStorage, persist } from 'zustand/middleware'
 import type { AuditEntry, Verification } from '@/domain/types'
 import { now } from '@/lib/clock'
 import { DB_VERSION, seedDatabase, type MockDbState } from './seed'
+import { newId } from '@/lib/ids'
 
 export const DB_STORAGE_KEY = 'ekyc-mock-db'
 
@@ -40,14 +41,10 @@ export const db = {
     return updated
   },
 
-  /** Append-only. Ids are assigned here. */
+  /** Append-only. IDs are assigned here (DEC-97: evt_…). */
   appendAudit(...entries: AuditEntry[]): void {
     if (entries.length === 0) return
-    useMockDb.setState((s) => {
-      let seq = s.auditSeq
-      const added = entries.map((e) => ({ ...e, id: `AUD-${String(++seq).padStart(6, '0')}` }))
-      return { audit: [...s.audit, ...added], auditSeq: seq }
-    })
+    useMockDb.setState((s) => ({ audit: [...s.audit, ...entries.map((e) => ({ ...e, id: newId('evt') }))] }))
   },
 
   setState: useMockDb.setState,

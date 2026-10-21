@@ -15,11 +15,11 @@ export const NURUL: Actor = { userId: fx('USR-2026-0033'), fullName: 'Nurul Huda
 export const EMPTY_OWNER: Actor = { userId: fx('USR-2026-0080'), fullName: 'Rajesh A/L Muthu' } // Owner, Empty Demo Merchant
 
 export function completed(scores: Attempt['phaseScores'], attemptNo = 1): Attempt {
-  return { attemptNo, phase: 'LIVENESS', startedAt: NOW.toISOString(), outcome: 'COMPLETED', isUserRetake: attemptNo > 1, phaseScores: scores }
+  return { attemptId: `att_test${String(attemptNo).padStart(20, '0')}`, attemptNo, phase: 'LIVENESS', startedAt: NOW.toISOString(), outcome: 'COMPLETED', isUserRetake: attemptNo > 1, phaseScores: scores }
 }
 
 export function stopped(phase: Attempt['phase'], outcome: Attempt['outcome'], attemptNo = 1): Attempt {
-  return { attemptNo, phase, startedAt: NOW.toISOString(), outcome, isUserRetake: attemptNo > 1, phaseScores: {} }
+  return { attemptId: `att_test${String(attemptNo).padStart(20, '0')}`, attemptNo, phase, startedAt: NOW.toISOString(), outcome, isUserRetake: attemptNo > 1, phaseScores: {} }
 }
 
 export const ALL_PASS = { DOCUMENT: 95, SELFIE: 95, FACE_MATCH: 95, LIVENESS: 95 }
@@ -46,7 +46,7 @@ export function verification(overrides: Partial<Verification> = {}): Verificatio
       address: 'No. 1, Jalan Ujian 1/1, 40000 Shah Alam, Selangor',
     },
     clientMetadata: { sdk: 'ekyc-web-sdk 3.4.1', os: 'Windows 11', device: 'Chrome 140', ip: '192.0.2.10' },
-    images: { docFront: '/mock/mykad-front.svg', selfie: '/mock/selfie.svg' },
+    images: { docFront: { fileId: 'file_testdoc00000000000000001', url: '/mock/mykad-front.svg' }, selfie: { fileId: 'file_testselfie0000000000001', url: '/mock/selfie.svg' } },
     charged: true,
     projectId: fx('PRJ-0001'),
     flowId: fx('FLW-0001'),

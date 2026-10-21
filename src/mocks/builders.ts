@@ -5,7 +5,7 @@ import { hasRisk } from '@/domain/registryRules'
 import type { Attempt, Check, ClientMetadata, Flow, FlowRevision, RegistryEntry, Verification, WorkflowVersion } from '@/domain/types'
 import { revisionAt } from './fixtures/catalog'
 import type { Person } from './malaysia'
-import { caseIdOf } from '@/lib/ids'
+import { caseIdOf, stableId } from '@/lib/ids'
 
 const HOUR = 3_600_000
 
@@ -42,7 +42,7 @@ export function buildCase(spec: CaseSpec): Verification {
   const at = (i: number) => new Date(spec.startedAt.getTime() + i * step).toISOString()
   const attempts: Attempt[] =
     rounds === 0
-      ? [{ attemptNo: 1, phase: 'DOCUMENT', startedAt: at(0), outcome: spec.abandoned ?? 'ABORTED', isUserRetake: false, phaseScores: {} }]
+      ? [{ attemptId: stableId('att', `${spec.referenceNo}:1`), attemptNo: 1, phase: 'DOCUMENT', startedAt: at(0), outcome: spec.abandoned ?? 'ABORTED', isUserRetake: false, phaseScores: {} }]
       : Array.from({ length: rounds }, (_, i) => {
           const scores: Attempt['phaseScores'] = {}
           for (const c of flow.checks) {
@@ -50,7 +50,7 @@ export function buildCase(spec: CaseSpec): Verification {
             if (s?.length) scores[c] = s[Math.min(i, s.length - 1)]
           }
           const final = i === rounds - 1 && ev.status !== 'PROCESSING'
-          return { attemptNo: i + 1, phase: 'LIVENESS', startedAt: at(i), outcome: final ? 'COMPLETED' : 'FAILED_RETAKE', isUserRetake: i > 0, phaseScores: scores }
+          return { attemptId: stableId('att', `${spec.referenceNo}:${i + 1}`), attemptNo: i + 1, phase: 'LIVENESS', startedAt: at(i), outcome: final ? 'COMPLETED' : 'FAILED_RETAKE', isUserRetake: i > 0, phaseScores: scores }
         })
 
   // REQ: DEC-03 — lastUpdatedAt only moves on status change: PROCESSING was set when the user entered the flow.
@@ -75,7 +75,7 @@ export function buildCase(spec: CaseSpec): Verification {
     documentType: spec.person.documentType,
     pii: email ? { ...spec.person.pii, email } : spec.person.pii,
     clientMetadata: spec.metadata,
-    images: { docFront: image, selfie: '/mock/selfie.svg' },
+    images: { docFront: { fileId: stableId('file', `${spec.referenceNo}:doc`), url: image }, selfie: { fileId: stableId('file', `${spec.referenceNo}:selfie`), url: '/mock/selfie.svg' } },
     charged: true,
     projectId: spec.flow.projectId,
     flowId: spec.flow.flowId,

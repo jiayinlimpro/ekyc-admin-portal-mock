@@ -4,7 +4,7 @@ import { auditCsv, summarizeAudit } from './auditFormat'
 import { fx } from '@/lib/ids'
 
 const e = (action: AuditEntry['action'], details: Record<string, unknown> = {}): AuditEntry => ({
-  id: 'AUD-000001',
+  id: 'evt_test00000000000000000001',
   at: '2026-09-25T02:00:00.000Z',
   action,
   actor: { kind: 'USER', userId: fx('USR-2026-0012'), fullName: 'Ali Bin Ahmad' },

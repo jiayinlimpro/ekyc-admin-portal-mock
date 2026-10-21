@@ -5,7 +5,7 @@ import { diffFlow, newFlowSettings } from '@/domain/flowSettings'
 import { DEFAULT_RISK_MAX_ALLOWED } from '@/domain/openQuestions'
 import { PROJECT_SETTING_DEFAULTS } from '@/domain/projectSettings'
 import type { DocumentType, Flow, FlowRevision, FlowRouting, FlowSettings, FlowStatus, Project, RegistryEntry, ThresholdChoice } from '@/domain/types'
-import { fx } from '@/lib/ids'
+import { fx, stableId } from '@/lib/ids'
 
 const HOUR = 3_600_000
 const DAY = 24 * HOUR
@@ -16,6 +16,7 @@ const SYSTEM = { userId: 'SYSTEM' as const, fullName: 'SYSTEM' as const }
 export function buildRegistry(now: Date): RegistryEntry[] {
   const ago = (days: number) => new Date(now.getTime() - days * DAY).toISOString()
   const entry = (e: Pick<RegistryEntry, 'code' | 'name' | 'description' | 'phases' | 'faceMatchMethod' | 'requiredInputs' | 'status' | 'isDefault'>, days: number, sm?: string): RegistryEntry => ({
+    entryId: stableId('wfv', e.code),
     ...e,
     configurableChecks: ['FACE_MATCH', 'LIVENESS'],
     stateMachineSandbox: sm && ARN(sm, 'sand'),
@@ -166,6 +167,7 @@ export function buildCatalog(now: Date): Catalog {
     s.revisions.forEach((r, i) => {
       const prev = s.revisions[i - 1]
       flowRevisions.push({
+        revisionId: stableId('rev', `${s.flowId}:${i + 1}`),
         flowId: s.flowId,
         revision: i + 1,
         savedAt: at(r.hoursAgo),

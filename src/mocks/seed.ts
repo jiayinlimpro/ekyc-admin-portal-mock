@@ -14,7 +14,7 @@ import { buildEdgeCases } from './fixtures/edgeCases'
 import { MERCHANTS } from './fixtures/merchants'
 import { actorOf, buildAccounts, buildRoles } from './fixtures/users'
 import { clientMetadata, fakeIp, person } from './malaysia'
-import { fx } from '@/lib/ids'
+import { fx, stableId } from '@/lib/ids'
 
 export const SEED = 2026
 export const BACKGROUND_COUNT = 300
@@ -26,8 +26,7 @@ export interface MockDbState {
   seededAt: string
   merchants: Merchant[]
   verifications: Verification[]
-  audit: AuditEntry[] // append-only, oldest first
-  auditSeq: number
+  audit: AuditEntry[] // append-only, oldest first (the order breaks ties between equal times)
   // Projects & Flows (DEC-90 …)
   registry: RegistryEntry[]
   projects: Project[]
@@ -113,6 +112,9 @@ function decisionFor(f: Faker, reason: string | undefined): Decision {
   const matching = CONDITIONS.find((c) => c.label === reason && REJECT_REASONS.includes(c))
   return { outcome: 'REJECT', reasonIds: [(matching ?? f.helpers.arrayElement(REJECT_REASONS)).id], note: withNote ? 'Inconsistencies found during manual review.' : undefined }
 }
+
+/** The seeded production key of a project (one per project). */
+const seededKeyId = (projectId: string) => stableId('key', `${projectId}:production`)
 
 export function seedDatabase(now: Date): MockDbState {
   const f = new Faker({ locale: [en] })
@@ -204,11 +206,11 @@ export function seedDatabase(now: Date): MockDbState {
   // Atoz Default's production key was rotated by the Merchant Owner a week ago (DEC-54).
   const owner = accounts.find((a) => a.userId === fx('USR-2026-0002'))!
   audit.push(
-    makeAudit({ id: '', now: new Date(now.getTime() - 7 * DAY), action: 'API_KEY_ROTATED', actor: owner, actorRole: 'Merchant Owner', ip: fakeIp(f), merchantId: fx('MER-0001'), projectId: fx('PRJ-0001'), details: { keyId: 'key_mock_prj-0001_01' } }),
+    makeAudit({ id: '', now: new Date(now.getTime() - 7 * DAY), action: 'API_KEY_ROTATED', actor: owner, actorRole: 'Merchant Owner', ip: fakeIp(f), merchantId: fx('MER-0001'), projectId: fx('PRJ-0001'), details: { keyId: seededKeyId(fx('PRJ-0001')) } }),
   )
 
   const edge = buildEdgeCases({ now, catalog })
-  const allAudit = [...audit, ...edge.audit].sort((a, b) => a.at.localeCompare(b.at)).map((e, i) => ({ ...e, id: `AUD-${String(i + 1).padStart(6, '0')}` }))
+  const allAudit = [...audit, ...edge.audit].sort((a, b) => a.at.localeCompare(b.at)).map((e, i) => ({ ...e, id: stableId('evt', String(i + 1)) }))
 
   return {
     dbVersion: DB_VERSION,
@@ -216,13 +218,12 @@ export function seedDatabase(now: Date): MockDbState {
     merchants: MERCHANTS,
     verifications: [...verifications, ...edge.verifications],
     audit: allAudit,
-    auditSeq: allAudit.length,
     ...catalog,
     accounts,
     roles,
     // One production key per project (mock hints only, never real secrets); Atoz Default also has a webhook.
     projectKeys: catalog.projects.map((p) => ({
-      keyId: `key_mock_${p.projectId.toLowerCase()}_01`,
+      keyId: seededKeyId(p.projectId),
       projectId: p.projectId,
       name: 'Production',
       secretHint: `sk_mock_…${f.string.hexadecimal({ length: 4, casing: 'lower', prefix: '' })}`,
@@ -231,6 +232,6 @@ export function seedDatabase(now: Date): MockDbState {
       createdBy: p.createdBy,
       lastUsedAt: p.status === 'ACTIVE' ? new Date(now.getTime() - f.number.int({ min: 5, max: 600 }) * MIN).toISOString() : undefined,
     })),
-    webhooks: [{ projectId: fx('PRJ-0001'), url: 'https://hooks.atoz.example/ekyc', events: ['verification.status_changed'], secretHint: 'whsec_mock_…a1b2', updatedAt: new Date(now.getTime() - 30 * DAY).toISOString(), updatedBy: 'Tan Mei Ling' }],
+    webhooks: [{ webhookId: stableId('whk', fx('PRJ-0001')), projectId: fx('PRJ-0001'), url: 'https://hooks.atoz.example/ekyc', events: ['verification.status_changed'], secretHint: 'whsec_mock_…a1b2', updatedAt: new Date(now.getTime() - 30 * DAY).toISOString(), updatedBy: 'Tan Mei Ling' }],
   }
 }

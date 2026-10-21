@@ -17,6 +17,7 @@ const input = (overrides: Partial<RegistryInput> = {}): RegistryInput => ({
 })
 
 const entry = (code: string, status: RegistryStatus, isDefault = false): RegistryEntry => ({
+  entryId: `wfv_test${code.toLowerCase().padStart(20, '0')}`,
   ...input({ code }),
   releaseNotes: [],
   stateMachineSandbox: ARN,

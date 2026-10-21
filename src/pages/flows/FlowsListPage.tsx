@@ -21,6 +21,7 @@ import { flowService, type FlowRow } from '@/services/flowService'
 import type { MyProject } from '@/services/projectService'
 import { registryService } from '@/services/registryService'
 import { useSession } from '@/stores/sessionStore'
+import { CopyId } from '@/components/common/CopyId'
 
 const STATUS_TONE: Record<FlowStatus, string> = {
   DRAFT: 'bg-slate-100 text-slate-700 dark:bg-slate-500/20 dark:text-slate-200',
@@ -161,6 +162,8 @@ function Flows({ project }: { project: MyProject }) {
                   </Link>
                   {f.isDefault && <span className="ml-2 rounded bg-blue-100 px-1.5 text-[10px] font-medium text-blue-800 uppercase dark:bg-blue-500/20 dark:text-blue-200">Default</span>}
                   <div className="text-xs text-muted-foreground">{f.description}</div>
+                  {/* REQ: DEC-97 — merchants send it as flow_id; copy from here ([MS] Flows List). */}
+                  <CopyId label="Flow ID" value={f.flowId} className="mt-0.5" />
                 </th>
                 <td className="px-3 py-2 whitespace-nowrap">
                   {f.workflowVersion}

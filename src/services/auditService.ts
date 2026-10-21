@@ -50,7 +50,10 @@ export const mockAuditService: AuditService = {
           (!q.from || e.at >= q.from) &&
           (!q.to || e.at <= q.to),
       )
-      .sort((a, b) => b.at.localeCompare(a.at) || b.id.localeCompare(a.id))
+      // Newest first; entries with the same time keep their recorded order (DEC-97: IDs are not time-ordered).
+      .map((e, i) => ({ e, i }))
+      .sort((a, b) => b.e.at.localeCompare(a.e.at) || b.i - a.i)
+      .map(({ e }) => e)
     const pageSize = Math.max(1, q.pageSize ?? 50)
     const page = Math.max(1, q.page ?? 1)
     return { items: wire(rows.slice((page - 1) * pageSize, page * pageSize)), page, pageSize, total: rows.length }

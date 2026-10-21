@@ -346,6 +346,7 @@ export const mockUserAdminService: UserAdminService = {
       merchantId,
       assignments: [{ assignmentId: nextAssignmentId(), ...input.assignment, addedBy: by(actor), addedAt: at }],
       status: 'PENDING',
+      invitationId: newId('inv'),
       invitedAt: at,
     }
     db.setState((st) => ({ accounts: [...st.accounts, account] }))
@@ -360,7 +361,9 @@ export const mockUserAdminService: UserAdminService = {
     const a = loadUser(me, userId)
     requireUsersScreen(me, a.merchantId)
     if (a.status !== 'PENDING') throw validation([{ field: 'status', message: 'Only Pending users have an invitation to resend.' }])
-    auditAccess(actor, 'USER_INVITATION_RESENT', a.merchantId, { userId, fullName: a.fullName, email: a.email, summary: `Invitation resent to ${a.email}` })
+    const invitationId = newId('inv') // a resend replaces the invitation: the old link stops working
+    putAccount({ ...a, invitationId })
+    auditAccess(actor, 'USER_INVITATION_RESENT', a.merchantId, { userId, fullName: a.fullName, email: a.email, invitationId, summary: `Invitation resent to ${a.email}` })
     return wire(rowOf(a))
   },
 

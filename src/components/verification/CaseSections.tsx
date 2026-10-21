@@ -67,7 +67,7 @@ export function IdCaptureSection({ v }: { v: VerificationDetail }) {
     <Section title={`ID capture · ${DOCUMENT_TYPE_LABELS[v.documentType]}`}>
       <div className="grid gap-4 sm:grid-cols-[12rem_1fr]">
         <figure>
-          <img src={v.images.docFront} alt={`${DOCUMENT_TYPE_LABELS[v.documentType]} front (sample image, not real)`} className="w-full rounded-md border" />
+          <img src={v.images.docFront.url} alt={`${DOCUMENT_TYPE_LABELS[v.documentType]} front (sample image, not real)`} className="w-full rounded-md border" />
           <figcaption className="mt-1 text-xs text-muted-foreground">Document front</figcaption>
         </figure>
         <Fields
@@ -89,7 +89,7 @@ export function SelfieSection({ v }: { v: VerificationDetail }) {
     <Section title="Selfie">
       <div className="grid gap-4 sm:grid-cols-[12rem_1fr]">
         <figure>
-          <img src={v.images.selfie} alt="Selfie (sample image, not real)" className="w-full rounded-md border" />
+          <img src={v.images.selfie.url} alt="Selfie (sample image, not real)" className="w-full rounded-md border" />
           <figcaption className="mt-1 text-xs text-muted-foreground">Selfie</figcaption>
         </figure>
         <Fields items={[['Result', taken ? <span key="r" className="font-medium text-green-700 dark:text-green-400">Captured</span> : <span key="r" className="text-muted-foreground">Not captured yet</span>]]} />
