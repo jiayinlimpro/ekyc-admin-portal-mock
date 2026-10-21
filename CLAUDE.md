@@ -59,7 +59,7 @@ src/domain/     types, openQuestions, roles (permissions, assignments, grant rul
                 thresholds, flowSettings, flowRules, flowImpact (what-if), registryRules, projectSettings, dashboards, audit
 src/mocks/      malaysia.ts, builders.ts, seed.ts, mockDb.ts, fixtures/ (catalog: registry/projects/flows, merchants,
                 users: accounts, edgeCases: S01–S20)
-src/services/   verification, project, flow, registry, integration, userAdmin (Users, project Members), role, merchantAdmin,
+src/services/   verification, project, flow, registry, integration, userAdmin (Users, project Members), role, admin (Admins), merchantAdmin,
                 merchant, user, audit, analytics, liveUpdates, devService (dev-only), claimSweep, network
                 (latency/errors), errors (ServiceError + HTTP status map), accessGuard (the account behind the session
                 decides access; the session is only who you are)
@@ -75,7 +75,7 @@ docs/           DECISIONS.md, OPEN_QUESTIONS.md, SCENARIOS.md
 - **Projects & Flows restructure done** (DEC-85 screens): Overview, System Intelligence, Billing (every role, scoped),
   Verifications List + Detail, Projects, Project Settings (General, Integration, Review operations, Routing, Members),
   Flows List, Flow Detail (presets, band bar, retries, Advanced for Platform Admin, what-if, history), Users, Roles,
-  Audit Log; Platform Admin: Merchants, Workflow Registry. Header: project switcher + roles in the current project.
+  Audit Log; Platform Admin: Merchants, Admins, Workflow Registry. Header: project switcher + roles in the current project.
   Mock Login.
   No Home page: `/` opens Overview; UAT scenario links and data coverage are on the mock-only `/uat` page (Dev menu).
 - Retired (DEC-85): eKYC Workflow, Developers, Merchant Workflow Directory, the merchant-level config, the two-role
@@ -92,6 +92,8 @@ docs/           DECISIONS.md, OPEN_QUESTIONS.md, SCENARIOS.md
   Add components with `npx shadcn@latest add <name>`.
 - Pages fetch through services with `useLoad` keyed on the actor (switching user must refetch). Use `useNow()` for
   anything time-based (claim countdowns) so the time warp applies.
+- Hide what the user can never do with their access; disable with a tooltip what the current state blocks (DEC-78).
+  Access is always shown as a `Role · Scope` chip (DEC-74).
 - Every screen declares an access rule in `nav.ts` (project or platform action from `src/domain/access.ts`); the menu and
   `Guarded` use it, and the service checks again. Settings pages work on the header's project (`RequireProject`).
 - List filters live in the URL (see `src/pages/verifications/listQuery.ts`); apply on Search, not per keystroke.

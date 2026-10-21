@@ -24,6 +24,9 @@ data** before a UAT run.
 | A5 | Hafiz (`?as=USR-2026-0020`) | Project Settings › Members (SME app): add Siti as Reviewer | Siti appears; Tan Mei Ling is listed as Merchant Owner · inherited, not removable; Merchant Owner is not offered |
 | A6 | Ahmad Faiz (`?as=USR-2026-0045`) | Roles › Compliance Auditor | "Affects 1 user"; removing View audit log takes Kavitha's Audit Log away at once |
 | A7 | Tan Mei Ling | Roles › Reviewer | Read-only (System Default); New role with Claim cases ticks View cases |
+| A8 | Tan Mei Ling | Users › Ali › Effective access, choose SME app | Only View cases and View project reports, each "Comes from" Viewer · SME app |
+| A9 | Lim Wei Jie | Users › Tan Mei Ling | Remove and Suspend are disabled; hovering says at least one Merchant Owner (All projects) is required |
+| A10 | Lim Wei Jie | Platform › Admins | Lim and Nor Aisyah only (not on Users); Suspend disabled on his own row; New admin starts Pending |
 
 | ID | Reference No | Project › Flow | Scenario | Expected behaviour |
 |---|---|---|---|---|
