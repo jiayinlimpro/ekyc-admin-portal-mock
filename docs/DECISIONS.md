@@ -66,7 +66,7 @@ Rules changed on 2026-10-20 (Projects & Flows restructure) are marked **(changed
 - **DEC-16** **(changed)** When retries run out, the **last attempt** decides: below Auto-Reject → `REJECTED`; review band →
   `PENDING_REVIEW`. The reason is the matching condition from DEC-35 (e.g. "Liveness face does not match ID face (Retry Not
   Allowed)"). [PO 2026-10-20]
-- **DEC-17** Retries keep the same `referenceNo`; each retry is appended to `attempts[]`, never a new record.
+- **DEC-17** Retries keep the same case (case ID and Reference ID); each retry is appended to `attempts[]`, never a new record.
 - **DEC-18** **(changed)** "**Retries allowed**" is set per check (face match, liveness) per flow: the number of retries after
   the first submission. Default 3 = up to 4 submissions. Range is OQ-03. ID capture and Selfie retakes are **unlimited, not
   counted and free**. The retry KPIs (First-Attempt Pass Rate, Average Retries) count face match and liveness retries only.
@@ -142,7 +142,7 @@ Rules changed on 2026-10-20 (Projects & Flows restructure) are marked **(changed
 - **DEC-43** **(new)** Verifications List filters: project, flow, workflow version, status, claim state (unclaimed / mine /
   others), risk level, date range; search by Reference ID and Full Name. Default view: `PENDING_REVIEW` cases in the user's
   projects, oldest first. [MS][FRS]
-- **DEC-44** **(new)** Verification Detail sections: header (Reference ID, status, project, flow, workflow version,
+- **DEC-44** **(new)** Verification Detail sections: header (Reference ID, case ID with copy (DEC-97), status, project, flow, workflow version,
   configuration revision, created, last updated) · claim panel · end-user data (email for V4/V5) · ID capture (images, result,
   soft rejects) · Selfie (V1 only: image, result) · Face match (result, threshold applied, score, retries used / allowed) ·
   Liveness (result, threshold applied, retries used / allowed, cooldown applied) · Risk (V4/V5: each component's 0–100 score
@@ -235,7 +235,7 @@ Rules changed on 2026-10-20 (Projects & Flows restructure) are marked **(changed
   projects" for more than one), current project name always visible, menu filtered by the user's permissions in the
   selected project, user menu (name, email, roles in the current project, log out). A user with no assignments can sign in
   but sees "You don't have access to any project yet". [MS][PO 2026-10-20]
-- **DEC-74** **(changed again)** **Users** screen ([FRS] User Management › Users): flat list with User ID, Full Name, Email,
+- **DEC-74** **(changed again)** **Users** screen ([FRS] User Management › Users): flat list with Full Name, Email,
   Merchant (Platform Admin only), **Access** (assignment summary, e.g. "Reviewer (Retail), Viewer (SME)"), Status, Created
   At; sorted by Created At, newest first; 10 / 20 / 50 per page; "No Records Found". Create: full name, work email,
   merchant (Platform Admin only) and the first assignment; the user starts **Pending** and gets an invitation (Resend while
@@ -264,7 +264,7 @@ Rules changed on 2026-10-20 (Projects & Flows restructure) are marked **(changed
   - Risk noted for compliance sign-off: under KYC rules the merchant is the accountable party, so a case decided by
     platform staff is decided by a third party. The merchant agreement should allow it.
   - Superseded: "API keys and webhooks stay merchant-only" and "never claim or decide" [PO 2026-10-20].
-- **DEC-76** **(new)** **Roles** screen ([FRS] User Management › Roles): Role ID (`ROL-2026-XXXX`), Role Name, Merchant
+- **DEC-76** **(new)** **Roles** screen ([FRS] User Management › Roles): Role Name, Merchant
   (Platform Admin only), Role Type (`System Default` / `Custom`), Status, Users, Created At. The detail / create modal holds
   the grouped permission checkboxes (at least one: "Roles require at least one action permission flag"). System Default
   roles are read-only. Editing a role applies at once to everyone holding it, in all their scopes, and shows "Affects N
@@ -285,10 +285,29 @@ Rules changed on 2026-10-20 (Projects & Flows restructure) are marked **(changed
   - Services check every action anyway (DEC-71). Screens a user can't open show "No access"; a case or project outside
     their access is "not found" (DEC-72).
 - **DEC-79** **(new)** **Admins** (Platform menu, Platform Admin only): the internal Platform Admin accounts, kept apart from
-  merchant users. Columns User ID, Full Name, Email, Status, Created At; sorted by Created At, newest first. New admin = full
+  merchant users. Columns Full Name, Email, Status, Created At, Last active; sorted by Created At, newest first. New admin = full
   name and work email; starts Pending (Resend invitation); Suspend / Reactivate; never deleted. No roles or scopes: Platform
   Admin rights are fixed (DEC-70). At least one active Platform Admin must remain; nobody suspends themselves. Audited with
   the DEC-42 user events. [Dev 2026-10-21]
+
+## Identifiers
+- **DEC-97** **(new)** Identifiers [PO 2026-10-21]:
+  - Every stored record has an **internal ID**: a type prefix and a cuid2 body, e.g. `prj_k3x9…`. Prefixes: `mer` merchant,
+    `prj` project, `flw` flow, `rev` flow revision, `ver` verification case, `att` check attempt, `file` uploaded image, `usr`
+    user, `rol` role, `asg` role assignment, `inv` invitation, `key` API key, `whk` webhook endpoint, `wfv` registry version,
+    `evt` audit event. Lists sort by created time, never by ID (cuid2 IDs are not time-ordered).
+  - Not IDs: secrets (API key value, webhook signing secret, session links) are random tokens stored hashed; workflow
+    codes (V1 … V5), statuses and permission keys are fixed values; external IDs (Ballerine, AWS liveness) are stored as given.
+  - **Shown on screen** only where people copy or quote them: Flow ID (Flows List and Flow Detail, copy button: merchants
+    send it as `flow_id`), case ID (Verification Detail, copy; in webhooks), API key (masked, `key_…a91f`), webhook event
+    ID (delivery log; not in the mock). Internal screens may show Merchant ID (Merchants) and Project ID (Projects, for
+    developers). Users, roles, assignments, invitations, attempts, files and audit events are never shown; audit exports
+    include the event ID. People are identified by name and email, roles by name; "Last updated by" shows the name.
+  - **Reference ID** is the **merchant's own reference** for the end user, sent when the session is created. It is stored
+    alongside the case ID, searchable, shown in the list, and never used as the key; case URLs and webhooks use the case ID.
+    Uniqueness: OQ-17.
+  - Supersedes the [FRS] masks `KYC-YYMMDD-XXXXXX` (platform-generated Reference No. as key), `USR-2026-XXXX` and
+    `ROL-2026-XXXX` and their columns (DEC-74, DEC-76, DEC-79).
 
 ## Screens and navigation
 - **DEC-84** **(new)** No Home page. **Everyone lands on Overview.** UAT scenario links are on a mock-only page in the Dev
@@ -328,7 +347,10 @@ These keep the mock runnable. They are not signed-off requirements; change them 
 - **MOCK-04** Time is read from an injectable clock (`src/lib/clock.ts`) with a dev "time warp" offset, so expiry can be demoed
   without waiting.
 - **MOCK-05** Seeded data is deterministic (`faker.seed(2026)`), with dates relative to the moment of seeding. Scenario
-  records (S01–S15) have fixed Reference Nos (`KYC-260901-9000NN`) so UAT deep links stay stable.
+  records (S01–S20) have fixed Reference IDs (`KYC-260901-9000NN`) and fixed case IDs, and every seeded record gets the same
+  internal ID after each reset, so UAT deep links stay stable. Seeded IDs are derived from a readable fixture handle (e.g.
+  `PRJ-0001` → `prj_…`); new records get random IDs. The mock generates cuid2-shaped IDs itself (no library); the backend
+  uses cuid2 (or UUIDv7 if engineering prefers time-sortable IDs). Deep links sign in by email: `?as=siti.yusof@atoz.example`.
 - **MOCK-06** Fake identity data: NRIC serials always use the `999G` pattern, IPs come from the RFC 5737 documentation ranges,
   and images are "SAMPLE – NOT REAL" placeholders.
 - **MOCK-07** Deactivated users are refused by the services for claim, release and decide, and are not offered as reviewers.
