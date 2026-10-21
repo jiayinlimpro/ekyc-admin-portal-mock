@@ -6,7 +6,7 @@
 //   PUT  /roles/{id}                update      → 200 Role | 403 | 422
 //   POST /roles/{id}/status         setStatus   → 200 Role | 422 (still assigned)
 import { canInMerchant, canInProject } from '@/domain/access'
-import { canGrant, GRANT_TOO_POWERFUL, holdersOf, validateRole, validateRoleStatus, withImpliedPermissions } from '@/domain/roles'
+import { canGrant, GRANT_TOO_POWERFUL, holdersOf, isMerchantLevel, validateRole, validateRoleStatus, withImpliedPermissions } from '@/domain/roles'
 import type { Actor, Permission, Role, RoleStatus } from '@/domain/types'
 import { now } from '@/lib/clock'
 import { permissionList } from '@/lib/labels'
@@ -27,8 +27,11 @@ export type RoleRow = Role & { merchantName?: string; users: number; heldForSele
 
 export interface RoleService {
   list(actor: Actor, merchantId?: string): Promise<RoleRow[]>
-  /** Active roles a merchant can assign: System Default plus its own (Users screen and Members tab). */
-  assignable(merchantId: string, actor: Actor): Promise<Role[]>
+  /**
+   * REQ: DEC-74 / DEC-77 — active roles (System Default plus the merchant's own) that the actor may give: in `projectId`
+   * when given (Members tab: project-level roles only), otherwise in at least one scope.
+   */
+  assignable(merchantId: string, actor: Actor, projectId?: string): Promise<Role[]>
   create(merchantId: string, input: RoleInput, actor: Actor): Promise<Role>
   update(roleId: string, input: RoleInput, actor: Actor): Promise<Role>
   setStatus(roleId: string, status: RoleStatus, actor: Actor): Promise<Role>
@@ -82,12 +85,16 @@ export const mockRoleService: RoleService = {
     )
   },
 
-  async assignable(merchantId, actor) {
+  async assignable(merchantId, actor, projectId) {
     await simulateNetwork('assignable roles')
     const me = accountOf(actor)
     const manages = canInMerchant(me, 'manageUsersRoles', merchantId) || db.state().projects.some((p) => p.merchantId === merchantId && canInProject(me, 'manageMembers', p))
     if (!manages) throw new ServiceError('FORBIDDEN', 'You do not manage access in this merchant.')
-    return wire(rolesFor(merchantId).filter((r) => r.status === 'ACTIVE'))
+    const open = db.state().projects.filter((p) => p.merchantId === merchantId && p.status === 'ACTIVE').map((p) => p.projectId)
+    const g = granter(me)
+    const inProject = (r: Role, id: string) => !isMerchantLevel(r.permissions) && canGrant(g, r.permissions, { kind: 'PROJECTS', projectIds: [id] })
+    const grantable = (r: Role) => (projectId ? inProject(r, projectId) : canGrant(g, r.permissions, { kind: 'ALL_PROJECTS' }) || open.some((id) => inProject(r, id)))
+    return wire(rolesFor(merchantId).filter((r) => r.status === 'ACTIVE' && grantable(r)))
   },
 
   async create(merchantId, input, actor) {

@@ -6,9 +6,9 @@ import { NativeSelect } from '@/components/common/NativeSelect'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { isMerchantLevel, MERCHANT_LEVEL_SCOPE } from '@/domain/roles'
-import type { Role, UserStatus } from '@/domain/types'
+import { MERCHANT_PERMISSIONS, type Permission, type Role, type UserStatus } from '@/domain/types'
 import { errorMessage, fieldErrors } from '@/hooks/useLoad'
-import { USER_STATUS_LABELS } from '@/lib/labels'
+import { PERMISSION_LABELS, USER_STATUS_LABELS } from '@/lib/labels'
 import { cn } from '@/lib/utils'
 import { isServiceError } from '@/services/errors'
 import type { AssignmentInput } from '@/services/userAdminService'
@@ -32,8 +32,25 @@ export function AccessChip({ label, archived = false, children }: { label: strin
 
 export type ProjectOption = { projectId: string; name: string }
 
+const lower = (s: string) => s.charAt(0).toLowerCase() + s.slice(1)
+const MERCHANT_LEVEL: readonly Permission[] = MERCHANT_PERMISSIONS
+
+/** REQ: DEC-74 — plain-language preview of an access row before it is saved. */
+export function AccessPreview({ who, permissions, where }: { who: string; permissions: readonly Permission[]; where: string }) {
+  const project = permissions.filter((p) => !MERCHANT_LEVEL.includes(p)).map((p) => lower(PERMISSION_LABELS[p]))
+  const merchant = permissions.filter((p) => MERCHANT_LEVEL.includes(p)).map((p) => lower(PERMISSION_LABELS[p]))
+  return (
+    <p role="status" className="w-full rounded-md bg-blue-50 px-3 py-2 text-sm text-blue-900 dark:bg-blue-500/10 dark:text-blue-100">
+      {who} will be able to {project.length ? `${project.join(', ')} in ${where}` : ''}
+      {project.length && merchant.length ? '; and ' : ''}
+      {merchant.length ? `${merchant.join(', ')} for the whole merchant` : ''}.
+    </p>
+  )
+}
+
 export function AssignmentFields({
   idPrefix,
+  who,
   roles,
   projects,
   value,
@@ -41,6 +58,8 @@ export function AssignmentFields({
   errors,
 }: {
   idPrefix: string
+  /** The user's name for the preview; no preview without it. */
+  who?: string
   roles: Role[]
   projects: ProjectOption[]
   value: AssignmentInput
@@ -100,6 +119,9 @@ export function AssignmentFields({
           </p>
         )}
       </fieldset>
+      {who && role && (value.scope.kind === 'ALL_PROJECTS' || selected.length > 0) && (
+        <AccessPreview who={who} permissions={role.permissions} where={value.scope.kind === 'ALL_PROJECTS' ? 'every project (including new ones)' : projects.filter((p) => selected.includes(p.projectId)).map((p) => p.name).join(', ')} />
+      )}
     </>
   )
 }
@@ -107,6 +129,7 @@ export function AssignmentFields({
 /** Add or edit one assignment of a user. */
 export function AssignmentDialog({
   title,
+  who,
   initial,
   roles,
   projects,
@@ -114,6 +137,7 @@ export function AssignmentDialog({
   onClose,
 }: {
   title: string
+  who: string
   initial?: AssignmentInput
   roles: Role[]
   projects: ProjectOption[]
@@ -146,7 +170,7 @@ export function AssignmentDialog({
             <DialogTitle>{title}</DialogTitle>
             <DialogDescription>Permissions from several assignments add up. You can only give access you have yourself.</DialogDescription>
           </DialogHeader>
-          <AssignmentFields idPrefix="as" roles={roles} projects={projects} value={value} onChange={setValue} errors={errors} />
+          <AssignmentFields idPrefix="as" who={who} roles={roles} projects={projects} value={value} onChange={setValue} errors={errors} />
           {errors.form && (
             <p role="alert" className="text-sm text-destructive">
               {errors.form}

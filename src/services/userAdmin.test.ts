@@ -97,6 +97,19 @@ describe('userAdminService: the Users screen (DEC-74)', () => {
     await expect(invite(only('PRJ-0002'), 'r2@atoz.example')).rejects.toMatchObject({ code: 'FORBIDDEN', message: GRANT_TOO_POWERFUL })
   })
 
+  it('Given Hafiz on SME app, then only roles he may give there are offered; the owner gets every role', async () => {
+    expect((await roleService.assignable('MER-0001', HAFIZ, 'PRJ-0002')).map((r) => r.name)).toEqual(['Project Admin', 'Reviewer', 'Viewer'])
+    await expect(roleService.assignable('MER-0001', HAFIZ, 'PRJ-0001')).resolves.toEqual([])
+    expect((await roleService.assignable('MER-0001', OWNER)).map((r) => r.name)).toEqual(['Merchant Owner', 'Project Admin', 'Reviewer', 'Viewer'])
+  })
+
+  it('Given a user desk role, then roles it can’t give anywhere are not offered', async () => {
+    const desk = await roleService.create('MER-0001', { name: 'User desk', permissions: ['MANAGE_USERS_ROLES'] }, OWNER)
+    await users.addAssignment(SITI.userId, { roleId: desk.roleId, scope: ALL }, OWNER)
+    // Siti is a Reviewer in Default only: she can give Reviewer or Viewer there, and her own User desk role; nothing broader.
+    expect((await roleService.assignable('MER-0001', SITI)).map((r) => r.name)).toEqual(['Reviewer', 'Viewer', 'User desk'])
+  })
+
   it('Given an archived project, then its access is labelled and read-only', async () => {
     // Ng Chee Keong owns MER-0005, whose Pilot 2025 (PRJ-0008) is archived.
     await users.invite('MER-0005', { fullName: 'Pilot Reviewer', email: 'pilot@3nova.example', assignment: { roleId: REVIEWER, scope: only('PRJ-0007') } }, ADMIN)

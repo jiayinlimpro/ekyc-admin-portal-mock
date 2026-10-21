@@ -47,6 +47,7 @@ describe('Users (DEC-74)', () => {
     await waitFor(() => expect(within(role).getAllByRole('option').length).toBeGreaterThan(1))
     fireEvent.change(role, { target: { value: 'ROL-2026-0003' } })
     fireEvent.click(screen.getByRole('checkbox', { name: 'SME app' }))
+    expect(screen.getByRole('status').textContent).toBe('Aishah Binti Omar will be able to view cases, claim cases, approve / reject cases, view project reports in SME app.')
     fireEvent.click(screen.getByRole('button', { name: 'Invite user' }))
     const r = await row('Aishah Binti Omar')
     expect(r.textContent).toContain('Reviewer · SME app')

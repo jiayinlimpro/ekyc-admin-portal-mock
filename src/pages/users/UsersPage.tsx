@@ -83,7 +83,7 @@ function InviteDialog({ merchants, defaultMerchantId, onClose, onSaved }: { merc
           <FormField id="nu-email" label="Work email" error={errors.email}>
             <Input id="nu-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} aria-invalid={!!errors.email} />
           </FormField>
-          {merchantId && <AssignmentFields idPrefix="nu" roles={roles.data ?? []} projects={projects} value={assignment} onChange={setAssignment} errors={errors} />}
+          {merchantId && <AssignmentFields idPrefix="nu" who={fullName.trim() || 'The user'} roles={roles.data ?? []} projects={projects} value={assignment} onChange={setAssignment} errors={errors} />}
           {errors.form && (
             <p role="alert" className="text-sm text-destructive">
               {errors.form}
@@ -236,6 +236,7 @@ function UserDialog({ userId, onClose, onChanged }: { userId: string; onClose: (
         {editing && u && (
           <AssignmentDialog
             title={editing.mode === 'add' ? `Add access for ${u.fullName}` : `Edit ${editing.row.roleName} for ${u.fullName}`}
+            who={u.fullName}
             initial={editing.mode === 'edit' ? { roleId: editing.row.roleId, scope: editing.row.scope } : undefined}
             roles={roles.data ?? []}
             projects={projects}

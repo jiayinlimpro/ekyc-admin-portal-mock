@@ -9,22 +9,22 @@ import { NativeSelect } from '@/components/common/NativeSelect'
 import { OpenQuestionTag } from '@/components/common/OpenQuestionTag'
 import { ErrorState } from '@/components/common/States'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { canInMerchant } from '@/domain/access'
-import { isMerchantLevel } from '@/domain/roles'
 import type { Project } from '@/domain/types'
 import { errorMessage, fieldErrors, useLoad } from '@/hooks/useLoad'
 import { cn } from '@/lib/utils'
 import { roleService } from '@/services/roleService'
 import { userAdminService } from '@/services/userAdminService'
 import { useSession } from '@/stores/sessionStore'
-import { AccessChip, UserStatusBadge } from '../users/AccessFields'
+import { AccessChip, AccessPreview, UserStatusBadge } from '../users/AccessFields'
 import { Card } from './settingsUi'
 
 function AddMember({ project, onAdded }: { project: Project; onAdded: () => void }) {
   const actor = useSession((s) => s.actor)
   const candidates = useLoad(() => userAdminService.memberCandidates(project.projectId, actor), [project.projectId, actor.userId])
-  // Merchant-level roles only work for All projects, so they are not offered for one project.
-  const roles = useLoad(() => roleService.assignable(project.merchantId, actor).then((rs) => rs.filter((r) => !isMerchantLevel(r.permissions))), [project.merchantId, actor.userId])
+  // REQ: DEC-77 — only roles the actor may give in this project (merchant-level roles need All projects).
+  const roles = useLoad(() => roleService.assignable(project.merchantId, actor, project.projectId), [project.merchantId, project.projectId, actor.userId])
   const [userId, setUserId] = useState('')
   const [roleId, setRoleId] = useState('')
   const [errors, setErrors] = useState<Record<string, string>>({})
@@ -47,8 +47,13 @@ function AddMember({ project, onAdded }: { project: Project; onAdded: () => void
     }
   }
   const error = errors.form ?? errors.scope ?? errors.roleId ?? errors.userId ?? errors.user
+  const role = roles.data?.find((r) => r.roleId === roleId)
+  const user = candidates.data?.find((u) => u.userId === userId)
   return (
     <form onSubmit={submit} noValidate className="flex flex-wrap items-end gap-3">
+      <FormField id="mb-project" label="Project" className="w-44">
+        <Input id="mb-project" value={project.name} readOnly disabled />
+      </FormField>
       <FormField id="mb-user" label="User" className="w-64">
         <NativeSelect id="mb-user" value={userId} onChange={(e) => setUserId(e.target.value)}>
           <option value="">Choose a user</option>
@@ -72,6 +77,7 @@ function AddMember({ project, onAdded }: { project: Project; onAdded: () => void
       <Button type="submit" disabled={busy}>
         <Plus aria-hidden /> Add member
       </Button>
+      {role && user && <AccessPreview who={user.fullName} permissions={role.permissions} where={project.name} />}
       {error && (
         <p role="alert" className="w-full text-sm text-destructive">
           {error}
