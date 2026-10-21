@@ -33,19 +33,19 @@ If `npm` scripts are blocked in PowerShell: `Set-ExecutionPolicy -Scope CurrentU
 ## Demo guide
 
 **Who you are.** There is no real login. Open `/login` and pick a user, use **Dev → Switch user**, or add
-`?as=USR-2026-0031` to any link.
+`?as=siti.yusof@atoz.example` to any link (the user's email).
 
 | User | Access (role · scope) | Merchant |
 |---|---|---|
-| Lim Wei Jie (USR-2026-0001) | Platform Admin: everything in every merchant, cases included (DEC-75) | — |
-| Nor Aisyah Binti Hamid (USR-2026-0005) | Platform Admin (second one, for the Admins screen) | — |
-| Tan Mei Ling (USR-2026-0002) | Merchant Owner · All projects | Atoz Software Tech |
-| Ali Bin Ahmad (USR-2026-0012) | Reviewer · Default; Viewer · SME app | Atoz Software Tech |
-| Siti Aminah Binti Yusof (USR-2026-0031) | Reviewer · Default | Atoz Software Tech |
-| Hafiz Bin Rahman (USR-2026-0020) | Project Admin · SME app | Atoz Software Tech |
-| Nurul Huda Binti Kamaruddin (USR-2026-0033) | Reviewer · SME app | Atoz Software Tech |
-| Ahmad Faiz Bin Zulkifli (USR-2026-0045) | Merchant Owner · All projects | Vantage |
-| Kavitha A/P Subramaniam (USR-2026-0044) | Reviewer · Default; Compliance Auditor (Custom role) · All projects | Vantage |
+| Lim Wei Jie (weijie.lim@ekyc-platform.example) | Platform Admin: everything in every merchant, cases included (DEC-75) | — |
+| Nor Aisyah Binti Hamid (aisyah.hamid@ekyc-platform.example) | Platform Admin (second one, for the Admins screen) | — |
+| Tan Mei Ling (meiling.tan@atoz.example) | Merchant Owner · All projects | Atoz Software Tech |
+| Ali Bin Ahmad (ali.ahmad@atoz.example) | Reviewer · Default; Viewer · SME app | Atoz Software Tech |
+| Siti Aminah Binti Yusof (siti.yusof@atoz.example) | Reviewer · Default | Atoz Software Tech |
+| Hafiz Bin Rahman (hafiz.rahman@atoz.example) | Project Admin · SME app | Atoz Software Tech |
+| Nurul Huda Binti Kamaruddin (nurul.huda@atoz.example) | Reviewer · SME app | Atoz Software Tech |
+| Ahmad Faiz Bin Zulkifli (faiz.zulkifli@vantage.example) | Merchant Owner · All projects | Vantage |
+| Kavitha A/P Subramaniam (kavitha.s@vantage.example) | Reviewer · Default; Compliance Auditor (Custom role) · All projects | Vantage |
 
 Access follows the [FRS] Users and Roles method with **scoped assignments** (DEC-70): a role says what you may do, the
 scope says where (All projects, including new ones, or selected projects). The header's project switcher picks one
@@ -59,8 +59,8 @@ project or "All my projects", and the menu follows your permissions there.
 - **Reset demo data:** run this before every UAT session. Claim timers count from when the data was seeded.
 
 **Scenarios.** Dev menu → "UAT scenarios & data coverage" lists S01–S20 with "Open as" links that sign in as the right user. To show the two-reviewer race
-(S10), open the same record in two tabs of the same browser, one with `?as=USR-2026-0012` and one with
-`?as=USR-2026-0031`, then click **Assign to me** in both.
+(S10), open the same record in two tabs of the same browser, one with `?as=ali.ahmad@atoz.example` and one with
+`?as=siti.yusof@atoz.example`, then click **Assign to me** in both.
 
 **Where to look:**
 

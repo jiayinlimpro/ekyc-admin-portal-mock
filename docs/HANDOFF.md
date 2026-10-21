@@ -7,16 +7,22 @@ What the mock gives engineering, and what the real backend must do that a mock c
 - **Types:** `src/domain/types.ts`. Merchant → Project → Flow (FlowSettings, FlowRevision) → Verification
   (VerificationSummary for lists: no PII; VerificationDetail), UserAccount (level + RoleAssignment[]), Role, RegistryEntry,
   ProjectApiKey, ProjectWebhook, AuditEntry, Decision, Paged. Treat it as a first draft of the API/DB schema.
+- **Identifiers (DEC-97):** every stored record has a prefixed cuid2 ID (`prj_…`, `flw_…`, `ver_…`, `att_…`, `usr_…`, `rol_…`,
+  `asg_…`, `inv_…`, `key_…`, `whk_…`, `wfv_…`, `rev_…`, `file_…`, `evt_…`, `mer_…`); sort lists by created time, never by ID.
+  The case ID addresses a case in URLs, the API and webhooks; the Reference ID is the merchant's own value, stored beside
+  it (OQ-17, OQ-28). Only flow, case, API key (masked) and webhook event IDs are shown in the UI. The mock makes
+  cuid2-shaped IDs itself (`src/lib/ids.ts`); use the cuid2 library (or UUIDv7) in the backend. Secrets are random
+  tokens stored hashed, never IDs.
 - **Endpoints:** each file in `src/services/` starts with the REST shape it stands in for. Error codes map to HTTP
   status in `src/services/errors.ts`.
 
 | Area | Endpoint (draft) | Notes |
 |---|---|---|
 | Verifications | `GET /verifications?…` | Returns summaries only: no NRIC, passport, address or client metadata (DEC-40) |
-| | `GET /verifications/{ref}` | Full PII + client metadata; the **server** writes `SENSITIVE_PII_VIEW` for every open (DEC-41) |
-| | `POST /verifications/{ref}/claim` | 409 `ALREADY_CLAIMED` / `NOT_CLAIMABLE`; claim is not a status (DEC-20) |
-| | `DELETE /verifications/{ref}/claim` | Owner only; 409 `NOT_CLAIM_OWNER`; no supervisor release (DEC-23) |
-| | `POST /verifications/{ref}/decision` | Re-checks ownership at save; 409 `OWNERSHIP_CONFLICT`, audited `CASE_DECISION_BLOCKED` (DEC-24); 422 for a Reject without a catalogue reason (DEC-31); Approve needs no reason; the note is optional |
+| | `GET /verifications/{caseId}` | Full PII + client metadata; the **server** writes `SENSITIVE_PII_VIEW` for every open (DEC-41) |
+| | `POST /verifications/{caseId}/claim` | 409 `ALREADY_CLAIMED` / `NOT_CLAIMABLE`; claim is not a status (DEC-20) |
+| | `DELETE /verifications/{caseId}/claim` | Owner only; 409 `NOT_CLAIM_OWNER`; no supervisor release (DEC-23) |
+| | `POST /verifications/{caseId}/decision` | Re-checks ownership at save; 409 `OWNERSHIP_CONFLICT`, audited `CASE_DECISION_BLOCKED` (DEC-24); 422 for a Reject without a catalogue reason (DEC-31); Approve needs no reason; the note is optional |
 | Projects | `GET /projects/mine`, `GET /projects`, `POST /merchants/{id}/projects`, `PATCH /projects/{id}`, `POST …/archive` | Access from scoped role assignments; "not found" outside the user's projects (DEC-72) |
 | | `PATCH /projects/{id}/general`, `PATCH …/review-ops` | Branding, language; claim timeout >= 1 min (DEC-53, DEC-54) |
 | Integration | `GET /projects/{id}/integration`, `POST …/api-keys`, `POST /api-keys/{id}/rotate`, `DELETE /api-keys/{id}`, `PUT …/webhook`, `PUT …/access-lists` | Manage API keys and webhook, and Platform Admin (DEC-75); secrets returned once, only a hint stored |
@@ -58,6 +64,6 @@ server-side**. The tests (Given/When/Then names) are a shared spec; port or mirr
 ## 4. Also hand over
 
 - `docs/DECISIONS.md` (with the conflict register), `docs/OPEN_QUESTIONS.md` and `docs/SCENARIOS.md` (UAT cases with
-  stable Reference Nos).
+  stable Reference IDs and case IDs).
 - UI code is reusable but **not production-hardened**: no real auth, no network error boundaries or retries beyond the
   mock, and no performance work (lists are filtered in memory).

@@ -31,6 +31,9 @@ UAT scenarios: `docs/SCENARIOS.md`.
   projects (incl. future ones) or Selected projects; permissions are the union, no deny. Merchant-level permissions only
   via All projects. System Default roles (locked): Merchant Owner, Project Admin, Reviewer, Viewer; Platform Admin is
   internal with a fixed set. Every page checks access to the project; a case outside the user's projects is "not found".
+- IDs (DEC-97): every stored record gets a prefixed cuid2-shaped ID from `src/lib/ids.ts` (`newId`; seeded records
+  `fx('PRJ-0001')` / `stableId`, stable across resets). Never sort by ID, never show user / role / audit IDs. A case is
+  addressed by `caseId` (`ver_…`); `referenceNo` is the merchant's Reference ID.
 - Only FACE_MATCH and LIVENESS have thresholds: autoReject/autoPass, chosen as a Low/Standard/High preset, or Advanced
   (custom, Platform Admin only). Never per individual metric; granular metrics are never shown. Risk for V4/V5 only.
 - `>= autoPass` → pass; `< autoReject` → reject; between → review. Below autoPass with retries left → retry, case stays
@@ -104,7 +107,7 @@ docs/           DECISIONS.md, OPEN_QUESTIONS.md, SCENARIOS.md
 - Screens are lazy-loaded (`src/app/routes.tsx`); tests must `await screen.findBy…` the first element.
 - Status/role labels: `src/lib/labels.ts`. Dates: `formatMyt()` in `src/lib/format.ts`. Toasts: `sonner` (bottom-right).
 - Session and tabs live in sessionStorage (per browser tab); demo data, dev flags and UI prefs in localStorage.
-- UAT deep links: `?as=USR-2026-0031` signs in as that user.
+- UAT deep links: `?as=siti.yusof@atoz.example` signs in as that user (email; the internal user ID works too).
 
 ## Working style
 - One feature per task. Show a plan first, list files to change, then implement.

@@ -1,12 +1,14 @@
 # Named scenarios (UAT test cases)
 
-Each scenario is a fixture in `src/mocks/fixtures/edgeCases.ts` with a fixed Reference No, so deep links stay stable
-(the `260901` date part is fixed on purpose; see MOCK-05). Default users: **Ali Bin Ahmad (USR-2026-0012)** and
-**Siti Aminah Binti Yusof (USR-2026-0031)**, both Reviewers in Atoz Software Tech's Default project; Merchant Owner
-**Tan Mei Ling (USR-2026-0002)** sees every Atoz project. The Platform Admin **Lim Wei Jie (USR-2026-0001)** can do everything in every merchant, cases
+Each scenario is a fixture in `src/mocks/fixtures/edgeCases.ts` with a fixed Reference ID (the merchant's reference)
+and a fixed case ID, so deep links stay stable (the `260901` date part is fixed on purpose; see MOCK-05). Case URLs use the
+case ID (`/verifications/ver_…`, DEC-97): open scenarios from the UAT page (Dev menu), or type the Reference ID in the
+header search. Default users: **Ali Bin Ahmad (ali.ahmad@atoz.example)** and
+**Siti Aminah Binti Yusof (siti.yusof@atoz.example)**, both Reviewers in Atoz Software Tech's Default project; Merchant Owner
+**Tan Mei Ling (meiling.tan@atoz.example)** sees every Atoz project. The Platform Admin **Lim Wei Jie (weijie.lim@ekyc-platform.example)** can do everything in every merchant, cases
 included (DEC-75); every case he opens is audited.
 
-Thresholds come from each case's flow revision and the presets (OQ-02). Atoz "Malaysian onboarding" (FLW-0001, V4-R2):
+Thresholds come from each case's flow revision and the presets (OQ-02). Atoz "Malaysian onboarding" (V4-R2):
 face match reject < 85 / approve ≥ 95, liveness reject < 70 / approve ≥ 85, 3 retries (up to 4 submissions). A result
 below approve sends the user to retry; when retries run out, the last submission decides (DEC-15, DEC-16).
 
@@ -17,18 +19,18 @@ data** before a UAT run.
 
 | # | As | Do | Expected |
 |---|---|---|---|
-| A1 | Tan Mei Ling (`?as=USR-2026-0002`) | Users › New user, role Reviewer, Selected projects › SME app | Listed as Pending, Access "Reviewer (SME app)"; audit USER_INVITED in SME app |
+| A1 | Tan Mei Ling (`?as=meiling.tan@atoz.example`) | Users › New user, role Reviewer, Selected projects › SME app | Listed as Pending, Access "Reviewer (SME app)"; audit USER_INVITED in SME app |
 | A2 | Tan Mei Ling | New user, role Merchant Owner | "Selected projects" is unavailable: merchant-level permissions only for All projects |
 | A3 | Tan Mei Ling | Users › Ali › edit Reviewer (Default) to Viewer | Ali's claim on S07 is released (audited); he can still view Default cases |
-| A4 | Lim Wei Jie (`?as=USR-2026-0001`) | Users › Tan Mei Ling › remove Merchant Owner, or Suspend | Refused: the merchant needs at least one Merchant Owner (All projects) |
-| A5 | Hafiz (`?as=USR-2026-0020`) | Project Settings › Members (SME app): add Siti as Reviewer | Siti appears; Tan Mei Ling is listed as Merchant Owner · inherited, not removable; Merchant Owner is not offered |
-| A6 | Ahmad Faiz (`?as=USR-2026-0045`) | Roles › Compliance Auditor | "Affects 1 user"; removing View audit log takes Kavitha's Audit Log away at once |
+| A4 | Lim Wei Jie (`?as=weijie.lim@ekyc-platform.example`) | Users › Tan Mei Ling › remove Merchant Owner, or Suspend | Refused: the merchant needs at least one Merchant Owner (All projects) |
+| A5 | Hafiz (`?as=hafiz.rahman@atoz.example`) | Project Settings › Members (SME app): add Siti as Reviewer | Siti appears; Tan Mei Ling is listed as Merchant Owner · inherited, not removable; Merchant Owner is not offered |
+| A6 | Ahmad Faiz (`?as=faiz.zulkifli@vantage.example`) | Roles › Compliance Auditor | "Affects 1 user"; removing View audit log takes Kavitha's Audit Log away at once |
 | A7 | Tan Mei Ling | Roles › Reviewer | Read-only (System Default); New role with Claim cases ticks View cases |
 | A8 | Tan Mei Ling | Users › Ali › Effective access, choose SME app | Only View cases and View project reports, each "Comes from" Viewer · SME app |
 | A9 | Lim Wei Jie | Users › Tan Mei Ling | Remove and Suspend are disabled; hovering says at least one Merchant Owner (All projects) is required |
 | A10 | Lim Wei Jie | Platform › Admins | Lim and Nor Aisyah only (not on Users); Suspend disabled on his own row; New admin starts Pending |
 
-| ID | Reference No | Project › Flow | Scenario | Expected behaviour |
+| ID | Reference ID | Project › Flow | Scenario | Expected behaviour |
 |---|---|---|---|---|
 | S01 | KYC-260901-900001 | Vantage Default › Standard onboarding (V1) | Both checks ≥ Auto-Pass | APPROVED · SYSTEM; no risk panel |
 | S02 | KYC-260901-900002 | Atoz Default › Malaysian onboarding (V4) | Checks pass, risk HIGH | PENDING_REVIEW, reason "Risk Assessment not passed" |
@@ -40,7 +42,7 @@ data** before a UAT run.
 | S08 | KYC-260901-900008 | Atoz Default › Malaysian onboarding (V4) | Claimed by Ali, expires mid-review | Time-warp past expiry → decision disables and a toast warns. To prove the **service-side** check: Dev → *Skip UI claim checks*, fill the form, time-warp, save → refused; claim timeout and blocked decision audited |
 | S09 | KYC-260901-900009 | Atoz Default › Malaysian onboarding (V4) | Claimed by Siti | As Ali: view allowed, decision disabled "Claimed by Siti Aminah Binti Yusof" |
 | S10 | KYC-260901-900010 | Atoz Default › Malaysian onboarding (V4) | Unclaimed; two reviewers click Assign | Two browser tabs as Ali and Siti (`?as=`). First wins; second gets "Already claimed by …"; the other tab refreshes live |
-| S11 | KYC-260901-900011 | Atoz Default › Malaysian onboarding (V4) | Manually approved | APPROVED · "Ali Bin Ahmad (USR-2026-0012)"; decision is final |
+| S11 | KYC-260901-900011 | Atoz Default › Malaysian onboarding (V4) | Manually approved | APPROVED · "Ali Bin Ahmad"; decision is final |
 | S12 | KYC-260901-900012 | Atoz Default › Malaysian onboarding (V4) | Started on V4-R1; R2 saved 2 h ago | PROCESSING; still evaluated with R1 (DEC-52); retry pending |
 | S13 | KYC-260901-900013 | Vantage Default › Standard onboarding (V1) | Liveness 55.0 → 66.2 → 90.1 | APPROVED · SYSTEM; 2 retries counted |
 | S14 | — | Empty Demo Merchant | Merchant with 0 records / filter with no results | Empty state |
