@@ -20,7 +20,7 @@ import { merchantService } from '@/services/merchantService'
 import { roleService } from '@/services/roleService'
 import { userAdminService, type AssignmentInput, type AssignmentRow, type UserRow } from '@/services/userAdminService'
 import { useSession } from '@/stores/sessionStore'
-import { AssignmentDialog, AssignmentFields, UserStatusBadge, type ProjectOption } from './AccessFields'
+import { AccessChip, AssignmentDialog, AssignmentFields, UserStatusBadge, type ProjectOption } from './AccessFields'
 
 const PAGE_SIZES = [10, 20, 50] as const
 
@@ -190,14 +190,14 @@ function UserDialog({ userId, onClose, onChanged }: { userId: string; onClose: (
                         <td className="px-2 py-2 text-right whitespace-nowrap">
                           {a.editable && (
                             <>
-                              <Button variant="ghost" size="icon-sm" aria-label={`Edit ${a.roleName} (${a.scopeLabel})`} onClick={() => setEditing({ mode: 'edit', row: a })}>
+                              <Button variant="ghost" size="icon-sm" aria-label={`Edit ${a.roleName} · ${a.scopeLabel}`} onClick={() => setEditing({ mode: 'edit', row: a })}>
                                 <Pencil aria-hidden />
                               </Button>
                               <Button
                                 variant="ghost"
                                 size="icon-sm"
-                                aria-label={`Remove ${a.roleName} (${a.scopeLabel})`}
-                                onClick={() => window.confirm(`Remove ${a.roleName} (${a.scopeLabel}) from ${u.fullName}? Their open claims there are released.`) && void act(() => userAdminService.removeAssignment(u.userId, a.assignmentId, actor), 'Access removed')}
+                                aria-label={`Remove ${a.roleName} · ${a.scopeLabel}`}
+                                onClick={() => window.confirm(`Remove ${a.roleName} · ${a.scopeLabel} from ${u.fullName}? Their open claims there are released.`) && void act(() => userAdminService.removeAssignment(u.userId, a.assignmentId, actor), 'Access removed')}
                               >
                                 <Trash2 aria-hidden />
                               </Button>
@@ -265,7 +265,7 @@ export function UsersPage() {
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState<number>(PAGE_SIZES[0])
   const [inviting, setInviting] = useState(false)
-  const [open, setOpen] = useState<string>()
+  const [open, setOpen] = useState<string | undefined>(sp.get('user') ?? undefined)
   const rows = useLoad(() => userAdminService.list(actor), [actor.userId])
   const merchants = useLoad(() => merchantService.list(actor), [actor.userId])
 
@@ -353,7 +353,17 @@ export function UsersPage() {
                 </th>
                 <td className="px-3 py-2">{r.email}</td>
                 {isAdmin && <td className="px-3 py-2 whitespace-nowrap">{r.merchantName}</td>}
-                <td className="px-3 py-2">{r.access || <span className="text-muted-foreground">No access</span>}</td>
+                <td className="px-3 py-2">
+                  {r.access.length ? (
+                    <span className="flex flex-wrap gap-1">
+                      {r.access.map((c) => (
+                        <AccessChip key={c.label} label={c.label} archived={c.archived} />
+                      ))}
+                    </span>
+                  ) : (
+                    <span className="text-muted-foreground">No access</span>
+                  )}
+                </td>
                 <td className="px-3 py-2">
                   <UserStatusBadge status={r.status} />
                 </td>

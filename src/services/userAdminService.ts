@@ -15,7 +15,7 @@
 import { canInMerchant, canInProject } from '@/domain/access'
 import { makeAudit } from '@/domain/audit'
 import { CLEARED_CLAIM, isClaimActive } from '@/domain/claimRules'
-import { accessSummary, canGrant, covers, GRANT_TOO_POWERFUL, grantsOf, lastOwnerError, scopeLabel, validateAssignment } from '@/domain/roles'
+import { accessChips, allArchived, canGrant, chipLabel, covers, GRANT_TOO_POWERFUL, grantsOf, lastOwnerError, scopeLabel, validateAssignment, type AccessChip } from '@/domain/roles'
 import type { Actor, AssignmentScope, AuditAction, Project, Role, RoleAssignment, RuleError, UserAccount, UserStatus } from '@/domain/types'
 import { now } from '@/lib/clock'
 import { db } from '@/mocks/mockDb'
@@ -42,7 +42,7 @@ export interface UserRow {
   email: string
   merchantId: string
   merchantName: string
-  access: string // "Reviewer (Default), Viewer (SME app)"
+  access: AccessChip[] // "Reviewer · Default", "Viewer · SME app" (DEC-74)
   status: UserStatus
   createdAt: string
 }
@@ -52,10 +52,10 @@ export interface AssignmentRow {
   roleId: string
   roleName: string
   scope: AssignmentScope
-  scopeLabel: string
+  scopeLabel: string // "SME app (archived)" for an archived project
   addedBy: Actor
   addedAt: string
-  /** The viewer may edit or remove it. */
+  /** The viewer may edit or remove it (never when every project in it is archived). */
   editable: boolean
 }
 
@@ -74,7 +74,7 @@ export interface MemberRow {
   fullName: string
   email: string
   status: UserStatus
-  roles: { assignmentId: string; roleName: string; inherited: boolean; removable: boolean }[]
+  roles: { assignmentId: string; roleName: string; label: string; inherited: boolean; removable: boolean }[]
 }
 
 export interface UserAdminService {
@@ -98,10 +98,15 @@ export interface UserAdminService {
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 const projectOf = (id: string) => db.state().projects.find((p) => p.projectId === id)
-const projectName = (id: string) => projectOf(id)?.name ?? id
+const isArchived = (id: string) => projectOf(id)?.status === 'ARCHIVED'
+// REQ: DEC-74 — an archived project is labelled wherever access is shown.
+const projectName = (id: string) => {
+  const p = projectOf(id)
+  return p ? `${p.name}${p.status === 'ARCHIVED' ? ' (archived)' : ''}` : id
+}
 const merchantName = (id?: string) => db.state().merchants.find((m) => m.merchantId === id)?.name ?? id ?? ''
 const roleOf = (roleId: string) => db.state().roles.find((r) => r.roleId === roleId)
-const label = (a: Pick<RoleAssignment, 'roleId' | 'scope'>) => `${roleOf(a.roleId)?.name ?? a.roleId} (${scopeLabel(a.scope, projectName)})`
+const label = (a: Pick<RoleAssignment, 'roleId' | 'scope'>) => chipLabel(roleOf(a.roleId)?.name ?? a.roleId, a.scope, projectName)
 const by = (actor: Actor): Actor => ({ userId: actor.userId, fullName: actor.fullName })
 
 /** The actor's roles for merchant-level audit entries: "Platform Admin", or their role names. */
@@ -207,7 +212,7 @@ function rowOf(a: UserAccount & { merchantId: string }): UserRow {
     email: a.email,
     merchantId: a.merchantId,
     merchantName: merchantName(a.merchantId),
-    access: accessSummary(grantsOf(a.assignments, db.state().roles), projectName),
+    access: accessChips(grantsOf(a.assignments, db.state().roles), projectName, isArchived),
     status: a.status,
     createdAt: a.invitedAt,
   }
@@ -229,7 +234,7 @@ function detailOf(actor: Actor, a: UserAccount & { merchantId: string }): UserDe
       scopeLabel: scopeLabel(x.scope, projectName),
       addedBy: x.addedBy,
       addedAt: x.addedAt,
-      editable: !isSelf && mayManageScope(me, a.merchantId, x.scope),
+      editable: !isSelf && !allArchived(x.scope, isArchived) && mayManageScope(me, a.merchantId, x.scope),
     })),
   }
 }
@@ -250,6 +255,7 @@ function membersOf(actor: Actor, p: Project): MemberRow[] {
         .map((x) => ({
           assignmentId: x.assignmentId,
           roleName: roleOf(x.roleId)?.name ?? x.roleId,
+          label: label(x),
           inherited: x.scope.kind === 'ALL_PROJECTS',
           // All projects access is managed on the Users screen; archived projects are read-only (DEC-77).
           removable: open && x.scope.kind === 'PROJECTS' && a.userId !== actor.userId && mayManageScope(me, p.merchantId, { kind: 'PROJECTS', projectIds: [p.projectId] }),

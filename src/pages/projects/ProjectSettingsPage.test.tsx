@@ -102,7 +102,7 @@ describe('Project Settings › Members (DEC-77)', () => {
     renderAt('/project-settings?tab=members')
     const p = await panel()
     const owner = (await p.findByRole('rowheader', { name: 'Tan Mei Ling' })).closest('tr')!
-    expect(owner.textContent).toContain('Merchant Owner· inherited')
+    expect(owner.textContent).toContain('Merchant Owner · All projectsinherited')
     expect(within(owner).queryByRole('button')).toBeNull()
     expect(p.getByRole('button', { name: 'Remove Viewer for Ali Bin Ahmad' })).toBeTruthy()
     const user = p.getByLabelText('User')

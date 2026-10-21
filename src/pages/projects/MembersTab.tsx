@@ -1,12 +1,15 @@
 // REQ: DEC-77 — Project Settings › Members: everyone with access to the project, All projects users marked inherited.
 import { useState, type FormEvent } from 'react'
+import { Link } from 'react-router'
 import { Plus, X } from 'lucide-react'
 import { toast } from 'sonner'
+import { useAccess } from '@/app/access'
 import { FormField } from '@/components/common/FormField'
 import { NativeSelect } from '@/components/common/NativeSelect'
 import { OpenQuestionTag } from '@/components/common/OpenQuestionTag'
 import { ErrorState } from '@/components/common/States'
 import { Button } from '@/components/ui/button'
+import { canInMerchant } from '@/domain/access'
 import { isMerchantLevel } from '@/domain/roles'
 import type { Project } from '@/domain/types'
 import { errorMessage, fieldErrors, useLoad } from '@/hooks/useLoad'
@@ -14,7 +17,7 @@ import { cn } from '@/lib/utils'
 import { roleService } from '@/services/roleService'
 import { userAdminService } from '@/services/userAdminService'
 import { useSession } from '@/stores/sessionStore'
-import { UserStatusBadge } from '../users/AccessFields'
+import { AccessChip, UserStatusBadge } from '../users/AccessFields'
 import { Card } from './settingsUi'
 
 function AddMember({ project, onAdded }: { project: Project; onAdded: () => void }) {
@@ -85,6 +88,9 @@ export function MembersTab({ project }: { project: Project }) {
   const actor = useSession((s) => s.actor)
   const rows = useLoad(() => userAdminService.listMembers(project.projectId, actor), [project.projectId, actor.userId])
   const open = project.status === 'ACTIVE'
+  const { account } = useAccess()
+  // REQ: DEC-77 — inherited (All projects) access is changed on the user's details, for those who may open them.
+  const canOpenUsers = !!account && canInMerchant(account, 'manageUsersRoles', project.merchantId)
 
   const remove = async (userId: string, assignmentId: string, label: string) => {
     if (!window.confirm(`Remove ${label} from ${project.name}? Their open claims here are released.`)) return
@@ -116,19 +122,32 @@ export function MembersTab({ project }: { project: Project }) {
             <tbody>
               {(rows.data ?? []).map((m) => (
                 <tr key={m.userId} className="border-t">
-                  <th scope="row" className="px-3 py-2 text-left font-medium">{m.fullName}</th>
+                  <th scope="row" className="px-3 py-2 text-left font-medium">
+                    {canOpenUsers ? (
+                      <Link to={`/users?user=${m.userId}`} className="text-blue-700 hover:underline dark:text-blue-400">
+                        {m.fullName}
+                      </Link>
+                    ) : (
+                      m.fullName
+                    )}
+                  </th>
                   <td className="px-3 py-2">{m.email}</td>
                   <td className="px-3 py-2">
                     <ul className="flex flex-wrap gap-1.5">
                       {m.roles.map((r) => (
-                        <li key={r.assignmentId} className="inline-flex items-center gap-1 rounded border px-1.5 py-0.5 text-xs">
-                          {r.roleName}
-                          {r.inherited && <span className="text-muted-foreground" title="From an All projects assignment, managed on the Users screen">· inherited</span>}
-                          {r.removable && (
-                            <button type="button" className="rounded p-0.5 hover:bg-muted" aria-label={`Remove ${r.roleName} for ${m.fullName}`} onClick={() => void remove(m.userId, r.assignmentId, `${m.fullName} (${r.roleName})`)}>
-                              <X className="size-3" aria-hidden />
-                            </button>
-                          )}
+                        <li key={r.assignmentId}>
+                          <AccessChip label={r.label}>
+                            {r.inherited && (
+                              <span className="rounded bg-muted px-1 text-[10px] text-muted-foreground uppercase" title="From an All projects assignment, changed on the user's details">
+                                inherited
+                              </span>
+                            )}
+                            {r.removable && (
+                              <button type="button" className="rounded p-0.5 hover:bg-muted" aria-label={`Remove ${r.roleName} for ${m.fullName}`} onClick={() => void remove(m.userId, r.assignmentId, `${m.fullName} (${r.label})`)}>
+                                <X className="size-3" aria-hidden />
+                              </button>
+                            )}
+                          </AccessChip>
                         </li>
                       ))}
                     </ul>

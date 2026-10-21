@@ -28,7 +28,7 @@ afterEach(() => {
 describe('Users (DEC-74)', () => {
   it('Given the Merchant Owner, then the FRS columns with Access; no Merchant column; status filter applies on Search', async () => {
     renderAt('/users')
-    expect((await row('Ali Bin Ahmad')).textContent).toContain('Reviewer (Default), Viewer (SME app)')
+    expect((await row('Ali Bin Ahmad')).textContent).toContain('Reviewer · DefaultViewer · SME app')
     const headers = within(screen.getByRole('region', { name: 'User list' })).getAllByRole('columnheader').map((h) => h.textContent)
     expect(headers).toEqual(['User ID', 'Full Name', 'Email', 'Access', 'Status', 'Created At'])
     fireEvent.change(screen.getByLabelText('Status'), { target: { value: 'PENDING' } })
@@ -49,7 +49,7 @@ describe('Users (DEC-74)', () => {
     fireEvent.click(screen.getByRole('checkbox', { name: 'SME app' }))
     fireEvent.click(screen.getByRole('button', { name: 'Invite user' }))
     const r = await row('Aishah Binti Omar')
-    expect(r.textContent).toContain('Reviewer (SME app)')
+    expect(r.textContent).toContain('Reviewer · SME app')
     expect(r.textContent).toContain('Pending')
   })
 
@@ -70,7 +70,7 @@ describe('Users (DEC-74)', () => {
     fireEvent.click(within(await row('Ali Bin Ahmad')).getByRole('button', { name: 'Ali Bin Ahmad' }))
     const access = await screen.findByRole('region', { name: 'Access' })
     await within(access).findByRole('rowheader', { name: 'Reviewer' })
-    fireEvent.click(within(access).getByRole('button', { name: 'Remove Viewer (SME app)' }))
+    fireEvent.click(within(access).getByRole('button', { name: 'Remove Viewer · SME app' }))
     await waitFor(() => expect(within(access).queryByRole('rowheader', { name: 'Viewer' })).toBeNull())
   })
 

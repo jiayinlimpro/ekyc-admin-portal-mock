@@ -81,9 +81,25 @@ export function roleNamesIn(grants: readonly Grant[], projectId: string): string
 /** True when the grants cover the project at all (DEC-72: otherwise the project and its cases are "not found"). */
 export const coversProject = (grants: readonly Grant[], projectId: string) => grants.some((g) => covers(g.scope, projectId))
 
-/** "Reviewer (Retail app), Viewer (SME app)" or "Merchant Owner (All projects)": the Users list Access column (DEC-74). */
+/** REQ: DEC-74 — one access chip, written the same on every screen: "Reviewer · SME app", "Merchant Owner · All projects". */
+export const chipLabel = (roleName: string, scope: AssignmentScope, projectName: (projectId: string) => string) => `${roleName} · ${scopeLabel(scope, projectName)}`
+
+export interface AccessChip {
+  label: string
+  /** Every project in the scope is archived: the row is read-only (DEC-77). */
+  archived: boolean
+}
+
+export const allArchived = (scope: AssignmentScope, isArchived: (projectId: string) => boolean) => scope.kind === 'PROJECTS' && scope.projectIds.length > 0 && scope.projectIds.every(isArchived)
+
+/** The Users list Access column (DEC-74). */
+export function accessChips(grants: readonly Pick<Grant, 'roleName' | 'scope'>[], projectName: (projectId: string) => string, isArchived: (projectId: string) => boolean): AccessChip[] {
+  return grants.map((g) => ({ label: chipLabel(g.roleName, g.scope, projectName), archived: allArchived(g.scope, isArchived) }))
+}
+
+/** The chips as one line, e.g. for the mock login: "Reviewer · Default; Viewer · SME app". */
 export function accessSummary(grants: readonly Grant[], projectName: (projectId: string) => string): string {
-  return grants.map((g) => `${g.roleName} (${scopeLabel(g.scope, projectName)})`).join(', ')
+  return grants.map((g) => chipLabel(g.roleName, g.scope, projectName)).join('; ')
 }
 
 export function scopeLabel(scope: AssignmentScope, projectName: (projectId: string) => string): string {

@@ -31,8 +31,8 @@ describe('userAdminService: the Users screen (DEC-74)', () => {
     const rows = await users.list(OWNER)
     expect(rows.every((r) => r.merchantId === 'MER-0001')).toBe(true)
     expect(rows.map((r) => r.createdAt)).toEqual([...rows.map((r) => r.createdAt)].sort().reverse())
-    expect(rows.find((r) => r.userId === ALI.userId)!.access).toBe('Reviewer (Default), Viewer (SME app)')
-    expect(rows.find((r) => r.userId === OWNER.userId)!.access).toBe('Merchant Owner (All projects)')
+    expect(rows.find((r) => r.userId === ALI.userId)!.access.map((c) => c.label)).toEqual(['Reviewer · Default', 'Viewer · SME app'])
+    expect(rows.find((r) => r.userId === OWNER.userId)!.access.map((c) => c.label)).toEqual(['Merchant Owner · All projects'])
     expect(rows.some((r) => r.userId === ADMIN.userId)).toBe(false)
   })
 
@@ -44,8 +44,8 @@ describe('userAdminService: the Users screen (DEC-74)', () => {
 
   it('Given an invitation, then the user is Pending with the first assignment, audited in that project', async () => {
     const row = await users.invite('MER-0001', { fullName: 'Aishah Binti Omar', email: 'Aishah@atoz.example', assignment: { roleId: REVIEWER, scope: only('PRJ-0002') } }, OWNER)
-    expect(row).toMatchObject({ status: 'PENDING', email: 'aishah@atoz.example', access: 'Reviewer (SME app)' })
-    expect(await lastAudit('USER_INVITED')).toMatchObject({ projectId: 'PRJ-0002', actorRole: 'Merchant Owner', details: { access: 'Reviewer (SME app)' } })
+    expect(row).toMatchObject({ status: 'PENDING', email: 'aishah@atoz.example', access: [{ label: 'Reviewer · SME app', archived: false }] })
+    expect(await lastAudit('USER_INVITED')).toMatchObject({ projectId: 'PRJ-0002', actorRole: 'Merchant Owner', details: { access: 'Reviewer · SME app' } })
     await expect(users.invite('MER-0001', { fullName: 'Aishah Again', email: 'aishah@atoz.example', assignment: { roleId: REVIEWER, scope: only('PRJ-0002') } }, OWNER)).rejects.toMatchObject({ code: 'VALIDATION', message: 'A user with this email already exists' })
   })
 
@@ -59,7 +59,7 @@ describe('userAdminService: the Users screen (DEC-74)', () => {
     await expect(users.suspend(OWNER.userId, ADMIN)).rejects.toMatchObject({ code: 'VALIDATION' })
     await users.addAssignment(SITI.userId, { roleId: MERCHANT_OWNER, scope: ALL }, ADMIN)
     const d = await users.changeAssignment(OWNER.userId, owner.assignmentId, { roleId: PROJECT_ADMIN, scope: ALL }, ADMIN)
-    expect(d.access).toBe('Project Admin (All projects)')
+    expect(d.access.map((c) => c.label)).toEqual(['Project Admin · All projects'])
   })
 
   it('Given anyone, then they cannot change their own access', async () => {
@@ -70,7 +70,7 @@ describe('userAdminService: the Users screen (DEC-74)', () => {
     expect(caseOf('KYC-260901-900007').claimedBy?.userId).toBe(ALI.userId)
     await users.changeAssignment(ALI.userId, aliAssignment('PRJ-0001').assignmentId, { roleId: VIEWER, scope: only('PRJ-0001') }, OWNER)
     expect(caseOf('KYC-260901-900007').claimedBy).toBeUndefined()
-    expect(await lastAudit('USER_ACCESS_CHANGED')).toMatchObject({ projectId: 'PRJ-0001', details: { changes: [{ from: 'Reviewer (Default)', to: 'Viewer (Default)' }] } })
+    expect(await lastAudit('USER_ACCESS_CHANGED')).toMatchObject({ projectId: 'PRJ-0001', details: { changes: [{ from: 'Reviewer · Default', to: 'Viewer · Default' }] } })
     expect(await lastAudit('CASE_RELEASED')).toMatchObject({ referenceNo: expect.stringMatching(/^KYC-/), details: { reason: 'Access changed' } })
   })
 
@@ -93,8 +93,18 @@ describe('userAdminService: the Users screen (DEC-74)', () => {
     const desk = await roleService.create('MER-0001', { name: 'User desk', permissions: ['MANAGE_USERS_ROLES'] }, OWNER)
     await users.addAssignment(SITI.userId, { roleId: desk.roleId, scope: ALL }, OWNER)
     const invite = (scope: AssignmentScope, email: string) => users.invite('MER-0001', { fullName: 'New Reviewer', email, assignment: { roleId: REVIEWER, scope } }, SITI)
-    expect((await invite(only('PRJ-0001'), 'r1@atoz.example')).access).toBe('Reviewer (Default)') // Siti is Reviewer there
+    expect((await invite(only('PRJ-0001'), 'r1@atoz.example')).access[0].label).toBe('Reviewer · Default') // Siti is Reviewer there
     await expect(invite(only('PRJ-0002'), 'r2@atoz.example')).rejects.toMatchObject({ code: 'FORBIDDEN', message: GRANT_TOO_POWERFUL })
+  })
+
+  it('Given an archived project, then its access is labelled and read-only', async () => {
+    // Ng Chee Keong owns MER-0005, whose Pilot 2025 (PRJ-0008) is archived.
+    await users.invite('MER-0005', { fullName: 'Pilot Reviewer', email: 'pilot@3nova.example', assignment: { roleId: REVIEWER, scope: only('PRJ-0007') } }, ADMIN)
+    const id = account((await users.list(ADMIN, 'MER-0005')).find((r) => r.fullName === 'Pilot Reviewer')!.userId)
+    db.setState((st) => ({ accounts: st.accounts.map((a) => (a.userId === id.userId ? { ...a, assignments: [{ ...a.assignments[0], scope: only('PRJ-0008') }] } : a)) }))
+    const d = await users.get(id.userId, ADMIN)
+    expect(d.access).toEqual([{ label: 'Reviewer · Pilot 2025 (archived)', archived: true }])
+    expect(d.assignments[0].editable).toBe(false)
   })
 
   it('Given a user from another merchant, then "not found"', async () => {

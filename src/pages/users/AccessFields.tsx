@@ -20,6 +20,16 @@ const STATUS_TONE: Record<UserStatus, string> = {
 }
 export const UserStatusBadge = ({ status }: { status: UserStatus }) => <span className={cn('rounded px-1.5 py-0.5 text-xs font-medium', STATUS_TONE[status])}>{USER_STATUS_LABELS[status]}</span>
 
+/** REQ: DEC-74 — one access row as a chip, "Role · Scope"; grey when every project in it is archived. */
+export function AccessChip({ label, archived = false, children }: { label: string; archived?: boolean; children?: React.ReactNode }) {
+  return (
+    <span className={cn('inline-flex items-center gap-1 rounded border px-1.5 py-0.5 text-xs whitespace-nowrap', archived && 'border-dashed text-muted-foreground')}>
+      {label}
+      {children}
+    </span>
+  )
+}
+
 export type ProjectOption = { projectId: string; name: string }
 
 export function AssignmentFields({

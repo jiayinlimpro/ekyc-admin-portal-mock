@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  accessChips,
   accessSummary,
   canGrant,
   coversProject,
@@ -57,10 +58,11 @@ describe('roles: permissions from scoped assignments (DEC-70)', () => {
     expect(grantsOf([assign(VIEWER, ALL), assign(REVIEWER, only('PRJ-0001'), 2)], roles).map((g) => g.roleName)).toEqual(['Reviewer'])
   })
 
-  it('Given grants, then the Access column reads role (scope) for each', () => {
-    const names: Record<string, string> = { 'PRJ-0001': 'Retail app', 'PRJ-0002': 'SME app' }
-    expect(accessSummary(MEI, (id) => names[id])).toBe('Reviewer (Retail app), Viewer (SME app)')
-    expect(accessSummary([grant(MERCHANT_OWNER, ALL)], (id) => id)).toBe('Merchant Owner (All projects)')
+  it('Given grants, then each reads as one Role · Scope chip; an all-archived scope is marked archived', () => {
+    const names: Record<string, string> = { 'PRJ-0001': 'Retail app', 'PRJ-0002': 'SME app (archived)' }
+    expect(accessSummary(MEI, (id) => names[id])).toBe('Reviewer · Retail app; Viewer · SME app (archived)')
+    expect(accessChips(MEI, (id) => names[id], (id) => id === 'PRJ-0002').map((c) => c.archived)).toEqual([false, true])
+    expect(accessSummary([grant(MERCHANT_OWNER, ALL)], (id) => id)).toBe('Merchant Owner · All projects')
   })
 
   it('Given Claim or Approve ticked, then View cases is ticked too, in catalogue order', () => {

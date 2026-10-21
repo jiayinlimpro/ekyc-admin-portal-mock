@@ -27,6 +27,6 @@ describe('Login (mock)', () => {
     const router = createMemoryRouter(routes, { initialEntries: ['/login'] })
     render(<RouterProvider router={router} />)
     for (const group of ['Platform Admin', 'Atoz Software Tech', 'Vantage']) expect(await screen.findByRole('region', { name: group })).toBeTruthy()
-    expect(screen.getByRole('region', { name: 'Atoz Software Tech' }).textContent).toContain('Reviewer (Default), Viewer (SME app)')
+    expect(screen.getByRole('region', { name: 'Atoz Software Tech' }).textContent).toContain('Reviewer · Default; Viewer · SME app')
   })
 })
