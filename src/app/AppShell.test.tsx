@@ -8,6 +8,7 @@ import { ADMIN, ALI, HAFIZ, OWNER } from '@/test/factories'
 import { devService } from '@/services/devService'
 import { useSession } from '@/stores/sessionStore'
 import { useTabs } from '@/stores/tabsStore'
+import { useUi } from '@/stores/uiStore'
 import { routes } from './routes'
 
 function renderAt(path: string) {
@@ -23,6 +24,7 @@ beforeEach(async () => {
   await devService.resetDemoData()
   useSession.getState().switchUser(ALI)
   useTabs.setState({ tabs: [LANDING_TAB] })
+  useUi.setState({ closedGroups: [], sidebarCollapsed: false })
 })
 afterEach(cleanup)
 
@@ -34,6 +36,26 @@ describe('AppShell', () => {
     for (const hidden of [/Audit Logs/, /eKYC Workflow/, /Users/, /Developers/, /Merchants/, /Manual Review/]) {
       expect(mainNav().queryByRole('link', { name: hidden })).toBeNull()
     }
+  })
+
+  it('Given a group header, then it is not a link: it opens and closes its screens, and the choice is kept', async () => {
+    renderAt('/verifications')
+    const header = await mainNav().findByRole('button', { name: 'Dashboards' })
+    expect(header.getAttribute('aria-expanded')).toBe('true')
+    expect(mainNav().queryByRole('link', { name: 'Dashboards' })).toBeNull()
+    fireEvent.click(header)
+    expect(header.getAttribute('aria-expanded')).toBe('false')
+    expect(mainNav().queryByRole('link', { name: 'Overview' })).toBeNull()
+    expect(useUi.getState().closedGroups).toEqual(['Dashboards'])
+    fireEvent.click(header)
+    expect(mainNav().getByRole('link', { name: 'Overview' })).toBeTruthy()
+  })
+
+  it('Given the current screen’s group was closed, then opening the screen opens its group', async () => {
+    useUi.setState({ closedGroups: ['eKYC'] })
+    renderAt('/verifications')
+    await mainNav().findByRole('link', { name: 'Verifications' })
+    expect(useUi.getState().closedGroups).toEqual([])
   })
 
   it('Given the Merchant Owner, then the Audit Log is in the menu', async () => {

@@ -8,10 +8,14 @@ import {
   FileSearch,
   FlaskConical,
   FolderKanban,
+  Gauge,
   GitBranch,
+  Landmark,
   Library,
+  Settings,
   Settings2,
   ShieldCheck,
+  UserRound,
   Users,
   LayoutDashboard,
   ReceiptText,
@@ -22,6 +26,16 @@ import type { AccessRule } from './access'
 
 export const NAV_GROUPS = ['Dashboards', 'eKYC', 'Projects & Flows', 'Governance', 'Access Management', 'Platform'] as const
 export type NavGroup = (typeof NAV_GROUPS)[number]
+
+/** The icon on each group's header in the sidebar (the items themselves show their icon only when the sidebar is narrow). */
+export const NAV_GROUP_ICONS: Record<NavGroup, LucideIcon> = {
+  Dashboards: Gauge,
+  eKYC: ClipboardList,
+  'Projects & Flows': FolderKanban,
+  Governance: Landmark,
+  'Access Management': UserRound,
+  Platform: Settings,
+}
 
 export interface NavItem {
   path: string // route pattern
