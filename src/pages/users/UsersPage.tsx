@@ -14,11 +14,11 @@ import { Input } from '@/components/ui/input'
 import { USER_STATUSES, type UserStatus } from '@/domain/types'
 import { errorMessage, fieldErrors, useLoad } from '@/hooks/useLoad'
 import { formatMyt } from '@/lib/format'
-import { USER_STATUS_LABELS } from '@/lib/labels'
+import { PERMISSION_LABELS, USER_STATUS_LABELS } from '@/lib/labels'
 import { cn } from '@/lib/utils'
 import { merchantService } from '@/services/merchantService'
 import { roleService } from '@/services/roleService'
-import { userAdminService, type AssignmentInput, type AssignmentRow, type UserRow } from '@/services/userAdminService'
+import { userAdminService, type AssignmentInput, type AssignmentRow, type UserDetail, type UserRow } from '@/services/userAdminService'
 import { useSession } from '@/stores/sessionStore'
 import { AccessChip, AssignmentDialog, AssignmentFields, UserStatusBadge, type ProjectOption } from './AccessFields'
 
@@ -104,6 +104,53 @@ function InviteDialog({ merchants, defaultMerchantId, onClose, onSaved }: { merc
 }
 
 type Editing = { mode: 'add' } | { mode: 'edit'; row: AssignmentRow }
+
+/** REQ: DEC-74 — "Why can Ali approve this case?": the permissions in one project and the access rows they come from. */
+function EffectiveAccess({ user }: { user: UserDetail }) {
+  const [projectId, setProjectId] = useState(user.effective.find((e) => e.permissions.length)?.projectId ?? user.effective[0]?.projectId ?? '')
+  const shown = user.effective.find((e) => e.projectId === projectId)
+  return (
+    <section aria-label="Effective access">
+      <div className="mb-2 flex flex-wrap items-end justify-between gap-2">
+        <h3 className="text-sm font-semibold">Effective access</h3>
+        <FormField id="ea-project" label="Project" className="w-56">
+          <NativeSelect id="ea-project" value={projectId} onChange={(e) => setProjectId(e.target.value)}>
+            {user.effective.map((e) => (
+              <option key={e.projectId} value={e.projectId}>
+                {e.projectName}
+              </option>
+            ))}
+          </NativeSelect>
+        </FormField>
+      </div>
+      <div className="overflow-x-auto rounded-md border">
+        <table className="w-full text-sm">
+          <thead className="bg-muted/50 text-left text-xs text-muted-foreground">
+            <tr>
+              <th scope="col" className="px-3 py-2 font-medium">Permission</th>
+              <th scope="col" className="px-3 py-2 font-medium">Comes from</th>
+            </tr>
+          </thead>
+          <tbody>
+            {shown?.permissions.map((p) => (
+              <tr key={p.permission} className="border-t">
+                <th scope="row" className="px-3 py-2 text-left font-normal">{PERMISSION_LABELS[p.permission]}</th>
+                <td className="px-3 py-2">
+                  <span className="flex flex-wrap gap-1">
+                    {p.from.map((f) => (
+                      <AccessChip key={f} label={f} />
+                    ))}
+                  </span>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        {!shown?.permissions.length && <p className="px-3 py-4 text-sm text-muted-foreground">No access in this project.</p>}
+      </div>
+    </section>
+  )
+}
 
 function UserDialog({ userId, onClose, onChanged }: { userId: string; onClose: () => void; onChanged: () => void }) {
   const actor = useSession((s) => s.actor)
@@ -211,6 +258,7 @@ function UserDialog({ userId, onClose, onChanged }: { userId: string; onClose: (
                 {!u.assignments.length && <p className="px-3 py-4 text-sm text-muted-foreground">No access yet: this user can sign in but sees no project.</p>}
               </div>
             </section>
+            <EffectiveAccess key={u.userId} user={u} />
           </div>
         )}
         <DialogFooter>

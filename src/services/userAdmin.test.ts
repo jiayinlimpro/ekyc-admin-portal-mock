@@ -62,6 +62,16 @@ describe('userAdminService: the Users screen (DEC-74)', () => {
     expect(d.access.map((c) => c.label)).toEqual(['Project Admin · All projects'])
   })
 
+  it('Given Ali’s details, then Effective access shows each permission and the row it comes from, per project', async () => {
+    const d = await users.get(ALI.userId, OWNER)
+    const sme = d.effective.find((e) => e.projectId === 'PRJ-0002')!
+    expect(sme.permissions).toEqual([
+      { permission: 'VIEW_CASES', from: ['Viewer · SME app'] },
+      { permission: 'VIEW_PROJECT_REPORTS', from: ['Viewer · SME app'] },
+    ])
+    expect(d.effective.find((e) => e.projectId === 'PRJ-0001')!.permissions.find((p) => p.permission === 'CLAIM_CASES')!.from).toEqual(['Reviewer · Default'])
+  })
+
   it('Given anyone, then they cannot change their own access', async () => {
     await expect(users.addAssignment(OWNER.userId, { roleId: REVIEWER, scope: only('PRJ-0001') }, OWNER)).rejects.toThrow('You can’t change your own access.')
   })

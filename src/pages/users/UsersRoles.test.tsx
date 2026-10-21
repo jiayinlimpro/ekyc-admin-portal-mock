@@ -75,6 +75,15 @@ describe('Users (DEC-74)', () => {
     await waitFor(() => expect(within(access).queryByRole('rowheader', { name: 'Viewer' })).toBeNull())
   })
 
+  it('Given Ali’s details, when SME app is chosen under Effective access, then only Viewer permissions, from Viewer · SME app', async () => {
+    renderAt('/users?user=USR-2026-0012')
+    const ea = await screen.findByRole('region', { name: 'Effective access' })
+    expect(within(ea).getByRole('rowheader', { name: 'Claim cases' }).closest('tr')!.textContent).toContain('Reviewer · Default')
+    fireEvent.change(within(ea).getByLabelText('Project'), { target: { value: 'PRJ-0002' } })
+    expect(within(ea).queryByRole('rowheader', { name: 'Claim cases' })).toBeNull()
+    expect(within(ea).getByRole('rowheader', { name: 'View cases' }).closest('tr')!.textContent).toContain('Viewer · SME app')
+  })
+
   it('Given a Reviewer, then Users is "No access"', async () => {
     useSession.getState().switchUser(ALI)
     renderAt('/users')

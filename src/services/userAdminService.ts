@@ -15,8 +15,8 @@
 import { canInMerchant, canInProject } from '@/domain/access'
 import { makeAudit } from '@/domain/audit'
 import { CLEARED_CLAIM, isClaimActive } from '@/domain/claimRules'
-import { accessChips, allArchived, canGrant, chipLabel, covers, GRANT_TOO_POWERFUL, grantsOf, lastOwnerError, scopeLabel, validateAssignment, type AccessChip } from '@/domain/roles'
-import type { Actor, AssignmentScope, AuditAction, Project, Role, RoleAssignment, RuleError, UserAccount, UserStatus } from '@/domain/types'
+import { accessChips, allArchived, canGrant, chipLabel, covers, effectivePermissions, GRANT_TOO_POWERFUL, grantsOf, lastOwnerError, scopeLabel, validateAssignment, type AccessChip } from '@/domain/roles'
+import type { Actor, AssignmentScope, AuditAction, Permission, Project, Role, RoleAssignment, RuleError, UserAccount, UserStatus } from '@/domain/types'
 import { now } from '@/lib/clock'
 import { db } from '@/mocks/mockDb'
 import { accountOf, nextAssignmentId, requireActive, roleIn, withAccess, type AccountAccess } from './accessGuard'
@@ -66,6 +66,8 @@ export interface UserDetail extends UserRow {
   isSelf: boolean
   /** The viewer may add access, resend the invitation, suspend and reactivate. */
   canManage: boolean
+  /** REQ: DEC-74 — per project of the merchant: each permission and the access rows ("Comes from") that grant it. */
+  effective: { projectId: string; projectName: string; permissions: { permission: Permission; from: string[] }[] }[]
 }
 
 /** A row on a project's Members tab (DEC-77): everyone with access, All projects users marked inherited. */
@@ -226,6 +228,14 @@ function detailOf(actor: Actor, a: UserAccount & { merchantId: string }): UserDe
     lastActiveAt: a.lastActiveAt,
     isSelf,
     canManage: !isSelf && canInMerchant(me, 'manageUsersRoles', a.merchantId),
+    effective: db
+      .state()
+      .projects.filter((p) => p.merchantId === a.merchantId)
+      .map((p) => ({
+        projectId: p.projectId,
+        projectName: projectName(p.projectId),
+        permissions: effectivePermissions(grantsOf(a.assignments, db.state().roles), p.projectId).map(({ permission, from }) => ({ permission, from: from.map((g) => chipLabel(g.roleName, g.scope, projectName)) })),
+      })),
     assignments: a.assignments.map((x) => ({
       assignmentId: x.assignmentId,
       roleId: x.roleId,

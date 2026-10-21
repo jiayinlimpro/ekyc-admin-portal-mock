@@ -4,6 +4,7 @@ import {
   accessSummary,
   canGrant,
   coversProject,
+  effectivePermissions,
   grantsOf,
   holdersOf,
   lastOwnerError,
@@ -51,6 +52,15 @@ describe('roles: permissions from scoped assignments (DEC-70)', () => {
   it('Given a role with a merchant-level permission scoped to selected projects, then that permission does not count', () => {
     const odd: Grant = { roleId: 'ROL-2026-0100', roleName: 'Odd', permissions: ['MANAGE_PROJECTS', 'VIEW_CASES'], scope: only('PRJ-0001') }
     expect([...permissionsIn([odd], 'PRJ-0001')]).toEqual(['VIEW_CASES'])
+  })
+
+  it('Given overlapping grants, then Effective access names every grant each permission comes from', () => {
+    const both = [grant(REVIEWER, only('PRJ-0001')), grant(VIEWER, ALL), grant(MERCHANT_OWNER, only('PRJ-0001'))]
+    const rows = effectivePermissions(both, 'PRJ-0001')
+    expect(rows.find((r) => r.permission === 'VIEW_CASES')!.from.map((g) => g.roleName)).toEqual(['Reviewer', 'Viewer', 'Merchant Owner'])
+    expect(rows.find((r) => r.permission === 'CLAIM_CASES')!.from.map((g) => g.roleName)).toEqual(['Reviewer', 'Merchant Owner'])
+    expect(rows.some((r) => r.permission === 'MANAGE_PROJECTS')).toBe(false) // merchant-level, not from a project scope
+    expect(effectivePermissions(both, 'PRJ-0002').map((r) => r.permission)).toEqual(['VIEW_CASES', 'VIEW_PROJECT_REPORTS'])
   })
 
   it('Given an inactive role, then its assignment grants nothing', () => {

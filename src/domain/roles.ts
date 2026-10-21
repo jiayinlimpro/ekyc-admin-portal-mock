@@ -68,6 +68,15 @@ export function permissionsIn(grants: readonly Grant[], projectId: string): Set<
   return new Set(grants.filter((g) => covers(g.scope, projectId)).flatMap((g) => g.permissions.filter((p) => g.scope.kind === 'ALL_PROJECTS' || !MERCHANT_LEVEL.has(p))))
 }
 
+/**
+ * REQ: DEC-74 — Effective access: each permission the user has in a project and every grant it comes from, in catalogue
+ * order. Merchant-level permissions only come from All projects grants (as in `permissionsIn`).
+ */
+export function effectivePermissions<G extends Grant>(grants: readonly G[], projectId: string): { permission: Permission; from: G[] }[] {
+  const counts = (g: G, p: Permission) => covers(g.scope, projectId) && g.permissions.includes(p) && (g.scope.kind === 'ALL_PROJECTS' || !MERCHANT_LEVEL.has(p))
+  return PERMISSIONS.map((permission) => ({ permission, from: grants.filter((g) => counts(g, permission)) })).filter((x) => x.from.length > 0)
+}
+
 /** Permissions that hold in every project, current and future: the union of the All projects grants. */
 export function merchantWidePermissions(grants: readonly Grant[]): Set<Permission> {
   return new Set(grants.filter((g) => g.scope.kind === 'ALL_PROJECTS').flatMap((g) => g.permissions))
