@@ -6,6 +6,7 @@ import type { Actor, Project, UserAccess, UserAccount } from '@/domain/types'
 import { newId } from '@/lib/ids'
 import { db } from '@/mocks/mockDb'
 import { ServiceError } from './errors'
+import { merchantAllowsSignIn } from '@/domain/merchantRules'
 
 /** An account with its grants: editing a role applies at once to everyone holding it (DEC-76). */
 export type AccountAccess = UserAccount & UserAccess
@@ -17,6 +18,9 @@ export const withAccess = (a: UserAccount): AccountAccess => ({ ...a, grants: gr
 export function accountOf(actor: Pick<Actor, 'userId'>): AccountAccess {
   const a = db.state().accounts.find((x) => x.userId === actor.userId)
   if (!a) throw new ServiceError('FORBIDDEN', 'Your account was not found.')
+  // REQ: DEC-98 — a Suspended or Terminated merchant's users are signed out at once: every request is refused.
+  const m = a.merchantId ? db.state().merchants.find((x) => x.merchantId === a.merchantId) : undefined
+  if (m && !merchantAllowsSignIn(m.status)) throw new ServiceError('FORBIDDEN', `${m.name} is ${m.status === 'SUSPENDED' ? 'suspended' : 'terminated'}: its users can’t sign in.`)
   return withAccess(a)
 }
 

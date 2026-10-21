@@ -16,8 +16,11 @@ import { ServiceError } from './errors'
 import { simulateNetwork, wire } from './network'
 import { auditProject, loadProject, requireInProject, saveSettings, validation } from './projectService'
 import { newId } from '@/lib/ids'
+import { apiAccess } from '@/domain/merchantRules'
 
 export interface Integration {
+  /** REQ: DEC-98 — live only when the merchant is Active; Onboarding = sandbox only; Suspended / Terminated = stopped. */
+  apiAccess: ReturnType<typeof apiAccess>
   keys: ProjectApiKey[] // newest first
   webhook?: ProjectWebhook
   lists: AccessLists
@@ -59,7 +62,9 @@ export const mockIntegrationService: IntegrationService = {
     await simulateNetwork('get integration')
     const p = loadIntegration(actor, projectId)
     const s = db.state()
+    const merchant = s.merchants.find((m) => m.merchantId === p.merchantId)
     return wire({
+      apiAccess: apiAccess(merchant?.status ?? 'ACTIVE'),
       keys: s.projectKeys.filter((k) => k.projectId === projectId).sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
       webhook: s.webhooks.find((w) => w.projectId === projectId),
       lists: { redirectUrls: p.redirectUrls, allowedOrigins: p.allowedOrigins, ipAllowlist: p.ipAllowlist },

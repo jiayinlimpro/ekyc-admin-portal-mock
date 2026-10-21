@@ -5,7 +5,7 @@ import { useSession } from '@/stores/sessionStore'
 
 /** Mock login: pick a demo user. The real portal uses real authentication and a Secure, HttpOnly session cookie. */
 export function LoginPage() {
-  const users = useUsers().filter((u) => u.status === 'ACTIVE')
+  const users = useUsers().filter((u) => u.status === 'ACTIVE' && !u.signInBlocked)
   // Platform Admin first, then one group per merchant.
   const groups = [...new Set(users.map((u) => u.merchantName ?? 'Platform Admin'))].sort((a, b) => Number(b === 'Platform Admin') - Number(a === 'Platform Admin'))
   const switchUser = useSession((s) => s.switchUser)

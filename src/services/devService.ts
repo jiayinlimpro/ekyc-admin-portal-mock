@@ -8,9 +8,10 @@ import { EDGE_CASES } from '@/mocks/fixtures/edgeCases'
 import { db } from '@/mocks/mockDb'
 import { wire } from './network'
 import { caseIdOf } from '@/lib/ids'
+import { merchantAllowsSignIn } from '@/domain/merchantRules'
 
 /** A demo user for "Switch user" and the mock login: the session part plus a one-line description of their access. */
-export type DevUser = Actor & { email: string; level: AccessLevel; status: UserStatus; merchantId?: string; merchantName?: string; access: string }
+export type DevUser = Actor & { email: string; level: AccessLevel; status: UserStatus; merchantId?: string; merchantName?: string; access: string; /** Why they can't sign in (merchant suspended or terminated, DEC-98). */ signInBlocked?: string }
 
 export interface ScenarioSummary {
   id: string // S01 …
@@ -30,7 +31,9 @@ export const devService = {
     return wire(
       s.accounts.map((a) => {
         const access = a.level === 'PLATFORM_ADMIN' ? 'Platform Admin · all merchants' : accessSummary(grantsOf(a.assignments, s.roles), project) || 'No access yet'
-        return { userId: a.userId, fullName: a.fullName, email: a.email, level: a.level, status: a.status, merchantId: a.merchantId, merchantName: a.merchantId && merchant(a.merchantId), access }
+        const merchantStatus = s.merchants.find((x) => x.merchantId === a.merchantId)?.status
+        const signInBlocked = merchantStatus && !merchantAllowsSignIn(merchantStatus) ? `merchant ${merchantStatus.toLowerCase()}` : undefined
+        return { userId: a.userId, fullName: a.fullName, email: a.email, level: a.level, status: a.status, merchantId: a.merchantId, merchantName: a.merchantId && merchant(a.merchantId), access, signInBlocked }
       }),
     )
   },

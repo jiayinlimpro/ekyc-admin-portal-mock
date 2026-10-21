@@ -173,7 +173,7 @@ export const NAV_ITEMS: NavItem[] = [
     access: { platform: 'manageMerchants' },
     priority: 'P3',
     built: true,
-    notes: ['Create (Default project, default flow, first user as Merchant Owner; DEC-92), rename, delete while it has no cases.'],
+    notes: ['[FRS] Merchant ID, Name, Country, Status, Created At; Onboarding → Active → Suspended → Terminated with reasons; never deleted (DEC-98). Creating one adds its Default project, default flow and first owner (DEC-92).'],
   },
   {
     path: '/admins',

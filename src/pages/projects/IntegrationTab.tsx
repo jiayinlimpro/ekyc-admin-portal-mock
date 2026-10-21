@@ -13,6 +13,7 @@ import { formatMyt } from '@/lib/format'
 import { integrationService } from '@/services/integrationService'
 import { useSession } from '@/stores/sessionStore'
 import { Card } from './settingsUi'
+import { cn } from '@/lib/utils'
 
 /** Shown once after create / rotate / regenerate: the mock secret, with Copy. */
 function SecretDialog({ title, secret, onClose }: { title: string; secret: string; onClose: () => void }) {
@@ -124,6 +125,13 @@ export function IntegrationTab({ project }: { project: Project }) {
 
   return (
     <div className="space-y-4">
+      {d.apiAccess !== 'LIVE' && (
+        <p role="status" className={cn('rounded-md px-3 py-2 text-sm', d.apiAccess === 'STOPPED' ? 'bg-red-50 text-red-900 dark:bg-red-500/10 dark:text-red-200' : 'bg-blue-50 text-blue-900 dark:bg-blue-500/10 dark:text-blue-100')}>
+          {d.apiAccess === 'STOPPED'
+            ? 'Stopped: the merchant is suspended or terminated, so these keys refuse every request.'
+            : 'Sandbox only: the merchant is Onboarding, so live requests with these keys are refused until it goes live.'}
+        </p>
+      )}
       <Card title="API keys" aside={<Button size="sm" onClick={() => setNewKey('')}><Plus aria-hidden /> Create key</Button>}>
         <div className="-m-4 overflow-x-auto">
           <table className="w-full text-sm">

@@ -166,10 +166,20 @@ export interface RiskConfig {
   maxAllowedLevel: RiskLevel // OQ-05
 }
 
-/** REQ: DEC-90 — the top level. Workflow versions are chosen per flow, not per merchant. */
+// REQ: DEC-98 — [FRS] merchant statuses: Onboarding (sandbox) → Active (live) → Suspended (freeze) → Terminated (final).
+export const MERCHANT_STATUSES = ['ONBOARDING', 'ACTIVE', 'SUSPENDED', 'TERMINATED'] as const
+export type MerchantStatus = (typeof MERCHANT_STATUSES)[number]
+
+/** REQ: DEC-90 / DEC-98 — the top level, a business client. Workflow versions are chosen per flow, not per merchant. */
 export interface Merchant {
-  merchantId: string
+  merchantId: string // mer_… (DEC-97)
   name: string
+  registrationNo: string // locked after creation; SSM 12-digit for Malaysia
+  country: string // country of incorporation, ISO 3166-1 alpha-2; locked after creation
+  primaryContact: { fullName: string; email: string; phone?: string } // the first Merchant Owner; email locked
+  status: MerchantStatus
+  createdAt: string
+  createdBy: string
 }
 
 // REQ: DEC-30 / DEC-31 — "Confirm Manual Pass" needs no reason code; "Reject" needs one or more DEC-35 failure conditions

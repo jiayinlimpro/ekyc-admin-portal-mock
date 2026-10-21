@@ -11,7 +11,7 @@ import type { Actor, AuditEntry, Check, Decision, Flow, ProjectApiKey, ProjectWe
 import { buildCase, refNo } from './builders'
 import { buildCatalog, revisionAt } from './fixtures/catalog'
 import { buildEdgeCases } from './fixtures/edgeCases'
-import { MERCHANTS } from './fixtures/merchants'
+import { buildMerchants } from './fixtures/merchants'
 import { actorOf, buildAccounts, buildRoles } from './fixtures/users'
 import { clientMetadata, fakeIp, person } from './malaysia'
 import { fx, stableId } from '@/lib/ids'
@@ -19,7 +19,7 @@ import { fx, stableId } from '@/lib/ids'
 export const SEED = 2026
 export const BACKGROUND_COUNT = 300
 /** Bump when the shape of MockDbState changes: persisted demo data is then re-seeded. */
-export const DB_VERSION = 11
+export const DB_VERSION = 12
 
 export interface MockDbState {
   dbVersion: number
@@ -215,7 +215,7 @@ export function seedDatabase(now: Date): MockDbState {
   return {
     dbVersion: DB_VERSION,
     seededAt: now.toISOString(),
-    merchants: MERCHANTS,
+    merchants: buildMerchants(now),
     verifications: [...verifications, ...edge.verifications],
     audit: allAudit,
     ...catalog,

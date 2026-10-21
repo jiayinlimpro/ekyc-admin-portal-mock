@@ -80,12 +80,13 @@ export function DevMenu() {
           <DropdownMenuSubContent className="w-96">
             <DropdownMenuRadioGroup value={actor.userId} onValueChange={(v) => onSwitch(String(v))}>
               {users.map((u) => (
-                <DropdownMenuRadioItem key={u.userId} value={u.userId} closeOnClick disabled={u.status !== 'ACTIVE'}>
+                <DropdownMenuRadioItem key={u.userId} value={u.userId} closeOnClick disabled={u.status !== 'ACTIVE' || !!u.signInBlocked}>
                   <div className="min-w-0">
                     <div className="truncate">{u.fullName}</div>
                     <div className="truncate text-xs text-muted-foreground">
                       {u.access}
                       {u.status !== 'ACTIVE' && ` · ${u.status === 'PENDING' ? 'pending' : 'suspended'}`}
+                      {u.signInBlocked && ` · ${u.signInBlocked}`}
                     </div>
                   </div>
                 </DropdownMenuRadioItem>

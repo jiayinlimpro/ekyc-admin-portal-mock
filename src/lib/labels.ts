@@ -1,4 +1,4 @@
-import type { AttemptOutcome, AuditAction, DocumentType, FlowStatus, Permission, RiskLevel, UserStatus, VerificationStatus } from '@/domain/types'
+import type { AttemptOutcome, AuditAction, DocumentType, FlowStatus, MerchantStatus, Permission, RiskLevel, UserStatus, VerificationStatus } from '@/domain/types'
 
 export const FLOW_STATUS_LABELS: Record<FlowStatus, string> = { DRAFT: 'Draft', ACTIVE: 'Active', RETIRING: 'Retiring', INACTIVE: 'Inactive' }
 
@@ -24,6 +24,9 @@ export const permissionList = (ps: readonly Permission[]) => ps.map((p) => PERMI
 
 // REQ: DEC-74 — [FRS] user statuses.
 export const USER_STATUS_LABELS: Record<UserStatus, string> = { PENDING: 'Pending', ACTIVE: 'Active', SUSPENDED: 'Suspended' }
+
+// REQ: DEC-98 — [FRS] merchant statuses.
+export const MERCHANT_STATUS_LABELS: Record<MerchantStatus, string> = { ONBOARDING: 'Onboarding', ACTIVE: 'Active', SUSPENDED: 'Suspended', TERMINATED: 'Terminated' }
 
 export const STATUS_LABELS: Record<VerificationStatus, string> = {
   PROCESSING: 'Processing',
