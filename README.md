@@ -74,7 +74,8 @@ project or "All my projects", and the menu follows your permissions there.
 | Users / Roles | FRS lists with `Role · Scope` chips; invite (Pending, resend); Access table with Add / Edit / Remove and a plain-language preview; Effective access with "Comes from"; suspend; grouped permission checkboxes, System Default roles locked, Duplicate, "Affects N users in M projects" |
 | Project Settings › Members | Everyone with access to the project (All projects users inherited); add or remove for this project |
 | Audit Log | DEC-42 events with project and actor role |
-| Merchants / Admins / Workflow Registry | Platform Admin only: new merchant = Default project + owner; Platform Admin accounts; versions and flows using them |
+| Merchants | Platform Admin only, per the FRS: registration number, country, contact; Onboarding → Active → Suspended → Terminated with reasons (suspension locks the merchant's users out and stops its API keys); never deleted; a new merchant gets a Default project and owner |
+| Admins / Workflow Registry | Platform Admin only: Platform Admin accounts; versions and flows using them |
 
 Values tagged **OPEN QUESTION** are placeholders, not signed-off requirements.
 

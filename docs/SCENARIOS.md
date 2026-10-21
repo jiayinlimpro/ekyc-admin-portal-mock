@@ -29,6 +29,8 @@ data** before a UAT run.
 | A8 | Tan Mei Ling | Users › Ali › Effective access, choose SME app | Only View cases and View project reports, each "Comes from" Viewer · SME app |
 | A9 | Lim Wei Jie | Users › Tan Mei Ling | Remove and Suspend are disabled; hovering says at least one Merchant Owner (All projects) is required |
 | A10 | Lim Wei Jie | Platform › Admins | Lim and Nor Aisyah only (not on Users); Suspend disabled on his own row; New admin starts Pending |
+| A11 | Lim Wei Jie | Merchants › Add Merchant: Malaysia, registration no `1312525-A` | "Malaysian registration numbers have 12 digits"; with `202101012345` it is created as Onboarding, with its Default project and a Pending owner |
+| A12 | Lim Wei Jie | Merchants › Tesla › ⋮ › Change status › Suspended, with a reason | Tesla shows Suspended; Wong Kah Heng can no longer be picked in Switch user; its API keys show "Stopped"; the audit log has the reason |
 
 | ID | Reference ID | Project › Flow | Scenario | Expected behaviour |
 |---|---|---|---|---|
