@@ -29,13 +29,18 @@ UAT scenarios: `docs/SCENARIOS.md`.
 - Merchant → Project → Flow → Case. Each setting lives at exactly one level (DEC-91). Access = [FRS] Users + Roles with
   scoped assignments (DEC-70): a role (permission checkboxes, merchant-level / project-level) is given to a user for All
   projects (incl. future ones) or Selected projects; permissions are the union, no deny. Merchant-level permissions only
-  via All projects. System Default roles (locked): Merchant Owner, Project Admin, Reviewer, Viewer; Platform Admin is
-  internal with a fixed set. Every page checks access to the project; a case outside the user's projects is "not found".
+  via All projects. System Default roles (locked): Merchant Owner, Project Admin, Reviewer, Viewer. Every page checks
+  access to the project; a case outside the user's projects is "not found".
+- Three account types (DEC-99): **Super admin** (was Platform Admin; everything; outside the role system; Platform ›
+  Super admins), **Platform staff** (no merchant; platform roles given for All merchants incl. future or Selected
+  merchants), **Merchant user**. Roles and users have a Type (Platform / Merchant), set by super admins and never
+  changed; merchant admins never see platform roles or staff. Access rows can end on a date. Staff without "See unmasked
+  ID data" get a masked case view (`domain/piiMasking`). Staff email domain: OQ-31.
 - IDs (DEC-97): every stored record gets a prefixed cuid2-shaped ID from `src/lib/ids.ts` (`newId`; seeded records
   `fx('PRJ-0001')` / `stableId`, stable across resets). Never sort by ID, never show user / role / audit IDs. A case is
   addressed by `caseId` (`ver_…`); `referenceNo` is the merchant's Reference ID.
 - Only FACE_MATCH and LIVENESS have thresholds: autoReject/autoPass, chosen as a Low/Standard/High preset, or Advanced
-  (custom, Platform Admin only). Never per individual metric; granular metrics are never shown. Risk for V4/V5 only.
+  (custom, super admin or staff with Calibrate). Never per individual metric; granular metrics are never shown. Risk for V4/V5 only.
 - `>= autoPass` → pass; `< autoReject` → reject; between → review. Below autoPass with retries left → retry, case stays
   PROCESSING. Retries used up → the last attempt decides. V4/V5: APPROVED also requires risk pass, else PENDING_REVIEW.
 - "Retries allowed" = retries after the first submission (default 3), face match and liveness only. ID capture and
@@ -51,7 +56,7 @@ UAT scenarios: `docs/SCENARIOS.md`.
 - Every mutation writes an audit entry (DEC-42 event names).
 - Config lives on each flow; saving an active flow needs a reason and creates a revision; applies to new sessions only.
 - No Home page; everyone lands on Overview. Overview, System Intelligence and Billing are for every role, data scoped to
-  the user (no separate Reports screen). Merchants and Workflow Registry are Platform Admin only. No Manual Review Queue.
+  the user (no separate Reports screen). Merchants and Workflow Registry are for super admins and staff with those permissions. No Manual Review Queue.
 - Open questions must be parameters (`src/domain/openQuestions.ts`, or on the project/flow) with an "OPEN QUESTION" label
   in the UI, never hard-coded values in components.
 
@@ -77,8 +82,8 @@ docs/           DECISIONS.md, OPEN_QUESTIONS.md, SCENARIOS.md
 ## Build status
 - **Projects & Flows restructure done** (DEC-85 screens): Overview, System Intelligence, Billing (every role, scoped),
   Verifications List + Detail, Projects, Project Settings (General, Integration, Review operations, Routing, Members),
-  Flows List, Flow Detail (presets, band bar, retries, Advanced for Platform Admin, what-if, history), Users, Roles,
-  Audit Log; Platform Admin: Merchants, Admins, Workflow Registry. Header: project switcher + roles in the current project.
+  Flows List, Flow Detail (presets, band bar, retries, Advanced thresholds, what-if, history), Users, Roles (both with
+  Type = Platform / Merchant), Audit Log; Platform: Merchants, Super admins, Workflow Registry. Header: project switcher + roles in the current project.
   Mock Login.
   No Home page: `/` opens Overview; UAT scenario links and data coverage are on the mock-only `/uat` page (Dev menu).
 - Retired (DEC-85): eKYC Workflow, Developers, Merchant Workflow Directory, the merchant-level config, the two-role

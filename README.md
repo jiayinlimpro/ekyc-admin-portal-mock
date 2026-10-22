@@ -37,8 +37,11 @@ If `npm` scripts are blocked in PowerShell: `Set-ExecutionPolicy -Scope CurrentU
 
 | User | Access (role · scope) | Merchant |
 |---|---|---|
-| Lim Wei Jie (weijie.lim@ekyc-platform.example) | Platform Admin: everything in every merchant, cases included (DEC-75) | — |
-| Nor Aisyah Binti Hamid (aisyah.hamid@ekyc-platform.example) | Platform Admin (second one, for the Admins screen) | — |
+| Lim Wei Jie (weijie.lim@ekyc-platform.example) | Super admin: everything in every merchant (DEC-75, DEC-99) | — |
+| Nor Aisyah Binti Hamid (aisyah.hamid@ekyc-platform.example) | Super admin (second one, for the Super admins screen) | — |
+| Daniel Tan (daniel.tan@ekyc-platform.example) | Platform staff · Support · All merchants (masked cases, read-only flows and keys) | — |
+| Priya Nair (priya.nair@ekyc-platform.example) | Platform staff · Verification Specialist · Vantage, access ends in 14 days | — |
+| Hannah Lee (hannah.lee@ekyc-platform.example) | Platform staff · Finance (billing and reports, no customer data) | — |
 | Tan Mei Ling (meiling.tan@atoz.example) | Merchant Owner · All projects | Atoz Software Tech |
 | Ali Bin Ahmad (ali.ahmad@atoz.example) | Reviewer · Default; Viewer · SME app | Atoz Software Tech |
 | Siti Aminah Binti Yusof (siti.yusof@atoz.example) | Reviewer · Default | Atoz Software Tech |
@@ -70,12 +73,13 @@ project or "All my projects", and the menu follows your permissions there.
 | Verifications | Pending Review in your projects, oldest first; project / flow / claim-state filters; no PII beyond name |
 | Verification detail | Claim bar, Reject with catalogue reasons, rules applied (revision), checks with retries, activity timeline |
 | Projects / Project Settings | Create, rename, archive; branding, API keys (shown once), webhook, claim timeout, read-only routing |
-| Flows / Flow Detail | Low / Standard / High with a 0–100 band bar, Advanced for Platform Admin, retries 1–5, what-if, revisions |
+| Flows / Flow Detail | Low / Standard / High with a 0–100 band bar, Advanced thresholds (super admin, staff with Calibrate), retries 1–5, what-if, revisions; read-only for Flows View |
 | Users / Roles | FRS lists with `Role · Scope` chips; invite (Pending, resend); Access table with Add / Edit / Remove and a plain-language preview; Effective access with "Comes from"; suspend; grouped permission checkboxes, System Default roles locked, Duplicate, "Affects N users in M projects" |
 | Project Settings › Members | Everyone with access to the project (All projects users inherited); add or remove for this project |
 | Audit Log | DEC-42 events with project and actor role |
-| Merchants | Platform Admin only, per the FRS: registration number, country, contact; Onboarding → Active → Suspended → Terminated with reasons (suspension locks the merchant's users out and stops its API keys); never deleted; a new merchant gets a Default project and owner |
-| Admins / Workflow Registry | Platform Admin only: Platform Admin accounts; versions and flows using them |
+| Merchants | Super admins and staff with Merchants permissions, per the FRS: registration number, country, contact; Onboarding → Active → Suspended → Terminated with reasons (suspension locks the merchant's users out and stops its API keys); never deleted; a new merchant gets a Default project and owner |
+| Super admins / Workflow Registry | Super admin accounts (super admins only); versions and flows using them (read-only with Registry View) |
+| Users / Roles with Type | Super admins create Platform (internal) roles and staff: platform permissions by module, merchant access for All or Selected merchants, access end dates |
 
 Values tagged **OPEN QUESTION** are placeholders, not signed-off requirements.
 

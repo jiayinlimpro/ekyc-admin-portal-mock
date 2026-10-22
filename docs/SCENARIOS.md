@@ -5,7 +5,7 @@ and a fixed case ID, so deep links stay stable (the `260901` date part is fixed 
 case ID (`/verifications/ver_…`, DEC-97): open scenarios from the UAT page (Dev menu), or type the Reference ID in the
 header search. Default users: **Ali Bin Ahmad (ali.ahmad@atoz.example)** and
 **Siti Aminah Binti Yusof (siti.yusof@atoz.example)**, both Reviewers in Atoz Software Tech's Default project; Merchant Owner
-**Tan Mei Ling (meiling.tan@atoz.example)** sees every Atoz project. The Platform Admin **Lim Wei Jie (weijie.lim@ekyc-platform.example)** can do everything in every merchant, cases
+**Tan Mei Ling (meiling.tan@atoz.example)** sees every Atoz project. The super admin **Lim Wei Jie (weijie.lim@ekyc-platform.example)** can do everything in every merchant, cases
 included (DEC-75); every case he opens is audited.
 
 Thresholds come from each case's flow revision and the presets (OQ-02). Atoz "Malaysian onboarding" (V4-R2):
@@ -32,6 +32,10 @@ data** before a UAT run.
 | A11 | Lim Wei Jie | Merchants › Add Merchant: Malaysia, registration no `1312525-A` | "Malaysian registration numbers have 12 digits"; with `202101012345` it is created as Onboarding, with its Default project and a Pending owner |
 | A12 | Lim Wei Jie | Merchants › Tesla › ⋮ › Change status › Suspended, with a reason | Tesla shows Suspended; Wong Kah Heng can no longer be picked in Switch user; its API keys show "Stopped"; the audit log has the reason |
 | A13 | Tan Mei Ling | Roles › New role; then ⋮ on Reviewer and on Fraud Analyst | The dialog opens with a generated Role ID (read-only) and a Status field; Reviewer's Deactivate is disabled with the reason; Fraud Analyst (nobody holds it) can be deactivated and activated again |
+| A14 | Lim Wei Jie | Roles › New role, Type = Platform (internal) | No Merchant field; permissions by module; ticking Claim / approve / reject also ticks both Verifications views |
+| A15 | Lim Wei Jie | Users › New user, Type = Platform; role Finance, then Support | Finance hides Merchant access ("no merchant access permissions"); Support offers All merchants (default) or Selected; a non-company email is refused |
+| A16 | Daniel Tan (`?as=daniel.tan@ekyc-platform.example`) | Open any case; then Flows, Project Settings › Integration | The case is masked (ID number, address, images hidden); flows and keys are read-only; no Users, Roles or Billing |
+| A17 | Tan Mei Ling | Users; Roles; try `/users?user=<Daniel's ID>` | No platform staff or platform roles anywhere; the staff member is "not found" |
 
 | ID | Reference ID | Project › Flow | Scenario | Expected behaviour |
 |---|---|---|---|---|
