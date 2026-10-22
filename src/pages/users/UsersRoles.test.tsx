@@ -120,7 +120,7 @@ describe('Roles (DEC-76)', () => {
     expect((await row('Claimer')).textContent).toContain('Custom')
   })
 
-  it('Given New role, then the first field is the generated Role ID, read-only; the role keeps it (DEC-76)', async () => {
+  it('Given New role as a Merchant Owner, then Type is locked to their merchant, then the generated Role ID, read-only (DEC-76, DEC-99)', async () => {
     renderAt('/roles')
     await row('Reviewer')
     fireEvent.click(screen.getByRole('button', { name: /New role/ }))
@@ -128,7 +128,10 @@ describe('Roles (DEC-76)', () => {
     await waitFor(() => expect(id.value).toMatch(/^rol_[a-z0-9]{24}$/))
     expect(id.disabled && id.readOnly).toBe(true)
     const form = id.closest('form')!
-    expect(within(form).getAllByRole('textbox')[0]).toBe(id) // first field
+    const [type, second] = within(form).getAllByRole('textbox') as HTMLInputElement[]
+    expect(type.value).toBe('Merchant · Atoz Software Tech') // Type first, locked for a merchant admin
+    expect(type.disabled).toBe(true)
+    expect(second).toBe(id)
     fireEvent.change(screen.getByLabelText('Role name'), { target: { value: 'Night shift' } })
     fireEvent.click(screen.getByRole('checkbox', { name: 'View cases' }))
     fireEvent.click(screen.getByRole('radio', { name: 'Inactive' }))
@@ -149,6 +152,22 @@ describe('Roles (DEC-76)', () => {
     fireEvent.click(within(await row('Fraud Analyst')).getByRole('button', { name: 'Actions for Fraud Analyst' }))
     fireEvent.click(await screen.findByRole('menuitem', { name: 'Deactivate' }))
     await waitFor(async () => expect((await row('Fraud Analyst')).textContent).toContain('Inactive'))
+  })
+
+  it('Given a super admin, when New role is Platform, then no Merchant field and platform permissions by module; it lists as Platform (DEC-99)', async () => {
+    useSession.getState().switchUser(ADMIN)
+    renderAt('/roles')
+    expect((await row('Support')).textContent).toContain('Platform (internal)')
+    fireEvent.click(screen.getByRole('button', { name: /New role/ }))
+    const type = (await screen.findByLabelText('Type')) as HTMLSelectElement
+    fireEvent.change(type, { target: { value: 'PLATFORM' } })
+    expect(screen.queryByLabelText('Merchant')).toBeNull()
+    fireEvent.change(screen.getByLabelText('Role name'), { target: { value: 'Night reviewer' } })
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Verifications · Claim / approve / reject' }))
+    const unmasked = screen.getByRole('checkbox', { name: 'Verifications · See unmasked ID data' }) as HTMLInputElement
+    expect(unmasked.checked && unmasked.disabled).toBe(true) // a reviewer must see the documents
+    fireEvent.click(screen.getByRole('button', { name: 'Create role' }))
+    expect((await row('Night reviewer')).textContent).toContain('Platform (internal)')
   })
 
   it('Given Super admin, then the Merchant column and the Custom role with "Affects N users"', async () => {
