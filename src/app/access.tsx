@@ -8,7 +8,7 @@ import { ALL_PROJECTS, useSession } from '@/stores/sessionStore'
 
 /**
  * Who may open a screen. `project`: the user's role in the selected project (or in any of their projects under "All my
- * projects"). `platform`: Platform Admin only.
+ * projects"). `platform`: Super admin only.
  */
 export type AccessRule = { project: ProjectAction } | { platform: PlatformAction }
 

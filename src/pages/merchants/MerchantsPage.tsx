@@ -1,4 +1,4 @@
-// REQ: DEC-98 — [FRS] Merchant Management, Platform Admin only (DEC-70). DEC-92: a new merchant also gets its Default
+// REQ: DEC-98 — [FRS] Merchant Management, Super admin only (DEC-70). DEC-92: a new merchant also gets its Default
 // project, default flow and first owner.
 import { useState, type FormEvent, type ReactNode } from 'react'
 import { useSearchParams } from 'react-router'

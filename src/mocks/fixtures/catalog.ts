@@ -1,5 +1,5 @@
 // Registry, projects and flows (DEC-56 … DEC-58, DEC-90 … DEC-95). Dates are relative to seeding (MOCK-05).
-// Coverage: every flow status, Advanced thresholds set by Platform Admin, rule and % routing, a revision history,
+// Coverage: every flow status, Advanced thresholds set by Super admin, rule and % routing, a revision history,
 // an archived project, and a merchant with two projects.
 import { diffFlow, newFlowSettings } from '@/domain/flowSettings'
 import { DEFAULT_RISK_MAX_ALLOWED } from '@/domain/openQuestions'

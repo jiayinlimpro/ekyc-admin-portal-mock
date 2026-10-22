@@ -32,7 +32,7 @@ export type ProjectRow = MyProject & {
   flows: number
   activeFlows: number
   defaultFlowName: string
-  members: number // users with access, incl. All projects (DEC-77), Pending or Active; not Platform Admins
+  members: number // users with access, incl. All projects (DEC-77), Pending or Active; not Super admins
   inFlightCases: number // PROCESSING + PENDING_REVIEW
   /** The user may rename and archive it (DEC-70: Create, rename, archive projects). */
   canManage: boolean
@@ -41,7 +41,7 @@ export type ProjectRow = MyProject & {
 export interface ProjectService {
   listMine(actor: Actor): Promise<MyProject[]>
   listRows(actor: Actor): Promise<ProjectRow[]>
-  /** Merchants where the user may create projects (Platform Admin: all; Merchant Owner: theirs). */
+  /** Merchants where the user may create projects (Super admin: all; Merchant Owner: theirs). */
   creatableMerchants(actor: Actor): Promise<{ merchantId: string; name: string }[]>
   get(projectId: string, actor: Actor): Promise<Project>
   create(merchantId: string, input: { name: string }, actor: Actor): Promise<Project>
@@ -146,7 +146,7 @@ export const mockProjectService: ProjectService = {
     await simulateNetwork('create project')
     const me = requireActive(actor)
     const s = db.state()
-    if (!s.merchants.some((m) => m.merchantId === merchantId) || (me.level !== 'PLATFORM_ADMIN' && me.merchantId !== merchantId)) {
+    if (!s.merchants.some((m) => m.merchantId === merchantId) || (me.level !== 'SUPER_ADMIN' && me.merchantId !== merchantId)) {
       throw new ServiceError('NOT_FOUND', `Merchant ${merchantId} not found.`)
     }
     if (!canInMerchant(me, 'manageProjects', merchantId)) throw new ServiceError('FORBIDDEN', 'You do not have permission to create projects.')

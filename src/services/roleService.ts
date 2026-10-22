@@ -60,22 +60,22 @@ const accountsIn = (merchantId?: string) => db.state().accounts.filter((a) => !m
 /** A Custom role the actor may change (System Default roles are read-only: validateRole says so). */
 function loadRole(me: AccountAccess, roleId: string): Role & { merchantId?: string } {
   const r = db.state().roles.find((x) => x.roleId === roleId)
-  if (!r || (r.merchantId && me.level !== 'PLATFORM_ADMIN' && r.merchantId !== me.merchantId)) throw new ServiceError('NOT_FOUND', `Role ${roleId} not found.`)
+  if (!r || (r.merchantId && me.level !== 'SUPER_ADMIN' && r.merchantId !== me.merchantId)) throw new ServiceError('NOT_FOUND', `Role ${roleId} not found.`)
   if (r.merchantId) requireRoles(me, r.merchantId)
-  else if (me.level !== 'PLATFORM_ADMIN') requireRoles(me, me.merchantId!)
+  else if (me.level !== 'SUPER_ADMIN') requireRoles(me, me.merchantId!)
   return r
 }
 
 const putRole = (r: Role) => db.setState((st) => ({ roles: st.roles.map((x) => (x.roleId === r.roleId ? r : x)) }))
 
-const granter = (me: AccountAccess) => (me.level === 'PLATFORM_ADMIN' ? ('PLATFORM_ADMIN' as const) : me.grants)
+const granter = (me: AccountAccess) => (me.level === 'SUPER_ADMIN' ? ('SUPER_ADMIN' as const) : me.grants)
 
 export const mockRoleService: RoleService = {
   async list(actor, merchantId) {
     await simulateNetwork('list roles')
     const me = accountOf(actor)
-    const scope = me.level === 'PLATFORM_ADMIN' ? merchantId : me.merchantId!
-    if (me.level !== 'PLATFORM_ADMIN') requireRoles(me, scope!)
+    const scope = me.level === 'SUPER_ADMIN' ? merchantId : me.merchantId!
+    if (me.level !== 'SUPER_ADMIN') requireRoles(me, scope!)
     const roles = scope ? rolesFor(scope) : db.state().roles
     const people = accountsIn(scope)
     return wire(
@@ -115,14 +115,14 @@ export const mockRoleService: RoleService = {
   async draftRoleId(actor) {
     await simulateNetwork('draft role id')
     const me = accountOf(actor)
-    if (me.level !== 'PLATFORM_ADMIN') requireRoles(me, me.merchantId!)
+    if (me.level !== 'SUPER_ADMIN') requireRoles(me, me.merchantId!)
     return newId('rol')
   },
 
   async create(merchantId, input, actor) {
     await simulateNetwork('create role')
     const me = requireActive(actor)
-    if (!db.state().merchants.some((m) => m.merchantId === merchantId) || (me.level !== 'PLATFORM_ADMIN' && me.merchantId !== merchantId)) throw new ServiceError('NOT_FOUND', `Merchant ${merchantId} not found.`)
+    if (!db.state().merchants.some((m) => m.merchantId === merchantId) || (me.level !== 'SUPER_ADMIN' && me.merchantId !== merchantId)) throw new ServiceError('NOT_FOUND', `Merchant ${merchantId} not found.`)
     requireRoles(me, merchantId)
     const permissions = withImpliedPermissions(input.permissions)
     const errors = validateRole({ name: input.name, permissions }, rolesFor(merchantId))

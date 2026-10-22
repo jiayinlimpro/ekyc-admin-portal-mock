@@ -37,7 +37,7 @@ describe('Project Settings › General and Review operations', () => {
 })
 
 describe('Project Settings › Integration (DEC-54, DEC-75)', () => {
-  it('Given the Platform Admin, then integration is open to them too (DEC-75)', async () => {
+  it('Given the Super admin, then integration is open to them too (DEC-75)', async () => {
     expect((await svc.get(fx('PRJ-0001'), ADMIN)).keys.length).toBeGreaterThan(0)
   })
 

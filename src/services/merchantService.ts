@@ -10,10 +10,10 @@ export interface MerchantService {
   get(merchantId: string, actor: Actor): Promise<Merchant>
 }
 
-// Platform Admin sees every merchant; everyone else only their own (from the account, not the session).
+// Super admin sees every merchant; everyone else only their own (from the account, not the session).
 function inScope(actor: Actor, merchantId: string): boolean {
   const a = accountOf(actor)
-  return a.level === 'PLATFORM_ADMIN' || a.merchantId === merchantId
+  return a.level === 'SUPER_ADMIN' || a.merchantId === merchantId
 }
 
 export const mockMerchantService: MerchantService = {

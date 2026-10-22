@@ -52,7 +52,7 @@ describe('claim (DEC-20 … DEC-22)', () => {
     expect(claim(verification({ status }), ALI, ctx, NOW)).toMatchObject({ ok: false, code: 'NOT_CLAIMABLE' })
   })
 
-  it("Given a user without the claim right in the case's project (Viewer, Platform Admin, other merchant), then FORBIDDEN", () => {
+  it("Given a user without the claim right in the case's project (Viewer, Super admin, other merchant), then FORBIDDEN", () => {
     expect(claim(verification(), OTHER_MERCHANT_REVIEWER, { ...ctx, mayClaim: false }, NOW)).toMatchObject({ ok: false, code: 'FORBIDDEN' })
   })
 
@@ -89,7 +89,7 @@ describe('release (Cancel)', () => {
     expect(release(claimedBy(SITI, 10), ALI, NOW)).toMatchObject({ ok: false, code: 'NOT_CLAIM_OWNER' })
   })
 
-  it('Given a Platform Admin, when they cancel someone else\'s claim, then it is refused (DEC-23)', () => {
+  it('Given a Super admin, when they cancel someone else\'s claim, then it is refused (DEC-23)', () => {
     expect(release(claimedBy(SITI, 10), ADMIN, NOW).ok).toBe(false)
   })
 })

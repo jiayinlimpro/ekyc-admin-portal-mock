@@ -1,5 +1,5 @@
 // Workflow Registry API (mock). DEC-56 … DEC-58. A record only: nothing here builds, deploys or calls AWS Step Functions.
-//   GET  /registry                    list           → 200 RegistryRow[]           (Platform Admin)
+//   GET  /registry                    list           → 200 RegistryRow[]           (Super admin)
 //   GET  /registry/selectable         listSelectable → 200 SelectableVersion[]     (anyone who may create flows)
 //   POST /registry                    register       → 201 RegistryEntry | 422 VALIDATION
 //   PUT  /registry/{code}             update         → 200 RegistryEntry | 422 VALIDATION (locked fields)
@@ -44,9 +44,9 @@ export interface RegistryService {
   setDefault(code: WorkflowCode, actor: Actor): Promise<RegistryEntry>
 }
 
-// REQ: DEC-70 — Workflow Registry is Platform Admin only.
+// REQ: DEC-70 — Workflow Registry is Super admin only.
 function requireRegistry(actor: Actor) {
-  if (!canOnPlatform(accountOf(actor), 'manageRegistry')) throw new ServiceError('FORBIDDEN', 'Only Platform Admin can manage the Workflow Registry.')
+  if (!canOnPlatform(accountOf(actor), 'manageRegistry')) throw new ServiceError('FORBIDDEN', 'Only Super admin can manage the Workflow Registry.')
 }
 
 function load(code: WorkflowCode): RegistryEntry {
@@ -59,9 +59,9 @@ function put(entry: RegistryEntry) {
   db.setState((st) => ({ registry: st.registry.map((e) => (e.code === entry.code ? entry : e)) }))
 }
 
-// Registry events have no merchant or project, so only Platform Admin sees them in the Audit Log.
+// Registry events have no merchant or project, so only Super admin sees them in the Audit Log.
 function audit(actor: Actor, action: AuditAction, code: WorkflowCode, details: Record<string, unknown>) {
-  db.appendAudit(makeAudit({ id: '', now: now(), action, actor, actorRole: 'Platform Admin', ip: clientIpFor(actor), details: { code, ...details } }))
+  db.appendAudit(makeAudit({ id: '', now: now(), action, actor, actorRole: 'Super admin', ip: clientIpFor(actor), details: { code, ...details } }))
 }
 
 const FIELDS: (keyof RegistryInput)[] = ['name', 'description', 'phases', 'faceMatchMethod', 'requiredInputs', 'configurableChecks', 'stateMachineSandbox', 'stateMachineProduction']

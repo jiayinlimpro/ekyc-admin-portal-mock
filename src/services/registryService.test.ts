@@ -44,7 +44,7 @@ const inputOf = (e: RegistryEntry, over: Partial<RegistryInput> = {}): RegistryI
 const ARN = (env: string) => `arn:aws:states:ap-southeast-1:123456789012:stateMachine:ekyc_${env}_onboard_v5`
 
 describe('registryService access (DEC-70)', () => {
-  it('Given the Platform Admin, then every version with the number of flows using it; anyone else is refused', async () => {
+  it('Given the Super admin, then every version with the number of flows using it; anyone else is refused', async () => {
     const rows = await registryService.list(ADMIN)
     expect(rows.map((r) => r.code)).toEqual(['V1', 'V3', 'V4', 'V5'])
     expect(rows.find((r) => r.code === 'V4')!.flowsUsing).toBe(db.state().flows.filter((f) => f.workflowVersion === 'V4').length)
@@ -68,11 +68,11 @@ describe('registryService flows using a version (DEC-85)', () => {
 })
 
 describe('registryService lifecycle (DEC-56, DEC-57)', () => {
-  it('Given a new code, then it is registered as Draft; a used code is refused; the event is Platform Admin only', async () => {
+  it('Given a new code, then it is registered as Draft; a used code is refused; the event is Super admin only', async () => {
     const v6 = await registryService.register(inputOf(entry('V4'), { code: 'V6', name: 'V4 + document liveness', releaseNote: 'First draft' }), ADMIN)
     expect(v6).toMatchObject({ code: 'V6', status: 'DRAFT', isDefault: false, releaseNotes: [{ text: 'First draft', by: 'Lim Wei Jie' }] })
     await expectError(registryService.register(inputOf(entry('V4'), { name: 'Copy' }), ADMIN), 'VALIDATION', 'Workflow code already exists')
-    expect((await auditService.list({ actions: ['WORKFLOW_REGISTERED'] }, ADMIN)).items[0]).toMatchObject({ actorRole: 'Platform Admin', details: { code: 'V6' } })
+    expect((await auditService.list({ actions: ['WORKFLOW_REGISTERED'] }, ADMIN)).items[0]).toMatchObject({ actorRole: 'Super admin', details: { code: 'V6' } })
     expect((await auditService.list({ actions: ['WORKFLOW_REGISTERED'] }, OWNER)).total).toBe(0)
   })
 

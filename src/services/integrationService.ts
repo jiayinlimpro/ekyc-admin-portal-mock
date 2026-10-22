@@ -1,4 +1,4 @@
-// Project Settings › Integration API (mock). DEC-54, DEC-75: users with Manage API keys and webhook, and Platform Admin.
+// Project Settings › Integration API (mock). DEC-54, DEC-75: users with Manage API keys and webhook, and Super admin.
 // Secrets are mock values, shown once; every change is audited.
 //   GET    /projects/{id}/integration          get          → 200 Integration | 403
 //   POST   /projects/{id}/api-keys             createKey    → 201 { key, secret }

@@ -43,7 +43,7 @@ const maskId = (id: string) => `${id.slice(0, id.indexOf('_') + 1)}…${id.slice
 
 const lines = (s: string) => s.split('\n').map((x) => x.trim()).filter(Boolean)
 
-// REQ: DEC-54 / DEC-75 — Manage API keys and webhook (and Platform Admin).
+// REQ: DEC-54 / DEC-75 — Manage API keys and webhook (and Super admin).
 export function IntegrationTab({ project }: { project: Project }) {
   const actor = useSession((s) => s.actor)
   const data = useLoad(() => integrationService.get(project.projectId, actor), [project.projectId, actor.userId])

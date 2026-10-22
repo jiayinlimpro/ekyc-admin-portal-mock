@@ -107,9 +107,9 @@ describe('roles: giving access (DEC-70, DEC-74, DEC-77)', () => {
     expect(canGrant(MEI, role(PROJECT_ADMIN).permissions, only(fx('PRJ-0001')))).toBe(false)
   })
 
-  it('Given a Merchant Owner or Platform Admin, then they can give any role for All projects', () => {
+  it('Given a Merchant Owner or Super admin, then they can give any role for All projects', () => {
     expect(canGrant([grant(MERCHANT_OWNER, ALL)], role(MERCHANT_OWNER).permissions, ALL)).toBe(true)
-    expect(canGrant('PLATFORM_ADMIN', role(MERCHANT_OWNER).permissions, ALL)).toBe(true)
+    expect(canGrant('SUPER_ADMIN', role(MERCHANT_OWNER).permissions, ALL)).toBe(true)
   })
 
   it('Given the only Merchant Owner, when their owner assignment goes, then it is refused; with a second owner it is not', () => {

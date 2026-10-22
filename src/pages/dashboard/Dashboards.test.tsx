@@ -107,7 +107,7 @@ describe('System Intelligence (DEC-18, DEC-86)', () => {
 })
 
 describe('Billing (DEC-60, DEC-86)', () => {
-  it('Given the Platform Admin, then tokens per liveness submission, cost of retries, and tables by project and flow', async () => {
+  it('Given the Super admin, then tokens per liveness submission, cost of retries, and tables by project and flow', async () => {
     useSession.getState().switchUser(ADMIN)
     renderAt('/billing')
     const periods = await analyticsService.billingPeriods(ADMIN)

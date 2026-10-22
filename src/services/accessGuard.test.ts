@@ -34,7 +34,7 @@ describe('accessGuard (DEC-71, DEC-72)', () => {
     expect([...projectIdsWhere(ALI, 'viewCases')].sort()).toEqual([fx('PRJ-0001'), fx('PRJ-0002')].sort())
   })
 
-  it('Given the Platform Admin, then cases in every project (DEC-75)', () => {
+  it('Given the Super admin, then cases in every project (DEC-75)', () => {
     expect(projectIdsWhere(ADMIN, 'viewCases').size).toBe(db.state().projects.length)
     expect(mayInProject(ADMIN, 'manageIntegration', fx('PRJ-0003'))).toBe(true)
     expect(projectIdsWhere(ADMIN, 'manageFlows').size).toBe(db.state().projects.length)
@@ -43,14 +43,14 @@ describe('accessGuard (DEC-71, DEC-72)', () => {
 
 describe('userService', () => {
   it('Given Ali, then reviewers are the active users who may claim in his projects', async () => {
-    // Lim and Nor Aisyah (Platform Admins, DEC-75), Tan Mei Ling (owner), Hafiz (Project Admin SME app), Siti and Nurul. Not Yap (suspended).
+    // Lim and Nor Aisyah (Super admins, DEC-75), Tan Mei Ling (owner), Hafiz (Project Admin SME app), Siti and Nurul. Not Yap (suspended).
     expect(ids(await userService.listReviewers(ALI))).toEqual([fx('USR-2026-0001'), fx('USR-2026-0002'), fx('USR-2026-0005'), fx('USR-2026-0012'), fx('USR-2026-0020'), fx('USR-2026-0031'), fx('USR-2026-0033')].sort())
     expect(ids(await userService.listReviewers(ALI, fx('PRJ-0001')))).toEqual([fx('USR-2026-0001'), fx('USR-2026-0002'), fx('USR-2026-0005'), fx('USR-2026-0012'), fx('USR-2026-0031')].sort())
   })
 
-  it('Given Ali, then the directory is his merchant plus Platform Admins', async () => {
+  it('Given Ali, then the directory is his merchant plus Super admins', async () => {
     const users = await userService.list(ALI)
-    expect(users.every((u) => u.merchantId === fx('MER-0001') || u.level === 'PLATFORM_ADMIN')).toBe(true)
+    expect(users.every((u) => u.merchantId === fx('MER-0001') || u.level === 'SUPER_ADMIN')).toBe(true)
     expect(ids(users)).toContain(fx('USR-2026-0001'))
     expect((await userService.list(ADMIN)).length).toBe(db.state().accounts.length)
   })

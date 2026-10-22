@@ -1,5 +1,5 @@
 // Users API (mock): [FRS] User Management › Users with scoped role assignments (DEC-70, DEC-74, DEC-77).
-// Users with Manage users and roles (or Platform Admin) manage everything here; on a project's Members tab, users with
+// Users with Manage users and roles (or Super admin) manage everything here; on a project's Members tab, users with
 // Manage project members add and remove access for that project only.
 //   GET    /users?merchantId=…                      list               → 200 UserRow[]
 //   GET    /users/{id}                              get                → 200 UserDetail | 404
@@ -120,9 +120,9 @@ const roleOf = (roleId: string) => db.state().roles.find((r) => r.roleId === rol
 const label = (a: Pick<RoleAssignment, 'roleId' | 'scope'>) => chipLabel(roleOf(a.roleId)?.name ?? a.roleId, a.scope, projectName)
 const by = (actor: Actor): Actor => ({ userId: actor.userId, fullName: actor.fullName })
 
-/** The actor's roles for merchant-level audit entries: "Platform Admin", or their role names. */
+/** The actor's roles for merchant-level audit entries: "Super admin", or their role names. */
 function merchantRoleOf(me: AccountAccess): string {
-  return me.level === 'PLATFORM_ADMIN' ? 'Platform Admin' : [...new Set(me.grants.map((g) => g.roleName))].join(', ')
+  return me.level === 'SUPER_ADMIN' ? 'Super admin' : [...new Set(me.grants.map((g) => g.roleName))].join(', ')
 }
 
 /** REQ: DEC-42 — user and role events. Scoped to one project, the entry also shows in that project's audit log. */
@@ -142,7 +142,7 @@ export function auditAccess(actor: Actor, action: AuditAction, merchantId: strin
   )
 }
 
-/** REQ: DEC-74 / DEC-79 — name and email of a new user (any account, merchant user or Platform Admin); returns the email. */
+/** REQ: DEC-74 / DEC-79 — name and email of a new user (any account, merchant user or Super admin); returns the email. */
 export function requireNewUser(input: { fullName: string; email: string }): string {
   const errors: RuleError[] = []
   const email = input.email.trim().toLowerCase()
@@ -171,10 +171,10 @@ function requireUsersScreen(me: AccountAccess, merchantId: string) {
   if (!canInMerchant(me, 'manageUsersRoles', merchantId)) throw new ServiceError('FORBIDDEN', 'You do not have permission to manage users.')
 }
 
-/** A merchant user the actor may see, or "not found". Platform Admins are internal and not listed (DEC-70). */
+/** A merchant user the actor may see, or "not found". Super admins are internal and not listed (DEC-70). */
 function loadUser(me: AccountAccess, userId: string): UserAccount & { merchantId: string } {
   const a = db.state().accounts.find((x) => x.userId === userId)
-  if (!a || !a.merchantId || (me.level !== 'PLATFORM_ADMIN' && a.merchantId !== me.merchantId)) throw new ServiceError('NOT_FOUND', `User ${userId} not found.`)
+  if (!a || !a.merchantId || (me.level !== 'SUPER_ADMIN' && a.merchantId !== me.merchantId)) throw new ServiceError('NOT_FOUND', `User ${userId} not found.`)
   return a as UserAccount & { merchantId: string }
 }
 
@@ -196,7 +196,7 @@ function checkAssignment(me: AccountAccess, merchantId: string, input: Assignmen
   const errors = validateAssignment(role, input.scope, openProjectIds(merchantId, keep))
   if (errors.length) throw validation(errors)
   if (!mayManageScope(me, merchantId, input.scope)) throw new ServiceError('FORBIDDEN', 'You do not manage access for these projects.')
-  if (!canGrant(me.level === 'PLATFORM_ADMIN' ? 'PLATFORM_ADMIN' : me.grants, role.permissions, input.scope)) throw new ServiceError('FORBIDDEN', GRANT_TOO_POWERFUL)
+  if (!canGrant(me.level === 'SUPER_ADMIN' ? 'SUPER_ADMIN' : me.grants, role.permissions, input.scope)) throw new ServiceError('FORBIDDEN', GRANT_TOO_POWERFUL)
   return role
 }
 
@@ -304,7 +304,7 @@ function membersOf(actor: Actor, p: Project): MemberRow[] {
 function membersProject(actor: Actor, projectId: string): Project {
   const me = accountOf(actor)
   const p = projectOf(projectId)
-  if (!p || (me.level !== 'PLATFORM_ADMIN' && me.merchantId !== p.merchantId) || (me.level !== 'PLATFORM_ADMIN' && !me.grants.some((g) => covers(g.scope, projectId)))) {
+  if (!p || (me.level !== 'SUPER_ADMIN' && me.merchantId !== p.merchantId) || (me.level !== 'SUPER_ADMIN' && !me.grants.some((g) => covers(g.scope, projectId)))) {
     throw new ServiceError('NOT_FOUND', `Project ${projectId} not found.`)
   }
   if (!canInProject(me, 'manageMembers', p)) throw new ServiceError('FORBIDDEN', 'You do not have permission to manage members in this project.')
@@ -315,8 +315,8 @@ export const mockUserAdminService: UserAdminService = {
   async list(actor, merchantId) {
     await simulateNetwork('list users')
     const me = accountOf(actor)
-    const merchants = me.level === 'PLATFORM_ADMIN' ? db.state().merchants.map((m) => m.merchantId).filter((id) => !merchantId || id === merchantId) : [me.merchantId!]
-    if (me.level !== 'PLATFORM_ADMIN') requireUsersScreen(me, me.merchantId!)
+    const merchants = me.level === 'SUPER_ADMIN' ? db.state().merchants.map((m) => m.merchantId).filter((id) => !merchantId || id === merchantId) : [me.merchantId!]
+    if (me.level !== 'SUPER_ADMIN') requireUsersScreen(me, me.merchantId!)
     return wire(
       db
         .state()
@@ -337,14 +337,14 @@ export const mockUserAdminService: UserAdminService = {
   async draftUserId(actor) {
     await simulateNetwork('draft user id')
     const me = accountOf(actor)
-    if (me.level !== 'PLATFORM_ADMIN') requireUsersScreen(me, me.merchantId!)
+    if (me.level !== 'SUPER_ADMIN') requireUsersScreen(me, me.merchantId!)
     return newId('usr')
   },
 
   async invite(merchantId, input, actor) {
     await simulateNetwork('invite user')
     const me = requireActive(actor)
-    if (!db.state().merchants.some((m) => m.merchantId === merchantId) || (me.level !== 'PLATFORM_ADMIN' && me.merchantId !== merchantId)) throw new ServiceError('NOT_FOUND', `Merchant ${merchantId} not found.`)
+    if (!db.state().merchants.some((m) => m.merchantId === merchantId) || (me.level !== 'SUPER_ADMIN' && me.merchantId !== merchantId)) throw new ServiceError('NOT_FOUND', `Merchant ${merchantId} not found.`)
     requireUsersScreen(me, merchantId)
     const email = requireNewUser(input)
     checkAssignment(me, merchantId, input.assignment)

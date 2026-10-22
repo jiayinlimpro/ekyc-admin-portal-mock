@@ -131,7 +131,7 @@ function DetailsCell({ e }: { e: AuditEntry }) {
   )
 }
 
-// REQ: DEC-42 / DEC-70 — Platform Admin: everything; Merchant Owner: the merchant; Project Admin: their projects.
+// REQ: DEC-42 / DEC-70 — Super admin: everything; Merchant Owner: the merchant; Project Admin: their projects.
 export function AuditLogsPage() {
   const actor = useSession((s) => s.actor)
   const { selected, projects, account } = useAccess()
@@ -139,7 +139,7 @@ export function AuditLogsPage() {
   const key = sp.toString()
   const params = useMemo(() => parseAuditParams(new URLSearchParams(key)), [key])
   const scope = selected?.projectId
-  const isAdmin = account?.level === 'PLATFORM_ADMIN'
+  const isAdmin = account?.level === 'SUPER_ADMIN'
   const [retry, setRetry] = useState(0)
   const request = JSON.stringify([key, scope, actor.userId, retry])
   const [result, setResult] = useState<Result>({ request: '' })

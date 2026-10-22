@@ -150,7 +150,7 @@ export const mockVerificationService: VerificationService = {
     await simulateNetwork('list verifications')
     const at = now()
     sweepExpiredClaims(at)
-    // REQ: DEC-72 — only cases in projects where the user may view cases (Platform Admin: every project, DEC-75).
+    // REQ: DEC-72 — only cases in projects where the user may view cases (Super admin: every project, DEC-75).
     const scope = projectIdsWhere(actor, 'viewCases')
     const asked = q.projectIds ? new Set(q.projectIds) : undefined
     const rows = db

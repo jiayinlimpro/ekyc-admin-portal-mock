@@ -66,7 +66,7 @@ describe('Project Settings (DEC-54, DEC-96)', () => {
     expect((await p.findByRole('alert')).textContent).toBe('Webhook URL must start with https://')
   })
 
-  it('Given the Platform Admin, then Integration and General are open to them (DEC-75)', async () => {
+  it('Given the Super admin, then Integration and General are open to them (DEC-75)', async () => {
     useSession.getState().switchUser(ADMIN)
     useSession.getState().selectProject(fx('PRJ-0003'))
     renderAt('/project-settings?tab=integration')

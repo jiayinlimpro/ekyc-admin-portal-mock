@@ -7,7 +7,7 @@ import { fx, stableId } from '@/lib/ids'
 // reserved .example domain.
 // ---------------------------------------------------------------------------------------------------------------------
 
-const PLATFORM_ADMIN: Actor = { userId: fx('USR-2026-0001'), fullName: 'Lim Wei Jie' }
+const SUPER_ADMIN: Actor = { userId: fx('USR-2026-0001'), fullName: 'Lim Wei Jie' }
 
 type RoleKey = keyof typeof SYSTEM_ROLE_IDS | 'AUDITOR'
 const ALL: AssignmentScope = { kind: 'ALL_PROJECTS' }
@@ -24,11 +24,11 @@ const ATOZ_OWNER: Actor = { userId: fx('USR-2026-0002'), fullName: 'Tan Mei Ling
 const VANTAGE_OWNER: Actor = { userId: fx('USR-2026-0045'), fullName: 'Ahmad Faiz Bin Zulkifli' }
 
 const ACCOUNT_SPECS: AccountSpec[] = [
-  { ...PLATFORM_ADMIN, email: 'weijie.lim@ekyc-platform.example', level: 'PLATFORM_ADMIN', access: [], addedBy: PLATFORM_ADMIN, status: 'ACTIVE', invitedDaysAgo: 400, lastActiveHoursAgo: 1 },
-  // A second Platform Admin, so the Admins screen (DEC-79) can show Suspend without hitting "at least one".
-  { userId: fx('USR-2026-0005'), fullName: 'Nor Aisyah Binti Hamid', email: 'aisyah.hamid@ekyc-platform.example', level: 'PLATFORM_ADMIN', access: [], addedBy: PLATFORM_ADMIN, status: 'ACTIVE', invitedDaysAgo: 120, lastActiveHoursAgo: 26 },
+  { ...SUPER_ADMIN, email: 'weijie.lim@ekyc-platform.example', level: 'SUPER_ADMIN', access: [], addedBy: SUPER_ADMIN, status: 'ACTIVE', invitedDaysAgo: 400, lastActiveHoursAgo: 1 },
+  // A second Super admin, so the Admins screen (DEC-79) can show Suspend without hitting "at least one".
+  { userId: fx('USR-2026-0005'), fullName: 'Nor Aisyah Binti Hamid', email: 'aisyah.hamid@ekyc-platform.example', level: 'SUPER_ADMIN', access: [], addedBy: SUPER_ADMIN, status: 'ACTIVE', invitedDaysAgo: 120, lastActiveHoursAgo: 26 },
   // Atoz Software Tech: owner, a Project Admin for SME app, reviewers, one user with a role in each project.
-  { ...ATOZ_OWNER, email: 'meiling.tan@atoz.example', level: 'MERCHANT_USER', merchantId: fx('MER-0001'), access: [['MERCHANT_OWNER', ALL]], addedBy: PLATFORM_ADMIN, status: 'ACTIVE', invitedDaysAgo: 400, lastActiveHoursAgo: 2 },
+  { ...ATOZ_OWNER, email: 'meiling.tan@atoz.example', level: 'MERCHANT_USER', merchantId: fx('MER-0001'), access: [['MERCHANT_OWNER', ALL]], addedBy: SUPER_ADMIN, status: 'ACTIVE', invitedDaysAgo: 400, lastActiveHoursAgo: 2 },
   { userId: fx('USR-2026-0012'), fullName: 'Ali Bin Ahmad', email: 'ali.ahmad@atoz.example', level: 'MERCHANT_USER', merchantId: fx('MER-0001'), access: [['REVIEWER', only(fx('PRJ-0001'))], ['VIEWER', only(fx('PRJ-0002'))]], addedBy: ATOZ_OWNER, status: 'ACTIVE', invitedDaysAgo: 300, lastActiveHoursAgo: 1 },
   { userId: fx('USR-2026-0020'), fullName: 'Hafiz Bin Rahman', email: 'hafiz.rahman@atoz.example', level: 'MERCHANT_USER', merchantId: fx('MER-0001'), access: [['PROJECT_ADMIN', only(fx('PRJ-0002'))]], addedBy: ATOZ_OWNER, status: 'ACTIVE', invitedDaysAgo: 60, lastActiveHoursAgo: 20 },
   { userId: fx('USR-2026-0031'), fullName: 'Siti Aminah Binti Yusof', email: 'siti.yusof@atoz.example', level: 'MERCHANT_USER', merchantId: fx('MER-0001'), access: [['REVIEWER', only(fx('PRJ-0001'))]], addedBy: ATOZ_OWNER, status: 'ACTIVE', invitedDaysAgo: 280, lastActiveHoursAgo: 1 },
@@ -36,13 +36,13 @@ const ACCOUNT_SPECS: AccountSpec[] = [
   { userId: fx('USR-2026-0035'), fullName: 'Chong Pei Shan', email: 'peishan.chong@atoz.example', level: 'MERCHANT_USER', merchantId: fx('MER-0001'), access: [['VIEWER', only(fx('PRJ-0001'))]], addedBy: ATOZ_OWNER, status: 'PENDING', invitedDaysAgo: 2 },
   { userId: fx('USR-2026-0039'), fullName: 'Yap Li Wen', email: 'liwen.yap@atoz.example', level: 'MERCHANT_USER', merchantId: fx('MER-0001'), access: [['REVIEWER', only(fx('PRJ-0001'))]], addedBy: ATOZ_OWNER, status: 'SUSPENDED', invitedDaysAgo: 200, lastActiveHoursAgo: 40 * 24 },
   // Vantage: owner, a reviewer, and a Custom role held for All projects.
-  { ...VANTAGE_OWNER, email: 'faiz.zulkifli@vantage.example', level: 'MERCHANT_USER', merchantId: fx('MER-0002'), access: [['MERCHANT_OWNER', ALL]], addedBy: PLATFORM_ADMIN, status: 'ACTIVE', invitedDaysAgo: 400, lastActiveHoursAgo: 30 },
+  { ...VANTAGE_OWNER, email: 'faiz.zulkifli@vantage.example', level: 'MERCHANT_USER', merchantId: fx('MER-0002'), access: [['MERCHANT_OWNER', ALL]], addedBy: SUPER_ADMIN, status: 'ACTIVE', invitedDaysAgo: 400, lastActiveHoursAgo: 30 },
   { userId: fx('USR-2026-0044'), fullName: 'Kavitha A/P Subramaniam', email: 'kavitha.s@vantage.example', level: 'MERCHANT_USER', merchantId: fx('MER-0002'), access: [['REVIEWER', only(fx('PRJ-0003'))], ['AUDITOR', ALL]], addedBy: VANTAGE_OWNER, status: 'ACTIVE', invitedDaysAgo: 380, lastActiveHoursAgo: 3 },
   // One person each for the smaller merchants.
-  { userId: fx('USR-2026-0052'), fullName: 'Wong Kah Heng', email: 'kahheng.wong@tesla.example', level: 'MERCHANT_USER', merchantId: fx('MER-0003'), access: [['MERCHANT_OWNER', ALL]], addedBy: PLATFORM_ADMIN, status: 'ACTIVE', invitedDaysAgo: 300, lastActiveHoursAgo: 6 },
-  { userId: fx('USR-2026-0063'), fullName: 'Farah Binti Ismail', email: 'farah.ismail@boring.example', level: 'MERCHANT_USER', merchantId: fx('MER-0004'), access: [['PROJECT_ADMIN', only(fx('PRJ-0005'))]], addedBy: PLATFORM_ADMIN, status: 'ACTIVE', invitedDaysAgo: 300, lastActiveHoursAgo: 8 },
-  { userId: fx('USR-2026-0071'), fullName: 'Ng Chee Keong', email: 'cheekeong.ng@3nova.example', level: 'MERCHANT_USER', merchantId: fx('MER-0005'), access: [['MERCHANT_OWNER', ALL]], addedBy: PLATFORM_ADMIN, status: 'ACTIVE', invitedDaysAgo: 250, lastActiveHoursAgo: 12 },
-  { userId: fx('USR-2026-0080'), fullName: 'Rajesh A/L Muthu', email: 'rajesh.muthu@emptydemo.example', level: 'MERCHANT_USER', merchantId: fx('MER-0006'), access: [['MERCHANT_OWNER', ALL]], addedBy: PLATFORM_ADMIN, status: 'ACTIVE', invitedDaysAgo: 20, lastActiveHoursAgo: 48 },
+  { userId: fx('USR-2026-0052'), fullName: 'Wong Kah Heng', email: 'kahheng.wong@tesla.example', level: 'MERCHANT_USER', merchantId: fx('MER-0003'), access: [['MERCHANT_OWNER', ALL]], addedBy: SUPER_ADMIN, status: 'ACTIVE', invitedDaysAgo: 300, lastActiveHoursAgo: 6 },
+  { userId: fx('USR-2026-0063'), fullName: 'Farah Binti Ismail', email: 'farah.ismail@boring.example', level: 'MERCHANT_USER', merchantId: fx('MER-0004'), access: [['PROJECT_ADMIN', only(fx('PRJ-0005'))]], addedBy: SUPER_ADMIN, status: 'ACTIVE', invitedDaysAgo: 300, lastActiveHoursAgo: 8 },
+  { userId: fx('USR-2026-0071'), fullName: 'Ng Chee Keong', email: 'cheekeong.ng@3nova.example', level: 'MERCHANT_USER', merchantId: fx('MER-0005'), access: [['MERCHANT_OWNER', ALL]], addedBy: SUPER_ADMIN, status: 'ACTIVE', invitedDaysAgo: 250, lastActiveHoursAgo: 12 },
+  { userId: fx('USR-2026-0080'), fullName: 'Rajesh A/L Muthu', email: 'rajesh.muthu@emptydemo.example', level: 'MERCHANT_USER', merchantId: fx('MER-0006'), access: [['MERCHANT_OWNER', ALL]], addedBy: SUPER_ADMIN, status: 'ACTIVE', invitedDaysAgo: 20, lastActiveHoursAgo: 48 },
 ]
 
 /** Vantage's Custom role: read-only access plus the audit log (DEC-76). */
@@ -53,7 +53,7 @@ export const FRAUD_ANALYST_ROLE_ID = fx('ROL-2026-0006')
 /** REQ: DEC-70 / DEC-76 — the System Default roles (shared, locked) plus one Custom role. */
 export function buildRoles(now: Date): Role[] {
   const at = new Date(now.getTime() - 400 * 86_400_000).toISOString()
-  const system = SYSTEM_DEFAULT_ROLES.map((r): Role => ({ ...r, permissions: [...r.permissions], type: 'SYSTEM_DEFAULT', status: 'ACTIVE', createdAt: at, createdBy: PLATFORM_ADMIN, updatedAt: at, updatedBy: PLATFORM_ADMIN }))
+  const system = SYSTEM_DEFAULT_ROLES.map((r): Role => ({ ...r, permissions: [...r.permissions], type: 'SYSTEM_DEFAULT', status: 'ACTIVE', createdAt: at, createdBy: SUPER_ADMIN, updatedAt: at, updatedBy: SUPER_ADMIN }))
   const auditorAt = new Date(now.getTime() - 200 * 86_400_000).toISOString()
   const auditor: Role = {
     roleId: AUDITOR_ROLE_ID,

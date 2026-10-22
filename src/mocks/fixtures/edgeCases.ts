@@ -123,7 +123,7 @@ export function buildEdgeCases(ctx: { now: Date; catalog: Catalog }): {
     make(11, fx('FLW-0001'), 68, { FACE_MATCH: [85.5, 86.0, 87.0, 89.0], LIVENESS: passes(4) }, { riskScore: 25 }),
     // Started before R2 was saved (2 h ago): still evaluated with R1 (liveness < 60 / ≥ 80), retry pending.
     make(12, fx('FLW-0001'), 180, { FACE_MATCH: [95.0], LIVENESS: [55.0] }),
-    // Vantage "Standard onboarding" FLW-0005 R2: face match Advanced < 82 / ≥ 93 (set by Platform Admin).
+    // Vantage "Standard onboarding" FLW-0005 R2: face match Advanced < 82 / ≥ 93 (set by Super admin).
     make(13, fx('FLW-0005'), 60, { FACE_MATCH: [95.0], LIVENESS: [55.0, 66.2, 90.1] }, { stepMin: 5 }),
     make(15, fx('FLW-0005'), 45, { FACE_MATCH: [94.0], LIVENESS: [96.0] }, { documentType: 'PASSPORT' }),
     // Atoz "SME director check" FLW-0004 (V3, 2 retries): 3 submissions, last in the review band.

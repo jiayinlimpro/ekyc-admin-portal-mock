@@ -113,7 +113,7 @@ const Tag = ({ children, tone = 'muted' }: { children: React.ReactNode; tone?: '
   </span>
 )
 
-// REQ: DEC-90 / DEC-93 — the projects the user can reach, with their role; Platform Admin sees every merchant's.
+// REQ: DEC-90 / DEC-93 — the projects the user can reach, with their role; Super admin sees every merchant's.
 export function ProjectsPage() {
   const actor = useSession((s) => s.actor)
   const selectProject = useSession((s) => s.selectProject)

@@ -23,10 +23,10 @@ describe('Login (mock)', () => {
     expect(useSession.getState().actor.userId).toBe(SITI.userId)
   })
 
-  it('Given the login page, then users are grouped as Platform Admin and then by merchant, each with their access', async () => {
+  it('Given the login page, then users are grouped as Super admin and then by merchant, each with their access', async () => {
     const router = createMemoryRouter(routes, { initialEntries: ['/login'] })
     render(<RouterProvider router={router} />)
-    for (const group of ['Platform Admin', 'Atoz Software Tech', 'Vantage']) expect(await screen.findByRole('region', { name: group })).toBeTruthy()
+    for (const group of ['Super admin', 'Atoz Software Tech', 'Vantage']) expect(await screen.findByRole('region', { name: group })).toBeTruthy()
     expect(screen.getByRole('region', { name: 'Atoz Software Tech' }).textContent).toContain('Reviewer · Default; Viewer · SME app')
   })
 })

@@ -65,11 +65,11 @@ describe('AppShell', () => {
     await mainNav().findByRole('link', { name: /Audit Logs/ })
   })
 
-  it('Given a Platform Admin, then admin screens and Verifications are in the menu (DEC-75)', async () => {
+  it('Given a Super admin, then admin screens and Verifications are in the menu (DEC-75)', async () => {
     useSession.getState().switchUser(ADMIN)
     renderAt('/')
     await mainNav().findByRole('link', { name: /Merchants/ })
-    for (const shown of ['Users', 'Roles', /Billing/, /Audit Logs/, 'Workflow Registry', 'Projects', 'Flows', 'Merchants', 'Admins', 'Verifications']) expect(mainNav().getByRole('link', { name: shown })).toBeTruthy()
+    for (const shown of ['Users', 'Roles', /Billing/, /Audit Logs/, 'Workflow Registry', 'Projects', 'Flows', 'Merchants', 'Super admins', 'Verifications']) expect(mainNav().getByRole('link', { name: shown })).toBeTruthy()
     for (const retired of [/eKYC Workflow/, /Developers/, 'Users and Access', /Merchant Workflow Directory/]) expect(mainNav().queryByRole('link', { name: retired })).toBeNull()
   })
 
@@ -98,7 +98,7 @@ describe('AppShell', () => {
     expect(screen.queryByRole('button', { name: /Switch project/ })).toBeNull()
   })
 
-  it('Given the Platform Admin, then projects are grouped by merchant and picking one selects it', async () => {
+  it('Given the Super admin, then projects are grouped by merchant and picking one selects it', async () => {
     useSession.getState().switchUser(ADMIN)
     renderAt('/dashboard')
     fireEvent.click(await screen.findByRole('button', { name: /Switch project/ }))

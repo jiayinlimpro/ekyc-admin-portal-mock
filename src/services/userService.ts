@@ -16,11 +16,11 @@ export interface UserService {
   /** The signed-in user's account: the UI decides what to show from it (DEC-71); services check it again. */
   me(actor: Actor): Promise<AccountAccess>
   /**
-   * Active users who may claim cases (DEC-70; Platform Admins too, DEC-75), limited to projects whose cases the actor can
+   * Active users who may claim cases (DEC-70; Super admins too, DEC-75), limited to projects whose cases the actor can
    * see; one project when given.
    */
   listReviewers(actor: Actor, projectId?: string): Promise<UserSummary[]>
-  /** Everyone the actor may see: all users for Platform Admin; own-merchant users (and Platform Admins, as audit actors) otherwise. */
+  /** Everyone the actor may see: all users for Super admin; own-merchant users (and Super admins, as audit actors) otherwise. */
   list(actor: Actor): Promise<UserSummary[]>
 }
 
@@ -50,7 +50,7 @@ export const mockUserService: UserService = {
     return wire(
       db
         .state()
-        .accounts.filter((a) => me.level === 'PLATFORM_ADMIN' || a.level === 'PLATFORM_ADMIN' || a.merchantId === me.merchantId)
+        .accounts.filter((a) => me.level === 'SUPER_ADMIN' || a.level === 'SUPER_ADMIN' || a.merchantId === me.merchantId)
         .map(summary),
     )
   },

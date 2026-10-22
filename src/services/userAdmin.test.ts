@@ -28,7 +28,7 @@ const VANTAGE_OWNER = { userId: fx('USR-2026-0045'), fullName: 'Ahmad Faiz Bin Z
 const KAVITHA = { userId: fx('USR-2026-0044'), fullName: 'Kavitha A/P Subramaniam' }
 
 describe('userAdminService: the Users screen (DEC-74)', () => {
-  it('Given the Merchant Owner, then their merchant’s users, newest first, with the Access column; no Platform Admin', async () => {
+  it('Given the Merchant Owner, then their merchant’s users, newest first, with the Access column; no Super admin', async () => {
     const rows = await users.list(OWNER)
     expect(rows.every((r) => r.merchantId === fx('MER-0001'))).toBe(true)
     expect(rows.map((r) => r.createdAt)).toEqual([...rows.map((r) => r.createdAt)].sort().reverse())
@@ -37,7 +37,7 @@ describe('userAdminService: the Users screen (DEC-74)', () => {
     expect(rows.some((r) => r.userId === ADMIN.userId)).toBe(false)
   })
 
-  it('Given Platform Admin, then every merchant’s users; given a Reviewer or a Project Admin, then forbidden', async () => {
+  it('Given Super admin, then every merchant’s users; given a Reviewer or a Project Admin, then forbidden', async () => {
     expect(new Set((await users.list(ADMIN)).map((r) => r.merchantId)).size).toBeGreaterThan(2)
     await expect(users.list(ALI)).rejects.toMatchObject({ code: 'FORBIDDEN' })
     await expect(users.list(HAFIZ)).rejects.toMatchObject({ code: 'FORBIDDEN' })

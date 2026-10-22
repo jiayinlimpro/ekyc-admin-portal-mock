@@ -47,7 +47,7 @@ export function BandBar({ check, choice }: { check: Check; choice: ThresholdChoi
 }
 
 /**
- * REQ: DEC-18 / DEC-19 — face match or liveness: Low / Standard / High, or Advanced (custom numbers, Platform Admin only).
+ * REQ: DEC-18 / DEC-19 — face match or liveness: Low / Standard / High, or Advanced (custom numbers, Super admin only).
  * Others see an Advanced choice as a read-only chip and may move back to a preset.
  */
 export function ThresholdCard({
@@ -133,7 +133,7 @@ export function ThresholdCard({
             ))}
           </div>
         )}
-        {choice.preset === 'ADVANCED' && !canSetAdvanced && <p className="text-xs text-muted-foreground">Custom values set by the platform. You can switch back to a preset; only Platform Admin can change the numbers.</p>}
+        {choice.preset === 'ADVANCED' && !canSetAdvanced && <p className="text-xs text-muted-foreground">Custom values set by the platform. You can switch back to a preset; only Super admin can change the numbers.</p>}
 
         <BandBar check={check} choice={choice} />
 

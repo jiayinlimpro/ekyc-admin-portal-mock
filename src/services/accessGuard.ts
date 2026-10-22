@@ -49,13 +49,13 @@ export function roleIn(actor: Pick<Actor, 'userId'>, projectId: string): string 
 export const nextAssignmentId = () => newId('asg')
 
 /**
- * A merchant the user may pick in a filter: any merchant for Platform Admin, otherwise only their own (DEC-86). Anything else
+ * A merchant the user may pick in a filter: any merchant for Super admin, otherwise only their own (DEC-86). Anything else
  * is "not found", like a case outside the user's projects.
  */
 export function requireMerchantInScope(actor: Pick<Actor, 'userId'>, merchantId: string): void {
   const a = accountOf(actor)
   const exists = db.state().merchants.some((m) => m.merchantId === merchantId)
-  if (!exists || (a.level !== 'PLATFORM_ADMIN' && a.merchantId !== merchantId)) throw new ServiceError('NOT_FOUND', `Merchant ${merchantId} not found.`)
+  if (!exists || (a.level !== 'SUPER_ADMIN' && a.merchantId !== merchantId)) throw new ServiceError('NOT_FOUND', `Merchant ${merchantId} not found.`)
 }
 
 /** Ids of the projects where the user may do `action` (case lists, dashboard and audit scope; DEC-72, DEC-86). */

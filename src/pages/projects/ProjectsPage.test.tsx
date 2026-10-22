@@ -84,7 +84,7 @@ describe('Projects (DEC-90, DEC-93)', () => {
     expect(screen.queryByRole('button', { name: /Rename/ })).toBeNull()
   })
 
-  it('Given the Platform Admin, then every merchant, with a Merchant column', async () => {
+  it('Given the Super admin, then every merchant, with a Merchant column', async () => {
     useSession.getState().switchUser(ADMIN)
     renderAt('/projects')
     await rowOf('Wallet app')

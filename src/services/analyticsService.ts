@@ -1,6 +1,6 @@
 // Dashboard & billing API (mock). The real backend aggregates server-side; pages receive summaries only.
-// REQ: DEC-86 — every role, data scoped: Platform Admin all merchants, Merchant Owner the merchant's projects, others
-// their own projects. Filters: merchant (Platform Admin), projects (the header's switcher), flow.
+// REQ: DEC-86 — every role, data scoped: Super admin all merchants, Merchant Owner the merchant's projects, others
+// their own projects. Filters: merchant (Super admin), projects (the header's switcher), flow.
 //   GET /analytics/filters                         → DashboardFilters
 //   GET /analytics/overview?days=&…               → OverviewStats
 //   GET /analytics/intelligence?days=&…           → IntelligenceReport
@@ -19,7 +19,7 @@ import { sweepExpiredClaims } from './claimSweep'
 import { simulateNetwork, wire } from './network'
 
 export interface DashboardScope {
-  merchantId?: string // Platform Admin only; others are scoped to their merchant anyway
+  merchantId?: string // Super admin only; others are scoped to their merchant anyway
   projectIds?: string[] // the header's projects in view; outside the user's scope they are ignored
   flowId?: string
 }

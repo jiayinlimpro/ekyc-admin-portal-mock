@@ -129,7 +129,7 @@ export const NAV_ITEMS: NavItem[] = [
     access: { project: 'manageFlows' },
     priority: 'P1',
     built: true,
-    notes: ['Create, rename, archive (Platform Admin, Merchant Owner; DEC-93). Archived = no new sessions; cases stay reviewable.'],
+    notes: ['Create, rename, archive (Super admin, Merchant Owner; DEC-93). Archived = no new sessions; cases stay reviewable.'],
   },
   {
     path: '/project-settings',
@@ -162,7 +162,7 @@ export const NAV_ITEMS: NavItem[] = [
     access: { project: 'manageFlows' },
     priority: 'P0',
     built: true,
-    notes: ['Low / Standard / High presets with a 0–100 band bar; Advanced for Platform Admin only; retries allowed 1–5 (DEC-18, DEC-19, DEC-50).'],
+    notes: ['Low / Standard / High presets with a 0–100 band bar; Advanced for Super admin only; retries allowed 1–5 (DEC-18, DEC-19, DEC-50).'],
   },
   {
     path: '/merchants',
@@ -177,14 +177,14 @@ export const NAV_ITEMS: NavItem[] = [
   },
   {
     path: '/admins',
-    label: 'Admins',
+    label: 'Super admins',
     icon: UserCog,
     group: 'Platform',
     inMenu: true,
     access: { platform: 'manageAdmins' },
     priority: 'P2',
     built: true,
-    notes: ['Platform Admin accounts only (DEC-79): invite (Pending), resend, suspend / reactivate; no roles; one active admin must remain.'],
+    notes: ['Super admin accounts only (DEC-79): invite (Pending), resend, suspend / reactivate; no roles; one active admin must remain.'],
   },
   {
     path: '/users',
@@ -196,7 +196,7 @@ export const NAV_ITEMS: NavItem[] = [
     priority: 'P1',
     built: true,
     notes: [
-      '[FRS] Users: User ID, Full Name, Email, Merchant (Platform Admin), Access, Status, Created At (DEC-74).',
+      '[FRS] Users: User ID, Full Name, Email, Merchant (Super admin), Access, Status, Created At (DEC-74).',
       'Invite (Pending, Resend invitation), Suspend / Reactivate, never delete. Access table: Role | Scope | Added by | Date.',
     ],
   },

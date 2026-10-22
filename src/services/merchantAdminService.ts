@@ -1,4 +1,4 @@
-// Merchants API (mock), Platform Admin only (DEC-70). [FRS] Merchant Management (DEC-98): FRS fields, Onboarding → Active →
+// Merchants API (mock), Super admin only (DEC-70). [FRS] Merchant Management (DEC-98): FRS fields, Onboarding → Active →
 // Suspended → Terminated with reasons, never deleted. DEC-92: a new merchant also gets a Default project, one default flow
 // on the registry's default version (Draft until its settings are complete) and its first user as Merchant Owner
 // (Pending, invited). Every change is audited (DEC-42).
@@ -50,11 +50,11 @@ export interface MerchantAdminService {
 }
 
 function requirePlatform(actor: Actor) {
-  if (!canOnPlatform(accountOf(actor), 'manageMerchants')) throw new ServiceError('FORBIDDEN', 'Only Platform Admin manages merchants.')
+  if (!canOnPlatform(accountOf(actor), 'manageMerchants')) throw new ServiceError('FORBIDDEN', 'Only Super admin manages merchants.')
 }
 
 function audit(actor: Actor, action: AuditAction, merchantId: string, details: Record<string, unknown>) {
-  db.appendAudit(makeAudit({ id: '', now: now(), action, actor, actorRole: 'Platform Admin', ip: clientIpFor(actor), merchantId, details }))
+  db.appendAudit(makeAudit({ id: '', now: now(), action, actor, actorRole: 'Super admin', ip: clientIpFor(actor), merchantId, details }))
 }
 
 function loadMerchant(merchantId: string): Merchant {

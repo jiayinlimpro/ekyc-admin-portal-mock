@@ -49,12 +49,12 @@ describe('validation (DEC-53)', () => {
   })
 })
 
-describe('Advanced is Platform Admin only (DEC-19)', () => {
+describe('Advanced is Super admin only (DEC-19)', () => {
   const base = complete(draft().settings)
   const adv = (autoReject: number, autoPass: number): FlowSettings => ({ ...base, checks: { ...base.checks, FACE_MATCH: { threshold: { preset: 'ADVANCED', autoReject, autoPass }, retriesAllowed: 3 } } })
 
-  it('Given a merchant user, when choosing Advanced, then refused; Platform Admin may', () => {
-    expect(advancedErrors(base, adv(80, 92), false)[0]).toEqual({ field: 'checks.FACE_MATCH.threshold', message: 'Only Platform Admin can set Advanced thresholds' })
+  it('Given a merchant user, when choosing Advanced, then refused; Super admin may', () => {
+    expect(advancedErrors(base, adv(80, 92), false)[0]).toEqual({ field: 'checks.FACE_MATCH.threshold', message: 'Only Super admin can set Advanced thresholds' })
     expect(advancedErrors(base, adv(80, 92), true)).toEqual([])
   })
 

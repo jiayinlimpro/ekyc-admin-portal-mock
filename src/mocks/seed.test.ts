@@ -248,7 +248,7 @@ describe('projects, flows and registry (DEC-56 … DEC-58, DEC-90 … DEC-95)', 
     }
   })
 
-  it('covers every flow status, Advanced thresholds by Platform Admin, rule and share routing, and a multi-revision flow', () => {
+  it('covers every flow status, Advanced thresholds by Super admin, rule and share routing, and a multi-revision flow', () => {
     expect(new Set(db.flows.map((f) => f.status))).toEqual(new Set(['ACTIVE', 'DRAFT', 'RETIRING', 'INACTIVE']))
     const advanced = db.flowRevisions.find((r) => r.settings.checks.FACE_MATCH.threshold.preset === 'ADVANCED')!
     expect(advanced.savedBy.userId).toBe(fx('USR-2026-0001'))
@@ -272,7 +272,7 @@ describe('accounts (DEC-70, DEC-74)', () => {
         if (x.scope.kind === 'PROJECTS') for (const id of x.scope.projectIds) expect(project(id).merchantId, a.userId).toBe(a.merchantId)
       }
     }
-    expect(db.accounts.filter((x) => x.level === 'PLATFORM_ADMIN').every((a) => a.assignments.length === 0)).toBe(true)
+    expect(db.accounts.filter((x) => x.level === 'SUPER_ADMIN').every((a) => a.assignments.length === 0)).toBe(true)
   })
 
   it('Given assignment ids, then they are unique', () => {

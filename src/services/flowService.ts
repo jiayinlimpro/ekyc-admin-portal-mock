@@ -64,7 +64,7 @@ const by = (actor: Actor) => ({ userId: actor.userId, fullName: actor.fullName }
 const entryOf = (code: string) => db.state().registry.find((e) => e.code === code)
 const inFlight = (flowId: string) => db.state().verifications.filter((v) => v.flowId === flowId && IN_FLIGHT_STATUSES.includes(v.status)).length
 
-// REQ: DEC-70 / DEC-75 — flows are managed with Manage flows, and by Platform Admin in any merchant.
+// REQ: DEC-70 / DEC-75 — flows are managed with Manage flows, and by Super admin in any merchant.
 function loadFlow(actor: Actor, flowId: string): { flow: Flow; project: Project } {
   const flow = db.state().flows.find((f) => f.flowId === flowId)
   const project = flow && projectById(flow.projectId)
@@ -140,7 +140,7 @@ export const mockFlowService: FlowService = {
     return wire(copy)
   },
 
-  // REQ: DEC-51 / DEC-52 / DEC-19 — Advanced values only by Platform Admin; an Active save needs a reason and adds a revision.
+  // REQ: DEC-51 / DEC-52 / DEC-19 — Advanced values only by Super admin; an Active save needs a reason and adds a revision.
   async save(flowId, next, reason, actor) {
     await simulateNetwork('save flow')
     requireActive(actor)

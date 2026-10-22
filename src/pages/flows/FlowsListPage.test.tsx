@@ -72,7 +72,7 @@ describe('Flows List (DEC-94)', () => {
     expect(await screen.findByRole('link', { name: 'Tourist onboarding (copy)' })).toBeTruthy()
   })
 
-  it('Given the Platform Admin on Vantage, then they manage its flows too (DEC-75)', async () => {
+  it('Given the Super admin on Vantage, then they manage its flows too (DEC-75)', async () => {
     useSession.getState().switchUser(ADMIN)
     useSession.getState().selectProject(fx('PRJ-0003'))
     renderAt('/flows')

@@ -28,13 +28,13 @@ export interface AuditService {
 export const mockAuditService: AuditService = {
   async list(q, actor) {
     await simulateNetwork('list audit')
-    // REQ: DEC-70 — Platform Admin: everything; Merchant Owner: the merchant's projects and merchant-wide entries;
+    // REQ: DEC-70 — Super admin: everything; Merchant Owner: the merchant's projects and merchant-wide entries;
     // Project Admin: their projects' entries. Reviewers and Viewers have no Audit Log.
     const me = accountOf(actor)
     const projects = projectIdsWhere(actor, 'viewAudit')
-    if (me.level !== 'PLATFORM_ADMIN' && projects.size === 0) throw new ServiceError('FORBIDDEN', 'You do not have permission to view audit logs.')
+    if (me.level !== 'SUPER_ADMIN' && projects.size === 0) throw new ServiceError('FORBIDDEN', 'You do not have permission to view audit logs.')
     const visible = (e: AuditEntry) =>
-      me.level === 'PLATFORM_ADMIN' || (e.projectId ? projects.has(e.projectId) : !!e.merchantId && canInMerchant(me, 'viewAudit', e.merchantId))
+      me.level === 'SUPER_ADMIN' || (e.projectId ? projects.has(e.projectId) : !!e.merchantId && canInMerchant(me, 'viewAudit', e.merchantId))
     sweepExpiredClaims(now())
     const actorId = (e: AuditEntry) => (e.actor.kind === 'SYSTEM' ? 'SYSTEM' : e.actor.userId)
     const rows = db

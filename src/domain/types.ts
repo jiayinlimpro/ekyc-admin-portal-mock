@@ -205,7 +205,7 @@ export interface AuditEntry {
   at: string // ISO UTC
   action: AuditAction
   actor: UpdatedBy
-  actorRole?: string // REQ: DEC-42 — the actor's role names in the project, or "Platform Admin"; absent for SYSTEM
+  actorRole?: string // REQ: DEC-42 — the actor's role names in the project, or "Super admin"; absent for SYSTEM
   merchantId?: string
   projectId?: string
   caseId?: string // REQ: DEC-97 — the case this entry is about; Reference ID kept for search and display
@@ -225,7 +225,7 @@ export interface Paged<T> {
 // Projects & Flows (DEC-90 … DEC-96).
 // ---------------------------------------------------------------------------------------------------------------------
 
-/** Registry code, e.g. "V4". A string because Platform Admin can register new codes (DEC-56). */
+/** Registry code, e.g. "V4". A string because Super admin can register new codes (DEC-56). */
 export type WorkflowCode = string
 
 // REQ: DEC-10 — the only checks with configurable thresholds.
@@ -281,7 +281,7 @@ export interface ProjectWebhook {
 export const FLOW_STATUSES = ['DRAFT', 'ACTIVE', 'RETIRING', 'INACTIVE'] as const
 export type FlowStatus = (typeof FLOW_STATUSES)[number]
 
-// REQ: DEC-19 — a preset, or custom values set by Platform Admin.
+// REQ: DEC-19 — a preset, or custom values set by Super admin.
 export const THRESHOLD_PRESETS_ORDER = ['LOW', 'STANDARD', 'HIGH'] as const
 export type ThresholdPreset = (typeof THRESHOLD_PRESETS_ORDER)[number]
 export type ThresholdChoice = { preset: ThresholdPreset } | { preset: 'ADVANCED'; autoReject: number; autoPass: number }
@@ -370,8 +370,8 @@ export interface RoleAssignment {
   addedAt: string
 }
 
-/** Platform Admin is internal and works in every merchant; everyone else belongs to one merchant (DEC-70). */
-export type AccessLevel = 'PLATFORM_ADMIN' | 'MERCHANT_USER'
+/** Super admin is internal and works in every merchant; everyone else belongs to one merchant (DEC-70). */
+export type AccessLevel = 'SUPER_ADMIN' | 'MERCHANT_USER'
 
 /** An assignment joined with its role: what the access checks work from. */
 export interface Grant {
@@ -385,8 +385,8 @@ export interface Grant {
 export interface UserAccess {
   userId: string
   level: AccessLevel
-  merchantId?: string // required unless PLATFORM_ADMIN
-  grants: readonly Grant[] // empty for Platform Admin: its rights are fixed (roles.PLATFORM_ADMIN_PERMISSIONS)
+  merchantId?: string // required unless SUPER_ADMIN
+  grants: readonly Grant[] // empty for Super admin: its rights are fixed (roles.SUPER_ADMIN_PERMISSIONS)
 }
 
 // REQ: DEC-56 / DEC-58
@@ -451,8 +451,8 @@ export type UserStatus = (typeof USER_STATUSES)[number]
 export interface UserAccount {
   userId: string
   level: AccessLevel
-  merchantId?: string // required unless PLATFORM_ADMIN
-  assignments: RoleAssignment[] // empty for Platform Admin
+  merchantId?: string // required unless SUPER_ADMIN
+  assignments: RoleAssignment[] // empty for Super admin
   /** REQ: DEC-74 / DEC-97 — the open invitation while Pending; a resend replaces it. */
   invitationId?: string // inv_…
   fullName: string

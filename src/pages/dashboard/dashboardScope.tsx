@@ -7,7 +7,7 @@ import { useSession } from '@/stores/sessionStore'
 
 /**
  * REQ: DEC-86 — what Overview, System Intelligence and Billing show: the header's projects ("All my projects" or one),
- * an optional flow, and (Platform Admin under "All my projects") an optional merchant. Flow and merchant live in the URL.
+ * an optional flow, and (Super admin under "All my projects") an optional merchant. Flow and merchant live in the URL.
  */
 export function useDashboardScope() {
   const actor = useSession((s) => s.actor)
@@ -15,7 +15,7 @@ export function useDashboardScope() {
   const [sp, setSp] = useSearchParams()
   const filters = useLoad(() => analyticsService.filters(actor), [actor.userId])
   const f = filters.data
-  const isAdmin = account?.level === 'PLATFORM_ADMIN'
+  const isAdmin = account?.level === 'SUPER_ADMIN'
   const merchantId = isAdmin && !selected && f?.merchants.some((m) => m.merchantId === sp.get('merchant')) ? sp.get('merchant')! : ''
   const inViewIds = inView.map((p) => p.projectId)
   const projects = (f?.projects ?? []).filter((p) => inViewIds.includes(p.projectId) && (!merchantId || p.merchantId === merchantId))

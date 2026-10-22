@@ -151,7 +151,7 @@ describe('Roles (DEC-76)', () => {
     await waitFor(async () => expect((await row('Fraud Analyst')).textContent).toContain('Inactive'))
   })
 
-  it('Given Platform Admin, then the Merchant column and the Custom role with "Affects N users"', async () => {
+  it('Given Super admin, then the Merchant column and the Custom role with "Affects N users"', async () => {
     useSession.getState().switchUser(ADMIN)
     renderAt('/roles')
     const r = await row('Compliance Auditor')

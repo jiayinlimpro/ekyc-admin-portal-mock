@@ -27,7 +27,7 @@ afterEach(() => {
 })
 
 describe('adminService (DEC-79)', () => {
-  it('Given Platform Admin, then only Platform Admin accounts; the Users screen has none of them', async () => {
+  it('Given Super admin, then only Super admin accounts; the Users screen has none of them', async () => {
     expect((await adminService.list(ADMIN)).map((r) => r.userId)).toEqual([AISYAH.userId, ADMIN.userId])
     expect((await userAdminService.list(ADMIN)).some((r) => r.userId === AISYAH.userId)).toBe(false)
     await expect(adminService.list(OWNER)).rejects.toMatchObject({ code: 'FORBIDDEN' })
@@ -36,7 +36,7 @@ describe('adminService (DEC-79)', () => {
   it('Given a new admin, then Pending with no roles, audited', async () => {
     const r = await adminService.invite({ fullName: 'Daniel Tan', email: 'daniel.tan@ekyc-platform.example' }, ADMIN)
     expect(r).toMatchObject({ status: 'PENDING' })
-    expect((await auditService.list({ actions: ['USER_INVITED'] }, ADMIN)).items[0]).toMatchObject({ actorRole: 'Platform Admin', details: { access: 'Platform Admin' } })
+    expect((await auditService.list({ actions: ['USER_INVITED'] }, ADMIN)).items[0]).toMatchObject({ actorRole: 'Super admin', details: { access: 'Super admin' } })
     await expect(adminService.invite({ fullName: 'Daniel Again', email: 'daniel.tan@ekyc-platform.example' }, ADMIN)).rejects.toMatchObject({ code: 'VALIDATION' })
   })
 
@@ -56,27 +56,27 @@ describe('adminService (DEC-79)', () => {
   })
 })
 
-describe('Admins screen (DEC-79)', () => {
-  it('Given Platform Admin, then the list under Platform, with Suspend disabled on their own row', async () => {
+describe('Super admins screen (DEC-79, DEC-99)', () => {
+  it('Given Super admin, then the list under Platform, with Suspend disabled on their own row', async () => {
     renderAt('/admins')
     const me = (await screen.findByRole('rowheader', { name: /Lim Wei Jie/ })).closest('tr')!
     const suspend = within(me).getByRole('button', { name: 'Suspend Lim Wei Jie' }) as HTMLButtonElement
     expect(suspend.disabled).toBe(true)
     expect(suspend.parentElement!.getAttribute('title')).toBe(NOT_YOURSELF)
-    expect(within(screen.getByRole('navigation', { name: 'Main' })).getByRole('link', { name: 'Admins' })).toBeTruthy()
+    expect(within(screen.getByRole('navigation', { name: 'Main' })).getByRole('link', { name: 'Super admins' })).toBeTruthy()
   })
 
   it('Given a new admin from the screen, then the row is Pending with Resend invitation', async () => {
     renderAt('/admins')
     await screen.findByRole('rowheader', { name: /Lim Wei Jie/ })
-    fireEvent.click(screen.getByRole('button', { name: /New admin/ }))
+    fireEvent.click(screen.getByRole('button', { name: /New super admin/ }))
     const id = (await screen.findByLabelText('User ID')) as HTMLInputElement
     await waitFor(() => expect(id.value).toMatch(/^usr_[a-z0-9]{24}$/))
     expect(id.disabled).toBe(true)
     const drafted = id.value
     fireEvent.change(await screen.findByLabelText('Full name'), { target: { value: 'Daniel Tan' } })
     fireEvent.change(screen.getByLabelText('Work email'), { target: { value: 'daniel.tan@ekyc-platform.example' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Invite admin' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Invite super admin' }))
     const row = (await screen.findByRole('rowheader', { name: 'Daniel Tan' })).closest('tr')!
     expect((await adminService.list(ADMIN)).find((r) => r.fullName === 'Daniel Tan')!.userId).toBe(drafted)
     expect(row.textContent).toContain('Pending')

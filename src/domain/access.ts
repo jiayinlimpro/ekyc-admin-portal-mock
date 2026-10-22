@@ -1,6 +1,6 @@
 // Access checks from scoped role assignments (DEC-70, DEC-72, DEC-75, DEC-86): permissions are the union of the grants
 // covering a project. REQ: DEC-71 — UI-only checks. The real backend must enforce the same rules.
-import { coversProject, merchantWidePermissions, permissionsIn, PLATFORM_ADMIN_PERMISSIONS, roleNamesIn } from './roles'
+import { coversProject, merchantWidePermissions, permissionsIn, SUPER_ADMIN_PERMISSIONS, roleNamesIn } from './roles'
 import type { Permission, Project, UserAccess } from './types'
 
 /** Platform-wide actions: no project involved. */
@@ -19,7 +19,7 @@ export const PROJECT_ACTIONS = [
   'manageProjectSettings', // General and Review operations (DEC-54)
   'manageFlows', // create, edit, activate, retire
   'changeVerificationLevel', // thresholds, retries allowed, risk level
-  'setAdvancedThresholds', // DEC-19: Platform Admin only
+  'setAdvancedThresholds', // DEC-19: Super admin only
   'viewRouting',
   'viewCases',
   'claimCase',
@@ -28,7 +28,7 @@ export const PROJECT_ACTIONS = [
 ] as const
 export type ProjectAction = (typeof PROJECT_ACTIONS)[number]
 
-// REQ: DEC-70 — the permission behind each action (any one of them is enough). Empty = Platform Admin only.
+// REQ: DEC-70 — the permission behind each action (any one of them is enough). Empty = Super admin only.
 const NEEDS: Record<ProjectAction, readonly Permission[]> = {
   viewDashboards: ['VIEW_PROJECT_REPORTS', 'VIEW_MERCHANT_REPORTS'],
   manageProjects: ['MANAGE_PROJECTS'],
@@ -48,48 +48,48 @@ const NEEDS: Record<ProjectAction, readonly Permission[]> = {
   viewAudit: ['VIEW_AUDIT_LOG'],
 }
 
-/** REQ: DEC-70 / DEC-75 — Platform Admin's rights: every permission, in any merchant. */
-const platformAdminPermissions = () => new Set<Permission>(PLATFORM_ADMIN_PERMISSIONS)
+/** REQ: DEC-70 / DEC-75 — Super admin's rights: every permission, in any merchant. */
+const platformAdminPermissions = () => new Set<Permission>(SUPER_ADMIN_PERMISSIONS)
 
 function allows(have: Set<Permission>, action: ProjectAction, isPlatformAdmin: boolean): boolean {
   if (action === 'setAdvancedThresholds') return isPlatformAdmin
   return NEEDS[action].some((p) => have.has(p))
 }
 
-/** REQ: DEC-72 — the user reaches the project at all: Platform Admin everywhere, others where an assignment covers it. */
+/** REQ: DEC-72 — the user reaches the project at all: Super admin everywhere, others where an assignment covers it. */
 export function hasProject(user: UserAccess, project: Pick<Project, 'projectId' | 'merchantId'>): boolean {
-  if (user.level === 'PLATFORM_ADMIN') return true
+  if (user.level === 'SUPER_ADMIN') return true
   return user.merchantId === project.merchantId && coversProject(user.grants, project.projectId)
 }
 
 /** The user's permissions in one project (union of the grants covering it). */
 export function permissionsInProject(user: UserAccess, project: Pick<Project, 'projectId' | 'merchantId'>): Set<Permission> {
-  if (user.level === 'PLATFORM_ADMIN') return platformAdminPermissions()
+  if (user.level === 'SUPER_ADMIN') return platformAdminPermissions()
   if (user.merchantId !== project.merchantId) return new Set()
   return permissionsIn(user.grants, project.projectId)
 }
 
-/** Role names in a project, e.g. ["Reviewer"], or ["Platform Admin"]: header, Projects screen and audit entries (DEC-42, DEC-73). */
+/** Role names in a project, e.g. ["Reviewer"], or ["Super admin"]: header, Projects screen and audit entries (DEC-42, DEC-73). */
 export function roleNamesInProject(user: UserAccess, project: Pick<Project, 'projectId' | 'merchantId'>): string[] {
-  if (user.level === 'PLATFORM_ADMIN') return ['Platform Admin']
+  if (user.level === 'SUPER_ADMIN') return ['Super admin']
   return user.merchantId === project.merchantId ? roleNamesIn(user.grants, project.projectId) : []
 }
 
 export function canInProject(user: UserAccess, action: ProjectAction, project: Pick<Project, 'projectId' | 'merchantId'>): boolean {
-  return allows(permissionsInProject(user, project), action, user.level === 'PLATFORM_ADMIN')
+  return allows(permissionsInProject(user, project), action, user.level === 'SUPER_ADMIN')
 }
 
 /**
- * Merchant-wide actions (create a project, manage users and roles, merchant-level audit entries): Platform Admin, or a
+ * Merchant-wide actions (create a project, manage users and roles, merchant-level audit entries): Super admin, or a
  * user holding the permission through an All projects assignment in that merchant.
  */
 export function canInMerchant(user: UserAccess, action: ProjectAction, merchantId: string): boolean {
-  if (user.level === 'PLATFORM_ADMIN') return allows(platformAdminPermissions(), action, true)
+  if (user.level === 'SUPER_ADMIN') return allows(platformAdminPermissions(), action, true)
   return user.merchantId === merchantId && allows(merchantWidePermissions(user.grants), action, false)
 }
 
 export function canOnPlatform(user: UserAccess, _action: PlatformAction): boolean {
-  return user.level === 'PLATFORM_ADMIN'
+  return user.level === 'SUPER_ADMIN'
 }
 
 /**

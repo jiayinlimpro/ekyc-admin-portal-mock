@@ -117,7 +117,7 @@ describe('Verifications List', () => {
     await screen.findByText('No verifications match these filters')
   })
 
-  it('Given the Platform Admin, then cases of every merchant are listed (DEC-75)', async () => {
+  it('Given the Super admin, then cases of every merchant are listed (DEC-75)', async () => {
     useSession.getState().switchUser(ADMIN)
     renderAt('/verifications?status=ALL&referenceNo=KYC-260901-900013')
     const row = (await screen.findByRole('rowheader', { name: 'KYC-260901-900013' })).closest('tr')!

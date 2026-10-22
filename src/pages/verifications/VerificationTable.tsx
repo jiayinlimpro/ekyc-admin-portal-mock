@@ -69,7 +69,7 @@ export function VerificationTable({
   skeletonRows?: number
   showProject: boolean
   showRisk: boolean
-  /** Platform Admin across merchants: the merchant under the project ("Default" exists in every merchant). */
+  /** Super admin across merchants: the merchant under the project ("Default" exists in every merchant). */
   showMerchant?: boolean
 }) {
   const now = useNow(1000) // drives the claim countdowns

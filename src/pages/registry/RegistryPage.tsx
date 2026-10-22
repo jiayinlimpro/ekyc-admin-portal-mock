@@ -192,7 +192,7 @@ function FlowsUsing({ code }: { code: string }) {
   )
 }
 
-// REQ: DEC-56 … DEC-58, DEC-85 — Platform Admin only. A record of versions; nothing here builds or deploys.
+// REQ: DEC-56 … DEC-58, DEC-85 — Super admin only. A record of versions; nothing here builds or deploys.
 export function RegistryPage() {
   const actor = useSession((s) => s.actor)
   const rows = useLoad(() => registryService.list(actor), [actor.userId])

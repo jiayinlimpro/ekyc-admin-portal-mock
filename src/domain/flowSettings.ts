@@ -79,7 +79,7 @@ export function validateFlow(flow: Pick<Flow, 'name' | 'settings'>, entry: Pick<
 }
 
 /**
- * REQ: DEC-19 — only Platform Admin sets Advanced values. Anyone who may edit the flow can move from Advanced back to a
+ * REQ: DEC-19 — only Super admin sets Advanced values. Anyone who may edit the flow can move from Advanced back to a
  * preset, but cannot create Advanced values or change them.
  */
 export function advancedErrors(base: Pick<FlowSettings, 'checks'>, next: Pick<FlowSettings, 'checks'>, canSetAdvanced: boolean): RuleError[] {
@@ -89,7 +89,7 @@ export function advancedErrors(base: Pick<FlowSettings, 'checks'>, next: Pick<Fl
     const n = next.checks[c].threshold
     if (n.preset !== 'ADVANCED') return []
     const unchanged = b.preset === 'ADVANCED' && b.autoReject === n.autoReject && b.autoPass === n.autoPass
-    return unchanged ? [] : [{ field: `checks.${c}.threshold`, message: 'Only Platform Admin can set Advanced thresholds' }]
+    return unchanged ? [] : [{ field: `checks.${c}.threshold`, message: 'Only Super admin can set Advanced thresholds' }]
   })
 }
 

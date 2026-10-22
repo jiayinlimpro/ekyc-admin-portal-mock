@@ -18,7 +18,7 @@ const grant = (roleId: string, scope: AssignmentScope): Grant => {
 const custom = (name: string, permissions: Permission[], scope: AssignmentScope): Grant => ({ roleId: fx('ROL-2026-0100'), roleName: name, permissions, scope })
 const member = (userId: string, ...grants: Grant[]): UserAccess => ({ userId, level: 'MERCHANT_USER', merchantId: fx('MER-0001'), grants })
 
-const PLATFORM: UserAccess = { userId: fx('USR-2026-0001'), level: 'PLATFORM_ADMIN', grants: [] }
+const PLATFORM: UserAccess = { userId: fx('USR-2026-0001'), level: 'SUPER_ADMIN', grants: [] }
 const OWNER = member(fx('USR-2026-0002'), grant(SYSTEM_ROLE_IDS.MERCHANT_OWNER, ALL))
 const PROJECT_ADMIN = member(fx('USR-2026-0003'), grant(SYSTEM_ROLE_IDS.PROJECT_ADMIN, only(fx('PRJ-0001'))))
 // One user, different roles in different projects (DEC-70).
@@ -79,26 +79,26 @@ describe('access: roles by scoped assignment (DEC-70)', () => {
   })
 })
 
-describe('access: Platform Admin (DEC-70, DEC-75)', () => {
-  it('Given a Platform Admin, then they manage flows in any merchant and set Advanced thresholds', () => {
+describe('access: Super admin (DEC-70, DEC-75)', () => {
+  it('Given a Super admin, then they manage flows in any merchant and set Advanced thresholds', () => {
     expect(can(PLATFORM, 'manageFlows', OTHER_MERCHANT)).toBe(true)
     expect(can(PLATFORM, 'setAdvancedThresholds', OTHER_MERCHANT)).toBe(true)
     expect(can(OWNER, 'setAdvancedThresholds')).toBe(false)
   })
 
-  it('Given a Platform Admin, then every action in every merchant: cases, claim, decide, API keys and webhooks (DEC-75)', () => {
+  it('Given a Super admin, then every action in every merchant: cases, claim, decide, API keys and webhooks (DEC-75)', () => {
     for (const a of PROJECT_ACTIONS) expect(can(PLATFORM, a, OTHER_MERCHANT), a).toBe(true)
     expect(canInMerchant(PLATFORM, 'manageBilling', fx('MER-0002'))).toBe(true)
   })
 
-  it('Given the registry and merchants screens, then only Platform Admin', () => {
+  it('Given the registry and merchants screens, then only Super admin', () => {
     expect(canOnPlatform(PLATFORM, 'manageRegistry')).toBe(true)
     expect(canOnPlatform(OWNER, 'manageMerchants')).toBe(false)
   })
 })
 
 describe('access: merchant-wide actions and scope (DEC-86, DEC-72)', () => {
-  it('Given creating a project, then only Platform Admin or a holder of the permission for All projects', () => {
+  it('Given creating a project, then only Super admin or a holder of the permission for All projects', () => {
     expect(canInMerchant(OWNER, 'manageProjects', fx('MER-0001'))).toBe(true)
     expect(canInMerchant(OWNER, 'manageProjects', fx('MER-0002'))).toBe(false)
     expect(canInMerchant(PROJECT_ADMIN, 'manageProjects', fx('MER-0001'))).toBe(false)
@@ -111,7 +111,7 @@ describe('access: merchant-wide actions and scope (DEC-86, DEC-72)', () => {
     expect(canInMerchant(OWNER, 'viewAudit', fx('MER-0001'))).toBe(true)
   })
 
-  it('Given dashboards, then everyone sees them, scoped: Platform Admin all, owner their merchant, members their projects', () => {
+  it('Given dashboards, then everyone sees them, scoped: Super admin all, owner their merchant, members their projects', () => {
     const all = [RETAIL, SME, project(fx('PRJ-0003')), OTHER_MERCHANT]
     expect(projectsWhere(PLATFORM, 'viewDashboards', all)).toHaveLength(4)
     expect(projectsWhere(OWNER, 'viewDashboards', all).map((p) => p.projectId)).toEqual([fx('PRJ-0001'), fx('PRJ-0002'), fx('PRJ-0003')])

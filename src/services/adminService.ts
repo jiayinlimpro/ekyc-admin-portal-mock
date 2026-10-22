@@ -1,5 +1,5 @@
-// Admins API (mock): the internal Platform Admin accounts, kept apart from merchant users (DEC-79). Platform Admin only.
-// No roles or scopes: Platform Admin rights are fixed (DEC-70).
+// Admins API (mock): the internal Super admin accounts, kept apart from merchant users (DEC-79). Super admin only.
+// No roles or scopes: Super admin rights are fixed (DEC-70).
 //   GET  /admins                          list              → 200 AdminRow[]
 //   POST /admins                          invite            → 201 AdminRow (Pending) | 422
 //   POST /admins/{id}/invitation          resendInvitation  → 200 AdminRow | 422 (not Pending)
@@ -37,14 +37,14 @@ export interface AdminService {
   reactivate(userId: string, actor: Actor): Promise<AdminRow>
 }
 
-export const LAST_ADMIN = 'At least one active Platform Admin is required.'
+export const LAST_ADMIN = 'At least one active Super admin is required.'
 export const NOT_YOURSELF = 'You can’t suspend yourself.'
 
 function requireAdmins(actor: Actor) {
-  if (!canOnPlatform(accountOf(actor), 'manageAdmins')) throw new ServiceError('FORBIDDEN', 'Only Platform Admin manages admins.')
+  if (!canOnPlatform(accountOf(actor), 'manageAdmins')) throw new ServiceError('FORBIDDEN', 'Only Super admin manages admins.')
 }
 
-const admins = () => db.state().accounts.filter((a) => a.level === 'PLATFORM_ADMIN')
+const admins = () => db.state().accounts.filter((a) => a.level === 'SUPER_ADMIN')
 
 /** REQ: DEC-79 — why this admin can't be suspended now, if anything. */
 function suspendBlocked(actor: Actor, a: UserAccount): string | undefined {
@@ -73,7 +73,7 @@ const putAccount = (a: UserAccount) => db.setState((st) => ({ accounts: st.accou
 
 // REQ: DEC-42 — the user events; no merchant or project.
 function audit(actor: Actor, action: AuditAction, details: Record<string, unknown>) {
-  db.appendAudit(makeAudit({ id: '', now: now(), action, actor, actorRole: 'Platform Admin', ip: clientIpFor(actor), details }))
+  db.appendAudit(makeAudit({ id: '', now: now(), action, actor, actorRole: 'Super admin', ip: clientIpFor(actor), details }))
 }
 
 export const mockAdminService: AdminService = {
@@ -98,14 +98,14 @@ export const mockAdminService: AdminService = {
       userId: adoptDraftId('usr', input.userId, (id) => db.state().accounts.some((a) => a.userId === id)),
       fullName: input.fullName.trim(),
       email,
-      level: 'PLATFORM_ADMIN',
+      level: 'SUPER_ADMIN',
       assignments: [],
       status: 'PENDING',
       invitationId: newId('inv'),
       invitedAt: now().toISOString(),
     }
     db.setState((st) => ({ accounts: [...st.accounts, account] }))
-    audit(actor, 'USER_INVITED', { userId: account.userId, fullName: account.fullName, email, access: 'Platform Admin', summary: `${account.fullName} invited as Platform Admin` })
+    audit(actor, 'USER_INVITED', { userId: account.userId, fullName: account.fullName, email, access: 'Super admin', summary: `${account.fullName} invited as Super admin` })
     return wire(rowOf(actor, account))
   },
 

@@ -1,4 +1,4 @@
-// REQ: DEC-79 — Admins: the internal Platform Admin accounts. No roles or scopes; their rights are fixed (DEC-70).
+// REQ: DEC-79 — Admins: the internal Super admin accounts. No roles or scopes; their rights are fixed (DEC-70).
 import { useState, type FormEvent } from 'react'
 import { Plus } from 'lucide-react'
 import { toast } from 'sonner'
@@ -41,8 +41,8 @@ function InviteAdminDialog({ onClose, onSaved }: { onClose: () => void; onSaved:
       <DialogContent>
         <form onSubmit={submit} noValidate className="space-y-4">
           <DialogHeader>
-            <DialogTitle>New admin</DialogTitle>
-            <DialogDescription>Platform Admins work in every merchant with a fixed set of rights. They are Pending until they accept the invitation.</DialogDescription>
+            <DialogTitle>New super admin</DialogTitle>
+            <DialogDescription>Super admins work in every merchant with a fixed set of rights. They are Pending until they accept the invitation.</DialogDescription>
           </DialogHeader>
           <FormField id="na-id" label="User ID" hint="Generated; it can’t be changed.">
             <Input id="na-id" value={draft.data ?? ''} placeholder={draft.loading ? 'Generating…' : ''} readOnly disabled className="font-mono text-xs" />
@@ -63,7 +63,7 @@ function InviteAdminDialog({ onClose, onSaved }: { onClose: () => void; onSaved:
               Cancel
             </Button>
             <Button type="submit" disabled={busy || !draft.data}>
-              {busy ? 'Inviting…' : 'Invite admin'}
+              {busy ? 'Inviting…' : 'Invite super admin'}
             </Button>
           </DialogFooter>
         </form>
@@ -120,11 +120,11 @@ export function AdminsPage() {
     <div className="mx-auto max-w-[1200px] space-y-4">
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold">Admins</h1>
-          <p className="text-sm text-muted-foreground">Platform Admin accounts. Merchant users are on the Users screen.</p>
+          <h1 className="text-2xl font-semibold">Super admins</h1>
+          <p className="text-sm text-muted-foreground">Super admin accounts. Merchant users are on the Users screen.</p>
         </div>
         <Button onClick={() => setInviting(true)}>
-          <Plus aria-hidden /> New admin
+          <Plus aria-hidden /> New super admin
         </Button>
       </header>
       <section aria-label="Admin list" className="overflow-x-auto rounded-lg border bg-card">

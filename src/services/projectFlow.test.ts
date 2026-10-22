@@ -42,7 +42,7 @@ describe('projectService (DEC-92, DEC-93, DEC-96)', () => {
     expect((await projectService.listMine(HAFIZ)).map((p) => p.projectId)).toEqual([fx('PRJ-0002')])
     const admin = await projectService.listMine(ADMIN)
     expect(admin).toHaveLength(db.state().projects.length)
-    expect(admin.every((p) => p.roles.join() === 'Platform Admin')).toBe(true)
+    expect(admin.every((p) => p.roles.join() === 'Super admin')).toBe(true)
   })
 
   it('Given the Merchant Owner creates a project, then it starts with a Draft default flow on the registry default (MOCK-12), audited', async () => {
@@ -62,7 +62,7 @@ describe('projectService (DEC-92, DEC-93, DEC-96)', () => {
 
   it('Given a rename, then old and new names are audited; a Project Admin may not rename', async () => {
     await projectService.rename(fx('PRJ-0002'), 'SME onboarding', ADMIN)
-    expect(await lastAudit('PROJECT_RENAMED')).toMatchObject({ actorRole: 'Platform Admin', details: { changes: [{ field: 'Name', from: 'SME app', to: 'SME onboarding' }] } })
+    expect(await lastAudit('PROJECT_RENAMED')).toMatchObject({ actorRole: 'Super admin', details: { changes: [{ field: 'Name', from: 'SME app', to: 'SME onboarding' }] } })
     await expectError(projectService.rename(fx('PRJ-0002'), 'Mine now', HAFIZ), 'FORBIDDEN')
     await expectError(projectService.get(fx('PRJ-0001'), HAFIZ), 'NOT_FOUND')
   })
@@ -82,7 +82,7 @@ describe('flowService access (DEC-70, DEC-75)', () => {
     expect((await flowService.list(fx('PRJ-0002'), HAFIZ)).map((f) => f.flowId)).toEqual([fx('FLW-0004')])
   })
 
-  it('Given the Platform Admin, then they manage flows in any merchant; Draft registry versions are never selectable (DEC-56)', async () => {
+  it('Given the Super admin, then they manage flows in any merchant; Draft registry versions are never selectable (DEC-56)', async () => {
     const f = await flowService.create(fx('PRJ-0003'), { name: 'Students', description: 'University sign-ups', workflowVersion: 'V3' }, ADMIN)
     expect(f).toMatchObject({ projectId: fx('PRJ-0003'), merchantId: fx('MER-0002'), status: 'DRAFT', workflowVersion: 'V3' })
     expect(f.settings.checks.LIVENESS.threshold).toEqual({ preset: 'STANDARD' })
@@ -118,11 +118,11 @@ describe('flowService settings and lifecycle (DEC-51 … DEC-53, DEC-94)', () =>
     expect((await flowService.save(fx('FLW-0001'), { ...base, settings: { ...flow.settings, cooldownMin: 30 } }, 'Shorter cooldown for retries', SITI)).settings.cooldownMin).toBe(30)
   })
 
-  it('Given Advanced values, then only the Platform Admin may set them (DEC-19)', async () => {
+  it('Given Advanced values, then only the Super admin may set them (DEC-19)', async () => {
     const { flow } = await flowService.get(fx('FLW-0004'), OWNER)
     const settings = { ...flow.settings, checks: { ...flow.settings.checks, FACE_MATCH: { ...flow.settings.checks.FACE_MATCH, threshold: { preset: 'ADVANCED' as const, autoReject: 80, autoPass: 90 } } } }
     const next = { name: flow.name, description: flow.description, settings }
-    await expectError(flowService.save(fx('FLW-0004'), next, 'Custom band for directors', OWNER), 'VALIDATION', 'Only Platform Admin can set Advanced thresholds')
+    await expectError(flowService.save(fx('FLW-0004'), next, 'Custom band for directors', OWNER), 'VALIDATION', 'Only Super admin can set Advanced thresholds')
     expect((await flowService.save(fx('FLW-0004'), next, 'Custom band for directors', ADMIN)).settings.checks.FACE_MATCH.threshold).toMatchObject({ preset: 'ADVANCED' })
   })
 

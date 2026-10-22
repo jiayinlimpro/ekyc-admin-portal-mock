@@ -28,8 +28,8 @@ export const SYSTEM_DEFAULT_ROLES: readonly Pick<Role, 'roleId' | 'name' | 'perm
   { roleId: SYSTEM_ROLE_IDS.VIEWER, name: 'Viewer', permissions: ['VIEW_CASES', 'VIEW_PROJECT_REPORTS'] },
 ]
 
-/** REQ: DEC-70 / DEC-75 — Platform Admin (internal): every permission, in every merchant. */
-export const PLATFORM_ADMIN_PERMISSIONS: readonly Permission[] = [...PERMISSIONS]
+/** REQ: DEC-70 / DEC-75 — Super admin (internal): every permission, in every merchant. */
+export const SUPER_ADMIN_PERMISSIONS: readonly Permission[] = [...PERMISSIONS]
 
 const MERCHANT_LEVEL: ReadonlySet<Permission> = new Set(MERCHANT_PERMISSIONS)
 
@@ -108,11 +108,11 @@ export function scopeLabel(scope: AssignmentScope, projectName: (projectId: stri
 
 /**
  * REQ: DEC-74 — nobody grants permissions they don't have: for All projects the granter needs them in every project
- * (an All projects grant); for selected projects, in each of those projects. Platform Admin sets up merchants and their
+ * (an All projects grant); for selected projects, in each of those projects. Super admin sets up merchants and their
  * first owner, so this rule does not limit them.
  */
-export function canGrant(granter: 'PLATFORM_ADMIN' | readonly Grant[], permissions: readonly Permission[], scope: AssignmentScope): boolean {
-  if (granter === 'PLATFORM_ADMIN') return true
+export function canGrant(granter: 'SUPER_ADMIN' | readonly Grant[], permissions: readonly Permission[], scope: AssignmentScope): boolean {
+  if (granter === 'SUPER_ADMIN') return true
   const holds = (have: Set<Permission>) => permissions.every((p) => have.has(p))
   if (scope.kind === 'ALL_PROJECTS') return holds(merchantWidePermissions(granter))
   return scope.projectIds.every((id) => holds(permissionsIn(granter, id)))

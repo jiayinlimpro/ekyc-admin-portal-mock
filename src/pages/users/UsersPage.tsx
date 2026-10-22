@@ -331,7 +331,7 @@ const matches = (r: UserRow, f: Filters) => {
 export function UsersPage() {
   const actor = useSession((s) => s.actor)
   const { account } = useAccess()
-  const isAdmin = account?.level === 'PLATFORM_ADMIN'
+  const isAdmin = account?.level === 'SUPER_ADMIN'
   const [sp, setSp] = useSearchParams()
   const applied: Filters = { q: sp.get('q') ?? '', status: (sp.get('status') ?? '') as Filters['status'], merchantId: sp.get('merchantId') ?? '' }
   const [form, setForm] = useState<Filters>(applied)

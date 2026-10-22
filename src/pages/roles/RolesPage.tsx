@@ -203,7 +203,7 @@ function RoleDialog({
 export function RolesPage() {
   const actor = useSession((s) => s.actor)
   const { account } = useAccess()
-  const isAdmin = account?.level === 'PLATFORM_ADMIN'
+  const isAdmin = account?.level === 'SUPER_ADMIN'
   const rows = useLoad(() => roleService.list(actor), [actor.userId])
   const merchants = useLoad(() => merchantService.list(actor), [actor.userId])
   const [editing, setEditing] = useState<Editing>()

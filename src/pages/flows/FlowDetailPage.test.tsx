@@ -64,7 +64,7 @@ describe('Flow Detail (DEC-18, DEC-19, DEC-50, DEC-51)', () => {
     expect(fm.getByText(/up to 6 submissions/)).toBeTruthy()
   })
 
-  it('Given Advanced set by the platform, then the merchant sees a read-only chip; the Platform Admin edits the numbers (DEC-19)', async () => {
+  it('Given Advanced set by the platform, then the merchant sees a read-only chip; the Super admin edits the numbers (DEC-19)', async () => {
     useSession.getState().switchUser(VANTAGE_OWNER)
     renderAt(`/flows/${fx('FLW-0005')}`)
     const fm = await card('Face Match')

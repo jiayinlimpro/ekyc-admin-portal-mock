@@ -130,10 +130,10 @@ describe('per-project case access (DEC-70, DEC-72)', () => {
     await expectError(svc.get(C(2), OTHER_MERCHANT_REVIEWER), 'NOT_FOUND')
   })
 
-  it('Given the Platform Admin, then every case is visible, each open is audited, and they can claim and decide (DEC-75)', async () => {
+  it('Given the Super admin, then every case is visible, each open is audited, and they can claim and decide (DEC-75)', async () => {
     expect((await svc.list({ pageSize: 500 }, ADMIN)).total).toBeGreaterThan((await svc.list({ pageSize: 500 }, OWNER)).total)
     await svc.get(C(10), ADMIN)
-    expect((await auditService.list({ actions: ['SENSITIVE_PII_VIEW'] }, ADMIN)).items[0]).toMatchObject({ referenceNo: S(10), actorRole: 'Platform Admin' })
+    expect((await auditService.list({ actions: ['SENSITIVE_PII_VIEW'] }, ADMIN)).items[0]).toMatchObject({ referenceNo: S(10), actorRole: 'Super admin' })
     await svc.claim(C(10), ADMIN)
     const v = await svc.decide(C(10), ADMIN, { outcome: 'APPROVE' })
     expect(v).toMatchObject({ status: 'APPROVED', lastUpdatedBy: { kind: 'USER', userId: ADMIN.userId } })
@@ -329,7 +329,7 @@ describe('analyticsService scoping (DEC-86)', () => {
     expect(report.byProject.every((p) => [fx('PRJ-0001'), fx('PRJ-0002')].includes(p.key))).toBe(true)
   })
 
-  it("Given another merchant's id, then NOT_FOUND for merchant users; Platform Admin may filter any merchant", async () => {
+  it("Given another merchant's id, then NOT_FOUND for merchant users; Super admin may filter any merchant", async () => {
     await expectError(analyticsService.overview({ days: 30, merchantId: fx('MER-0002') }, OWNER), 'NOT_FOUND')
     expect(await total(ADMIN, fx('MER-0006'))).toBe(0)
   })

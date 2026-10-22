@@ -71,7 +71,7 @@ function Breadcrumb() {
   )
 }
 
-/** Merchant names for grouping the switcher (Platform Admin sees projects of several merchants). */
+/** Merchant names for grouping the switcher (Super admin sees projects of several merchants). */
 function useMerchantNames() {
   const actor = useSession((s) => s.actor)
   const [merchants, setMerchants] = useState<Merchant[]>([])
@@ -90,7 +90,7 @@ function useMerchantNames() {
   return (id: string) => merchants.find((m) => m.merchantId === id)?.name ?? id
 }
 
-/** Role names per project; not for Platform Admin, who has the same rights everywhere. */
+/** Role names per project; not for Super admin, who has the same rights everywhere. */
 function ProjectOption({ p, showRole }: { p: MyProject; showRole: boolean }) {
   return (
     <span className="flex min-w-0 flex-1 items-center gap-2">
@@ -175,7 +175,7 @@ function ProjectSwitcher() {
 function RoleLines() {
   const { account, projects, selected } = useAccess()
   if (!account) return null
-  if (account.level === 'PLATFORM_ADMIN') return <div>Platform Admin · all projects</div>
+  if (account.level === 'SUPER_ADMIN') return <div>Super admin · all projects</div>
   if (selected) return <div>{`${selected.roles.join(', ')} · ${selected.name}`}</div>
   return (
     <>
