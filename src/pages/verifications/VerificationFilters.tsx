@@ -1,5 +1,6 @@
 import { useState, type FormEvent, type ReactNode } from 'react'
 import { RotateCcw, Search } from 'lucide-react'
+import { DateRangeField } from '@/components/common/DateRangeField'
 import { NativeSelect } from '@/components/common/NativeSelect'
 import { ToggleChips } from '@/components/common/ToggleChips'
 import { Button } from '@/components/ui/button'
@@ -123,11 +124,15 @@ export function VerificationFilters({ initial, onSearch, onReset, options }: { i
             <option value="MANUAL">Manual (reviewer)</option>
           </NativeSelect>
         </Field>
-        <Field id="f-from" label="Created from" hint="MYT">
-          <Input id="f-from" type="date" value={draft.createdFrom} max={draft.createdTo || undefined} onChange={(e) => set('createdFrom', e.target.value)} aria-invalid={!!error} />
-        </Field>
-        <Field id="f-to" label="Created to" hint="MYT">
-          <Input id="f-to" type="date" value={draft.createdTo} min={draft.createdFrom || undefined} onChange={(e) => set('createdTo', e.target.value)} aria-invalid={!!error} />
+        {/* REQ: DEC-43 / DEC-101 — one field for the start and end date, with a range calendar. */}
+        <Field id="f-created" label="Created" hint="MYT">
+          <DateRangeField
+            id="f-created"
+            title="Created between"
+            value={{ from: draft.createdFrom, to: draft.createdTo }}
+            onChange={(r) => setDraft({ ...draft, createdFrom: r.from, createdTo: r.to })}
+            invalid={!!error}
+          />
         </Field>
         <GroupField label="Status" hint="none selected = all" className="sm:col-span-2 lg:col-span-2">
           <ToggleChips label="Status" options={STATUS_OPTIONS} value={draft.statuses} onChange={(v) => set('statuses', v)} />

@@ -9,6 +9,9 @@ import { DEFAULT_DEV_FLAGS, useDevFlags } from '@/stores/devFlagsStore'
 import { useSession } from '@/stores/sessionStore'
 import { ADMIN, ALI, EMPTY_OWNER, HAFIZ } from '@/test/factories'
 import { fx } from '@/lib/ids'
+import { addDays, formatRange, mytToday } from '@/lib/dateRange'
+
+const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
 
 function renderAt(path: string) {
   const router = createMemoryRouter(routes, { initialEntries: [path] })
@@ -156,14 +159,33 @@ describe('Verifications List', () => {
     expect((await dataRows()).length).toBe(20)
   })
 
-  it('Given Created from is after Created to, then Search is blocked with a message', async () => {
+  it('Given the Created field, when the end day then an earlier day are clicked, then one range in one field, and Search applies it (DEC-101)', async () => {
     const router = renderAt('/verifications')
     await dataRows()
-    fireEvent.change(screen.getByLabelText(/Created from/), { target: { value: '2026-09-26' } })
-    fireEvent.change(screen.getByLabelText(/Created to/), { target: { value: '2026-09-25' } })
+    expect(screen.queryByLabelText(/Created from|Created to/)).toBeNull() // one field, not two
+    const today = mytToday(new Date())
+    const [start, end] = [addDays(today, -5), addDays(today, -2)]
+    fireEvent.click(screen.getByLabelText(/^Created/))
+    const calendar = await screen.findByRole('dialog', { name: 'Created between' })
+    const name = (d: string) => `${Number(d.slice(8))} ${MONTHS[Number(d.slice(5, 7)) - 1]} ${d.slice(0, 4)}`
+    const day = (d: string) => within(calendar).getByRole('button', { name: name(d) })
+    const tomorrow = within(calendar).queryByRole('button', { name: name(addDays(today, 1)) }) as HTMLButtonElement | null
+    if (tomorrow) expect(tomorrow.disabled).toBe(true) // no future days (tomorrow may be in a month not shown)
+    fireEvent.click(day(end))
+    expect(within(calendar).getByText(/now choose the end date/)).toBeTruthy()
+    fireEvent.click(day(start)) // earlier than the first click: the two swap
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Created between' })).toBeNull())
+    expect(screen.getByLabelText(/^Created/).textContent).toBe(formatRange({ from: start, to: end }))
+    search()
+    await waitFor(() => expect(router.state.location.search).toBe(`?from=${start}&to=${end}`))
+  })
+
+  it('Given a link with Created from after Created to, then Search is blocked with a message', async () => {
+    const router = renderAt('/verifications?from=2026-09-26&to=2026-09-25')
+    await screen.findByText('No verifications match these filters') // the dates exclude everything
     search()
     expect(screen.getByRole('alert').textContent).toMatch(/on or before/)
-    expect(router.state.location.search).toBe('')
+    expect(router.state.location.search).toBe('?from=2026-09-26&to=2026-09-25')
   })
 
   it('Given a stale link with an unknown status, then it is ignored', async () => {

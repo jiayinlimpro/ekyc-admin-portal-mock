@@ -149,6 +149,12 @@ Rules changed on 2026-10-20 (Projects & Flows restructure) are marked **(changed
   Status sorts in lifecycle order (Processing, Pending Review, Approved, Rejected); risk Low → High, cases without a risk
   level last either way; ties by Last updated, then Reference ID. A sort applies at once and is kept in the URL
   (`sort=status.asc`); it does not reset the filters. [FRS][PO 2026-10-22]
+- **DEC-101** **(new)** The Created filter is one date-range field, not "Created from" and "Created to" [PO 2026-10-22].
+  It reads "08 Oct 2026 – 17 Oct 2026" (MYT) and opens a calendar of two months (one on a phone): the first click picks the
+  start, the second the end (an earlier day swaps them); the days between are highlighted, and while choosing the end the
+  highlight follows the pointer. Future days can't be picked. Quick ranges (FRS "presets"): Today, Last 7 days, Last 30
+  days, This month; Clear empties it. Closing with only a start keeps the previous dates. Like every filter it applies on
+  Search (DEC-43); the URL still carries `from` / `to`. [FRS][PO 2026-10-22]
 - **DEC-44** **(new)** Verification Detail sections: header (Reference ID, case ID with copy (DEC-97), status, project, flow, workflow version,
   configuration revision, created, last updated) · claim panel · end-user data (email for V4/V5) · ID capture (images, result,
   soft rejects) · Selfie (V1 only: image, result) · Face match (result, threshold applied, score, retries used / allowed) ·
