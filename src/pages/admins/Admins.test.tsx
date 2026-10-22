@@ -34,17 +34,17 @@ describe('adminService (DEC-79)', () => {
   })
 
   it('Given a new admin, then Pending with no roles, audited', async () => {
-    const r = await adminService.invite({ fullName: 'Daniel Tan', email: 'daniel.tan@ekyc-platform.example' }, ADMIN)
+    const r = await adminService.invite({ fullName: 'Farid Osman', email: 'farid.osman@ekyc-platform.example' }, ADMIN)
     expect(r).toMatchObject({ status: 'PENDING' })
     expect((await auditService.list({ actions: ['USER_INVITED'] }, ADMIN)).items[0]).toMatchObject({ actorRole: 'Super admin', details: { access: 'Super admin' } })
-    await expect(adminService.invite({ fullName: 'Daniel Again', email: 'daniel.tan@ekyc-platform.example' }, ADMIN)).rejects.toMatchObject({ code: 'VALIDATION' })
+    await expect(adminService.invite({ fullName: 'Daniel Again', email: 'farid.osman@ekyc-platform.example' }, ADMIN)).rejects.toMatchObject({ code: 'VALIDATION' })
   })
 
   it('Given two active admins, then one can suspend the other but not themselves; the last active one stays', async () => {
     expect((await adminService.list(ADMIN)).find((r) => r.userId === ADMIN.userId)!.suspendBlocked).toBe(NOT_YOURSELF)
     expect((await adminService.suspend(AISYAH.userId, ADMIN)).status).toBe('SUSPENDED')
     await expect(adminService.suspend(ADMIN.userId, ADMIN)).rejects.toMatchObject({ code: 'VALIDATION' })
-    const other = await adminService.invite({ fullName: 'Daniel Tan', email: 'daniel.tan@ekyc-platform.example' }, ADMIN)
+    const other = await adminService.invite({ fullName: 'Farid Osman', email: 'farid.osman@ekyc-platform.example' }, ADMIN)
     expect(other.suspendBlocked).toBeUndefined() // Pending: suspending them leaves Lim active
     expect((await adminService.reactivate(AISYAH.userId, ADMIN)).status).toBe('ACTIVE')
   })
@@ -74,11 +74,11 @@ describe('Super admins screen (DEC-79, DEC-99)', () => {
     await waitFor(() => expect(id.value).toMatch(/^usr_[a-z0-9]{24}$/))
     expect(id.disabled).toBe(true)
     const drafted = id.value
-    fireEvent.change(await screen.findByLabelText('Full name'), { target: { value: 'Daniel Tan' } })
-    fireEvent.change(screen.getByLabelText('Work email'), { target: { value: 'daniel.tan@ekyc-platform.example' } })
+    fireEvent.change(await screen.findByLabelText('Full name'), { target: { value: 'Farid Osman' } })
+    fireEvent.change(screen.getByLabelText('Work email'), { target: { value: 'farid.osman@ekyc-platform.example' } })
     fireEvent.click(screen.getByRole('button', { name: 'Invite super admin' }))
-    const row = (await screen.findByRole('rowheader', { name: 'Daniel Tan' })).closest('tr')!
-    expect((await adminService.list(ADMIN)).find((r) => r.fullName === 'Daniel Tan')!.userId).toBe(drafted)
+    const row = (await screen.findByRole('rowheader', { name: 'Farid Osman' })).closest('tr')!
+    expect((await adminService.list(ADMIN)).find((r) => r.fullName === 'Farid Osman')!.userId).toBe(drafted)
     expect(row.textContent).toContain('Pending')
     expect(within(row).getByRole('button', { name: 'Resend invitation' })).toBeTruthy()
   })

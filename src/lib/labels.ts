@@ -18,7 +18,55 @@ export const PERMISSION_LABELS: Record<Permission, string> = {
   MANAGE_MEMBERS: 'Manage project members',
   VIEW_PROJECT_REPORTS: 'View project reports',
   VIEW_AUDIT_LOG: 'View audit log',
+  // REQ: DEC-99 — platform permissions, written "Module · action".
+  P_MERCHANTS_VIEW: 'Merchants · View',
+  P_MERCHANTS_CREATE: 'Merchants · Create',
+  P_MERCHANTS_SUSPEND: 'Merchants · Suspend',
+  P_REGISTRY_VIEW: 'Workflow Registry · View',
+  P_REGISTRY_MANAGE: 'Workflow Registry · Manage',
+  P_LEVELS_VIEW: 'Verification levels · View',
+  P_LEVELS_CALIBRATE: 'Verification levels · Calibrate',
+  P_BILLING_VIEW: 'Platform billing · View',
+  P_BILLING_MANAGE: 'Platform billing · Manage',
+  P_REPORTS_VIEW: 'Usage reports · View',
+  P_REPORTS_EXPORT: 'Usage reports · Export',
+  P_CASES_VIEW_MASKED: 'Verifications · View (masked)',
+  P_CASES_VIEW_UNMASKED: 'Verifications · See unmasked ID data',
+  P_CASES_DECIDE: 'Verifications · Claim / approve / reject',
+  P_FLOWS_VIEW: 'Flows · View',
+  P_FLOWS_EDIT: 'Flows · Edit',
+  P_INTEGRATION_VIEW: 'API keys and webhook · View',
+  P_INTEGRATION_MANAGE: 'API keys and webhook · Manage',
+  P_AUDIT_VIEW: 'Audit log · View',
 }
+
+/** REQ: DEC-99 — the Roles form shows platform permissions grouped by module, with short action names. */
+export const PLATFORM_PERMISSION_GROUPS: { title: string; hint: string; modules: { module: string; actions: [Permission, string][] }[] }[] = [
+  {
+    title: 'Platform-level',
+    hint: 'Apply across the platform.',
+    modules: [
+      { module: 'Merchants', actions: [['P_MERCHANTS_VIEW', 'View'], ['P_MERCHANTS_CREATE', 'Create'], ['P_MERCHANTS_SUSPEND', 'Suspend']] },
+      { module: 'Workflow Registry', actions: [['P_REGISTRY_VIEW', 'View'], ['P_REGISTRY_MANAGE', 'Manage']] },
+      { module: 'Verification levels', actions: [['P_LEVELS_VIEW', 'View'], ['P_LEVELS_CALIBRATE', 'Calibrate']] },
+      { module: 'Platform billing', actions: [['P_BILLING_VIEW', 'View'], ['P_BILLING_MANAGE', 'Manage']] },
+      { module: 'Usage reports', actions: [['P_REPORTS_VIEW', 'View'], ['P_REPORTS_EXPORT', 'Export']] },
+    ],
+  },
+  {
+    title: 'Merchant access',
+    hint: 'Apply in the merchants the user is given.',
+    modules: [
+      { module: 'Verifications', actions: [['P_CASES_VIEW_MASKED', 'View (masked)'], ['P_CASES_VIEW_UNMASKED', 'See unmasked ID data'], ['P_CASES_DECIDE', 'Claim / approve / reject']] },
+      { module: 'Flows', actions: [['P_FLOWS_VIEW', 'View'], ['P_FLOWS_EDIT', 'Edit']] },
+      { module: 'API keys and webhook', actions: [['P_INTEGRATION_VIEW', 'View'], ['P_INTEGRATION_MANAGE', 'Manage']] },
+      { module: 'Audit log', actions: [['P_AUDIT_VIEW', 'View']] },
+    ],
+  },
+]
+
+/** REQ: DEC-99 — account types. */
+export const ACCOUNT_TYPE_LABELS = { SUPER_ADMIN: 'Super admin', PLATFORM_STAFF: 'Platform (internal)', MERCHANT_USER: 'Merchant' } as const
 
 export const permissionList = (ps: readonly Permission[]) => ps.map((p) => PERMISSION_LABELS[p]).join(', ') || 'None'
 

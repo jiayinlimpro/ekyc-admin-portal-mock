@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { canInMerchant, canInProject, canOnPlatform, hasProject, PROJECT_ACTIONS, projectsWhere, roleNamesInProject, type ProjectAction } from './access'
-import { SYSTEM_DEFAULT_ROLES, SYSTEM_ROLE_IDS } from './roles'
+import { PLATFORM_DEFAULT_ROLES, PLATFORM_ROLE_IDS, SYSTEM_DEFAULT_ROLES, SYSTEM_ROLE_IDS } from './roles'
 import type { AssignmentScope, Grant, Permission, Project, UserAccess } from './types'
 import { fx } from '@/lib/ids'
 
@@ -93,7 +93,7 @@ describe('access: Super admin (DEC-70, DEC-75)', () => {
 
   it('Given the registry and merchants screens, then only Super admin', () => {
     expect(canOnPlatform(PLATFORM, 'manageRegistry')).toBe(true)
-    expect(canOnPlatform(OWNER, 'manageMerchants')).toBe(false)
+    expect(canOnPlatform(OWNER, 'viewMerchants')).toBe(false)
   })
 })
 
@@ -121,5 +121,61 @@ describe('access: merchant-wide actions and scope (DEC-86, DEC-72)', () => {
   it('Given a case list, then only projects where the user may view cases (others are "not found")', () => {
     expect(projectsWhere(PROJECT_ADMIN, 'viewCases', [RETAIL, SME]).map((p) => p.projectId)).toEqual([fx('PRJ-0001')])
     expect(projectsWhere(PLATFORM, 'viewCases', [RETAIL, SME, OTHER_MERCHANT])).toHaveLength(3)
+  })
+})
+
+describe('access: platform staff (DEC-99)', () => {
+  const platformGrant = (roleId: string, scope: AssignmentScope): Grant => {
+    const r = PLATFORM_DEFAULT_ROLES.find((x) => x.roleId === roleId)!
+    return { roleId, roleName: r.name, permissions: r.permissions, scope }
+  }
+  const staff = (...grants: Grant[]): UserAccess => ({ userId: 'USR-STAFF', level: 'PLATFORM_STAFF', grants })
+  const SUPPORT = staff(platformGrant(PLATFORM_ROLE_IDS.SUPPORT, { kind: 'ALL_MERCHANTS' }))
+  const SPECIALIST = staff(platformGrant(PLATFORM_ROLE_IDS.VERIFICATION_SPECIALIST, { kind: 'MERCHANTS', merchantIds: [fx('MER-0002')] }))
+  const FINANCE = staff(platformGrant(PLATFORM_ROLE_IDS.FINANCE, { kind: 'ALL_MERCHANTS' }))
+  const ENGINEER = staff(platformGrant(PLATFORM_ROLE_IDS.WORKFLOW_ENGINEER, { kind: 'ALL_MERCHANTS' }))
+
+  it('Given Support for All merchants, then masked cases, read-only flows and keys, audit log — in every merchant; no decisions', () => {
+    for (const p of [RETAIL, OTHER_MERCHANT]) {
+      expect(can(SUPPORT, 'viewCases', p)).toBe(true)
+      expect(can(SUPPORT, 'viewUnmaskedPii', p)).toBe(false)
+      expect(can(SUPPORT, 'viewFlows', p)).toBe(true)
+      expect(can(SUPPORT, 'manageFlows', p)).toBe(false)
+      expect(can(SUPPORT, 'viewIntegration', p)).toBe(true)
+      expect(can(SUPPORT, 'manageIntegration', p)).toBe(false)
+      expect(can(SUPPORT, 'viewAudit', p)).toBe(true)
+      expect(can(SUPPORT, 'claimCase', p)).toBe(false)
+    }
+    expect(canOnPlatform(SUPPORT, 'viewMerchants')).toBe(true)
+    expect(canOnPlatform(SUPPORT, 'createMerchants')).toBe(false)
+  })
+
+  it('Given a Verification Specialist for Vantage only, then unmasked review there and nothing elsewhere', () => {
+    expect(can(SPECIALIST, 'decideCase', OTHER_MERCHANT)).toBe(true)
+    expect(can(SPECIALIST, 'viewUnmaskedPii', OTHER_MERCHANT)).toBe(true)
+    expect(hasProject(SPECIALIST, RETAIL)).toBe(false)
+    expect(can(SPECIALIST, 'viewCases', RETAIL)).toBe(false)
+  })
+
+  it('Given Finance (no merchant access), then billing and reports everywhere but no customer data', () => {
+    expect(can(FINANCE, 'viewBilling', OTHER_MERCHANT)).toBe(true)
+    expect(can(FINANCE, 'exportReports', RETAIL)).toBe(true)
+    expect(can(FINANCE, 'viewCases', RETAIL)).toBe(false)
+    expect(can(FINANCE, 'viewAudit', RETAIL)).toBe(false)
+  })
+
+  it('Given a Workflow Engineer, then the registry and Advanced thresholds, but flows only read-only', () => {
+    expect(canOnPlatform(ENGINEER, 'manageRegistry')).toBe(true)
+    expect(can(ENGINEER, 'setAdvancedThresholds')).toBe(true)
+    expect(can(ENGINEER, 'manageFlows')).toBe(false)
+    expect(can(ENGINEER, 'viewFlows')).toBe(true)
+  })
+
+  it('Given any staff, then never Users, Roles, Super admins or merchant settings', () => {
+    for (const s of [SUPPORT, SPECIALIST, FINANCE, ENGINEER]) {
+      for (const a of ['manageUsersRoles', 'manageMembers', 'manageProjects', 'manageProjectSettings'] as const) expect(can(s, a)).toBe(false)
+      expect(canOnPlatform(s, 'manageStaff')).toBe(false)
+      expect(canOnPlatform(s, 'manageAdmins')).toBe(false)
+    }
   })
 })

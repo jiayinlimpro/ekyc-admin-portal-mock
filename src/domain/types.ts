@@ -159,6 +159,8 @@ export type VerificationDetail = Verification & {
   checks: CheckEvaluation[] // face match / liveness: threshold applied, result, retries used / allowed
   newCaseAllowedAt?: string // REJECTED with a cooldown (DEC-26)
   activity: CaseActivity[]
+  /** REQ: DEC-99 — platform staff without "See unmasked ID data" get a masked copy (domain/piiMasking). */
+  masked?: boolean
 }
 
 export interface RiskConfig {
@@ -337,17 +339,50 @@ export const PROJECT_PERMISSIONS = [
 ] as const
 export type MerchantPermission = (typeof MERCHANT_PERMISSIONS)[number]
 export type ProjectPermission = (typeof PROJECT_PERMISSIONS)[number]
-export type Permission = MerchantPermission | ProjectPermission
-export const PERMISSIONS: readonly Permission[] = [...MERCHANT_PERMISSIONS, ...PROJECT_PERMISSIONS]
+// REQ: DEC-99 — platform (internal staff) permissions: platform-level, and merchant access (in the merchants given).
+export const PLATFORM_LEVEL_PERMISSIONS = [
+  'P_MERCHANTS_VIEW',
+  'P_MERCHANTS_CREATE',
+  'P_MERCHANTS_SUSPEND',
+  'P_REGISTRY_VIEW',
+  'P_REGISTRY_MANAGE',
+  'P_LEVELS_VIEW',
+  'P_LEVELS_CALIBRATE',
+  'P_BILLING_VIEW',
+  'P_BILLING_MANAGE',
+  'P_REPORTS_VIEW',
+  'P_REPORTS_EXPORT',
+] as const
+export const MERCHANT_ACCESS_PERMISSIONS = [
+  'P_CASES_VIEW_MASKED',
+  'P_CASES_VIEW_UNMASKED',
+  'P_CASES_DECIDE', // claim, approve, reject
+  'P_FLOWS_VIEW',
+  'P_FLOWS_EDIT',
+  'P_INTEGRATION_VIEW',
+  'P_INTEGRATION_MANAGE',
+  'P_AUDIT_VIEW',
+] as const
+export type PlatformPermission = (typeof PLATFORM_LEVEL_PERMISSIONS)[number] | (typeof MERCHANT_ACCESS_PERMISSIONS)[number]
+
+export type Permission = MerchantPermission | ProjectPermission | PlatformPermission
+/** What a Merchant role may hold (DEC-70). */
+export const MERCHANT_ROLE_PERMISSIONS: readonly Permission[] = [...MERCHANT_PERMISSIONS, ...PROJECT_PERMISSIONS]
+/** What a Platform role may hold (DEC-99). */
+export const PLATFORM_ROLE_PERMISSIONS: readonly Permission[] = [...PLATFORM_LEVEL_PERMISSIONS, ...MERCHANT_ACCESS_PERMISSIONS]
+export const PERMISSIONS: readonly Permission[] = [...MERCHANT_ROLE_PERMISSIONS, ...PLATFORM_ROLE_PERMISSIONS]
 
 // REQ: DEC-76
 export type RoleType = 'SYSTEM_DEFAULT' | 'CUSTOM'
 export type RoleStatus = 'ACTIVE' | 'INACTIVE'
+/** REQ: DEC-99 — the form's "Type": a role for platform staff or for a merchant's users. Never changes. */
+export type RoleAudience = 'PLATFORM' | 'MERCHANT'
 
 /** What a user may do. System Default roles are shared by every merchant (no merchantId) and locked. */
 export interface Role {
-  roleId: string // ROL-2026-XXXX
-  merchantId?: string // absent for System Default roles
+  roleId: string // rol_… (DEC-97)
+  audience: RoleAudience // REQ: DEC-99
+  merchantId?: string // Custom merchant roles only; absent for System Default and Platform roles
   name: string
   type: RoleType
   permissions: Permission[]
@@ -358,8 +393,15 @@ export interface Role {
   updatedBy: Actor
 }
 
-/** REQ: DEC-70 — where a role applies: every current and future project of the merchant, or the listed ones. */
-export type AssignmentScope = { kind: 'ALL_PROJECTS' } | { kind: 'PROJECTS'; projectIds: string[] }
+/**
+ * REQ: DEC-70 / DEC-99 — where a role applies. Merchant roles: every current and future project of the merchant, or the
+ * listed ones. Platform roles: every current and future merchant, or the listed ones.
+ */
+export type AssignmentScope =
+  | { kind: 'ALL_PROJECTS' }
+  | { kind: 'PROJECTS'; projectIds: string[] }
+  | { kind: 'ALL_MERCHANTS' }
+  | { kind: 'MERCHANTS'; merchantIds: string[] }
 
 /** One role given to one user with a scope (DEC-74: Role | Scope | Added by | Date). */
 export interface RoleAssignment {
@@ -368,10 +410,12 @@ export interface RoleAssignment {
   scope: AssignmentScope
   addedBy: Actor
   addedAt: string
+  /** REQ: DEC-99 — "Access ends": from this moment (end of the chosen day, MYT) the row grants nothing. */
+  endsAt?: string
 }
 
 /** Super admin is internal and works in every merchant; everyone else belongs to one merchant (DEC-70). */
-export type AccessLevel = 'SUPER_ADMIN' | 'MERCHANT_USER'
+export type AccessLevel = 'SUPER_ADMIN' | 'PLATFORM_STAFF' | 'MERCHANT_USER' // REQ: DEC-99
 
 /** An assignment joined with its role: what the access checks work from. */
 export interface Grant {

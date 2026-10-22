@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import {
+  accessEndsAt,
+  coversMerchant,
+  hasEnded,
+  hasMerchantAccess,
+  scopeLabel,
+  WRONG_ROLE_TYPE,
   accessChips,
   accessSummary,
   canGrant,
@@ -26,7 +32,7 @@ import { fx } from '@/lib/ids'
 
 const by = { userId: fx('USR-2026-0002'), fullName: 'Tan Mei Ling' }
 const AT = '2026-10-01T00:00:00.000Z'
-const ROLES: Role[] = SYSTEM_DEFAULT_ROLES.map((r) => ({ ...r, type: 'SYSTEM_DEFAULT', status: 'ACTIVE', createdAt: AT, createdBy: by, updatedAt: AT, updatedBy: by }))
+const ROLES: Role[] = SYSTEM_DEFAULT_ROLES.map((r) => ({ ...r, audience: 'MERCHANT' as const, type: 'SYSTEM_DEFAULT', status: 'ACTIVE', createdAt: AT, createdBy: by, updatedAt: AT, updatedBy: by }))
 const role = (roleId: string) => ROLES.find((r) => r.roleId === roleId)!
 const ALL: AssignmentScope = { kind: 'ALL_PROJECTS' }
 const only = (...projectIds: string[]): AssignmentScope => ({ kind: 'PROJECTS', projectIds })
@@ -155,5 +161,36 @@ describe('roles: the Roles screen (DEC-76)', () => {
   it('Given users with several assignments, then each holder of the role is counted once', () => {
     const users = [{ assignments: [assign(REVIEWER, only(fx('PRJ-0001'))), assign(REVIEWER, only(fx('PRJ-0002')), 2)] }, { assignments: [assign(VIEWER, ALL)] }]
     expect(holdersOf(REVIEWER, users)).toHaveLength(1)
+  })
+})
+
+describe('roles: platform roles and access end dates (DEC-99)', () => {
+  it('Given platform actions, then each ticks its View; Claim / approve / reject ticks both views', () => {
+    expect(withImpliedPermissions(['P_CASES_DECIDE'])).toEqual(['P_CASES_VIEW_MASKED', 'P_CASES_VIEW_UNMASKED', 'P_CASES_DECIDE'])
+    expect(withImpliedPermissions(['P_MERCHANTS_SUSPEND', 'P_INTEGRATION_MANAGE'])).toEqual(['P_MERCHANTS_VIEW', 'P_MERCHANTS_SUSPEND', 'P_INTEGRATION_VIEW', 'P_INTEGRATION_MANAGE'])
+  })
+
+  it('Given a role Type, then only its own permissions; merchant roles take project scopes, platform roles merchant scopes', () => {
+    expect(validateRole({ name: 'Mixed', permissions: ['VIEW_CASES', 'P_FLOWS_VIEW'], audience: 'MERCHANT' }, [])[0].field).toBe('permissions')
+    const platformRole = { permissions: ['P_CASES_VIEW_MASKED'] as Permission[], status: 'ACTIVE' as const, audience: 'PLATFORM' as const }
+    expect(validateAssignment(platformRole, { kind: 'ALL_MERCHANTS' }, [], [])).toEqual([])
+    expect(validateAssignment(platformRole, only(fx('PRJ-0001')), [fx('PRJ-0001')])[0].message).toBe(WRONG_ROLE_TYPE)
+    expect(validateAssignment({ ...role(REVIEWER) }, { kind: 'ALL_MERCHANTS' }, [])[0].message).toBe(WRONG_ROLE_TYPE)
+    expect(validateAssignment(platformRole, { kind: 'MERCHANTS', merchantIds: [] }, [], ['mer_a'])[0].field).toBe('scope')
+  })
+
+  it('Given an access row that has ended, then it grants nothing from that moment', () => {
+    const a = { ...assign(VIEWER, ALL), endsAt: accessEndsAt('2026-10-01') }
+    expect(a.endsAt).toBe('2026-10-01T15:59:59.999Z') // end of the day in Malaysia
+    expect(grantsOf([a], ROLES, new Date('2026-10-01T15:00:00.000Z'))).toHaveLength(1)
+    expect(grantsOf([a], ROLES, new Date('2026-10-01T16:00:00.000Z'))).toHaveLength(0)
+    expect(hasEnded(a, new Date('2026-10-02T00:00:00.000Z'))).toBe(true)
+  })
+
+  it('Given merchant scopes, then labels and coverage by merchant', () => {
+    expect(scopeLabel({ kind: 'ALL_MERCHANTS' }, (x) => x)).toBe('All merchants')
+    expect(scopeLabel({ kind: 'MERCHANTS', merchantIds: ['mer_a'] }, (x) => x, () => 'Vantage')).toBe('Vantage')
+    expect(coversMerchant({ kind: 'MERCHANTS', merchantIds: ['mer_a'] }, 'mer_b')).toBe(false)
+    expect(hasMerchantAccess(['P_BILLING_VIEW'])).toBe(false)
   })
 })

@@ -19,6 +19,7 @@ import { sweepExpiredClaims } from './claimSweep'
 import { settleRetiringFlow } from './flowService'
 import { ServiceError } from './errors'
 import { clientIpFor, simulateNetwork, wire } from './network'
+import { maskDetail } from '@/domain/piiMasking'
 
 // REQ: DEC-43 — filters, search and sort of the Verifications List.
 export interface VerificationQuery {
@@ -207,11 +208,13 @@ export const mockVerificationService: VerificationService = {
     sweepExpiredClaims(at)
     const v = load(caseId, actor) // REQ: DEC-25 / DEC-41 — every project member who can view the case sees its full detail
     const key = opts?.requestId ? `${actor.userId}:${caseId}:${opts.requestId}` : undefined
+    // REQ: DEC-99 — platform staff without "See unmasked ID data" get the masked view; the open is audited either way.
+    const unmasked = mayInProject(actor, 'viewUnmaskedPii', v.projectId)
     if (!key || !loggedPiiViews.has(key)) {
       if (key) loggedPiiViews.add(key)
-      audit(actor, 'SENSITIVE_PII_VIEW', v, at, { requestId: opts?.requestId })
+      audit(actor, 'SENSITIVE_PII_VIEW', v, at, { requestId: opts?.requestId, ...(unmasked ? {} : { masked: true }) })
     }
-    return toDetail(v)
+    return unmasked ? toDetail(v) : maskDetail(toDetail(v))
   },
 
   async claim(caseId, actor) {

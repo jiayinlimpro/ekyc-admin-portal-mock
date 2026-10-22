@@ -1,4 +1,4 @@
-import { SYSTEM_DEFAULT_ROLES, SYSTEM_ROLE_IDS } from '@/domain/roles'
+import { accessEndsAt, PLATFORM_DEFAULT_ROLES, PLATFORM_ROLE_IDS, SYSTEM_DEFAULT_ROLES, SYSTEM_ROLE_IDS } from '@/domain/roles'
 import type { Actor, AssignmentScope, Role, UserAccount } from '@/domain/types'
 import { fx, stableId } from '@/lib/ids'
 
@@ -9,12 +9,15 @@ import { fx, stableId } from '@/lib/ids'
 
 const SUPER_ADMIN: Actor = { userId: fx('USR-2026-0001'), fullName: 'Lim Wei Jie' }
 
-type RoleKey = keyof typeof SYSTEM_ROLE_IDS | 'AUDITOR'
+type RoleKey = keyof typeof SYSTEM_ROLE_IDS | keyof typeof PLATFORM_ROLE_IDS | 'AUDITOR'
 const ALL: AssignmentScope = { kind: 'ALL_PROJECTS' }
 const only = (...projectIds: string[]): AssignmentScope => ({ kind: 'PROJECTS', projectIds })
+const ALL_MERCHANTS: AssignmentScope = { kind: 'ALL_MERCHANTS' }
+const merchants = (...merchantIds: string[]): AssignmentScope => ({ kind: 'MERCHANTS', merchantIds })
 
 type AccountSpec = Omit<UserAccount, 'assignments' | 'invitedAt' | 'lastActiveAt'> & {
-  access: [RoleKey, AssignmentScope][]
+  /** Role, scope and, optionally, days until the access ends (DEC-99). */
+  access: [RoleKey, AssignmentScope, number?][]
   addedBy: Actor
   invitedDaysAgo: number
   lastActiveHoursAgo?: number
@@ -27,6 +30,10 @@ const ACCOUNT_SPECS: AccountSpec[] = [
   { ...SUPER_ADMIN, email: 'weijie.lim@ekyc-platform.example', level: 'SUPER_ADMIN', access: [], addedBy: SUPER_ADMIN, status: 'ACTIVE', invitedDaysAgo: 400, lastActiveHoursAgo: 1 },
   // A second Super admin, so the Admins screen (DEC-79) can show Suspend without hitting "at least one".
   { userId: fx('USR-2026-0005'), fullName: 'Nor Aisyah Binti Hamid', email: 'aisyah.hamid@ekyc-platform.example', level: 'SUPER_ADMIN', access: [], addedBy: SUPER_ADMIN, status: 'ACTIVE', invitedDaysAgo: 120, lastActiveHoursAgo: 26 },
+  // REQ: DEC-99 — platform staff: no merchant; platform roles given for all or selected merchants.
+  { userId: fx('USR-2026-0006'), fullName: 'Daniel Tan', email: 'daniel.tan@ekyc-platform.example', level: 'PLATFORM_STAFF', access: [['SUPPORT', ALL_MERCHANTS]], addedBy: SUPER_ADMIN, status: 'ACTIVE', invitedDaysAgo: 90, lastActiveHoursAgo: 3 },
+  { userId: fx('USR-2026-0007'), fullName: 'Priya Nair', email: 'priya.nair@ekyc-platform.example', level: 'PLATFORM_STAFF', access: [['VERIFICATION_SPECIALIST', merchants(fx('MER-0002')), 14]], addedBy: SUPER_ADMIN, status: 'ACTIVE', invitedDaysAgo: 30, lastActiveHoursAgo: 5 },
+  { userId: fx('USR-2026-0008'), fullName: 'Hannah Lee', email: 'hannah.lee@ekyc-platform.example', level: 'PLATFORM_STAFF', access: [['FINANCE', ALL_MERCHANTS]], addedBy: SUPER_ADMIN, status: 'ACTIVE', invitedDaysAgo: 60, lastActiveHoursAgo: 30 },
   // Atoz Software Tech: owner, a Project Admin for SME app, reviewers, one user with a role in each project.
   { ...ATOZ_OWNER, email: 'meiling.tan@atoz.example', level: 'MERCHANT_USER', merchantId: fx('MER-0001'), access: [['MERCHANT_OWNER', ALL]], addedBy: SUPER_ADMIN, status: 'ACTIVE', invitedDaysAgo: 400, lastActiveHoursAgo: 2 },
   { userId: fx('USR-2026-0012'), fullName: 'Ali Bin Ahmad', email: 'ali.ahmad@atoz.example', level: 'MERCHANT_USER', merchantId: fx('MER-0001'), access: [['REVIEWER', only(fx('PRJ-0001'))], ['VIEWER', only(fx('PRJ-0002'))]], addedBy: ATOZ_OWNER, status: 'ACTIVE', invitedDaysAgo: 300, lastActiveHoursAgo: 1 },
@@ -53,10 +60,13 @@ export const FRAUD_ANALYST_ROLE_ID = fx('ROL-2026-0006')
 /** REQ: DEC-70 / DEC-76 — the System Default roles (shared, locked) plus one Custom role. */
 export function buildRoles(now: Date): Role[] {
   const at = new Date(now.getTime() - 400 * 86_400_000).toISOString()
-  const system = SYSTEM_DEFAULT_ROLES.map((r): Role => ({ ...r, permissions: [...r.permissions], type: 'SYSTEM_DEFAULT', status: 'ACTIVE', createdAt: at, createdBy: SUPER_ADMIN, updatedAt: at, updatedBy: SUPER_ADMIN }))
+  const system = SYSTEM_DEFAULT_ROLES.map((r): Role => ({ ...r, audience: 'MERCHANT', permissions: [...r.permissions], type: 'SYSTEM_DEFAULT', status: 'ACTIVE', createdAt: at, createdBy: SUPER_ADMIN, updatedAt: at, updatedBy: SUPER_ADMIN }))
+  // REQ: DEC-99 — the System Default platform roles.
+  const platform = PLATFORM_DEFAULT_ROLES.map((r): Role => ({ ...r, audience: 'PLATFORM', permissions: [...r.permissions], type: 'SYSTEM_DEFAULT', status: 'ACTIVE', createdAt: at, createdBy: SUPER_ADMIN, updatedAt: at, updatedBy: SUPER_ADMIN }))
   const auditorAt = new Date(now.getTime() - 200 * 86_400_000).toISOString()
   const auditor: Role = {
     roleId: AUDITOR_ROLE_ID,
+    audience: 'MERCHANT',
     merchantId: fx('MER-0002'),
     name: 'Compliance Auditor',
     type: 'CUSTOM',
@@ -71,6 +81,7 @@ export function buildRoles(now: Date): Role[] {
   const atozOwner = { userId: fx('USR-2026-0002'), fullName: 'Tan Mei Ling' }
   const fraudAnalyst: Role = {
     roleId: FRAUD_ANALYST_ROLE_ID,
+    audience: 'MERCHANT',
     merchantId: fx('MER-0001'),
     name: 'Fraud Analyst',
     type: 'CUSTOM',
@@ -81,22 +92,23 @@ export function buildRoles(now: Date): Role[] {
     updatedAt: fraudAt,
     updatedBy: atozOwner,
   }
-  return [...system, auditor, fraudAnalyst]
+  return [...system, ...platform, auditor, fraudAnalyst]
 }
 
-const ROLE_IDS: Record<RoleKey, string> = { ...SYSTEM_ROLE_IDS, AUDITOR: AUDITOR_ROLE_ID }
+const ROLE_IDS: Record<RoleKey, string> = { ...SYSTEM_ROLE_IDS, ...PLATFORM_ROLE_IDS, AUDITOR: AUDITOR_ROLE_ID }
 
 export function buildAccounts(now: Date): UserAccount[] {
   const ago = (hours: number) => new Date(now.getTime() - hours * 3_600_000).toISOString()
   let seq = 0
   return ACCOUNT_SPECS.map(({ invitedDaysAgo, lastActiveHoursAgo, access, addedBy, ...a }) => ({
     ...a,
-    assignments: access.map(([role, scope]) => ({
+    assignments: access.map(([role, scope, endsInDays]) => ({
       assignmentId: fx(`ASG-2026-${String(++seq).padStart(4, '0')}`),
       roleId: ROLE_IDS[role],
       scope,
       addedBy,
       addedAt: ago(invitedDaysAgo * 24),
+      endsAt: endsInDays === undefined ? undefined : accessEndsAt(new Date(now.getTime() + endsInDays * 86_400_000)),
     })),
     invitedAt: ago(invitedDaysAgo * 24),
     invitationId: a.status === 'PENDING' ? stableId('inv', a.userId) : undefined,

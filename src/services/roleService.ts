@@ -53,7 +53,8 @@ function requireRoles(me: AccountAccess, merchantId: string) {
 }
 
 /** Roles a merchant sees: the System Default ones and its own Custom ones. */
-const rolesFor = (merchantId: string) => db.state().roles.filter((r) => !r.merchantId || r.merchantId === merchantId)
+// REQ: DEC-99 — merchant roles only: platform roles never reach a merchant's screens.
+const rolesFor = (merchantId: string) => db.state().roles.filter((r) => r.audience === 'MERCHANT' && (!r.merchantId || r.merchantId === merchantId))
 
 const accountsIn = (merchantId?: string) => db.state().accounts.filter((a) => !merchantId || a.merchantId === merchantId)
 
@@ -132,6 +133,7 @@ export const mockRoleService: RoleService = {
     const at = now().toISOString()
     const role: Role = {
       roleId: adoptDraftId('rol', input.roleId, (id) => db.state().roles.some((r) => r.roleId === id)), // DEC-76
+      audience: 'MERCHANT',
       merchantId,
       name: input.name.trim(),
       type: 'CUSTOM',

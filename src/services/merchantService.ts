@@ -4,16 +4,17 @@ import { db } from '@/mocks/mockDb'
 import { accountOf } from './accessGuard'
 import { ServiceError } from './errors'
 import { simulateNetwork, wire } from './network'
+import { isInternal } from '@/domain/access'
 
 export interface MerchantService {
   list(actor: Actor): Promise<Merchant[]>
   get(merchantId: string, actor: Actor): Promise<Merchant>
 }
 
-// Super admin sees every merchant; everyone else only their own (from the account, not the session).
+// Internal accounts (super admin, platform staff) see every merchant's name; everyone else only their own (DEC-99).
 function inScope(actor: Actor, merchantId: string): boolean {
   const a = accountOf(actor)
-  return a.level === 'SUPER_ADMIN' || a.merchantId === merchantId
+  return isInternal(a) || a.merchantId === merchantId
 }
 
 export const mockMerchantService: MerchantService = {

@@ -7,6 +7,7 @@ import type { AccessLevel, Actor, ClaimHolder, UserAccount } from '@/domain/type
 import { db } from '@/mocks/mockDb'
 import { accountOf, projectIdsWhere, withAccess, type AccountAccess } from './accessGuard'
 import { simulateNetwork, wire } from './network'
+import { isInternal } from '@/domain/access'
 
 export type { AccountAccess }
 
@@ -50,7 +51,7 @@ export const mockUserService: UserService = {
     return wire(
       db
         .state()
-        .accounts.filter((a) => me.level === 'SUPER_ADMIN' || a.level === 'SUPER_ADMIN' || a.merchantId === me.merchantId)
+        .accounts.filter((a) => isInternal(me) || isInternal(a) || a.merchantId === me.merchantId)
         .map(summary),
     )
   },

@@ -49,8 +49,9 @@ export interface MerchantAdminService {
   resendInvitation(merchantId: string, actor: Actor): Promise<void>
 }
 
-function requirePlatform(actor: Actor) {
-  if (!canOnPlatform(accountOf(actor), 'manageMerchants')) throw new ServiceError('FORBIDDEN', 'Only Super admin manages merchants.')
+// REQ: DEC-98 / DEC-99 — super admin, or platform staff with Merchants View / Create / Suspend.
+function requirePlatform(actor: Actor, action: 'viewMerchants' | 'createMerchants' | 'changeMerchantStatus') {
+  if (!canOnPlatform(accountOf(actor), action)) throw new ServiceError('FORBIDDEN', 'You do not have permission for this on merchants.')
 }
 
 function audit(actor: Actor, action: AuditAction, merchantId: string, details: Record<string, unknown>) {
@@ -73,7 +74,7 @@ const STATUS_TEXT: Record<MerchantStatus, string> = { ONBOARDING: 'Onboarding', 
 export const mockMerchantAdminService: MerchantAdminService = {
   async list(actor) {
     await simulateNetwork('list merchants (admin)')
-    requirePlatform(actor)
+    requirePlatform(actor, 'viewMerchants')
     const s = db.state()
     return wire(
       s.merchants
@@ -98,7 +99,7 @@ export const mockMerchantAdminService: MerchantAdminService = {
   async create(input, actor) {
     await simulateNetwork('create merchant')
     requireActive(actor)
-    requirePlatform(actor)
+    requirePlatform(actor, 'createMerchants')
     const s = db.state()
     const email = input.contactEmail.trim().toLowerCase()
     const errors = validateMerchantProfile(input, s.merchants, s.accounts.some((a) => a.email.toLowerCase() === email), isCountryCode)
@@ -154,7 +155,7 @@ export const mockMerchantAdminService: MerchantAdminService = {
   async update(merchantId, input, actor) {
     await simulateNetwork('update merchant')
     requireActive(actor)
-    requirePlatform(actor)
+    requirePlatform(actor, 'createMerchants')
     const m = loadMerchant(merchantId)
     const errors: RuleError[] = []
     const nameErr = nameError(input.name)
@@ -179,7 +180,7 @@ export const mockMerchantAdminService: MerchantAdminService = {
   async changeStatus(merchantId, to, reason, actor) {
     await simulateNetwork('change merchant status')
     requireActive(actor)
-    requirePlatform(actor)
+    requirePlatform(actor, 'changeMerchantStatus')
     const m = loadMerchant(merchantId)
     const errors = statusChangeErrors(m.status, to, reason)
     if (errors.length) throw validation(errors)
@@ -192,7 +193,7 @@ export const mockMerchantAdminService: MerchantAdminService = {
   async resendInvitation(merchantId, actor) {
     await simulateNetwork('resend merchant invitation')
     requireActive(actor)
-    requirePlatform(actor)
+    requirePlatform(actor, 'createMerchants')
     const m = loadMerchant(merchantId)
     const owner = firstOwner(m)
     if (m.status !== 'ONBOARDING' || owner?.status !== 'PENDING') throw validation([{ field: 'status', message: 'Only an Onboarding merchant whose first owner is still Pending has an invitation to resend.' }])

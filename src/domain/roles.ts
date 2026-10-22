@@ -1,9 +1,14 @@
 // Roles, permissions and scoped assignments (DEC-70, DEC-74, DEC-76, DEC-77). Pure rules; the services apply them.
 // REQ: DEC-71 — UI-only checks. The real backend must enforce the same rules.
 import {
+  MERCHANT_ACCESS_PERMISSIONS,
   MERCHANT_PERMISSIONS,
+  MERCHANT_ROLE_PERMISSIONS,
   PERMISSIONS,
+  PLATFORM_LEVEL_PERMISSIONS,
+  PLATFORM_ROLE_PERMISSIONS,
   PROJECT_PERMISSIONS,
+  type RoleAudience,
   type AssignmentScope,
   type Grant,
   type Permission,
@@ -22,11 +27,42 @@ export const SYSTEM_ROLE_IDS = {
 } as const
 
 export const SYSTEM_DEFAULT_ROLES: readonly Pick<Role, 'roleId' | 'name' | 'permissions'>[] = [
-  { roleId: SYSTEM_ROLE_IDS.MERCHANT_OWNER, name: 'Merchant Owner', permissions: [...PERMISSIONS] },
+  { roleId: SYSTEM_ROLE_IDS.MERCHANT_OWNER, name: 'Merchant Owner', permissions: [...MERCHANT_ROLE_PERMISSIONS] },
   { roleId: SYSTEM_ROLE_IDS.PROJECT_ADMIN, name: 'Project Admin', permissions: [...PROJECT_PERMISSIONS] },
   { roleId: SYSTEM_ROLE_IDS.REVIEWER, name: 'Reviewer', permissions: ['VIEW_CASES', 'CLAIM_CASES', 'DECIDE_CASES', 'VIEW_PROJECT_REPORTS'] },
   { roleId: SYSTEM_ROLE_IDS.VIEWER, name: 'Viewer', permissions: ['VIEW_CASES', 'VIEW_PROJECT_REPORTS'] },
 ]
+
+// REQ: DEC-99 — System Default platform roles, chosen on least privilege: unmasked ID data and decisions only for case
+// review; Finance sees no customer data; only Operations changes API keys.
+export const PLATFORM_ROLE_IDS = {
+  OPERATIONS: fx('ROL-2026-0101'),
+  SUPPORT: fx('ROL-2026-0102'),
+  VERIFICATION_SPECIALIST: fx('ROL-2026-0103'),
+  FINANCE: fx('ROL-2026-0104'),
+  WORKFLOW_ENGINEER: fx('ROL-2026-0105'),
+} as const
+
+export const PLATFORM_DEFAULT_ROLES: readonly Pick<Role, 'roleId' | 'name' | 'permissions'>[] = [
+  {
+    roleId: PLATFORM_ROLE_IDS.OPERATIONS,
+    name: 'Platform Operations',
+    permissions: ['P_MERCHANTS_VIEW', 'P_MERCHANTS_CREATE', 'P_MERCHANTS_SUSPEND', 'P_REGISTRY_VIEW', 'P_LEVELS_VIEW', 'P_REPORTS_VIEW', 'P_CASES_VIEW_MASKED', 'P_FLOWS_VIEW', 'P_FLOWS_EDIT', 'P_INTEGRATION_VIEW', 'P_INTEGRATION_MANAGE', 'P_AUDIT_VIEW'],
+  },
+  { roleId: PLATFORM_ROLE_IDS.SUPPORT, name: 'Support', permissions: ['P_MERCHANTS_VIEW', 'P_REPORTS_VIEW', 'P_CASES_VIEW_MASKED', 'P_FLOWS_VIEW', 'P_INTEGRATION_VIEW', 'P_AUDIT_VIEW'] },
+  { roleId: PLATFORM_ROLE_IDS.VERIFICATION_SPECIALIST, name: 'Verification Specialist', permissions: ['P_CASES_VIEW_MASKED', 'P_CASES_VIEW_UNMASKED', 'P_CASES_DECIDE', 'P_AUDIT_VIEW'] },
+  { roleId: PLATFORM_ROLE_IDS.FINANCE, name: 'Finance', permissions: ['P_MERCHANTS_VIEW', 'P_BILLING_VIEW', 'P_BILLING_MANAGE', 'P_REPORTS_VIEW', 'P_REPORTS_EXPORT'] },
+  { roleId: PLATFORM_ROLE_IDS.WORKFLOW_ENGINEER, name: 'Workflow Engineer', permissions: ['P_REGISTRY_VIEW', 'P_REGISTRY_MANAGE', 'P_LEVELS_VIEW', 'P_LEVELS_CALIBRATE', 'P_REPORTS_VIEW', 'P_FLOWS_VIEW'] },
+]
+
+/** REQ: DEC-99 — the permissions a role of each Type may hold. */
+export const permissionsFor = (audience: RoleAudience): readonly Permission[] => (audience === 'PLATFORM' ? PLATFORM_ROLE_PERMISSIONS : MERCHANT_ROLE_PERMISSIONS)
+
+const PLATFORM_LEVEL: ReadonlySet<Permission> = new Set(PLATFORM_LEVEL_PERMISSIONS)
+const MERCHANT_ACCESS: ReadonlySet<Permission> = new Set(MERCHANT_ACCESS_PERMISSIONS)
+
+/** A platform role with no merchant-access permission needs no merchant scope ("This role has no merchant access permissions"). */
+export const hasMerchantAccess = (permissions: readonly Permission[]) => permissions.some((p) => MERCHANT_ACCESS.has(p))
 
 /** REQ: DEC-70 / DEC-75 — Super admin (internal): every permission, in every merchant. */
 export const SUPER_ADMIN_PERMISSIONS: readonly Permission[] = [...PERMISSIONS]
@@ -39,20 +75,67 @@ export const isMerchantLevel = (permissions: readonly Permission[]) => permissio
 export function withImpliedPermissions(permissions: readonly Permission[]): Permission[] {
   const set = new Set(permissions)
   if (set.has('CLAIM_CASES') || set.has('DECIDE_CASES')) set.add('VIEW_CASES')
+  // REQ: DEC-99 — platform: each action ticks its View; a reviewer must see the documents.
+  const implies: [Permission, Permission[]][] = [
+    ['P_MERCHANTS_CREATE', ['P_MERCHANTS_VIEW']],
+    ['P_MERCHANTS_SUSPEND', ['P_MERCHANTS_VIEW']],
+    ['P_REGISTRY_MANAGE', ['P_REGISTRY_VIEW']],
+    ['P_LEVELS_CALIBRATE', ['P_LEVELS_VIEW']],
+    ['P_BILLING_MANAGE', ['P_BILLING_VIEW']],
+    ['P_REPORTS_EXPORT', ['P_REPORTS_VIEW']],
+    ['P_CASES_DECIDE', ['P_CASES_VIEW_UNMASKED', 'P_CASES_VIEW_MASKED']],
+    ['P_CASES_VIEW_UNMASKED', ['P_CASES_VIEW_MASKED']],
+    ['P_FLOWS_EDIT', ['P_FLOWS_VIEW']],
+    ['P_INTEGRATION_MANAGE', ['P_INTEGRATION_VIEW']],
+  ]
+  for (const [p, adds] of implies) if (set.has(p)) adds.forEach((x) => set.add(x))
   return PERMISSIONS.filter((p) => set.has(p))
+}
+
+/** The permissions that `permission` ticks (shown locked while it is ticked, DEC-70 / DEC-99). */
+export function impliedBy(permissions: readonly Permission[]): Set<Permission> {
+  const out = new Set<Permission>()
+  for (const p of permissions) for (const q of withImpliedPermissions([p])) if (q !== p) out.add(q)
+  return out
 }
 
 export type { Grant }
 
-/** Assignments with their roles; an inactive or unknown role grants nothing. */
-export function grantsOf(assignments: readonly RoleAssignment[], roles: readonly Role[]): Grant[] {
+/** REQ: DEC-99 — "Access ends" on a day means at the end of that day in Malaysia (MYT, UTC+8). */
+export function accessEndsAt(day: Date | string): string {
+  const ymd = typeof day === 'string' ? day : new Date(day.getTime() + 8 * 3_600_000).toISOString().slice(0, 10)
+  return `${ymd}T15:59:59.999Z` // 23:59:59.999 MYT
+}
+
+/** REQ: DEC-99 — an access row whose end time has passed grants nothing. */
+export const hasEnded = (a: Pick<RoleAssignment, 'endsAt'>, now: Date) => !!a.endsAt && now.getTime() >= new Date(a.endsAt).getTime()
+
+/**
+ * Assignments with their roles; an inactive or unknown role grants nothing, nor does an ended row when `now` is given
+ * (every access check passes it).
+ */
+export function grantsOf(assignments: readonly RoleAssignment[], roles: readonly Role[], now?: Date): Grant[] {
   return assignments.flatMap((a) => {
+    if (now && hasEnded(a, now)) return []
     const role = roles.find((r) => r.roleId === a.roleId && r.status === 'ACTIVE')
     return role ? [{ roleId: role.roleId, roleName: role.name, permissions: role.permissions, scope: a.scope }] : []
   })
 }
 
-export const covers = (scope: AssignmentScope, projectId: string) => scope.kind === 'ALL_PROJECTS' || scope.projectIds.includes(projectId)
+export const covers = (scope: AssignmentScope, projectId: string) => scope.kind === 'ALL_PROJECTS' || (scope.kind === 'PROJECTS' && scope.projectIds.includes(projectId))
+
+/** REQ: DEC-99 — a platform grant covers a merchant: All merchants (including future ones) or the listed ones. */
+export const coversMerchant = (scope: AssignmentScope, merchantId: string) => scope.kind === 'ALL_MERCHANTS' || (scope.kind === 'MERCHANTS' && scope.merchantIds.includes(merchantId))
+
+/** Platform staff: their platform-level permissions (from any grant; they don't depend on merchants). */
+export function staffPlatformPermissions(grants: readonly Grant[]): Set<Permission> {
+  return new Set(grants.flatMap((g) => g.permissions.filter((p) => PLATFORM_LEVEL.has(p))))
+}
+
+/** Platform staff: their merchant-access permissions in one merchant. */
+export function staffMerchantPermissions(grants: readonly Grant[], merchantId: string): Set<Permission> {
+  return new Set(grants.filter((g) => coversMerchant(g.scope, merchantId)).flatMap((g) => g.permissions.filter((p) => MERCHANT_ACCESS.has(p))))
+}
 
 /** REQ: DEC-70 — the union of every grant covering the project; merchant-level permissions only count from All projects. */
 export function permissionsIn(grants: readonly Grant[], projectId: string): Set<Permission> {
@@ -82,7 +165,8 @@ export function roleNamesIn(grants: readonly Grant[], projectId: string): string
 export const coversProject = (grants: readonly Grant[], projectId: string) => grants.some((g) => covers(g.scope, projectId))
 
 /** REQ: DEC-74 — one access chip, written the same on every screen: "Reviewer · SME app", "Merchant Owner · All projects". */
-export const chipLabel = (roleName: string, scope: AssignmentScope, projectName: (projectId: string) => string) => `${roleName} · ${scopeLabel(scope, projectName)}`
+export const chipLabel = (roleName: string, scope: AssignmentScope, projectName: (projectId: string) => string, merchantName: (merchantId: string) => string = (id) => id) =>
+  `${roleName} · ${scopeLabel(scope, projectName, merchantName)}`
 
 export interface AccessChip {
   label: string
@@ -93,17 +177,26 @@ export interface AccessChip {
 export const allArchived = (scope: AssignmentScope, isArchived: (projectId: string) => boolean) => scope.kind === 'PROJECTS' && scope.projectIds.length > 0 && scope.projectIds.every(isArchived)
 
 /** The Users list Access column (DEC-74). */
-export function accessChips(grants: readonly Pick<Grant, 'roleName' | 'scope'>[], projectName: (projectId: string) => string, isArchived: (projectId: string) => boolean): AccessChip[] {
-  return grants.map((g) => ({ label: chipLabel(g.roleName, g.scope, projectName), archived: allArchived(g.scope, isArchived) }))
+export function accessChips(grants: readonly Pick<Grant, 'roleName' | 'scope'>[], projectName: (projectId: string) => string, isArchived: (projectId: string) => boolean, merchantName?: (merchantId: string) => string): AccessChip[] {
+  return grants.map((g) => ({ label: chipLabel(g.roleName, g.scope, projectName, merchantName), archived: allArchived(g.scope, isArchived) }))
 }
 
 /** The chips as one line, e.g. for the mock login: "Reviewer · Default; Viewer · SME app". */
-export function accessSummary(grants: readonly Grant[], projectName: (projectId: string) => string): string {
-  return grants.map((g) => chipLabel(g.roleName, g.scope, projectName)).join('; ')
+export function accessSummary(grants: readonly Grant[], projectName: (projectId: string) => string, merchantName?: (merchantId: string) => string): string {
+  return grants.map((g) => chipLabel(g.roleName, g.scope, projectName, merchantName)).join('; ')
 }
 
-export function scopeLabel(scope: AssignmentScope, projectName: (projectId: string) => string): string {
-  return scope.kind === 'ALL_PROJECTS' ? 'All projects' : scope.projectIds.map(projectName).join(', ')
+export function scopeLabel(scope: AssignmentScope, projectName: (projectId: string) => string, merchantName: (merchantId: string) => string = (id) => id): string {
+  switch (scope.kind) {
+    case 'ALL_PROJECTS':
+      return 'All projects'
+    case 'PROJECTS':
+      return scope.projectIds.map(projectName).join(', ')
+    case 'ALL_MERCHANTS':
+      return 'All merchants'
+    case 'MERCHANTS':
+      return scope.merchantIds.map(merchantName).join(', ')
+  }
 }
 
 /**
@@ -113,6 +206,8 @@ export function scopeLabel(scope: AssignmentScope, projectName: (projectId: stri
  */
 export function canGrant(granter: 'SUPER_ADMIN' | readonly Grant[], permissions: readonly Permission[], scope: AssignmentScope): boolean {
   if (granter === 'SUPER_ADMIN') return true
+  // REQ: DEC-99 — only super admins give platform access.
+  if (scope.kind === 'ALL_MERCHANTS' || scope.kind === 'MERCHANTS') return false
   const holds = (have: Set<Permission>) => permissions.every((p) => have.has(p))
   if (scope.kind === 'ALL_PROJECTS') return holds(merchantWidePermissions(granter))
   return scope.projectIds.every((id) => holds(permissionsIn(granter, id)))
@@ -121,9 +216,27 @@ export function canGrant(granter: 'SUPER_ADMIN' | readonly Grant[], permissions:
 export const GRANT_TOO_POWERFUL = 'You can only give access you have yourself.'
 export const MERCHANT_LEVEL_SCOPE = 'This role includes merchant-level permissions, so it can only be given for All projects.'
 
-/** REQ: DEC-70 / DEC-77 — scope rules for a new or edited assignment. `openProjectIds`: the merchant's non-archived projects. */
-export function validateAssignment(role: Pick<Role, 'permissions' | 'status'>, scope: AssignmentScope, openProjectIds: readonly string[]): RuleError[] {
+export const WRONG_ROLE_TYPE = 'Platform roles are for platform staff; merchant roles are for that merchant’s users.'
+
+/**
+ * REQ: DEC-70 / DEC-77 / DEC-99 — scope rules for a new or edited assignment. Merchant roles: `openProjectIds` are the
+ * merchant's non-archived projects. Platform roles: `merchantIds` are the merchants that exist.
+ */
+export function validateAssignment(
+  role: Pick<Role, 'permissions' | 'status' | 'audience'>,
+  scope: AssignmentScope,
+  openProjectIds: readonly string[],
+  merchantIds: readonly string[] = [],
+): RuleError[] {
   if (role.status !== 'ACTIVE') return [{ field: 'roleId', message: 'This role is inactive.' }]
+  const platformScope = scope.kind === 'ALL_MERCHANTS' || scope.kind === 'MERCHANTS'
+  if ((role.audience === 'PLATFORM') !== platformScope) return [{ field: 'roleId', message: WRONG_ROLE_TYPE }]
+  if (scope.kind === 'ALL_MERCHANTS') return []
+  if (scope.kind === 'MERCHANTS') {
+    if (!scope.merchantIds.length) return [{ field: 'scope', message: 'Choose at least one merchant.' }]
+    if (scope.merchantIds.some((id) => !merchantIds.includes(id))) return [{ field: 'scope', message: 'Choose existing merchants.' }]
+    return []
+  }
   if (scope.kind === 'ALL_PROJECTS') return []
   if (isMerchantLevel(role.permissions)) return [{ field: 'scope', message: MERCHANT_LEVEL_SCOPE }]
   if (!scope.projectIds.length) return [{ field: 'scope', message: 'Choose at least one project.' }]
@@ -139,7 +252,7 @@ export const ROLE_IN_USE = 'Operation rejected. This role is currently assigned 
  * `heldForSelectedProjects`: whether any assignment of this role is scoped to selected projects.
  */
 export function validateRole(
-  input: { name: string; permissions: readonly Permission[] },
+  input: { name: string; permissions: readonly Permission[]; audience?: RoleAudience },
   others: readonly Pick<Role, 'roleId' | 'name'>[],
   current?: Pick<Role, 'roleId' | 'type'> & { heldForSelectedProjects: boolean },
 ): RuleError[] {
@@ -151,6 +264,9 @@ export function validateRole(
     errors.push({ field: 'name', message: 'A role with this name already exists.' })
   }
   if (!input.permissions.length) errors.push({ field: 'permissions', message: ROLE_NEEDS_PERMISSION })
+  else if (input.audience && input.permissions.some((p) => !permissionsFor(input.audience!).includes(p))) {
+    errors.push({ field: 'permissions', message: 'These permissions don’t belong to this role type.' })
+  }
   else if (current?.heldForSelectedProjects && isMerchantLevel(input.permissions)) {
     errors.push({ field: 'permissions', message: 'This role is given for selected projects, so it can’t include merchant-level permissions.' })
   }

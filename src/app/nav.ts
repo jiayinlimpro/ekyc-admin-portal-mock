@@ -83,7 +83,7 @@ export const NAV_ITEMS: NavItem[] = [
     icon: ReceiptText,
     group: 'Dashboards',
     inMenu: true,
-    access: { project: 'viewDashboards' }, // every role, data scoped (DEC-86)
+    access: { project: 'viewBilling' }, // every role, data scoped (DEC-86)
     priority: 'P2',
     built: true,
     notes: ['Every verification is charged on entry; column "Verification Status" (DEC-60).', '"Cost of Retries" depends on OQ-07 (per-attempt charging).'],
@@ -170,7 +170,7 @@ export const NAV_ITEMS: NavItem[] = [
     icon: Building2,
     group: 'Platform',
     inMenu: true,
-    access: { platform: 'manageMerchants' },
+    access: { platform: 'viewMerchants' },
     priority: 'P3',
     built: true,
     notes: ['[FRS] Merchant ID, Name, Country, Status, Created At; Onboarding → Active → Suspended → Terminated with reasons; never deleted (DEC-98). Creating one adds its Default project, default flow and first owner (DEC-92).'],
@@ -228,7 +228,7 @@ export const NAV_ITEMS: NavItem[] = [
     icon: Library,
     group: 'Platform',
     inMenu: true,
-    access: { platform: 'manageRegistry' },
+    access: { platform: 'viewRegistry' },
     priority: 'P1',
     built: true,
     notes: ['Draft → Active → Deprecated; default for new merchants; flows using each version (DEC-56 … DEC-58).'],

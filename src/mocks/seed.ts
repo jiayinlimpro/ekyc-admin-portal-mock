@@ -123,7 +123,7 @@ export function seedDatabase(now: Date): MockDbState {
   const audit: AuditEntry[] = []
   const accounts = buildAccounts(now)
   const roles = buildRoles(now)
-  const accessOf = (a: UserAccount) => ({ ...a, grants: grantsOf(a.assignments, roles) })
+  const accessOf = (a: UserAccount) => ({ ...a, grants: grantsOf(a.assignments, roles, now) })
   // REQ: DEC-70 — seeded reviews are by the merchant's own active users who may claim there (Super admin could, DEC-75,
   // but the demo history is the merchant's).
   const reviewersOf = (v: Verification): Actor[] =>

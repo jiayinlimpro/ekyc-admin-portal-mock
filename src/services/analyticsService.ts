@@ -59,9 +59,9 @@ export interface AnalyticsService {
   billing(q: DashboardScope & { period: string }, actor: Actor): Promise<BillingReport>
 }
 
-function scoped(actor: Actor, q: DashboardScope): Verification[] {
+function scoped(actor: Actor, q: DashboardScope, action: 'viewDashboards' | 'viewBilling' = 'viewDashboards'): Verification[] {
   if (q.merchantId) requireMerchantInScope(actor, q.merchantId)
-  const allowed = projectIdsWhere(actor, 'viewDashboards')
+  const allowed = projectIdsWhere(actor, action)
   const asked = q.projectIds ? new Set(q.projectIds) : undefined
   return db
     .state()
@@ -80,7 +80,7 @@ function contextOf(v: Verification) {
 export const mockAnalyticsService: AnalyticsService = {
   async filters(actor) {
     await simulateNetwork('dashboard filters')
-    const allowed = projectIdsWhere(actor, 'viewDashboards')
+    const allowed = new Set([...projectIdsWhere(actor, 'viewDashboards'), ...projectIdsWhere(actor, 'viewBilling')])
     const s = db.state()
     const projects = s.projects.filter((p) => allowed.has(p.projectId))
     return wire({
@@ -112,7 +112,7 @@ export const mockAnalyticsService: AnalyticsService = {
 
   async billingPeriods(actor) {
     await simulateNetwork('billing periods')
-    const months = new Set(scoped(actor, {}).map((v) => mytDay(v.createdAt).slice(0, 7)))
+    const months = new Set(scoped(actor, {}, 'viewBilling').map((v) => mytDay(v.createdAt).slice(0, 7)))
     return [...months].sort().reverse()
   },
 
@@ -120,7 +120,7 @@ export const mockAnalyticsService: AnalyticsService = {
   async billing(q, actor) {
     await simulateNetwork('billing')
     const { from, to } = monthRange(q.period)
-    const lines = scoped(actor, q)
+    const lines = scoped(actor, q, 'viewBilling')
       .map((v) => billingLine(v, TOKEN_PRICE))
       .filter((l) => l.chargedAt >= from && l.chargedAt <= to)
       .sort((a, b) => b.chargedAt.localeCompare(a.chargedAt))

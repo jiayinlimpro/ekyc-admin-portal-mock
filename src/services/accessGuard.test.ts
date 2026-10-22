@@ -48,9 +48,9 @@ describe('userService', () => {
     expect(ids(await userService.listReviewers(ALI, fx('PRJ-0001')))).toEqual([fx('USR-2026-0001'), fx('USR-2026-0002'), fx('USR-2026-0005'), fx('USR-2026-0012'), fx('USR-2026-0031')].sort())
   })
 
-  it('Given Ali, then the directory is his merchant plus Super admins', async () => {
+  it('Given Ali, then the directory is his merchant plus internal accounts (they appear in audit logs)', async () => {
     const users = await userService.list(ALI)
-    expect(users.every((u) => u.merchantId === fx('MER-0001') || u.level === 'SUPER_ADMIN')).toBe(true)
+    expect(users.every((u) => u.merchantId === fx('MER-0001') || u.level === 'SUPER_ADMIN' || u.level === 'PLATFORM_STAFF')).toBe(true)
     expect(ids(users)).toContain(fx('USR-2026-0001'))
     expect((await userService.list(ADMIN)).length).toBe(db.state().accounts.length)
   })

@@ -1,18 +1,19 @@
 // Service-side access checks (DEC-71, DEC-72). The session only says who the user is; what they may do is read from their
 // account, its role assignments and the roles' current permissions, as the real backend would.
-import { canInProject, projectsWhere, roleNamesInProject, type ProjectAction } from '@/domain/access'
+import { canInProject, isInternal, projectsWhere, roleNamesInProject, type ProjectAction } from '@/domain/access'
 import { grantsOf } from '@/domain/roles'
 import type { Actor, Project, UserAccess, UserAccount } from '@/domain/types'
 import { newId } from '@/lib/ids'
 import { db } from '@/mocks/mockDb'
 import { ServiceError } from './errors'
 import { merchantAllowsSignIn } from '@/domain/merchantRules'
+import { now } from '@/lib/clock'
 
 /** An account with its grants: editing a role applies at once to everyone holding it (DEC-76). */
 export type AccountAccess = UserAccount & UserAccess
 
 /** The account with its grants, resolved against the current roles. */
-export const withAccess = (a: UserAccount): AccountAccess => ({ ...a, grants: grantsOf(a.assignments, db.state().roles) })
+export const withAccess = (a: UserAccount): AccountAccess => ({ ...a, grants: grantsOf(a.assignments, db.state().roles, now()) }) // ended rows grant nothing (DEC-99)
 
 /** The account behind the session. A session for an account that no longer exists has no access at all. */
 export function accountOf(actor: Pick<Actor, 'userId'>): AccountAccess {
@@ -55,7 +56,8 @@ export const nextAssignmentId = () => newId('asg')
 export function requireMerchantInScope(actor: Pick<Actor, 'userId'>, merchantId: string): void {
   const a = accountOf(actor)
   const exists = db.state().merchants.some((m) => m.merchantId === merchantId)
-  if (!exists || (a.level !== 'SUPER_ADMIN' && a.merchantId !== merchantId)) throw new ServiceError('NOT_FOUND', `Merchant ${merchantId} not found.`)
+  // Internal accounts work across merchants; what they see inside is limited by their permissions (DEC-99).
+  if (!exists || (!isInternal(a) && a.merchantId !== merchantId)) throw new ServiceError('NOT_FOUND', `Merchant ${merchantId} not found.`)
 }
 
 /** Ids of the projects where the user may do `action` (case lists, dashboard and audit scope; DEC-72, DEC-86). */

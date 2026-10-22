@@ -44,9 +44,9 @@ export interface RegistryService {
   setDefault(code: WorkflowCode, actor: Actor): Promise<RegistryEntry>
 }
 
-// REQ: DEC-70 — Workflow Registry is Super admin only.
-function requireRegistry(actor: Actor) {
-  if (!canOnPlatform(accountOf(actor), 'manageRegistry')) throw new ServiceError('FORBIDDEN', 'Only Super admin can manage the Workflow Registry.')
+// REQ: DEC-70 / DEC-99 — Workflow Registry: super admin, or platform staff with Registry View (read) / Manage (changes).
+function requireRegistry(actor: Actor, action: 'viewRegistry' | 'manageRegistry' = 'manageRegistry') {
+  if (!canOnPlatform(accountOf(actor), action)) throw new ServiceError('FORBIDDEN', action === 'viewRegistry' ? 'You do not have permission to view the Workflow Registry.' : 'You do not have permission to manage the Workflow Registry.')
 }
 
 function load(code: WorkflowCode): RegistryEntry {
@@ -85,14 +85,14 @@ const fields = (input: RegistryInput) => ({
 export const mockRegistryService: RegistryService = {
   async list(actor) {
     await simulateNetwork('list registry')
-    requireRegistry(actor)
+    requireRegistry(actor, 'viewRegistry')
     const flows = db.state().flows
     return wire(db.state().registry.map((e) => ({ ...e, flowsUsing: flows.filter((f) => f.workflowVersion === e.code).length })))
   },
 
   async flowsUsing(code, actor) {
     await simulateNetwork('flows using version')
-    requireRegistry(actor)
+    requireRegistry(actor, 'viewRegistry')
     load(code)
     const s = db.state()
     return wire(

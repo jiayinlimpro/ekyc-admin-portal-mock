@@ -238,7 +238,7 @@ function rowOf(a: UserAccount & { merchantId: string }): UserRow {
     email: a.email,
     merchantId: a.merchantId,
     merchantName: merchantName(a.merchantId),
-    access: accessChips(grantsOf(a.assignments, db.state().roles), projectName, isArchived),
+    access: accessChips(grantsOf(a.assignments, db.state().roles, now()), projectName, isArchived, merchantName),
     status: a.status,
     createdAt: a.invitedAt,
   }
@@ -259,7 +259,7 @@ function detailOf(actor: Actor, a: UserAccount & { merchantId: string }): UserDe
       .map((p) => ({
         projectId: p.projectId,
         projectName: projectName(p.projectId),
-        permissions: effectivePermissions(grantsOf(a.assignments, db.state().roles), p.projectId).map(({ permission, from }) => ({ permission, from: from.map((g) => chipLabel(g.roleName, g.scope, projectName)) })),
+        permissions: effectivePermissions(grantsOf(a.assignments, db.state().roles, now()), p.projectId).map(({ permission, from }) => ({ permission, from: from.map((g) => chipLabel(g.roleName, g.scope, projectName)) })),
       })),
     assignments: a.assignments.map((x) => ({
       assignmentId: x.assignmentId,
