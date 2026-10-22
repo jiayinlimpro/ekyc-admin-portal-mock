@@ -34,8 +34,9 @@ export type ProjectRow = MyProject & {
   defaultFlowName: string
   members: number // users with access, incl. All projects (DEC-77), Pending or Active; not Super admins
   inFlightCases: number // PROCESSING + PENDING_REVIEW
-  /** The user may rename and archive it (DEC-70: Create, rename, archive projects). */
-  canManage: boolean
+  /** REQ: DEC-102 — the user may rename it / archive it (separate permissions). */
+  canRename: boolean
+  canArchive: boolean
 }
 
 export interface ProjectService {
@@ -123,7 +124,8 @@ export const mockProjectService: ProjectService = {
           defaultFlowName: flows.find((f) => f.flowId === p.defaultFlowId)?.name ?? p.defaultFlowId,
           members: s.accounts.filter((a) => a.status !== 'SUSPENDED' && a.merchantId === p.merchantId && a.assignments.some((x) => covers(x.scope, p.projectId))).length,
           inFlightCases: s.verifications.filter((v) => v.projectId === p.projectId && IN_FLIGHT_STATUSES.includes(v.status)).length,
-          canManage: canInProject(me, 'renameProjects', p) || canInProject(me, 'archiveProjects', p),
+          canRename: canInProject(me, 'renameProjects', p),
+          canArchive: canInProject(me, 'archiveProjects', p),
         }
       })
       .sort((a, b) => a.merchantName.localeCompare(b.merchantName) || Number(b.isDefault) - Number(a.isDefault) || a.name.localeCompare(b.name))

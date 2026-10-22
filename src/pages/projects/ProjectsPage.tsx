@@ -196,11 +196,12 @@ export function ProjectsPage() {
                   <Button variant="ghost" size="icon-sm" aria-label={`Settings of ${r.name}`} title="Project Settings" onClick={() => open(r, '/project-settings')}>
                     <Settings2 aria-hidden />
                   </Button>
-                  {r.canManage && (
-                    <>
-                      <Button variant="ghost" size="icon-sm" aria-label={`Rename ${r.name}`} title="Rename" onClick={() => setEditing({ mode: 'rename', row: r })}>
-                        <Pencil aria-hidden />
-                      </Button>
+                  {r.canRename && (
+                    <Button variant="ghost" size="icon-sm" aria-label={`Rename ${r.name}`} title="Rename" onClick={() => setEditing({ mode: 'rename', row: r })}>
+                      <Pencil aria-hidden />
+                    </Button>
+                  )}
+                  {r.canArchive && (
                       <Button
                         variant="ghost"
                         size="icon-sm"
@@ -211,7 +212,6 @@ export function ProjectsPage() {
                       >
                         <Archive aria-hidden />
                       </Button>
-                    </>
                   )}
                 </td>
               </tr>
