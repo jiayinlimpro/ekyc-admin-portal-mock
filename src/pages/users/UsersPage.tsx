@@ -20,7 +20,10 @@ import { merchantService } from '@/services/merchantService'
 import { roleService } from '@/services/roleService'
 import { userAdminService, type AssignmentInput, type AssignmentRow, type UserDetail, type UserRow } from '@/services/userAdminService'
 import { useSession } from '@/stores/sessionStore'
-import { AccessChip, AssignmentDialog, AssignmentFields, UserStatusBadge, type ProjectOption } from './AccessFields'
+import { AccessChip, AssignmentDialog, AssignmentFields, StaffAccessFields, UserStatusBadge, type MerchantOption, type ProjectOption } from './AccessFields'
+import { StaffDialog } from './StaffDialog'
+import { staffService } from '@/services/staffService'
+import { STAFF_EMAIL_DOMAIN } from '@/domain/openQuestions'
 
 const PAGE_SIZES = [10, 20, 50] as const
 
@@ -30,27 +33,43 @@ function useMerchantProjects(merchantId: string | undefined): ProjectOption[] {
   return projects.filter((p) => p.merchantId === merchantId && p.status === 'ACTIVE').map(({ projectId, name }) => ({ projectId, name }))
 }
 
-function InviteDialog({ merchants, defaultMerchantId, onClose, onSaved }: { merchants: { merchantId: string; name: string }[]; defaultMerchantId?: string; onClose: () => void; onSaved: () => void }) {
+type AccountKind = 'PLATFORM' | 'MERCHANT'
+const EMPTY_PROJECT_ACCESS: AssignmentInput = { roleId: '', scope: { kind: 'PROJECTS', projectIds: [] } }
+const EMPTY_STAFF_ACCESS: AssignmentInput = { roleId: '', scope: { kind: 'ALL_MERCHANTS' } }
+
+/**
+ * REQ: DEC-74 / DEC-99 — New user. Type first (super admins choose; merchant admins see it locked to their merchant),
+ * then the generated User ID, then the fields of that Type in the brief's order.
+ */
+function InviteDialog({ merchants, isSuper, ownMerchant, onClose, onSaved }: { merchants: MerchantOption[]; isSuper: boolean; ownMerchant?: MerchantOption; onClose: () => void; onSaved: () => void }) {
   const actor = useSession((s) => s.actor)
-  const [merchantId, setMerchantId] = useState(defaultMerchantId ?? '')
+  const [kind, setKind] = useState<AccountKind>('MERCHANT')
+  const [merchantId, setMerchantId] = useState(ownMerchant?.merchantId ?? '')
   const [fullName, setFullName] = useState('')
   const [email, setEmail] = useState('')
-  const [assignment, setAssignment] = useState<AssignmentInput>({ roleId: '', scope: { kind: 'PROJECTS', projectIds: [] } })
+  const [assignment, setAssignment] = useState<AssignmentInput>(EMPTY_PROJECT_ACCESS)
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [busy, setBusy] = useState(false)
-  const roles = useLoad(() => (merchantId ? roleService.assignable(merchantId, actor) : Promise.resolve([])), [merchantId, actor.userId])
+  const platform = kind === 'PLATFORM'
+  const roles = useLoad(() => (platform ? staffService.assignableRoles(actor) : merchantId ? roleService.assignable(merchantId, actor) : Promise.resolve([])), [kind, merchantId, actor.userId])
   const projects = useMerchantProjects(merchantId)
   // REQ: DEC-97 — the User ID is generated when the form opens and shown read-only.
   const draft = useLoad(() => userAdminService.draftUserId(actor), [actor.userId])
 
+  const changeKind = (k: AccountKind) => {
+    setKind(k)
+    setAssignment(k === 'PLATFORM' ? EMPTY_STAFF_ACCESS : EMPTY_PROJECT_ACCESS)
+    setErrors({})
+  }
   const submit = async (e: FormEvent) => {
     e.preventDefault()
-    if (!merchantId) return setErrors({ merchantId: 'Choose a merchant.' })
-    if (!assignment.roleId) return setErrors({ roleId: 'Choose a role.' })
+    if (!platform && !merchantId) return setErrors({ merchantId: 'Choose a merchant.' })
+    if (!assignment.roleId) return setErrors({ roleId: platform ? 'Choose a staff role.' : 'Choose a role.' })
     setBusy(true)
     setErrors({})
     try {
-      const u = await userAdminService.invite(merchantId, { userId: draft.data, fullName, email, assignment }, actor)
+      const input = { userId: draft.data, fullName, email, assignment }
+      const u = platform ? await staffService.invite(input, actor) : await userAdminService.invite(merchantId, input, actor)
       toast.success(`${u.fullName} invited`, { description: 'Pending until they accept the invitation.' })
       onSaved()
     } catch (err) {
@@ -59,6 +78,16 @@ function InviteDialog({ merchants, defaultMerchantId, onClose, onSaved }: { merc
       setBusy(false)
     }
   }
+  const nameField = (
+    <FormField id="nu-name" label="Full name" error={errors.fullName}>
+      <Input id="nu-name" value={fullName} onChange={(e) => setFullName(e.target.value)} aria-invalid={!!errors.fullName} />
+    </FormField>
+  )
+  const emailField = (
+    <FormField id="nu-email" label="Work email" error={errors.email} hint={platform ? `A company email (@${STAFF_EMAIL_DOMAIN}).` : `Company staff emails (@${STAFF_EMAIL_DOMAIN}) can’t be used.`}>
+      <Input id="nu-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} aria-invalid={!!errors.email} />
+    </FormField>
+  )
   return (
     <Dialog open onOpenChange={(o) => !o && !busy && onClose()}>
       <DialogContent className="max-h-[90vh] overflow-y-auto">
@@ -67,28 +96,46 @@ function InviteDialog({ merchants, defaultMerchantId, onClose, onSaved }: { merc
             <DialogTitle>New user</DialogTitle>
             <DialogDescription>The user is Pending until they accept the emailed invitation. Add more access later on their details.</DialogDescription>
           </DialogHeader>
+          <FormField id="nu-type" label="Type" hint="Can’t be changed after creation.">
+            {isSuper ? (
+              <NativeSelect id="nu-type" value={kind} onChange={(e) => changeKind(e.target.value as AccountKind)}>
+                <option value="PLATFORM">Platform (internal)</option>
+                <option value="MERCHANT">Merchant</option>
+              </NativeSelect>
+            ) : (
+              <Input id="nu-type" value={`Merchant · ${ownMerchant?.name ?? ''}`} readOnly disabled />
+            )}
+          </FormField>
           <FormField id="nu-id" label="User ID" hint="Generated; it can’t be changed.">
             <Input id="nu-id" value={draft.data ?? ''} placeholder={draft.loading ? 'Generating…' : ''} readOnly disabled className="font-mono text-xs" />
           </FormField>
-          {merchants.length > 1 && (
-            <FormField id="nu-merchant" label="Merchant" error={errors.merchantId}>
-              <NativeSelect id="nu-merchant" value={merchantId} onChange={(e) => { setMerchantId(e.target.value); setAssignment({ roleId: '', scope: { kind: 'PROJECTS', projectIds: [] } }) }}>
-                <option value="">Choose a merchant</option>
-                {merchants.map((m) => (
-                  <option key={m.merchantId} value={m.merchantId}>
-                    {m.name}
-                  </option>
-                ))}
-              </NativeSelect>
-            </FormField>
+          {platform ? (
+            <>
+              {nameField}
+              {emailField}
+              <StaffAccessFields idPrefix="nu" roles={roles.data ?? []} merchants={merchants} value={assignment} onChange={setAssignment} errors={errors} />
+            </>
+          ) : (
+            <>
+              <FormField id="nu-merchant" label="Merchant" error={errors.merchantId} hint={isSuper ? 'Changing it resets the role and project access.' : undefined}>
+                {isSuper ? (
+                  <NativeSelect id="nu-merchant" value={merchantId} onChange={(e) => { setMerchantId(e.target.value); setAssignment(EMPTY_PROJECT_ACCESS) }}>
+                    <option value="">Choose a merchant</option>
+                    {merchants.map((m) => (
+                      <option key={m.merchantId} value={m.merchantId}>
+                        {m.name}
+                      </option>
+                    ))}
+                  </NativeSelect>
+                ) : (
+                  <Input id="nu-merchant" value={ownMerchant?.name ?? ''} readOnly disabled />
+                )}
+              </FormField>
+              {nameField}
+              {emailField}
+              {merchantId && <AssignmentFields idPrefix="nu" who={fullName.trim() || 'The user'} roles={roles.data ?? []} projects={projects} value={assignment} onChange={setAssignment} errors={errors} />}
+            </>
           )}
-          <FormField id="nu-name" label="Full name" error={errors.fullName}>
-            <Input id="nu-name" value={fullName} onChange={(e) => setFullName(e.target.value)} aria-invalid={!!errors.fullName} autoFocus />
-          </FormField>
-          <FormField id="nu-email" label="Work email" error={errors.email}>
-            <Input id="nu-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} aria-invalid={!!errors.email} />
-          </FormField>
-          {merchantId && <AssignmentFields idPrefix="nu" who={fullName.trim() || 'The user'} roles={roles.data ?? []} projects={projects} value={assignment} onChange={setAssignment} errors={errors} />}
           {errors.form && (
             <p role="alert" className="text-sm text-destructive">
               {errors.form}
@@ -226,7 +273,7 @@ function UserDialog({ userId, onClose, onChanged }: { userId: string; onClose: (
                 <table className="w-full text-sm">
                   <thead className="bg-muted/50 text-left text-xs text-muted-foreground">
                     <tr>
-                      {['Role', 'Scope', 'Added by', 'Date'].map((h) => (
+                      {['Role', 'Scope', 'Added by', 'Date', 'Ends'].map((h) => (
                         <th key={h} scope="col" className="px-3 py-2 font-medium">
                           {h}
                         </th>
@@ -243,6 +290,7 @@ function UserDialog({ userId, onClose, onChanged }: { userId: string; onClose: (
                         <td className="px-3 py-2">{a.scope.kind === 'ALL_PROJECTS' ? <span title="Includes projects created later">All projects</span> : a.scopeLabel}</td>
                         <td className="px-3 py-2">{a.addedBy.fullName}</td>
                         <td className="px-3 py-2 whitespace-nowrap">{formatMyt(a.addedAt).split(', ')[0]}</td>
+                        <td className={cn('px-3 py-2 whitespace-nowrap', a.ended && 'text-muted-foreground')}>{a.endsAt ? `${a.ended ? 'Ended' : 'Ends'} ${formatMyt(a.endsAt).split(', ')[0]}` : 'Never'}</td>
                         <td className="px-2 py-2 text-right whitespace-nowrap">
                           {a.editable && (
                             <>
@@ -309,7 +357,7 @@ function UserDialog({ userId, onClose, onChanged }: { userId: string; onClose: (
           <AssignmentDialog
             title={editing.mode === 'add' ? `Add access for ${u.fullName}` : `Edit ${editing.row.roleName} for ${u.fullName}`}
             who={u.fullName}
-            initial={editing.mode === 'edit' ? { roleId: editing.row.roleId, scope: editing.row.scope } : undefined}
+            initial={editing.mode === 'edit' ? { roleId: editing.row.roleId, scope: editing.row.scope, endsAt: editing.row.endsAt } : undefined}
             roles={roles.data ?? []}
             projects={projects}
             onSave={save}
@@ -321,11 +369,13 @@ function UserDialog({ userId, onClose, onChanged }: { userId: string; onClose: (
   )
 }
 
-type Filters = { q: string; status: '' | UserStatus; merchantId: string }
+type Filters = { q: string; status: '' | UserStatus; merchantId: string; type: '' | AccountKind }
+/** A row on the Users list: a merchant user, or (super admins only) a platform staff member (DEC-99). */
+type ListRow = UserRow & { type: AccountKind }
 
-const matches = (r: UserRow, f: Filters) => {
+const matches = (r: ListRow, f: Filters) => {
   const q = f.q.trim().toLowerCase()
-  return (!q || [r.fullName, r.email].some((x) => x.toLowerCase().includes(q))) && (!f.status || r.status === f.status) && (!f.merchantId || r.merchantId === f.merchantId)
+  return (!q || [r.fullName, r.email].some((x) => x.toLowerCase().includes(q))) && (!f.status || r.status === f.status) && (!f.merchantId || r.merchantId === f.merchantId) && (!f.type || r.type === f.type)
 }
 
 export function UsersPage() {
@@ -333,13 +383,20 @@ export function UsersPage() {
   const { account } = useAccess()
   const isAdmin = account?.level === 'SUPER_ADMIN'
   const [sp, setSp] = useSearchParams()
-  const applied: Filters = { q: sp.get('q') ?? '', status: (sp.get('status') ?? '') as Filters['status'], merchantId: sp.get('merchantId') ?? '' }
+  const applied: Filters = { q: sp.get('q') ?? '', status: (sp.get('status') ?? '') as Filters['status'], merchantId: sp.get('merchantId') ?? '', type: (sp.get('type') ?? '') as Filters['type'] }
   const [form, setForm] = useState<Filters>(applied)
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState<number>(PAGE_SIZES[0])
   const [inviting, setInviting] = useState(false)
-  const [open, setOpen] = useState<string | undefined>(sp.get('user') ?? undefined)
-  const rows = useLoad(() => userAdminService.list(actor), [actor.userId])
+  // ?user=<id> opens a merchant user's details (linked from the Members tab, DEC-77).
+  const [open, setOpen] = useState<{ userId: string; type: AccountKind } | undefined>(sp.get('user') ? { userId: sp.get('user')!, type: 'MERCHANT' } : undefined)
+  // REQ: DEC-99 — super admins see platform staff and merchant users together; merchant admins only their users.
+  const rows = useLoad(async (): Promise<ListRow[]> => {
+    const merchantUsers = (await userAdminService.list(actor)).map((r): ListRow => ({ ...r, type: 'MERCHANT' }))
+    if (!isAdmin) return merchantUsers
+    const staff = (await staffService.list(actor)).map((r): ListRow => ({ ...r, merchantId: '', merchantName: '—', type: 'PLATFORM' }))
+    return [...staff, ...merchantUsers].sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+  }, [actor.userId, isAdmin])
   const merchants = useLoad(() => merchantService.list(actor), [actor.userId])
 
   const apply = (f: Filters) => {
@@ -348,7 +405,7 @@ export function UsersPage() {
   }
   const filtered = (rows.data ?? []).filter((r) => matches(r, applied))
   const shown = filtered.slice((page - 1) * pageSize, page * pageSize)
-  const headers = ['Full Name', 'Email', ...(isAdmin ? ['Merchant'] : []), 'Access', 'Status', 'Created At']
+  const headers = ['Full Name', 'Email', ...(isAdmin ? ['Type', 'Merchant'] : []), 'Access', 'Status', 'Created At']
 
   if (rows.error && !rows.data) return <ErrorState message={rows.error} onRetry={rows.reload} />
   return (
@@ -384,6 +441,15 @@ export function UsersPage() {
           </NativeSelect>
         </FormField>
         {isAdmin && (
+          <FormField id="uf-type" label="Type" className="w-44">
+            <NativeSelect id="uf-type" value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value as Filters['type'] })}>
+              <option value="">All</option>
+              <option value="PLATFORM">Platform (internal)</option>
+              <option value="MERCHANT">Merchant</option>
+            </NativeSelect>
+          </FormField>
+        )}
+        {isAdmin && (
           <FormField id="uf-merchant" label="Merchant" className="w-48">
             <NativeSelect id="uf-merchant" value={form.merchantId} onChange={(e) => setForm({ ...form, merchantId: e.target.value })}>
               <option value="">All</option>
@@ -396,7 +462,7 @@ export function UsersPage() {
           </FormField>
         )}
         <div className="ml-auto flex gap-2">
-          <Button type="button" variant="outline" onClick={() => { const empty = { q: '', status: '', merchantId: '' } as Filters; setForm(empty); apply(empty) }}>
+          <Button type="button" variant="outline" onClick={() => { const empty: Filters = { q: '', status: '', merchantId: '', type: '' }; setForm(empty); apply(empty) }}>
             <RotateCcw aria-hidden /> Reset
           </Button>
           <Button type="submit">
@@ -419,11 +485,12 @@ export function UsersPage() {
             {shown.map((r) => (
               <tr key={r.userId} className="border-t">
                 <th scope="row" className="px-3 py-2 text-left font-normal">
-                  <button type="button" className="font-medium text-blue-700 hover:underline dark:text-blue-400" onClick={() => setOpen(r.userId)}>
+                  <button type="button" className="font-medium text-blue-700 hover:underline dark:text-blue-400" onClick={() => setOpen({ userId: r.userId, type: r.type })}>
                     {r.fullName}
                   </button>
                 </th>
                 <td className="px-3 py-2">{r.email}</td>
+                {isAdmin && <td className="px-3 py-2 whitespace-nowrap">{r.type === 'PLATFORM' ? 'Platform (internal)' : 'Merchant'}</td>}
                 {isAdmin && <td className="px-3 py-2 whitespace-nowrap">{r.merchantName}</td>}
                 <td className="px-3 py-2">
                   {r.access.length ? (
@@ -449,8 +516,9 @@ export function UsersPage() {
       </section>
       {inviting && (
         <InviteDialog
-          merchants={isAdmin ? (merchants.data ?? []) : []}
-          defaultMerchantId={isAdmin ? undefined : account?.merchantId}
+          merchants={merchants.data ?? []}
+          isSuper={isAdmin}
+          ownMerchant={isAdmin || !account?.merchantId ? undefined : { merchantId: account.merchantId, name: (merchants.data ?? []).find((m) => m.merchantId === account.merchantId)?.name ?? '' }}
           onClose={() => setInviting(false)}
           onSaved={() => {
             setInviting(false)
@@ -458,7 +526,8 @@ export function UsersPage() {
           }}
         />
       )}
-      {open && <UserDialog userId={open} onClose={() => setOpen(undefined)} onChanged={rows.reload} />}
+      {open?.type === 'PLATFORM' && <StaffDialog userId={open.userId} onClose={() => setOpen(undefined)} onChanged={rows.reload} />}
+      {open?.type === 'MERCHANT' && <UserDialog userId={open.userId} onClose={() => setOpen(undefined)} onChanged={rows.reload} />}
     </div>
   )
 }

@@ -45,7 +45,9 @@ describe('Users (DEC-74)', () => {
     const id = (await screen.findByLabelText('User ID')) as HTMLInputElement
     await waitFor(() => expect(id.value).toMatch(/^usr_[a-z0-9]{24}$/))
     expect(id.disabled && id.readOnly).toBe(true)
-    expect(within(id.closest('form')!).getAllByRole('textbox')[0]).toBe(id) // first field
+    const [type, second] = within(id.closest('form')!).getAllByRole('textbox') as HTMLInputElement[]
+    expect(type.value).toMatch(/^Merchant · /) // Type first, locked for a merchant admin (DEC-99)
+    expect(second).toBe(id)
     fireEvent.change(await screen.findByLabelText('Full name'), { target: { value: 'Aishah Binti Omar' } })
     fireEvent.change(screen.getByLabelText('Work email'), { target: { value: 'aishah@atoz.example' } })
     const role = screen.getByLabelText('Role')
@@ -87,6 +89,39 @@ describe('Users (DEC-74)', () => {
     fireEvent.change(within(ea).getByLabelText('Project'), { target: { value: fx('PRJ-0002') } })
     expect(within(ea).queryByRole('rowheader', { name: 'Claim cases' })).toBeNull()
     expect(within(ea).getByRole('rowheader', { name: 'View cases' }).closest('tr')!.textContent).toContain('Viewer · SME app')
+  })
+
+  it('Given a Merchant Owner, then no platform staff in the list', async () => {
+    renderAt('/users')
+    await row('Ali Bin Ahmad')
+    expect(screen.queryByRole('rowheader', { name: 'Daniel Tan' })).toBeNull()
+    expect(screen.queryByLabelText('Type', { selector: 'select' })).toBeNull()
+  })
+
+  it('Given a super admin, when New user is Platform, then name, company email, staff role, merchant access and end date; listed as Platform (DEC-99)', async () => {
+    useSession.getState().switchUser(ADMIN)
+    renderAt('/users')
+    expect((await row('Daniel Tan')).textContent).toContain('Platform (internal)')
+    fireEvent.click(screen.getByRole('button', { name: /New user/ }))
+    const dialog = within(await screen.findByRole('dialog'))
+    fireEvent.change(dialog.getByLabelText('Type'), { target: { value: 'PLATFORM' } })
+    expect(dialog.queryByLabelText('Merchant')).toBeNull()
+    fireEvent.change(screen.getByLabelText('Full name'), { target: { value: 'Mira Chen' } })
+    fireEvent.change(screen.getByLabelText('Work email'), { target: { value: 'mira.chen@ekyc-platform.example' } })
+    const role = screen.getByLabelText('Staff role')
+    await waitFor(() => expect(within(role).getAllByRole('option').map((o) => o.textContent)).toContain('Finance (System Default)'))
+    fireEvent.change(role, { target: { value: fx('ROL-2026-0104') } }) // Finance: no merchant access
+    expect(screen.getByText('This role has no merchant access permissions.')).toBeTruthy()
+    fireEvent.change(role, { target: { value: fx('ROL-2026-0102') } }) // Support
+    expect((screen.getByRole('radio', { name: 'All merchants, including future merchants' }) as HTMLInputElement).checked).toBe(true)
+    fireEvent.click(screen.getByRole('radio', { name: 'Selected merchants' }))
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Vantage' }))
+    fireEvent.click(screen.getByRole('radio', { name: 'On' }))
+    fireEvent.change(screen.getByLabelText('Access ends on'), { target: { value: '2027-01-31' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Invite user' }))
+    const r = await row('Mira Chen')
+    expect(r.textContent).toContain('Support · Vantage')
+    expect(r.textContent).toContain('Platform (internal)')
   })
 
   it('Given a Reviewer, then Users is "No access"', async () => {
