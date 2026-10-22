@@ -22,6 +22,8 @@ import type { MyProject } from '@/services/projectService'
 import { registryService } from '@/services/registryService'
 import { useSession } from '@/stores/sessionStore'
 import { CopyId } from '@/components/common/CopyId'
+import { useAccess } from '@/app/access'
+import { canInProject } from '@/domain/access'
 
 const STATUS_TONE: Record<FlowStatus, string> = {
   DRAFT: 'bg-slate-100 text-slate-700 dark:bg-slate-500/20 dark:text-slate-200',
@@ -110,6 +112,9 @@ function NewFlowDialog({ project, onClose }: { project: MyProject; onClose: () =
 
 function Flows({ project }: { project: MyProject }) {
   const actor = useSession((s) => s.actor)
+  const { account } = useAccess()
+  // REQ: DEC-99 — Flows View opens the list read-only; creating and changing flows needs Manage flows (staff: Edit).
+  const canEdit = !!account && canInProject(account, 'manageFlows', project)
   const navigate = useNavigate()
   const rows = useLoad(() => flowService.listRows(project.projectId, actor), [project.projectId, actor.userId])
   const [creating, setCreating] = useState(false)
@@ -133,7 +138,7 @@ function Flows({ project }: { project: MyProject }) {
           <h1 className="text-2xl font-semibold">Flows</h1>
           <p className="text-sm text-muted-foreground">{project.name} · settings live on each flow; saving an active flow creates a new revision for new sessions.</p>
         </div>
-        {project.status === 'ACTIVE' && (
+        {project.status === 'ACTIVE' && canEdit && (
           <Button onClick={() => setCreating(true)}>
             <Plus aria-hidden /> New flow
           </Button>
@@ -194,12 +199,12 @@ function Flows({ project }: { project: MyProject }) {
                     />
                     <DropdownMenuContent align="end" className="w-44">
                       <DropdownMenuItem onClick={() => navigate(`/flows/${f.flowId}`)}>Open</DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => void act(() => flowService.duplicate(f.flowId, actor), `${f.name} duplicated as Draft`)}>
+                      {canEdit && <DropdownMenuItem onClick={() => void act(() => flowService.duplicate(f.flowId, actor), `${f.name} duplicated as Draft`)}>
                         <Copy aria-hidden /> Duplicate
-                      </DropdownMenuItem>
-                      {f.status === 'ACTIVE' && !f.isDefault && <DropdownMenuItem onClick={() => void act(() => flowService.setDefault(f.flowId, actor), `${f.name} is now the default`)}>Set as default</DropdownMenuItem>}
-                      {f.status !== 'ACTIVE' && <DropdownMenuItem onClick={() => void act(() => flowService.activate(f.flowId, actor), `${f.name} activated`)}>Activate</DropdownMenuItem>}
-                      {f.status === 'ACTIVE' && <DropdownMenuItem onClick={() => setRetiring(f)}>Retire</DropdownMenuItem>}
+                      </DropdownMenuItem>}
+                      {canEdit && f.status === 'ACTIVE' && !f.isDefault && <DropdownMenuItem onClick={() => void act(() => flowService.setDefault(f.flowId, actor), `${f.name} is now the default`)}>Set as default</DropdownMenuItem>}
+                      {canEdit && f.status !== 'ACTIVE' && <DropdownMenuItem onClick={() => void act(() => flowService.activate(f.flowId, actor), `${f.name} activated`)}>Activate</DropdownMenuItem>}
+                      {canEdit && f.status === 'ACTIVE' && <DropdownMenuItem onClick={() => setRetiring(f)}>Retire</DropdownMenuItem>}
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </td>
@@ -247,5 +252,5 @@ function Flows({ project }: { project: MyProject }) {
 
 // REQ: DEC-94 / DEC-96 — the flows of the header's project.
 export function FlowsListPage() {
-  return <RequireProject action="manageFlows" title="Flows">{(p) => <Flows key={p.projectId} project={p} />}</RequireProject>
+  return <RequireProject action="viewFlows" title="Flows">{(p) => <Flows key={p.projectId} project={p} />}</RequireProject>
 }

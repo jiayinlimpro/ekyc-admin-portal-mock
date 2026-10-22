@@ -26,6 +26,10 @@ import type { AccessRule } from './access'
 
 // Most-used first: dashboards (everyone), case review, configuration, then admin-only groups.
 // Governance = who may do what (Users, Roles) next to the record of what they did (Audit Logs).
+// REQ: DEC-99 — screens whose parts need different permissions open for any of them; each part checks its own.
+export const PROJECT_SETTINGS_ACTIONS = ['manageProjectSettings', 'viewIntegration', 'manageMembers', 'viewRouting'] as const
+export const PROJECTS_ACTIONS = ['manageProjects', 'manageProjectSettings', 'manageFlows', 'viewFlows', 'viewIntegration', 'manageMembers'] as const
+
 export const NAV_GROUPS = ['Dashboards', 'eKYC', 'Projects & Flows', 'Governance', 'Platform'] as const
 export type NavGroup = (typeof NAV_GROUPS)[number]
 
@@ -126,7 +130,7 @@ export const NAV_ITEMS: NavItem[] = [
     icon: FolderKanban,
     group: 'Projects & Flows',
     inMenu: true,
-    access: { project: 'manageFlows' },
+    access: { project: PROJECTS_ACTIONS },
     priority: 'P1',
     built: true,
     notes: ['Create, rename, archive (Super admin, Merchant Owner; DEC-93). Archived = no new sessions; cases stay reviewable.'],
@@ -137,7 +141,7 @@ export const NAV_ITEMS: NavItem[] = [
     icon: Settings2,
     group: 'Projects & Flows',
     inMenu: true,
-    access: { project: 'manageFlows' },
+    access: { project: PROJECT_SETTINGS_ACTIONS },
     priority: 'P1',
     built: true,
     notes: ['Tabs: General · Integration (API keys, webhook, redirect URLs, origins, IP allowlist) · Review operations (claim timeout) · Routing (read-only) (DEC-54).'],
@@ -148,7 +152,7 @@ export const NAV_ITEMS: NavItem[] = [
     icon: GitBranch,
     group: 'Projects & Flows',
     inMenu: true,
-    access: { project: 'manageFlows' },
+    access: { project: 'viewFlows' },
     priority: 'P0',
     built: true,
     notes: ['Draft, Active, Retiring, Inactive; one default per project; create, duplicate, set default, activate, retire (DEC-94).'],
@@ -159,7 +163,7 @@ export const NAV_ITEMS: NavItem[] = [
     icon: GitBranch,
     group: 'Projects & Flows',
     inMenu: false,
-    access: { project: 'manageFlows' },
+    access: { project: 'viewFlows' },
     priority: 'P0',
     built: true,
     notes: ['Low / Standard / High presets with a 0–100 band bar; Advanced for Super admin only; retries allowed 1–5 (DEC-18, DEC-19, DEC-50).'],

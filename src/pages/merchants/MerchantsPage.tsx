@@ -21,6 +21,7 @@ import { MERCHANT_STATUS_LABELS, USER_STATUS_LABELS } from '@/lib/labels'
 import { cn } from '@/lib/utils'
 import { merchantAdminService, type MerchantInput, type MerchantRow } from '@/services/merchantAdminService'
 import { useSession } from '@/stores/sessionStore'
+import { useAccess } from '@/app/access'
 
 const PAGE_SIZES = [10, 20, 50] as const
 
@@ -275,6 +276,10 @@ type Filters = { q: string; status: '' | MerchantStatus }
 
 export function MerchantsPage() {
   const actor = useSession((s) => s.actor)
+  // REQ: DEC-99 — Merchants View is read-only; Create adds and edits; Suspend changes status.
+  const access = useAccess()
+  const canCreate = access.allows({ platform: 'createMerchants' })
+  const canChangeStatus = access.allows({ platform: 'changeMerchantStatus' })
   const rows = useLoad(() => merchantAdminService.list(actor), [actor.userId])
   const [sp, setSp] = useSearchParams()
   const applied: Filters = { q: sp.get('q') ?? '', status: (sp.get('status') ?? '') as Filters['status'] }
@@ -312,9 +317,11 @@ export function MerchantsPage() {
           <h1 className="text-2xl font-semibold">Merchants</h1>
           <p className="text-sm text-muted-foreground">Business clients using the eKYC service. Merchants are never deleted: Terminated keeps their records.</p>
         </div>
-        <Button onClick={() => setOpen({ kind: 'create' })}>
-          <Plus aria-hidden /> Add Merchant
-        </Button>
+        {canCreate && (
+          <Button onClick={() => setOpen({ kind: 'create' })}>
+            <Plus aria-hidden /> Add Merchant
+          </Button>
+        )}
       </header>
       <form
         noValidate
@@ -386,9 +393,9 @@ export function MerchantsPage() {
                     />
                     <DropdownMenuContent align="end" className="w-48">
                       <DropdownMenuItem onClick={() => setOpen({ kind: 'detail', row: r })}>View details</DropdownMenuItem>
-                      {r.status !== 'TERMINATED' && <DropdownMenuItem onClick={() => setOpen({ kind: 'edit', row: r })}>Edit</DropdownMenuItem>}
-                      {r.nextStatuses.length > 0 && <DropdownMenuItem onClick={() => setOpen({ kind: 'status', row: r })}>Change status</DropdownMenuItem>}
-                      {r.canResendInvitation && <DropdownMenuItem onClick={() => void resend(r)}>Resend invitation</DropdownMenuItem>}
+                      {canCreate && r.status !== 'TERMINATED' && <DropdownMenuItem onClick={() => setOpen({ kind: 'edit', row: r })}>Edit</DropdownMenuItem>}
+                      {canChangeStatus && r.nextStatuses.length > 0 && <DropdownMenuItem onClick={() => setOpen({ kind: 'status', row: r })}>Change status</DropdownMenuItem>}
+                      {canCreate && r.canResendInvitation && <DropdownMenuItem onClick={() => void resend(r)}>Resend invitation</DropdownMenuItem>}
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </td>

@@ -22,6 +22,7 @@ import { useSession } from '@/stores/sessionStore'
 import { IntegrationTab } from './IntegrationTab'
 import { MembersTab } from './MembersTab'
 import { Card } from './settingsUi'
+import { PROJECT_SETTINGS_ACTIONS } from '@/app/nav'
 
 const TABS = [
   { value: 'general', label: 'General' },
@@ -201,13 +202,13 @@ function Settings({ selected }: { selected: MyProject }) {
         <div {...tabPanelProps(tab)}>
           {tab === 'general' && <GeneralTab key={p.projectId} project={p} canEdit={may('manageProjectSettings')} onSaved={project.reload} />}
           {tab === 'integration' &&
-            (may('manageIntegration') ? (
+            (may('viewIntegration') ? (
               <IntegrationTab project={p} />
             ) : (
               <ReadOnlyNote>API keys and webhooks need the Manage API keys and webhook permission.</ReadOnlyNote>
             ))}
           {tab === 'review' && <ReviewTab key={p.projectId} project={p} canEdit={may('manageProjectSettings')} onSaved={project.reload} />}
-          {tab === 'routing' && <RoutingTab project={p} />}
+          {tab === 'routing' && (may('viewRouting') ? <RoutingTab project={p} /> : <ReadOnlyNote>Routing is shown to users who manage flows or project settings.</ReadOnlyNote>)}
           {tab === 'members' && (may('manageMembers') ? <MembersTab project={p} /> : <ReadOnlyNote>Members are managed by users with the Manage project members permission (DEC-77).</ReadOnlyNote>)}
         </div>
       )}
@@ -217,5 +218,5 @@ function Settings({ selected }: { selected: MyProject }) {
 
 // REQ: DEC-54 / DEC-77 / DEC-96 — one selected project; tabs General, Integration, Review operations, Routing, Members.
 export function ProjectSettingsPage() {
-  return <RequireProject action="manageFlows" title="Project Settings">{(p) => <Settings key={p.projectId} selected={p} />}</RequireProject>
+  return <RequireProject action={PROJECT_SETTINGS_ACTIONS} title="Project Settings">{(p) => <Settings key={p.projectId} selected={p} />}</RequireProject>
 }

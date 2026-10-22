@@ -86,7 +86,9 @@ function Editor({ detail, onSaved }: { detail: FlowDetail; onSaved: () => void }
   const canSetAdvanced = !!account && !!project && canInProject(account, 'setAdvancedThresholds', project)
   // REQ: DEC-70 — thresholds, retries and risk level need Change verification level and retries.
   const canChangeLevel = !!account && !!project && canInProject(account, 'changeVerificationLevel', project)
-  const editable = flow.status === 'DRAFT' || flow.status === 'ACTIVE'
+  // REQ: DEC-99 — Flows View is read-only; saving needs Manage flows (staff: Flows Edit).
+  const canEdit = !!account && !!project && canInProject(account, 'manageFlows', project)
+  const editable = canEdit && (flow.status === 'DRAFT' || flow.status === 'ACTIVE')
   const [draft, setDraft] = useState<FlowEdit>({ name: flow.name, description: flow.description, settings: structuredClone(flow.settings) })
   const [reason, setReason] = useState('')
   const [errors, setErrors] = useState<Record<string, string>>({})
@@ -123,7 +125,8 @@ function Editor({ detail, onSaved }: { detail: FlowDetail; onSaved: () => void }
 
   return (
     <div className="space-y-4 pb-28">
-      {!editable && <p className="rounded-md bg-muted px-3 py-2 text-sm">{flow.status === 'RETIRING' ? 'Retiring' : 'Inactive'} flows are read-only: they keep their last settings.</p>}
+      {!canEdit && <p className="rounded-md bg-muted px-3 py-2 text-sm">Read-only: you can view this flow but not change it.</p>}
+      {canEdit && !editable && <p className="rounded-md bg-muted px-3 py-2 text-sm">{flow.status === 'RETIRING' ? 'Retiring' : 'Inactive'} flows are read-only: they keep their last settings.</p>}
 
       <Card title="General">
         <fieldset disabled={!editable} className="grid gap-4 sm:grid-cols-2">

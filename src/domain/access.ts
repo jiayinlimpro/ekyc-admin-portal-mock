@@ -148,6 +148,11 @@ export function canOnPlatform(user: UserAccess, action: PlatformAction): boolean
   return user.level === 'PLATFORM_STAFF' && any(staffPlatformPermissions(user.grants), STAFF_PLATFORM_NEEDS[action])
 }
 
+/** Any of several actions (a screen whose tabs need different permissions, e.g. Project Settings). */
+export function canAnyInProject(user: UserAccess, actions: ProjectAction | readonly ProjectAction[], project: Where): boolean {
+  return (typeof actions === 'string' ? [actions] : actions).some((a) => canInProject(user, a, project))
+}
+
 /**
  * Projects where the user may do `action`: the project switcher, "All my projects" case lists and dashboard scope (DEC-86).
  * REQ: DEC-72 — services return "not found" for a case whose project is not in this list.

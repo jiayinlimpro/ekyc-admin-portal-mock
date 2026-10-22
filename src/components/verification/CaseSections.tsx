@@ -19,6 +19,13 @@ const STATE: Record<CheckState, { label: string; tone: string }> = {
   REJECT: { label: 'Below Auto-Reject', tone: 'text-red-700 dark:text-red-400' },
 }
 
+/** REQ: DEC-99 — the masked view hides the images. */
+const HiddenImage = () => (
+  <div className="flex aspect-[4/3] w-full items-center justify-center rounded-md border border-dashed bg-muted p-3 text-center text-xs text-muted-foreground">
+    Hidden: needs “See unmasked ID data”
+  </div>
+)
+
 const Result = ({ state }: { state: CheckState }) => <span className={cn('font-medium', STATE[state].tone)}>{STATE[state].label}</span>
 
 const threshold = (choice: ThresholdChoice, e: Pick<CheckEvaluation, 'thresholds'>) =>
@@ -67,7 +74,7 @@ export function IdCaptureSection({ v }: { v: VerificationDetail }) {
     <Section title={`ID capture · ${DOCUMENT_TYPE_LABELS[v.documentType]}`}>
       <div className="grid gap-4 sm:grid-cols-[12rem_1fr]">
         <figure>
-          <img src={v.images.docFront.url} alt={`${DOCUMENT_TYPE_LABELS[v.documentType]} front (sample image, not real)`} className="w-full rounded-md border" />
+          {v.masked ? <HiddenImage /> : <img src={v.images.docFront.url} alt={`${DOCUMENT_TYPE_LABELS[v.documentType]} front (sample image, not real)`} className="w-full rounded-md border" />}
           <figcaption className="mt-1 text-xs text-muted-foreground">Document front</figcaption>
         </figure>
         <Fields
@@ -89,7 +96,7 @@ export function SelfieSection({ v }: { v: VerificationDetail }) {
     <Section title="Selfie">
       <div className="grid gap-4 sm:grid-cols-[12rem_1fr]">
         <figure>
-          <img src={v.images.selfie.url} alt="Selfie (sample image, not real)" className="w-full rounded-md border" />
+          {v.masked ? <HiddenImage /> : <img src={v.images.selfie.url} alt="Selfie (sample image, not real)" className="w-full rounded-md border" />}
           <figcaption className="mt-1 text-xs text-muted-foreground">Selfie</figcaption>
         </figure>
         <Fields items={[['Result', taken ? <span key="r" className="font-medium text-green-700 dark:text-green-400">Captured</span> : <span key="r" className="text-muted-foreground">Not captured yet</span>]]} />

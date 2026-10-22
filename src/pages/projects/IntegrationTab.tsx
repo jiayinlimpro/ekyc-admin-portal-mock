@@ -132,7 +132,8 @@ export function IntegrationTab({ project }: { project: Project }) {
             : 'Sandbox only: the merchant is Onboarding, so live requests with these keys are refused until it goes live.'}
         </p>
       )}
-      <Card title="API keys" aside={<Button size="sm" onClick={() => setNewKey('')}><Plus aria-hidden /> Create key</Button>}>
+      {!d.canManage && <p className="rounded-md bg-muted px-3 py-2 text-sm text-muted-foreground">Read-only: you can view API keys and the webhook but not change them.</p>}
+      <Card title="API keys" aside={d.canManage ? <Button size="sm" onClick={() => setNewKey('')}><Plus aria-hidden /> Create key</Button> : undefined}>
         <div className="-m-4 overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-muted/50 text-left text-xs text-muted-foreground">
@@ -153,7 +154,7 @@ export function IntegrationTab({ project }: { project: Project }) {
                   <td className="px-4 py-2 whitespace-nowrap">{formatMyt(k.createdAt).split(', ')[0]}<div className="text-xs text-muted-foreground">{k.createdBy}</div></td>
                   <td className="px-4 py-2 whitespace-nowrap">{k.lastUsedAt ? `${formatMyt(k.lastUsedAt)} MYT` : '—'}</td>
                   <td className="px-2 py-2 text-right whitespace-nowrap">
-                    {k.status === 'ACTIVE' && (
+                    {d.canManage && k.status === 'ACTIVE' && (
                       <>
                         <Button variant="ghost" size="icon-sm" aria-label={`Rotate ${k.name}`} title="Rotate" disabled={busy} onClick={() => rotate(k)}><RefreshCw aria-hidden /></Button>
                         <Button variant="ghost" size="icon-sm" aria-label={`Revoke ${k.name}`} title="Revoke" disabled={busy} onClick={() => revoke(k)}><Trash2 aria-hidden /></Button>
@@ -170,13 +171,13 @@ export function IntegrationTab({ project }: { project: Project }) {
       <Card title="Webhook">
         <div className="space-y-3">
           <FormField id="wh-url" label="Endpoint URL (HTTPS)" error={errors.url} hint="Receives verification.status_changed when a case becomes Pending Review, Approved or Rejected (DEC-55).">
-            <Input id="wh-url" value={url} onChange={(e) => setWebhookUrl(e.target.value)} placeholder="https://" aria-invalid={!!errors.url} />
+            <Input id="wh-url" readOnly={!d.canManage} value={url} onChange={(e) => setWebhookUrl(e.target.value)} placeholder="https://" aria-invalid={!!errors.url} />
           </FormField>
           <p className="text-sm">
             <span className="text-muted-foreground">Signing secret:</span> <span className="font-mono text-xs">{d.webhook?.secretHint ?? 'created with the first save'}</span>
           </p>
           <p className="text-xs text-muted-foreground">Non-2xx responses are retried up to 3 times at increasing intervals. Deliveries are simulated in the mock (MOCK-11).</p>
-          <div className="flex flex-wrap gap-2">
+          <div className={cn('flex flex-wrap gap-2', !d.canManage && 'hidden')}>
             <Button size="sm" disabled={busy} onClick={() => void saveWebhook()}>Save webhook</Button>
             {d.webhook && (
               <Button size="sm" variant="outline" disabled={busy} onClick={() => window.confirm('Regenerate the signing secret? The old one stops verifying immediately.') && void saveWebhook(true)}>
@@ -199,7 +200,7 @@ export function IntegrationTab({ project }: { project: Project }) {
             <Textarea id="l-ips" rows={4} value={l.ipAllowlist} onChange={(e) => setLists({ ...l, ipAllowlist: e.target.value })} />
           </FormField>
         </div>
-        <div className="mt-3">
+        <div className={cn('mt-3', !d.canManage && 'hidden')}>
           <Button size="sm" disabled={busy} onClick={() => void saveLists()}>Save lists</Button>
         </div>
       </Card>

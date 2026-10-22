@@ -176,6 +176,7 @@ function RoleLines() {
   const { account, projects, selected } = useAccess()
   if (!account) return null
   if (account.level === 'SUPER_ADMIN') return <div>Super admin · all projects</div>
+  if (account.level === 'PLATFORM_STAFF') return <div>{`${[...new Set(account.grants.map((g) => g.roleName))].join(', ') || 'No access'} · platform staff`}</div>
   if (selected) return <div>{`${selected.roles.join(', ')} · ${selected.name}`}</div>
   return (
     <>

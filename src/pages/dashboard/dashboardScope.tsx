@@ -4,6 +4,7 @@ import { NativeSelect } from '@/components/common/NativeSelect'
 import { useLoad } from '@/hooks/useLoad'
 import { analyticsService, type DashboardScope } from '@/services/analyticsService'
 import { useSession } from '@/stores/sessionStore'
+import { isInternal } from '@/domain/access'
 
 /**
  * REQ: DEC-86 — what Overview, System Intelligence and Billing show: the header's projects ("All my projects" or one),
@@ -15,7 +16,7 @@ export function useDashboardScope() {
   const [sp, setSp] = useSearchParams()
   const filters = useLoad(() => analyticsService.filters(actor), [actor.userId])
   const f = filters.data
-  const isAdmin = account?.level === 'SUPER_ADMIN'
+  const isAdmin = !!account && isInternal(account) // super admins and platform staff see several merchants (DEC-99)
   const merchantId = isAdmin && !selected && f?.merchants.some((m) => m.merchantId === sp.get('merchant')) ? sp.get('merchant')! : ''
   const inViewIds = inView.map((p) => p.projectId)
   const projects = (f?.projects ?? []).filter((p) => inViewIds.includes(p.projectId) && (!merchantId || p.merchantId === merchantId))

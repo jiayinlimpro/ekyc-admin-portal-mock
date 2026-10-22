@@ -1,7 +1,7 @@
 // What the signed-in user may reach, loaded once per user for the header, menu and page guard (DEC-71 … DEC-73).
 // UI only: every service checks again.
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
-import { canInProject, canOnPlatform, type PlatformAction, type ProjectAction } from '@/domain/access'
+import { canAnyInProject, canOnPlatform, type PlatformAction, type ProjectAction } from '@/domain/access'
 import { projectService, type MyProject } from '@/services/projectService'
 import { userService, type AccountAccess } from '@/services/userService'
 import { ALL_PROJECTS, useSession } from '@/stores/sessionStore'
@@ -10,7 +10,7 @@ import { ALL_PROJECTS, useSession } from '@/stores/sessionStore'
  * Who may open a screen. `project`: the user's role in the selected project (or in any of their projects under "All my
  * projects"). `platform`: Super admin only.
  */
-export type AccessRule = { project: ProjectAction } | { platform: PlatformAction }
+export type AccessRule = { project: ProjectAction | readonly ProjectAction[] } | { platform: PlatformAction }
 
 export interface Access {
   ready: boolean
@@ -58,7 +58,7 @@ export function AccessProvider({ children }: { children: ReactNode }) {
       if (!rule) return true
       if (!account) return false
       if ('platform' in rule) return canOnPlatform(account, rule.platform)
-      return inView.some((p) => canInProject(account, rule.project, p))
+      return inView.some((p) => canAnyInProject(account, rule.project, p))
     }
     const retry = () => {
       setLoaded(undefined)

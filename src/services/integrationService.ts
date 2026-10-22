@@ -16,11 +16,13 @@ import { ServiceError } from './errors'
 import { simulateNetwork, wire } from './network'
 import { auditProject, loadProject, requireInProject, saveSettings, validation } from './projectService'
 import { newId } from '@/lib/ids'
+import { mayInProject } from './accessGuard'
 import { apiAccess } from '@/domain/merchantRules'
 
 export interface Integration {
   /** REQ: DEC-98 — live only when the merchant is Active; Onboarding = sandbox only; Suspended / Terminated = stopped. */
   apiAccess: ReturnType<typeof apiAccess>
+  canManage: boolean
   keys: ProjectApiKey[] // newest first
   webhook?: ProjectWebhook
   lists: AccessLists
@@ -43,9 +45,9 @@ export interface IntegrationService {
 
 const hint = (secret: string) => `${secret.slice(0, 8)}…${secret.slice(-4)}`
 
-function loadIntegration(actor: Actor, projectId: string) {
+function loadIntegration(actor: Actor, projectId: string, action: 'viewIntegration' | 'manageIntegration' = 'manageIntegration') {
   const p = loadProject(actor, projectId)
-  requireInProject(actor, 'manageIntegration', p, 'manage API keys and webhooks') // REQ: DEC-75
+  requireInProject(actor, action, p, action === 'viewIntegration' ? 'view API keys and webhooks' : 'manage API keys and webhooks') // REQ: DEC-75 / DEC-99
   return p
 }
 
@@ -60,11 +62,12 @@ const putKey = (key: ProjectApiKey) => db.setState((st) => ({ projectKeys: st.pr
 export const mockIntegrationService: IntegrationService = {
   async get(projectId, actor) {
     await simulateNetwork('get integration')
-    const p = loadIntegration(actor, projectId)
+    const p = loadIntegration(actor, projectId, 'viewIntegration')
     const s = db.state()
     const merchant = s.merchants.find((m) => m.merchantId === p.merchantId)
     return wire({
       apiAccess: apiAccess(merchant?.status ?? 'ACTIVE'),
+      canManage: mayInProject(actor, 'manageIntegration', projectId), // REQ: DEC-99 — View is read-only
       keys: s.projectKeys.filter((k) => k.projectId === projectId).sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
       webhook: s.webhooks.find((w) => w.projectId === projectId),
       lists: { redirectUrls: p.redirectUrls, allowedOrigins: p.allowedOrigins, ipAllowlist: p.ipAllowlist },

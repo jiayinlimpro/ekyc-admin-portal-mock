@@ -65,12 +65,12 @@ const entryOf = (code: string) => db.state().registry.find((e) => e.code === cod
 const inFlight = (flowId: string) => db.state().verifications.filter((v) => v.flowId === flowId && IN_FLIGHT_STATUSES.includes(v.status)).length
 
 // REQ: DEC-70 / DEC-75 — flows are managed with Manage flows, and by Super admin in any merchant.
-function loadFlow(actor: Actor, flowId: string): { flow: Flow; project: Project } {
+function loadFlow(actor: Actor, flowId: string, action: 'viewFlows' | 'manageFlows' = 'manageFlows'): { flow: Flow; project: Project } {
   const flow = db.state().flows.find((f) => f.flowId === flowId)
   const project = flow && projectById(flow.projectId)
   if (!flow || !project) throw new ServiceError('NOT_FOUND', `Flow ${flowId} not found.`)
   loadProject(actor, project.projectId) // "not found" outside the user's projects
-  requireInProject(actor, 'manageFlows', project, 'manage flows')
+  requireInProject(actor, action, project, action === 'viewFlows' ? 'view flows' : 'manage flows')
   return { flow, project }
 }
 
@@ -82,14 +82,14 @@ export const mockFlowService: FlowService = {
   async list(projectId, actor) {
     await simulateNetwork('list flows')
     const project = loadProject(actor, projectId)
-    requireInProject(actor, 'manageFlows', project, 'manage flows')
+    requireInProject(actor, 'viewFlows', project, 'view flows') // REQ: DEC-99 — read-only for Flows View
     return wire(db.state().flows.filter((f) => f.projectId === projectId))
   },
 
   async listRows(projectId, actor) {
     await simulateNetwork('list flow rows')
     const project = loadProject(actor, projectId)
-    requireInProject(actor, 'manageFlows', project, 'manage flows')
+    requireInProject(actor, 'viewFlows', project, 'view flows') // REQ: DEC-99 — read-only for Flows View
     const order = { ACTIVE: 0, DRAFT: 1, RETIRING: 2, INACTIVE: 3 } as const
     const rows = db
       .state()
@@ -101,7 +101,7 @@ export const mockFlowService: FlowService = {
 
   async get(flowId, actor) {
     await simulateNetwork('get flow')
-    const { flow, project } = loadFlow(actor, flowId)
+    const { flow, project } = loadFlow(actor, flowId, 'viewFlows')
     return wire({
       flow,
       revisions: db.state().flowRevisions.filter((r) => r.flowId === flowId).sort((a, b) => a.revision - b.revision),
@@ -213,7 +213,7 @@ export const mockFlowService: FlowService = {
   // REQ: MOCK-10 — read-only: re-runs the status rules; never changes a record.
   async preview(flowId, settings, actor, days = 30) {
     await simulateNetwork('flow preview')
-    const { flow } = loadFlow(actor, flowId)
+    const { flow } = loadFlow(actor, flowId, 'viewFlows')
     const entry = entryOf(flow.workflowVersion)!
     const since = new Date(now().getTime() - days * 86_400_000).toISOString()
     const finished = db.state().verifications.filter((v) => v.flowId === flowId && v.status !== 'PROCESSING' && v.createdAt >= since)

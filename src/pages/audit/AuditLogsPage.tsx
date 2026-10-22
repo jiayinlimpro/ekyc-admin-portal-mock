@@ -20,6 +20,7 @@ import { merchantService } from '@/services/merchantService'
 import { userService, type UserSummary } from '@/services/userService'
 import { useSession } from '@/stores/sessionStore'
 import { AUDIT_PAGE_SIZES, EMPTY_AUDIT_FILTERS, parseAuditParams, toAuditQuery, toAuditSearch, type AuditFilters, type AuditParams } from './auditQuery'
+import { isInternal } from '@/domain/access'
 
 // REQ: DEC-42 — events grouped as in DECISIONS.md.
 const ACTION_GROUPS = (Object.entries(AUDIT_ACTION_GROUPS) as [string, readonly AuditAction[]][]).map(([group, actions]) => ({ group, options: actions.map((a) => ({ value: a, label: AUDIT_ACTION_LABELS[a] })) }))
@@ -139,7 +140,7 @@ export function AuditLogsPage() {
   const key = sp.toString()
   const params = useMemo(() => parseAuditParams(new URLSearchParams(key)), [key])
   const scope = selected?.projectId
-  const isAdmin = account?.level === 'SUPER_ADMIN'
+  const isAdmin = !!account && isInternal(account) // super admins and platform staff see several merchants (DEC-99)
   const [retry, setRetry] = useState(0)
   const request = JSON.stringify([key, scope, actor.userId, retry])
   const [result, setResult] = useState<Result>({ request: '' })

@@ -16,6 +16,7 @@ import { STATUS_LABELS } from '@/lib/labels'
 import { cn } from '@/lib/utils'
 import { analyticsService, type BillingReport } from '@/services/analyticsService'
 import { useDashboardScope } from '../dashboard/dashboardScope'
+import { useAccess } from '@/app/access'
 
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
 const periodLabel = (p: string) => `${MONTHS[Number(p.slice(5, 7)) - 1]} ${p.slice(0, 4)}`
@@ -56,6 +57,8 @@ export function BillingPage() {
   const t = r?.totals
   const loading = report.loading
 
+  // REQ: DEC-99 — exports need Export (staff: Usage reports · Export).
+  const canExport = useAccess().allows({ project: 'exportReports' })
   const exportCsv = () => {
     if (!r) return
     const a = document.createElement('a')
@@ -72,9 +75,11 @@ export function BillingPage() {
           <h1 className="text-2xl font-semibold">Billing</h1>
           <p className="text-sm text-muted-foreground">{d.label} · one token per liveness submission, whatever the case’s status. ID capture and selfie retakes are free.</p>
         </div>
-        <Button variant="outline" disabled={!r?.lines.length} onClick={exportCsv}>
-          <Download aria-hidden /> Export CSV
-        </Button>
+        {canExport && (
+          <Button variant="outline" disabled={!r?.lines.length} onClick={exportCsv}>
+            <Download aria-hidden /> Export CSV
+          </Button>
+        )}
       </header>
 
       <div className="flex flex-wrap items-end gap-x-6 gap-y-3">

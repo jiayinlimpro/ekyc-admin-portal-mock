@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
 import { FolderKanban } from 'lucide-react'
 import { useAccess } from '@/app/access'
-import { canInProject, type ProjectAction } from '@/domain/access'
+import { canAnyInProject, type ProjectAction } from '@/domain/access'
 import type { MyProject } from '@/services/projectService'
 import { useSession } from '@/stores/sessionStore'
 
@@ -9,11 +9,11 @@ import { useSession } from '@/stores/sessionStore'
  * REQ: DEC-96 — settings pages always work on one selected project. Under "All my projects", ask which one (only the
  * projects where the user may do `action`); picking one sets the header's switcher.
  */
-export function RequireProject({ action, title, children }: { action: ProjectAction; title: string; children: (project: MyProject) => ReactNode }) {
+export function RequireProject({ action, title, children }: { action: ProjectAction | readonly ProjectAction[]; title: string; children: (project: MyProject) => ReactNode }) {
   const { selected, inView, account } = useAccess()
   const selectProject = useSession((s) => s.selectProject)
   if (selected) return <>{children(selected)}</>
-  const options = account ? inView.filter((p) => canInProject(account, action, p)) : []
+  const options = account ? inView.filter((p) => canAnyInProject(account, action, p)) : []
   return (
     <div className="mx-auto max-w-xl space-y-4 py-8">
       <div>

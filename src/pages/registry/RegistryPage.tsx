@@ -18,6 +18,7 @@ import { isServiceError } from '@/services/errors'
 import { registryService, type RegistryRow } from '@/services/registryService'
 import { useSession } from '@/stores/sessionStore'
 import { FLOW_STATUS_LABELS } from '@/lib/labels'
+import { useAccess } from '@/app/access'
 
 const PHASE_TEXT: Record<OnboardingPhase, string> = { ID_CAPTURE: 'ID Capture', SELFIE_CAPTURE: 'Selfie Capture', LIVENESS_CHECK: 'Liveness Check', RISK_ASSESSMENT: 'Risk Assessment' }
 const METHOD_TEXT: Record<FaceMatchMethod, string> = { ID_VS_SELFIE: 'ID vs selfie', ID_VS_LIVENESS: 'ID vs liveness face' }
@@ -195,6 +196,8 @@ function FlowsUsing({ code }: { code: string }) {
 // REQ: DEC-56 … DEC-58, DEC-85 — Super admin only. A record of versions; nothing here builds or deploys.
 export function RegistryPage() {
   const actor = useSession((s) => s.actor)
+  // REQ: DEC-99 — Registry View is read-only; registering and changing versions needs Manage.
+  const canManage = useAccess().allows({ platform: 'manageRegistry' })
   const rows = useLoad(() => registryService.list(actor), [actor.userId])
   const [editing, setEditing] = useState<RegistryRow | 'new'>()
   const [status, setStatus] = useState<RegistryRow>()
@@ -222,7 +225,7 @@ export function RegistryPage() {
           <h1 className="text-2xl font-semibold">Workflow Registry</h1>
           <p className="text-sm text-muted-foreground">Versions merchants’ flows are built on. Only Active versions can be chosen for new flows.</p>
         </div>
-        <Button onClick={() => setEditing('new')}>
+        <Button className={canManage ? undefined : 'hidden'} onClick={() => setEditing('new')}>
           <Plus aria-hidden /> Register version
         </Button>
       </header>
@@ -251,7 +254,7 @@ export function RegistryPage() {
                 <td className="px-3 py-2 text-xs whitespace-nowrap">{METHOD_TEXT[r.faceMatchMethod]}{r.requiredInputs.includes('EMAIL') ? ' · email' : ''}</td>
                 <td className="px-3 py-2 tabular-nums">{r.flowsUsing}</td>
                 <td className="px-3 py-2 whitespace-nowrap">{formatMyt(r.updatedAt).split(', ')[0]}<div className="text-xs text-muted-foreground">{r.updatedBy}</div></td>
-                <td className="px-2 py-2 text-right whitespace-nowrap">
+                <td className={cn('px-2 py-2 text-right whitespace-nowrap', !canManage && 'hidden')}>
                   <Button variant="ghost" size="icon-sm" aria-label={`Edit ${r.code}`} title="Edit" onClick={() => setEditing(r)}><Pencil aria-hidden /></Button>
                   <Button variant="ghost" size="sm" onClick={() => setStatus(r)} aria-label={`Change status of ${r.code}`}>Status</Button>
                   {r.status === 'ACTIVE' && !r.isDefault && (
