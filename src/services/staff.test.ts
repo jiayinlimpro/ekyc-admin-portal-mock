@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { accessEndsAt, PLATFORM_ROLE_IDS, SYSTEM_ROLE_IDS, WRONG_ROLE_TYPE } from '@/domain/roles'
+import { PLATFORM_ROLE_IDS, SYSTEM_ROLE_IDS, WRONG_ROLE_TYPE } from '@/domain/roles'
 import type { AuditAction } from '@/domain/types'
 import { caseIdOf, fx } from '@/lib/ids'
 import { db } from '@/mocks/mockDb'
@@ -51,17 +51,14 @@ describe('platform staff: what they can do (DEC-99)', () => {
     await expect(verificationService.get(caseIdOf('KYC-260901-900003'), PRIYA)).rejects.toMatchObject({ code: 'NOT_FOUND' })
   })
 
-  it('Given Priya’s access ends, then from the end of that day she has none and her claims are released', async () => {
+  it('Given Priya’s access is changed to Finance while she holds a claim, then the claim is released at once', async () => {
     const pending = db.state().verifications.find((v) => v.projectId === fx('PRJ-0003') && v.status === 'PENDING_REVIEW' && !v.claimedBy)!
     await verificationService.claim(pending.caseId, PRIYA)
-    // Her access ends a minute later, well inside the claim timeout.
-    const ends = new Date(NOW.getTime() + 60_000).toISOString()
-    db.setState((st) => ({ accounts: st.accounts.map((a) => (a.userId === PRIYA.userId ? { ...a, assignments: a.assignments.map((x) => ({ ...x, endsAt: ends })) } : a)) }))
-    vi.setSystemTime(new Date(NOW.getTime() + 120_000))
+    const row = db.state().accounts.find((a) => a.userId === PRIYA.userId)!.assignments[0]
+    await staff.changeAssignment(PRIYA.userId, row.assignmentId, { roleId: PLATFORM_ROLE_IDS.FINANCE, scope: { kind: 'ALL_MERCHANTS' } }, ADMIN)
     expect(mayInProject(PRIYA, 'viewCases', fx('PRJ-0003'))).toBe(false)
-    await verificationService.list({}, ALI) // any call sweeps
     expect(db.state().verifications.find((v) => v.caseId === pending.caseId)!.claimedBy).toBeUndefined()
-    expect(await lastAudit('CASE_RELEASED')).toMatchObject({ actor: { kind: 'SYSTEM' }, details: { reason: 'Access ended' } })
+    expect(await lastAudit('CASE_RELEASED')).toMatchObject({ details: { reason: 'Access changed' } })
   })
 
   it('Given Finance, then Billing for every merchant but no cases', async () => {
@@ -81,8 +78,8 @@ describe('platform staff: managed only by super admins (DEC-99)', () => {
     await expect(staff.list(DANIEL)).rejects.toMatchObject({ code: 'NOT_FOUND' }) // staff never manage staff
   })
 
-  it('Given a new staff member, then the company domain, a platform role, Selected merchants and an end date', async () => {
-    const assignment = { roleId: PLATFORM_ROLE_IDS.VERIFICATION_SPECIALIST, scope: { kind: 'MERCHANTS' as const, merchantIds: [fx('MER-0001')] }, endsAt: accessEndsAt('2026-12-31') }
+  it('Given a new staff member, then the company domain, a platform role, Selected merchants', async () => {
+    const assignment = { roleId: PLATFORM_ROLE_IDS.VERIFICATION_SPECIALIST, scope: { kind: 'MERCHANTS' as const, merchantIds: [fx('MER-0001')] } }
     await expect(staff.invite({ fullName: 'Outside Person', email: 'someone@gmail.example', assignment }, ADMIN)).rejects.toMatchObject({ message: 'Use a company email (@ekyc-platform.example).' })
     await expect(staff.invite({ fullName: 'Wrong Role', email: 'wrong.role@ekyc-platform.example', assignment: { ...assignment, roleId: SYSTEM_ROLE_IDS.REVIEWER } }, ADMIN)).rejects.toMatchObject({ code: 'VALIDATION' })
     const id = await staff.draftUserId(ADMIN)

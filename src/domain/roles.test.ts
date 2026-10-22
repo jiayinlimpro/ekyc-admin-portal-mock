@@ -1,8 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
-  accessEndsAt,
   coversMerchant,
-  hasEnded,
   hasMerchantAccess,
   scopeLabel,
   WRONG_ROLE_TYPE,
@@ -177,14 +175,6 @@ describe('roles: platform roles and access end dates (DEC-99)', () => {
     expect(validateAssignment(platformRole, only(fx('PRJ-0001')), [fx('PRJ-0001')])[0].message).toBe(WRONG_ROLE_TYPE)
     expect(validateAssignment({ ...role(REVIEWER) }, { kind: 'ALL_MERCHANTS' }, [])[0].message).toBe(WRONG_ROLE_TYPE)
     expect(validateAssignment(platformRole, { kind: 'MERCHANTS', merchantIds: [] }, [], ['mer_a'])[0].field).toBe('scope')
-  })
-
-  it('Given an access row that has ended, then it grants nothing from that moment', () => {
-    const a = { ...assign(VIEWER, ALL), endsAt: accessEndsAt('2026-10-01') }
-    expect(a.endsAt).toBe('2026-10-01T15:59:59.999Z') // end of the day in Malaysia
-    expect(grantsOf([a], ROLES, new Date('2026-10-01T15:00:00.000Z'))).toHaveLength(1)
-    expect(grantsOf([a], ROLES, new Date('2026-10-01T16:00:00.000Z'))).toHaveLength(0)
-    expect(hasEnded(a, new Date('2026-10-02T00:00:00.000Z'))).toBe(true)
   })
 
   it('Given merchant scopes, then labels and coverage by merchant', () => {

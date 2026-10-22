@@ -15,7 +15,7 @@
 import { canInMerchant, canInProject } from '@/domain/access'
 import { makeAudit } from '@/domain/audit'
 import { CLEARED_CLAIM, isClaimActive } from '@/domain/claimRules'
-import { allArchived, canGrant, chipLabel, covers, effectivePermissions, endsAtError, hasEnded, hasMerchantAccess, isStaffEmail, GRANT_TOO_POWERFUL, grantsOf, lastOwnerError, scopeLabel, validateAssignment, type AccessChip } from '@/domain/roles'
+import { allArchived, canGrant, chipLabel, covers, effectivePermissions, hasMerchantAccess, isStaffEmail, GRANT_TOO_POWERFUL, grantsOf, lastOwnerError, scopeLabel, validateAssignment, type AccessChip } from '@/domain/roles'
 import type { Actor, AssignmentScope, AuditAction, Permission, Project, Role, RoleAssignment, RuleError, UserAccount, UserStatus } from '@/domain/types'
 import { now } from '@/lib/clock'
 import { db } from '@/mocks/mockDb'
@@ -29,8 +29,6 @@ import { STAFF_EMAIL_DOMAIN } from '@/domain/openQuestions'
 export interface AssignmentInput {
   roleId: string
   scope: AssignmentScope
-  /** REQ: DEC-99 — "Access ends": end of that day (MYT); absent = Never. */
-  endsAt?: string
 }
 
 export interface InviteInput {
@@ -61,9 +59,6 @@ export interface AssignmentRow {
   scopeLabel: string // "SME app (archived)" for an archived project
   addedBy: Actor
   addedAt: string
-  endsAt?: string
-  /** REQ: DEC-99 — past its end date: it grants nothing and is read-only. */
-  ended: boolean
   /** The viewer may edit or remove it (never when every project in it is archived). */
   editable: boolean
   /** REQ: DEC-78 — Remove is shown but disabled, with this reason (the last Merchant Owner). */
@@ -204,7 +199,7 @@ const openProjectIds = (merchantId: string, keep: AssignmentScope | undefined) =
 function checkAssignment(me: AccountAccess, merchantId: string, input: AssignmentInput, keep?: AssignmentScope): Role {
   const role = roleOf(input.roleId)
   if (!role || (role.merchantId && role.merchantId !== merchantId)) throw validation([{ field: 'roleId', message: 'Choose a role.' }])
-  const errors = [...validateAssignment(role, input.scope, openProjectIds(merchantId, keep)), ...endsAtError(input.endsAt, now())]
+  const errors = [...validateAssignment(role, input.scope, openProjectIds(merchantId, keep))]
   if (errors.length) throw validation(errors)
   if (!mayManageScope(me, merchantId, input.scope)) throw new ServiceError('FORBIDDEN', 'You do not manage access for these projects.')
   if (!canGrant(me.level === 'SUPER_ADMIN' ? 'SUPER_ADMIN' : me.grants, role.permissions, input.scope)) throw new ServiceError('FORBIDDEN', GRANT_TOO_POWERFUL)
@@ -242,15 +237,13 @@ export function releaseLostClaims(actor: Actor, userIds: readonly string[], reas
   }
 }
 
-/** REQ: DEC-74 / DEC-99 — one chip per access row; an ended row stays visible, greyed, as "(ended)". */
+/** REQ: DEC-74 / DEC-99 — one chip per access row; grey when every project in it is archived. */
 export function chipsOf(assignments: readonly RoleAssignment[]): AccessChip[] {
-  const at = now()
   return assignments.flatMap((x) => {
     const role = roleOf(x.roleId)
     if (!role || role.status !== 'ACTIVE') return []
-    const ended = hasEnded(x, at)
     const name = role.audience === 'PLATFORM' && !hasMerchantAccess(role.permissions) ? `${role.name} · Platform-wide` : chipLabel(role.name, x.scope, projectName, merchantName)
-    return [{ label: ended ? `${name} (ended)` : name, archived: ended || allArchived(x.scope, isArchived) }]
+    return [{ label: name, archived: allArchived(x.scope, isArchived) }]
   })
 }
 
@@ -282,7 +275,7 @@ function detailOf(actor: Actor, a: UserAccount & { merchantId: string }): UserDe
       .map((p) => ({
         projectId: p.projectId,
         projectName: projectName(p.projectId),
-        permissions: effectivePermissions(grantsOf(a.assignments, db.state().roles, now()), p.projectId).map(({ permission, from }) => ({ permission, from: from.map((g) => chipLabel(g.roleName, g.scope, projectName)) })),
+        permissions: effectivePermissions(grantsOf(a.assignments, db.state().roles), p.projectId).map(({ permission, from }) => ({ permission, from: from.map((g) => chipLabel(g.roleName, g.scope, projectName)) })),
       })),
     assignments: a.assignments.map((x) => ({
       assignmentId: x.assignmentId,
@@ -292,9 +285,7 @@ function detailOf(actor: Actor, a: UserAccount & { merchantId: string }): UserDe
       scopeLabel: scopeLabel(x.scope, projectName),
       addedBy: x.addedBy,
       addedAt: x.addedAt,
-      endsAt: x.endsAt,
-      ended: hasEnded(x, now()),
-      editable: !isSelf && !hasEnded(x, now()) && !allArchived(x.scope, isArchived) && mayManageScope(me, a.merchantId, x.scope),
+      editable: !isSelf && !allArchived(x.scope, isArchived) && mayManageScope(me, a.merchantId, x.scope),
       removeBlocked: ownerErrors(a.merchantId, { ...a, assignments: a.assignments.filter((y) => y.assignmentId !== x.assignmentId) })[0]?.message,
     })),
   }
@@ -380,7 +371,7 @@ export const mockUserAdminService: UserAdminService = {
       email,
       level: 'MERCHANT_USER',
       merchantId,
-      assignments: [{ assignmentId: nextAssignmentId(), ...input.assignment, addedBy: by(actor), addedAt: at }], // includes endsAt (DEC-99)
+      assignments: [{ assignmentId: nextAssignmentId(), ...input.assignment, addedBy: by(actor), addedAt: at }],
       status: 'PENDING',
       invitationId: newId('inv'),
       invitedAt: at,
@@ -409,7 +400,7 @@ export const mockUserAdminService: UserAdminService = {
     const a = loadUser(me, userId)
     notSelf(actor, a)
     checkAssignment(me, a.merchantId, input)
-    const assignment: RoleAssignment = { assignmentId: nextAssignmentId(), roleId: input.roleId, scope: input.scope, addedBy: by(actor), addedAt: now().toISOString(), endsAt: input.endsAt }
+    const assignment: RoleAssignment = { assignmentId: nextAssignmentId(), roleId: input.roleId, scope: input.scope, addedBy: by(actor), addedAt: now().toISOString() }
     const updated = { ...a, assignments: [...a.assignments, assignment] }
     putAccount(updated)
     auditAccess(actor, 'USER_ACCESS_ADDED', a.merchantId, { userId, fullName: a.fullName, assignmentId: assignment.assignmentId, summary: `${a.fullName}: ${label(assignment)} added` }, singleProject(input.scope))
@@ -425,9 +416,9 @@ export const mockUserAdminService: UserAdminService = {
     if (!old) throw new ServiceError('NOT_FOUND', `Access ${assignmentId} not found.`)
     if (!mayManageScope(me, a.merchantId, old.scope)) throw new ServiceError('FORBIDDEN', 'You do not manage access for these projects.')
     checkAssignment(me, a.merchantId, input, old.scope)
-    const next: RoleAssignment = { ...old, roleId: input.roleId, scope: input.scope, endsAt: input.endsAt }
+    const next: RoleAssignment = { ...old, roleId: input.roleId, scope: input.scope }
     const updated = { ...a, assignments: a.assignments.map((x) => (x.assignmentId === assignmentId ? next : x)) }
-    if (label(old) === label(next) && old.endsAt === next.endsAt) return wire(detailOf(actor, a))
+    if (label(old) === label(next)) return wire(detailOf(actor, a))
     requireOwnerRemains(a.merchantId, updated)
     putAccount(updated)
     auditAccess(actor, 'USER_ACCESS_CHANGED', a.merchantId, { userId, fullName: a.fullName, assignmentId, changes: [{ field: `${a.fullName} access`, from: label(old), to: label(next) }] }, singleProject(old.scope) === singleProject(next.scope) ? singleProject(next.scope) : undefined)

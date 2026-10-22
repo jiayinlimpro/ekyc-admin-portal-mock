@@ -7,13 +7,12 @@ import { newId } from '@/lib/ids'
 import { db } from '@/mocks/mockDb'
 import { ServiceError } from './errors'
 import { merchantAllowsSignIn } from '@/domain/merchantRules'
-import { now } from '@/lib/clock'
 
 /** An account with its grants: editing a role applies at once to everyone holding it (DEC-76). */
 export type AccountAccess = UserAccount & UserAccess
 
 /** The account with its grants, resolved against the current roles. */
-export const withAccess = (a: UserAccount): AccountAccess => ({ ...a, grants: grantsOf(a.assignments, db.state().roles, now()) }) // ended rows grant nothing (DEC-99)
+export const withAccess = (a: UserAccount): AccountAccess => ({ ...a, grants: grantsOf(a.assignments, db.state().roles) })
 
 /** The account behind the session. A session for an account that no longer exists has no access at all. */
 export function accountOf(actor: Pick<Actor, 'userId'>): AccountAccess {

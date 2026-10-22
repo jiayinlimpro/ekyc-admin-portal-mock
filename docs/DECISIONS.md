@@ -254,7 +254,7 @@ Rules changed on 2026-10-20 (Projects & Flows restructure) are marked **(changed
     each permission with a "Comes from" chip naming the access row that grants it. The Add / Edit access dialog shows a
     plain-language preview ("Ali will be able to … in SME app") and lists only roles the actor may give. A user with no
     access shows "No access yet. Add access so they can use the portal." with Add access.
-  - Not used [PO 2026-10-21]: per-flow scope. (Access end dates: now used, DEC-99.) Previously also: access end dates, and per-flow scope (DEC-70; two users with the same role
+  - Not used [PO 2026-10-21, confirmed 2026-10-22]: access end dates, and per-flow scope (DEC-70; two users with the same role
     can already work in different projects, because the scope belongs to each assignment).
   - The Users screen lists merchant users only; Platform Admins are managed on **Admins** (DEC-79).
 - **DEC-75** **(changed)** Platform Admin can do everything a Merchant Owner can, in any merchant, for onboarding and support:
@@ -361,12 +361,12 @@ Rules changed on 2026-10-20 (Projects & Flows restructure) are marked **(changed
     changes API keys.
   - **New user, Type = Platform:** Name · Email (the company staff domain, OQ-31) · Staff role (platform roles only) ·
     Merchant access: `All merchants, including future merchants` (default) or `Selected merchants` (hidden, with "This role
-    has no merchant access permissions", when the role has none). No Access ends on this form [PO 2026-10-22]; an end
-    date can be set later with Add / Edit access.
+    has no merchant access permissions", when the role has none).
     **Type = Merchant:** Merchant (locked for merchant admins) · Name · Email (the staff domain is not allowed) · Role
-    (that merchant's roles only) · Project access (DEC-70) · Access ends. Changing the merchant resets role and projects.
-  - **Access ends** (changes DEC-74 "no end dates") on each access row: from the end of that day (MYT) the row grants
-    nothing, shows as "Ended", and claims that needed it are released at the next sweep.
+    (that merchant's roles only) · Project access (DEC-70). Changing the merchant resets role and projects.
+  - **No access end dates** [PO 2026-10-22] (the brief's "Access ends" is dropped; DEC-74 stands): not on New user,
+    Add access or Edit access, for platform staff or merchant users, and no "Ends" column. Access lasts until it is
+    changed or removed, or the user is suspended; each of those releases the user's claims at once.
   - **Guardrails:** platform roles only for platform staff; merchant roles only for users of the same merchant. Merchant
     admins can't create, list or open platform roles or staff; a direct URL is "not found". Super admins and the
     Super admins screen stay as they are. Platform staff never manage users or roles.

@@ -101,29 +101,12 @@ export function impliedBy(permissions: readonly Permission[]): Set<Permission> {
 
 export type { Grant }
 
-/** REQ: DEC-99 — "Access ends" on a day means at the end of that day in Malaysia (MYT, UTC+8). */
-export function accessEndsAt(day: Date | string): string {
-  const ymd = typeof day === 'string' ? day : new Date(day.getTime() + 8 * 3_600_000).toISOString().slice(0, 10)
-  return `${ymd}T15:59:59.999Z` // 23:59:59.999 MYT
-}
-
 /** REQ: DEC-99 / OQ-31 — whether an email is on the company staff domain. */
 export const isStaffEmail = (email: string, domain: string) => email.trim().toLowerCase().endsWith(`@${domain.toLowerCase()}`)
 
-/** REQ: DEC-99 — an end date must be later than now; no end date means "Never". */
-export const endsAtError = (endsAt: string | undefined, now: Date): RuleError[] =>
-  endsAt && new Date(endsAt).getTime() <= now.getTime() ? [{ field: 'endsAt', message: 'The end date must be in the future.' }] : []
-
-/** REQ: DEC-99 — an access row whose end time has passed grants nothing. */
-export const hasEnded = (a: Pick<RoleAssignment, 'endsAt'>, now: Date) => !!a.endsAt && now.getTime() >= new Date(a.endsAt).getTime()
-
-/**
- * Assignments with their roles; an inactive or unknown role grants nothing, nor does an ended row when `now` is given
- * (every access check passes it).
- */
-export function grantsOf(assignments: readonly RoleAssignment[], roles: readonly Role[], now?: Date): Grant[] {
+/** Assignments with their roles; an inactive or unknown role grants nothing. */
+export function grantsOf(assignments: readonly RoleAssignment[], roles: readonly Role[]): Grant[] {
   return assignments.flatMap((a) => {
-    if (now && hasEnded(a, now)) return []
     const role = roles.find((r) => r.roleId === a.roleId && r.status === 'ACTIVE')
     return role ? [{ roleId: role.roleId, roleName: role.name, permissions: role.permissions, scope: a.scope }] : []
   })

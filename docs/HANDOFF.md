@@ -9,7 +9,7 @@ What the mock gives engineering, and what the real backend must do that a mock c
   ProjectApiKey, ProjectWebhook, AuditEntry, Decision, Paged. Treat it as a first draft of the API/DB schema.
 - **Account types (DEC-99):** super admin (outside the role system), platform staff (platform roles with a merchant
   scope; masked case data without "See unmasked ID data" — mask on the server, never in the browser), merchant user.
-  Access rows carry an optional end time; enforce it in every check and release claims when it passes.
+  Access rows have no end date (DEC-74).
 - **Identifiers (DEC-97):** every stored record has a prefixed cuid2 ID (`prj_…`, `flw_…`, `ver_…`, `att_…`, `usr_…`, `rol_…`,
   `asg_…`, `inv_…`, `key_…`, `whk_…`, `wfv_…`, `rev_…`, `file_…`, `evt_…`, `mer_…`); sort lists by created time, never by ID.
   The case ID addresses a case in URLs, the API and webhooks; the Reference ID is the merchant's own value, stored beside
@@ -32,7 +32,7 @@ What the mock gives engineering, and what the real backend must do that a mock c
 | Flows | `GET /projects/{id}/flows`, `GET /flows/{id}`, `POST …/flows`, `PUT /flows/{id}`, `POST /flows/{id}/activate | retire | default | duplicate | preview` | Saving an Active flow needs a reason and creates `<Version>-R<n>` for new sessions only (DEC-51, DEC-52) |
 | Registry | `GET /registry`, `GET /registry/selectable`, `POST /registry`, `PUT /registry/{code}`, `POST …/status`, `POST …/default`, `GET …/flows` | Platform Admin; only Active versions selectable (DEC-56, DEC-57) |
 | Users | `GET /users`, `GET /users/{id}`, `POST /merchants/{id}/users`, `POST /users/{id}/invitation`, `POST|PUT|DELETE /users/{id}/assignments[/{aid}]`, `POST /users/{id}/suspend | reactivate`, `GET|POST|DELETE /projects/{id}/members` | Grant only what you hold; merchant-level roles only for All projects; one Merchant Owner remains; removal releases claims (DEC-74, DEC-77) |
-| Platform staff | `GET /staff`, `GET /staff/{id}`, `POST /staff`, `POST /staff/{id}/invitation`, `POST|PUT|DELETE /staff/{id}/assignments[/{aid}]`, `POST /staff/{id}/suspend | reactivate` | Super admin only, "not found" otherwise; platform roles only; merchant scope All / Selected; access ends; company staff domain (OQ-31) (DEC-99) |
+| Platform staff | `GET /staff`, `GET /staff/{id}`, `POST /staff`, `POST /staff/{id}/invitation`, `POST|PUT|DELETE /staff/{id}/assignments[/{aid}]`, `POST /staff/{id}/suspend | reactivate` | Super admin only, "not found" otherwise; platform roles only; merchant scope All / Selected; company staff domain (OQ-31) (DEC-99) |
 | Super admins | `GET /admins`, `POST /admins`, `POST /admins/{id}/invitation`, `POST /admins/{id}/suspend | reactivate` | Super admin only; no roles; one active admin must remain; nobody suspends themselves (DEC-79) |
 | Roles | `GET /roles`, `GET /merchants/{id}/roles/assignable`, `POST /merchants/{id}/roles`, `PUT /roles/{id}`, `POST /roles/{id}/status` | System Default locked; edits apply to every holder at once; no deactivation while assigned (DEC-76) |
 | Merchants | `GET/POST /merchants`, `PATCH /merchants/{id}`, `POST /merchants/{id}/status`, `POST /merchants/{id}/invitation` | Super admin, or staff with Merchants View / Create / Suspend; FRS fields, registration number unique per country (SSM 12-digit for Malaysia); status changes need a reason; Suspended / Terminated must revoke the merchant's sessions and API keys at once; no delete (DEC-98); a new merchant gets a Default project, default flow and owner (DEC-92) |

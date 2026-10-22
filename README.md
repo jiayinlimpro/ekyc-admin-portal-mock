@@ -40,7 +40,7 @@ If `npm` scripts are blocked in PowerShell: `Set-ExecutionPolicy -Scope CurrentU
 | Lim Wei Jie (weijie.lim@ekyc-platform.example) | Super admin: everything in every merchant (DEC-75, DEC-99) | — |
 | Nor Aisyah Binti Hamid (aisyah.hamid@ekyc-platform.example) | Super admin (second one, for the Super admins screen) | — |
 | Daniel Tan (daniel.tan@ekyc-platform.example) | Platform staff · Support · All merchants (masked cases, read-only flows and keys) | — |
-| Priya Nair (priya.nair@ekyc-platform.example) | Platform staff · Verification Specialist · Vantage, access ends in 14 days | — |
+| Priya Nair (priya.nair@ekyc-platform.example) | Platform staff · Verification Specialist · Vantage | — |
 | Hannah Lee (hannah.lee@ekyc-platform.example) | Platform staff · Finance (billing and reports, no customer data) | — |
 | Tan Mei Ling (meiling.tan@atoz.example) | Merchant Owner · All projects | Atoz Software Tech |
 | Ali Bin Ahmad (ali.ahmad@atoz.example) | Reviewer · Default; Viewer · SME app | Atoz Software Tech |
@@ -79,7 +79,7 @@ project or "All my projects", and the menu follows your permissions there.
 | Audit Log | DEC-42 events with project and actor role |
 | Merchants | Super admins and staff with Merchants permissions, per the FRS: registration number, country, contact; Onboarding → Active → Suspended → Terminated with reasons (suspension locks the merchant's users out and stops its API keys); never deleted; a new merchant gets a Default project and owner |
 | Super admins / Workflow Registry | Super admin accounts (super admins only); versions and flows using them (read-only with Registry View) |
-| Users / Roles with Type | Super admins create Platform (internal) roles and staff: platform permissions by module, merchant access for All or Selected merchants, access end dates |
+| Users / Roles with Type | Super admins create Platform (internal) roles and staff: platform permissions by module, merchant access for All or Selected merchants |
 
 Values tagged **OPEN QUESTION** are placeholders, not signed-off requirements.
 

@@ -8,7 +8,7 @@
 //   POST   /staff/{id}/suspend | reactivate
 import { canOnPlatform } from '@/domain/access'
 import { STAFF_EMAIL_DOMAIN } from '@/domain/openQuestions'
-import { endsAtError, hasEnded, hasMerchantAccess, scopeLabel, validateAssignment, withImpliedPermissions } from '@/domain/roles'
+import { hasMerchantAccess, scopeLabel, validateAssignment, withImpliedPermissions } from '@/domain/roles'
 import type { AccessChip } from '@/domain/roles'
 import type { Actor, AssignmentScope, AuditAction, Role, RoleAssignment, UserAccount, UserStatus } from '@/domain/types'
 import { now } from '@/lib/clock'
@@ -39,8 +39,6 @@ export interface StaffAssignmentRow {
   platformWide: boolean
   addedBy: Actor
   addedAt: string
-  endsAt?: string
-  ended: boolean
   editable: boolean
 }
 
@@ -88,7 +86,7 @@ function checkAssignment(input: AssignmentInput): RoleAssignment['scope'] {
   const role = roleOf(input.roleId)
   if (!role || role.audience !== 'PLATFORM') throw validation([{ field: 'roleId', message: 'Choose a staff role.' }])
   const scope: AssignmentScope = hasMerchantAccess(role.permissions) ? input.scope : { kind: 'ALL_MERCHANTS' }
-  const errors = [...validateAssignment(role, scope, [], db.state().merchants.map((m) => m.merchantId)), ...endsAtError(input.endsAt, now())]
+  const errors = [...validateAssignment(role, scope, [], db.state().merchants.map((m) => m.merchantId))]
   if (errors.length) throw validation(errors)
   return scope
 }
@@ -109,7 +107,6 @@ function rowOf(a: UserAccount): StaffRow {
 }
 
 function detailOf(a: UserAccount): StaffDetail {
-  const at = now()
   return {
     ...rowOf(a),
     lastActiveAt: a.lastActiveAt,
@@ -117,7 +114,6 @@ function detailOf(a: UserAccount): StaffDetail {
     canManage: true,
     assignments: a.assignments.map((x) => {
       const r = roleOf(x.roleId)
-      const ended = hasEnded(x, at)
       return {
         assignmentId: x.assignmentId,
         roleId: x.roleId,
@@ -127,9 +123,7 @@ function detailOf(a: UserAccount): StaffDetail {
         platformWide: !!r && !hasMerchantAccess(r.permissions),
         addedBy: x.addedBy,
         addedAt: x.addedAt,
-        endsAt: x.endsAt,
-        ended,
-        editable: !ended,
+        editable: true,
       }
     }),
   }
@@ -172,7 +166,7 @@ export const mockStaffService: StaffService = {
       fullName: input.fullName.trim(),
       email,
       level: 'PLATFORM_STAFF',
-      assignments: [{ assignmentId: nextAssignmentId(), roleId: input.assignment.roleId, scope, addedBy: by(actor), addedAt: at, endsAt: input.assignment.endsAt }],
+      assignments: [{ assignmentId: nextAssignmentId(), roleId: input.assignment.roleId, scope, addedBy: by(actor), addedAt: at }],
       status: 'PENDING',
       invitationId: newId('inv'),
       invitedAt: at,
@@ -200,7 +194,7 @@ export const mockStaffService: StaffService = {
     requireSuper(actor)
     const a = loadStaff(userId)
     const scope = checkAssignment(input)
-    const assignment: RoleAssignment = { assignmentId: nextAssignmentId(), roleId: input.roleId, scope, addedBy: by(actor), addedAt: now().toISOString(), endsAt: input.endsAt }
+    const assignment: RoleAssignment = { assignmentId: nextAssignmentId(), roleId: input.roleId, scope, addedBy: by(actor), addedAt: now().toISOString() }
     const updated = { ...a, assignments: [...a.assignments, assignment] }
     putAccount(updated)
     audit(actor, 'USER_ACCESS_ADDED', { userId, fullName: a.fullName, assignmentId: assignment.assignmentId, summary: `${a.fullName}: ${label(assignment)} added` })
@@ -214,7 +208,7 @@ export const mockStaffService: StaffService = {
     const a = loadStaff(userId)
     const old = a.assignments.find((x) => x.assignmentId === assignmentId)
     if (!old) throw new ServiceError('NOT_FOUND', `Access ${assignmentId} not found.`)
-    const next: RoleAssignment = { ...old, roleId: input.roleId, scope: checkAssignment(input), endsAt: input.endsAt }
+    const next: RoleAssignment = { ...old, roleId: input.roleId, scope: checkAssignment(input) }
     const updated = { ...a, assignments: a.assignments.map((x) => (x.assignmentId === assignmentId ? next : x)) }
     putAccount(updated)
     audit(actor, 'USER_ACCESS_CHANGED', { userId, fullName: a.fullName, assignmentId, changes: [{ field: `${a.fullName} access`, from: label(old), to: label(next) }] })

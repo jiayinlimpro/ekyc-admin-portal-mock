@@ -5,7 +5,7 @@ import { FormField } from '@/components/common/FormField'
 import { NativeSelect } from '@/components/common/NativeSelect'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { accessEndsAt, hasMerchantAccess, isMerchantLevel, MERCHANT_LEVEL_SCOPE } from '@/domain/roles'
+import { hasMerchantAccess, isMerchantLevel, MERCHANT_LEVEL_SCOPE } from '@/domain/roles'
 import { MERCHANT_PERMISSIONS, type Permission, type Role, type UserStatus } from '@/domain/types'
 import { errorMessage, fieldErrors } from '@/hooks/useLoad'
 import { PERMISSION_LABELS, USER_STATUS_LABELS } from '@/lib/labels'
@@ -33,46 +33,11 @@ export function AccessChip({ label, archived = false, children }: { label: strin
 export type ProjectOption = { projectId: string; name: string }
 export type MerchantOption = { merchantId: string; name: string }
 
-/** REQ: DEC-99 — "Access ends": Never (default) or the end of a chosen day (MYT). */
-export function EndsField({ idPrefix, value, onChange, error }: { idPrefix: string; value?: string; onChange: (endsAt: string | undefined) => void; error?: string }) {
-  const day = value?.slice(0, 10) ?? ''
-  const [onDate, setOnDate] = useState(!!value)
-  return (
-    <fieldset aria-describedby={error ? `${idPrefix}-ends-error` : undefined}>
-      <legend className="mb-1 text-xs font-medium text-muted-foreground">Access ends</legend>
-      <div className="flex flex-wrap items-center gap-4">
-        <label className="flex items-center gap-2 text-sm">
-          <input type="radio" name={`${idPrefix}-ends`} checked={!onDate} onChange={() => { setOnDate(false); onChange(undefined) }} />
-          Never
-        </label>
-        <label className="flex items-center gap-2 text-sm">
-          <input type="radio" name={`${idPrefix}-ends`} checked={onDate} onChange={() => setOnDate(true)} />
-          On
-        </label>
-        <input
-          type="date"
-          aria-label="Access ends on"
-          disabled={!onDate}
-          value={day}
-          onChange={(e) => onChange(e.target.value ? accessEndsAt(e.target.value) : undefined)}
-          className="h-8 rounded-lg border border-input bg-transparent px-2 text-sm disabled:opacity-50"
-        />
-      </div>
-      <p className="mt-1 text-xs text-muted-foreground">From the end of that day (MYT) this access grants nothing.</p>
-      {error && (
-        <p id={`${idPrefix}-ends-error`} role="alert" className="mt-1 text-xs text-destructive">
-          {error}
-        </p>
-      )}
-    </fieldset>
-  )
-}
-
 /**
  * REQ: DEC-99 — platform staff: Staff role (platform roles only), Merchant access (All merchants, including future
- * ones, by default; or Selected merchants), Access ends. A role with no merchant access needs no merchants.
+ * ones, by default; or Selected merchants). A role with no merchant access needs no merchants.
  */
-export function StaffAccessFields({ idPrefix, roles, merchants, value, onChange, errors, showEnds = true }: { idPrefix: string; roles: Role[]; merchants: MerchantOption[]; value: AssignmentInput; onChange: (v: AssignmentInput) => void; errors: Record<string, string>; /** REQ: DEC-99 — not on New user for platform staff. */ showEnds?: boolean }) {
+export function StaffAccessFields({ idPrefix, roles, merchants, value, onChange, errors }: { idPrefix: string; roles: Role[]; merchants: MerchantOption[]; value: AssignmentInput; onChange: (v: AssignmentInput) => void; errors: Record<string, string> }) {
   const role = roles.find((r) => r.roleId === value.roleId)
   const selected = value.scope.kind === 'MERCHANTS' ? value.scope.merchantIds : []
   const toggle = (id: string, on: boolean) => onChange({ ...value, scope: { kind: 'MERCHANTS', merchantIds: on ? [...selected, id] : selected.filter((x) => x !== id) } })
@@ -119,7 +84,6 @@ export function StaffAccessFields({ idPrefix, roles, merchants, value, onChange,
           )}
         </fieldset>
       )}
-      {showEnds && <EndsField idPrefix={idPrefix} value={value.endsAt} onChange={(endsAt) => onChange({ ...value, endsAt })} error={errors.endsAt} />}
     </>
   )
 }
@@ -211,7 +175,6 @@ export function AssignmentFields({
           </p>
         )}
       </fieldset>
-      <EndsField idPrefix={idPrefix} value={value.endsAt} onChange={(endsAt) => onChange({ ...value, endsAt })} error={errors.endsAt} />
       {who && role && (value.scope.kind === 'ALL_PROJECTS' || selected.length > 0) && (
         <AccessPreview who={who} permissions={role.permissions} where={value.scope.kind === 'ALL_PROJECTS' ? 'every project (including new ones)' : projects.filter((p) => selected.includes(p.projectId)).map((p) => p.name).join(', ')} />
       )}

@@ -42,7 +42,7 @@ UAT scenarios: `docs/SCENARIOS.md`.
 - Three account types (DEC-99): **Super admin** (was Platform Admin; everything; outside the role system; Platform ›
   Super admins), **Platform staff** (no merchant; platform roles given for All merchants incl. future or Selected
   merchants), **Merchant user**. Roles and users have a Type (Platform / Merchant), set by super admins and never
-  changed; merchant admins never see platform roles or staff. Access rows can end on a date. Staff without "See unmasked
+  changed; merchant admins never see platform roles or staff. No access end dates. Staff without "See unmasked
   ID data" get a masked case view (`domain/piiMasking`). Staff email domain: OQ-31.
 - IDs (DEC-97): every stored record gets a prefixed cuid2-shaped ID from `src/lib/ids.ts` (`newId`; seeded records
   `fx('PRJ-0001')` / `stableId`, stable across resets). Never sort by ID, never show user / role / audit IDs. A case is

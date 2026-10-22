@@ -19,7 +19,7 @@ import { fx, stableId } from '@/lib/ids'
 export const SEED = 2026
 export const BACKGROUND_COUNT = 300
 /** Bump when the shape of MockDbState changes: persisted demo data is then re-seeded. */
-export const DB_VERSION = 12
+export const DB_VERSION = 13
 
 export interface MockDbState {
   dbVersion: number
@@ -123,7 +123,7 @@ export function seedDatabase(now: Date): MockDbState {
   const audit: AuditEntry[] = []
   const accounts = buildAccounts(now)
   const roles = buildRoles(now)
-  const accessOf = (a: UserAccount) => ({ ...a, grants: grantsOf(a.assignments, roles, now) })
+  const accessOf = (a: UserAccount) => ({ ...a, grants: grantsOf(a.assignments, roles) })
   // REQ: DEC-70 — seeded reviews are by the merchant's own active users who may claim there (Super admin could, DEC-75,
   // but the demo history is the merchant's).
   const reviewersOf = (v: Verification): Actor[] =>

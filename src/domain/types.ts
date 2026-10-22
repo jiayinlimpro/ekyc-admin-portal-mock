@@ -410,8 +410,6 @@ export interface RoleAssignment {
   scope: AssignmentScope
   addedBy: Actor
   addedAt: string
-  /** REQ: DEC-99 — "Access ends": from this moment (end of the chosen day, MYT) the row grants nothing. */
-  endsAt?: string
 }
 
 /** Super admin is internal and works in every merchant; everyone else belongs to one merchant (DEC-70). */

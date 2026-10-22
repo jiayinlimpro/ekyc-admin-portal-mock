@@ -1,4 +1,4 @@
-import { accessEndsAt, PLATFORM_DEFAULT_ROLES, PLATFORM_ROLE_IDS, SYSTEM_DEFAULT_ROLES, SYSTEM_ROLE_IDS } from '@/domain/roles'
+import { PLATFORM_DEFAULT_ROLES, PLATFORM_ROLE_IDS, SYSTEM_DEFAULT_ROLES, SYSTEM_ROLE_IDS } from '@/domain/roles'
 import type { Actor, AssignmentScope, Role, UserAccount } from '@/domain/types'
 import { fx, stableId } from '@/lib/ids'
 
@@ -17,7 +17,7 @@ const merchants = (...merchantIds: string[]): AssignmentScope => ({ kind: 'MERCH
 
 type AccountSpec = Omit<UserAccount, 'assignments' | 'invitedAt' | 'lastActiveAt'> & {
   /** Role, scope and, optionally, days until the access ends (DEC-99). */
-  access: [RoleKey, AssignmentScope, number?][]
+  access: [RoleKey, AssignmentScope][]
   addedBy: Actor
   invitedDaysAgo: number
   lastActiveHoursAgo?: number
@@ -32,7 +32,7 @@ const ACCOUNT_SPECS: AccountSpec[] = [
   { userId: fx('USR-2026-0005'), fullName: 'Nor Aisyah Binti Hamid', email: 'aisyah.hamid@ekyc-platform.example', level: 'SUPER_ADMIN', access: [], addedBy: SUPER_ADMIN, status: 'ACTIVE', invitedDaysAgo: 120, lastActiveHoursAgo: 26 },
   // REQ: DEC-99 — platform staff: no merchant; platform roles given for all or selected merchants.
   { userId: fx('USR-2026-0006'), fullName: 'Daniel Tan', email: 'daniel.tan@ekyc-platform.example', level: 'PLATFORM_STAFF', access: [['SUPPORT', ALL_MERCHANTS]], addedBy: SUPER_ADMIN, status: 'ACTIVE', invitedDaysAgo: 90, lastActiveHoursAgo: 3 },
-  { userId: fx('USR-2026-0007'), fullName: 'Priya Nair', email: 'priya.nair@ekyc-platform.example', level: 'PLATFORM_STAFF', access: [['VERIFICATION_SPECIALIST', merchants(fx('MER-0002')), 14]], addedBy: SUPER_ADMIN, status: 'ACTIVE', invitedDaysAgo: 30, lastActiveHoursAgo: 5 },
+  { userId: fx('USR-2026-0007'), fullName: 'Priya Nair', email: 'priya.nair@ekyc-platform.example', level: 'PLATFORM_STAFF', access: [['VERIFICATION_SPECIALIST', merchants(fx('MER-0002'))]], addedBy: SUPER_ADMIN, status: 'ACTIVE', invitedDaysAgo: 30, lastActiveHoursAgo: 5 },
   { userId: fx('USR-2026-0008'), fullName: 'Hannah Lee', email: 'hannah.lee@ekyc-platform.example', level: 'PLATFORM_STAFF', access: [['FINANCE', ALL_MERCHANTS]], addedBy: SUPER_ADMIN, status: 'ACTIVE', invitedDaysAgo: 60, lastActiveHoursAgo: 30 },
   // Atoz Software Tech: owner, a Project Admin for SME app, reviewers, one user with a role in each project.
   { ...ATOZ_OWNER, email: 'meiling.tan@atoz.example', level: 'MERCHANT_USER', merchantId: fx('MER-0001'), access: [['MERCHANT_OWNER', ALL]], addedBy: SUPER_ADMIN, status: 'ACTIVE', invitedDaysAgo: 400, lastActiveHoursAgo: 2 },
@@ -102,13 +102,12 @@ export function buildAccounts(now: Date): UserAccount[] {
   let seq = 0
   return ACCOUNT_SPECS.map(({ invitedDaysAgo, lastActiveHoursAgo, access, addedBy, ...a }) => ({
     ...a,
-    assignments: access.map(([role, scope, endsInDays]) => ({
+    assignments: access.map(([role, scope]) => ({
       assignmentId: fx(`ASG-2026-${String(++seq).padStart(4, '0')}`),
       roleId: ROLE_IDS[role],
       scope,
       addedBy,
       addedAt: ago(invitedDaysAgo * 24),
-      endsAt: endsInDays === undefined ? undefined : accessEndsAt(new Date(now.getTime() + endsInDays * 86_400_000)),
     })),
     invitedAt: ago(invitedDaysAgo * 24),
     invitationId: a.status === 'PENDING' ? stableId('inv', a.userId) : undefined,

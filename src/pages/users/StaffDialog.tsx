@@ -80,7 +80,7 @@ export function StaffDialog({ userId, onClose, onChanged }: { userId: string; on
                 <table className="w-full text-sm">
                   <thead className="bg-muted/50 text-left text-xs text-muted-foreground">
                     <tr>
-                      {['Staff role', 'Merchant access', 'Added by', 'Date', 'Ends'].map((h) => (
+                      {['Staff role', 'Merchant access', 'Added by', 'Date'].map((h) => (
                         <th key={h} scope="col" className="px-3 py-2 font-medium">
                           {h}
                         </th>
@@ -92,12 +92,11 @@ export function StaffDialog({ userId, onClose, onChanged }: { userId: string; on
                   </thead>
                   <tbody>
                     {u.assignments.map((a) => (
-                      <tr key={a.assignmentId} className={a.ended ? 'border-t text-muted-foreground' : 'border-t'}>
+                      <tr key={a.assignmentId} className="border-t">
                         <th scope="row" className="px-3 py-2 text-left font-medium">{a.roleName}</th>
                         <td className="px-3 py-2">{a.scopeLabel}</td>
                         <td className="px-3 py-2">{a.addedBy.fullName}</td>
                         <td className="px-3 py-2 whitespace-nowrap">{formatMyt(a.addedAt).split(', ')[0]}</td>
-                        <td className="px-3 py-2 whitespace-nowrap">{a.endsAt ? `${a.ended ? 'Ended' : 'Ends'} ${formatMyt(a.endsAt).split(', ')[0]}` : 'Never'}</td>
                         <td className="px-2 py-2 text-right whitespace-nowrap">
                           {a.editable && (
                             <>
@@ -149,7 +148,7 @@ export function StaffDialog({ userId, onClose, onChanged }: { userId: string; on
             title={editing.mode === 'add' ? `Add access for ${u.fullName}` : `Edit ${editing.row.roleName} for ${u.fullName}`}
             who={u.fullName}
             staff
-            initial={editing.mode === 'edit' ? { roleId: editing.row.roleId, scope: editing.row.scope, endsAt: editing.row.endsAt } : undefined}
+            initial={editing.mode === 'edit' ? { roleId: editing.row.roleId, scope: editing.row.scope } : undefined}
             roles={roles.data ?? []}
             projects={[]}
             merchants={merchants.data ?? []}

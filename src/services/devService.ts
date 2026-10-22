@@ -30,7 +30,7 @@ export const devService = {
     const project = (id: string) => s.projects.find((p) => p.projectId === id)?.name ?? id
     return wire(
       s.accounts.map((a) => {
-        const access = a.level === 'SUPER_ADMIN' ? 'Super admin · all merchants' : accessSummary(grantsOf(a.assignments, s.roles, now()), project, merchant) || 'No access yet'
+        const access = a.level === 'SUPER_ADMIN' ? 'Super admin · all merchants' : accessSummary(grantsOf(a.assignments, s.roles), project, merchant) || 'No access yet'
         const merchantStatus = s.merchants.find((x) => x.merchantId === a.merchantId)?.status
         const signInBlocked = merchantStatus && !merchantAllowsSignIn(merchantStatus) ? `merchant ${merchantStatus.toLowerCase()}` : undefined
         return { userId: a.userId, fullName: a.fullName, email: a.email, level: a.level, status: a.status, merchantId: a.merchantId, merchantName: a.merchantId && merchant(a.merchantId), access, signInBlocked }
