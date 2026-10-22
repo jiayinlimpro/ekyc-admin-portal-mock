@@ -23,7 +23,7 @@ import { accountOf, nextAssignmentId, requireActive, roleIn, withAccess, type Ac
 import { ServiceError } from './errors'
 import { clientIpFor, simulateNetwork, wire } from './network'
 import { validation } from './projectService'
-import { newId } from '@/lib/ids'
+import { adoptDraftId, newId } from '@/lib/ids'
 
 export interface AssignmentInput {
   roleId: string
@@ -31,6 +31,8 @@ export interface AssignmentInput {
 }
 
 export interface InviteInput {
+  /** The User ID shown in the form (from `draftUserId`), kept on save (DEC-97). */
+  userId?: string
   fullName: string
   email: string
   assignment: AssignmentInput
@@ -38,7 +40,7 @@ export interface InviteInput {
 
 /** A row on the Users screen (DEC-74). */
 export interface UserRow {
-  userId: string
+  userId: string // shown only in the user's details, not in the list (DEC-97)
   fullName: string
   email: string
   merchantId: string
@@ -87,6 +89,8 @@ export interface MemberRow {
 export interface UserAdminService {
   list(actor: Actor, merchantId?: string): Promise<UserRow[]>
   get(userId: string, actor: Actor): Promise<UserDetail>
+  /** REQ: DEC-74 / DEC-97 — the User ID shown read-only when New user opens. */
+  draftUserId(actor: Actor): Promise<string>
   invite(merchantId: string, input: InviteInput, actor: Actor): Promise<UserRow>
   resendInvitation(userId: string, actor: Actor): Promise<UserRow>
   addAssignment(userId: string, input: AssignmentInput, actor: Actor): Promise<UserDetail>
@@ -330,6 +334,13 @@ export const mockUserAdminService: UserAdminService = {
     return wire(detailOf(actor, a))
   },
 
+  async draftUserId(actor) {
+    await simulateNetwork('draft user id')
+    const me = accountOf(actor)
+    if (me.level !== 'PLATFORM_ADMIN') requireUsersScreen(me, me.merchantId!)
+    return newId('usr')
+  },
+
   async invite(merchantId, input, actor) {
     await simulateNetwork('invite user')
     const me = requireActive(actor)
@@ -339,7 +350,7 @@ export const mockUserAdminService: UserAdminService = {
     checkAssignment(me, merchantId, input.assignment)
     const at = now().toISOString()
     const account: UserAccount & { merchantId: string } = {
-      userId: newId('usr'),
+      userId: adoptDraftId('usr', input.userId, (id) => db.state().accounts.some((a) => a.userId === id)),
       fullName: input.fullName.trim(),
       email,
       level: 'MERCHANT_USER',

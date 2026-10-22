@@ -14,7 +14,7 @@ import { ServiceError } from './errors'
 import { clientIpFor, simulateNetwork, wire } from './network'
 import { validation } from './projectService'
 import { requireNewUser } from './userAdminService'
-import { newId } from '@/lib/ids'
+import { adoptDraftId, newId } from '@/lib/ids'
 
 export interface AdminRow {
   userId: string
@@ -29,7 +29,9 @@ export interface AdminRow {
 
 export interface AdminService {
   list(actor: Actor): Promise<AdminRow[]>
-  invite(input: { fullName: string; email: string }, actor: Actor): Promise<AdminRow>
+  /** REQ: DEC-79 / DEC-97 — the User ID shown read-only when New admin opens. */
+  draftUserId(actor: Actor): Promise<string>
+  invite(input: { userId?: string; fullName: string; email: string }, actor: Actor): Promise<AdminRow>
   resendInvitation(userId: string, actor: Actor): Promise<AdminRow>
   suspend(userId: string, actor: Actor): Promise<AdminRow>
   reactivate(userId: string, actor: Actor): Promise<AdminRow>
@@ -81,13 +83,19 @@ export const mockAdminService: AdminService = {
     return wire(admins().map((a) => rowOf(actor, a)).sort((a, b) => b.createdAt.localeCompare(a.createdAt) || b.userId.localeCompare(a.userId)))
   },
 
+  async draftUserId(actor) {
+    await simulateNetwork('draft admin id')
+    requireAdmins(actor)
+    return newId('usr')
+  },
+
   async invite(input, actor) {
     await simulateNetwork('invite admin')
     requireActive(actor)
     requireAdmins(actor)
     const email = requireNewUser(input)
     const account: UserAccount = {
-      userId: newId('usr'),
+      userId: adoptDraftId('usr', input.userId, (id) => db.state().accounts.some((a) => a.userId === id)),
       fullName: input.fullName.trim(),
       email,
       level: 'PLATFORM_ADMIN',

@@ -40,6 +40,8 @@ function InviteDialog({ merchants, defaultMerchantId, onClose, onSaved }: { merc
   const [busy, setBusy] = useState(false)
   const roles = useLoad(() => (merchantId ? roleService.assignable(merchantId, actor) : Promise.resolve([])), [merchantId, actor.userId])
   const projects = useMerchantProjects(merchantId)
+  // REQ: DEC-97 — the User ID is generated when the form opens and shown read-only.
+  const draft = useLoad(() => userAdminService.draftUserId(actor), [actor.userId])
 
   const submit = async (e: FormEvent) => {
     e.preventDefault()
@@ -48,7 +50,7 @@ function InviteDialog({ merchants, defaultMerchantId, onClose, onSaved }: { merc
     setBusy(true)
     setErrors({})
     try {
-      const u = await userAdminService.invite(merchantId, { fullName, email, assignment }, actor)
+      const u = await userAdminService.invite(merchantId, { userId: draft.data, fullName, email, assignment }, actor)
       toast.success(`${u.fullName} invited`, { description: 'Pending until they accept the invitation.' })
       onSaved()
     } catch (err) {
@@ -65,6 +67,9 @@ function InviteDialog({ merchants, defaultMerchantId, onClose, onSaved }: { merc
             <DialogTitle>New user</DialogTitle>
             <DialogDescription>The user is Pending until they accept the emailed invitation. Add more access later on their details.</DialogDescription>
           </DialogHeader>
+          <FormField id="nu-id" label="User ID" hint="Generated; it can’t be changed.">
+            <Input id="nu-id" value={draft.data ?? ''} placeholder={draft.loading ? 'Generating…' : ''} readOnly disabled className="font-mono text-xs" />
+          </FormField>
           {merchants.length > 1 && (
             <FormField id="nu-merchant" label="Merchant" error={errors.merchantId}>
               <NativeSelect id="nu-merchant" value={merchantId} onChange={(e) => { setMerchantId(e.target.value); setAssignment({ roleId: '', scope: { kind: 'PROJECTS', projectIds: [] } }) }}>
@@ -93,7 +98,7 @@ function InviteDialog({ merchants, defaultMerchantId, onClose, onSaved }: { merc
             <Button type="button" variant="outline" disabled={busy} onClick={onClose}>
               Cancel
             </Button>
-            <Button type="submit" disabled={busy}>
+            <Button type="submit" disabled={busy || !draft.data}>
               {busy ? 'Inviting…' : 'Invite user'}
             </Button>
           </DialogFooter>
@@ -190,6 +195,10 @@ function UserDialog({ userId, onClose, onChanged }: { userId: string; onClose: (
         {u && (
           <div className="space-y-4">
             <dl className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
+              <div>
+                <dt className="text-xs text-muted-foreground">User ID</dt>
+                <dd className="font-mono text-xs break-all">{u.userId}</dd>
+              </div>
               <div>
                 <dt className="text-xs text-muted-foreground">Status</dt>
                 <dd><UserStatusBadge status={u.status} /></dd>

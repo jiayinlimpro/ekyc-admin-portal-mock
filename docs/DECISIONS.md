@@ -331,7 +331,9 @@ Rules changed on 2026-10-20 (Projects & Flows restructure) are marked **(changed
     send it as `flow_id`), case ID (Verification Detail, copy; in webhooks), API key (masked, `key_…a91f`), webhook event
     ID (delivery log; not in the mock). Internal screens may show Merchant ID (Merchants) and Project ID (Projects, for
     developers). Users, assignments, invitations, attempts, files and audit events are never shown; audit exports include
-    the event ID. Exception: the Role ID is shown read-only in the Role dialog (DEC-76) [PO 2026-10-22]. People are identified by name and email, roles by name; "Last updated by" shows the name.
+    the event ID. Exceptions [PO 2026-10-22]: the Role ID is shown read-only in the Role dialog (DEC-76), and the User ID
+    is the first, read-only field of New user / New admin (generated when the form opens, kept on save) and is shown in
+    the user's details (DEC-74, DEC-79). Lists still don't show it. People are identified by name and email, roles by name; "Last updated by" shows the name.
   - **Reference ID** is the **merchant's own reference** for the end user, sent when the session is created. It is stored
     alongside the case ID, searchable, shown in the list, and never used as the key; case URLs and webhooks use the case ID.
     Uniqueness: OQ-17.

@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createMemoryRouter } from 'react-router'
 import { RouterProvider } from 'react-router/dom'
@@ -70,10 +70,15 @@ describe('Admins screen (DEC-79)', () => {
     renderAt('/admins')
     await screen.findByRole('rowheader', { name: /Lim Wei Jie/ })
     fireEvent.click(screen.getByRole('button', { name: /New admin/ }))
+    const id = (await screen.findByLabelText('User ID')) as HTMLInputElement
+    await waitFor(() => expect(id.value).toMatch(/^usr_[a-z0-9]{24}$/))
+    expect(id.disabled).toBe(true)
+    const drafted = id.value
     fireEvent.change(await screen.findByLabelText('Full name'), { target: { value: 'Daniel Tan' } })
     fireEvent.change(screen.getByLabelText('Work email'), { target: { value: 'daniel.tan@ekyc-platform.example' } })
     fireEvent.click(screen.getByRole('button', { name: 'Invite admin' }))
     const row = (await screen.findByRole('rowheader', { name: 'Daniel Tan' })).closest('tr')!
+    expect((await adminService.list(ADMIN)).find((r) => r.fullName === 'Daniel Tan')!.userId).toBe(drafted)
     expect(row.textContent).toContain('Pending')
     expect(within(row).getByRole('button', { name: 'Resend invitation' })).toBeTruthy()
   })

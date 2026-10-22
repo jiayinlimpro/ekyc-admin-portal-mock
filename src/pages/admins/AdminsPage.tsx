@@ -20,12 +20,14 @@ function InviteAdminDialog({ onClose, onSaved }: { onClose: () => void; onSaved:
   const [email, setEmail] = useState('')
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [busy, setBusy] = useState(false)
+  // REQ: DEC-97 — the User ID is generated when the form opens and shown read-only.
+  const draft = useLoad(() => adminService.draftUserId(actor), [actor.userId])
   const submit = async (e: FormEvent) => {
     e.preventDefault()
     setBusy(true)
     setErrors({})
     try {
-      const a = await adminService.invite({ fullName, email }, actor)
+      const a = await adminService.invite({ userId: draft.data, fullName, email }, actor)
       toast.success(`${a.fullName} invited`, { description: 'Pending until they accept the invitation.' })
       onSaved()
     } catch (err) {
@@ -42,6 +44,9 @@ function InviteAdminDialog({ onClose, onSaved }: { onClose: () => void; onSaved:
             <DialogTitle>New admin</DialogTitle>
             <DialogDescription>Platform Admins work in every merchant with a fixed set of rights. They are Pending until they accept the invitation.</DialogDescription>
           </DialogHeader>
+          <FormField id="na-id" label="User ID" hint="Generated; it can’t be changed.">
+            <Input id="na-id" value={draft.data ?? ''} placeholder={draft.loading ? 'Generating…' : ''} readOnly disabled className="font-mono text-xs" />
+          </FormField>
           <FormField id="na-name" label="Full name" error={errors.fullName}>
             <Input id="na-name" value={fullName} onChange={(e) => setFullName(e.target.value)} aria-invalid={!!errors.fullName} autoFocus />
           </FormField>
@@ -57,7 +62,7 @@ function InviteAdminDialog({ onClose, onSaved }: { onClose: () => void; onSaved:
             <Button type="button" variant="outline" disabled={busy} onClick={onClose}>
               Cancel
             </Button>
-            <Button type="submit" disabled={busy}>
+            <Button type="submit" disabled={busy || !draft.data}>
               {busy ? 'Inviting…' : 'Invite admin'}
             </Button>
           </DialogFooter>

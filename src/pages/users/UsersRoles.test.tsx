@@ -42,6 +42,10 @@ describe('Users (DEC-74)', () => {
     renderAt('/users')
     await row('Ali Bin Ahmad')
     fireEvent.click(screen.getByRole('button', { name: /New user/ }))
+    const id = (await screen.findByLabelText('User ID')) as HTMLInputElement
+    await waitFor(() => expect(id.value).toMatch(/^usr_[a-z0-9]{24}$/))
+    expect(id.disabled && id.readOnly).toBe(true)
+    expect(within(id.closest('form')!).getAllByRole('textbox')[0]).toBe(id) // first field
     fireEvent.change(await screen.findByLabelText('Full name'), { target: { value: 'Aishah Binti Omar' } })
     fireEvent.change(screen.getByLabelText('Work email'), { target: { value: 'aishah@atoz.example' } })
     const role = screen.getByLabelText('Role')

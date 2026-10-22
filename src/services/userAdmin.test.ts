@@ -50,6 +50,16 @@ describe('userAdminService: the Users screen (DEC-74)', () => {
     await expect(users.invite(fx('MER-0001'), { fullName: 'Aishah Again', email: 'aishah@atoz.example', assignment: { roleId: REVIEWER, scope: only(fx('PRJ-0002')) } }, OWNER)).rejects.toMatchObject({ code: 'VALIDATION', message: 'A user with this email already exists' })
   })
 
+  it('Given the form’s drafted User ID, then the new user keeps it; a used one is never reused (DEC-97)', async () => {
+    const id = await users.draftUserId(OWNER)
+    expect(id).toMatch(/^usr_[a-z][a-z0-9]{23}$/)
+    const row = await users.invite(fx('MER-0001'), { userId: id, fullName: 'Aishah Binti Omar', email: 'aishah@atoz.example', assignment: { roleId: REVIEWER, scope: only(fx('PRJ-0002')) } }, OWNER)
+    expect(row.userId).toBe(id)
+    const again = await users.invite(fx('MER-0001'), { userId: id, fullName: 'Second Person', email: 'second@atoz.example', assignment: { roleId: REVIEWER, scope: only(fx('PRJ-0002')) } }, OWNER)
+    expect(again.userId).not.toBe(id)
+    await expect(users.draftUserId(ALI)).rejects.toMatchObject({ code: 'FORBIDDEN' })
+  })
+
   it('Given Merchant Owner for selected projects, then refused: merchant-level permissions need All projects', async () => {
     await expect(users.invite(fx('MER-0001'), { fullName: 'Aishah Binti Omar', email: 'aishah@atoz.example', assignment: { roleId: MERCHANT_OWNER, scope: only(fx('PRJ-0001')) } }, OWNER)).rejects.toMatchObject({ message: MERCHANT_LEVEL_SCOPE })
   })

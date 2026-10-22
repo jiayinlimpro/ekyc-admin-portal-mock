@@ -67,4 +67,12 @@ export function fx(handle: string): string {
 /** The case ID of a seeded case, from its Reference ID (each seeded Reference ID belongs to one case). */
 export const caseIdOf = (referenceNo: string) => stableId('ver', referenceNo)
 
+/**
+ * REQ: DEC-97 — a form may show the new record's ID before saving (Role ID, User ID). The service keeps that drafted ID
+ * if it is well-formed and unused; otherwise it makes a new one, so an ID is never reused.
+ */
+export function adoptDraftId(prefix: IdPrefix, drafted: string | undefined, taken: (id: string) => boolean): string {
+  return drafted && isId(prefix, drafted) && !taken(drafted) ? drafted : newId(prefix)
+}
+
 export const isId = (prefix: IdPrefix, value: string) => new RegExp(`^${prefix}_[a-z][a-z0-9]{${BODY_LENGTH - 1}}$`).test(value)

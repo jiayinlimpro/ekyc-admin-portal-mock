@@ -16,7 +16,7 @@ import { ServiceError } from './errors'
 import { simulateNetwork, wire } from './network'
 import { validation } from './projectService'
 import { auditAccess, releaseLostClaims } from './userAdminService'
-import { isId, newId } from '@/lib/ids'
+import { adoptDraftId, newId } from '@/lib/ids'
 
 export interface RoleInput {
   name: string
@@ -129,11 +129,9 @@ export const mockRoleService: RoleService = {
     if (errors.length) throw validation(errors)
     // REQ: DEC-74 — a role is a grant waiting to happen: nobody defines one more powerful than their own access.
     if (!canGrant(granter(me), permissions, { kind: 'ALL_PROJECTS' })) throw new ServiceError('FORBIDDEN', GRANT_TOO_POWERFUL)
-    // The dialog's Role ID is kept if it is well-formed and unused; otherwise a new one is made (DEC-76, DEC-97).
-    const drafted = input.roleId && isId('rol', input.roleId) && !db.state().roles.some((r) => r.roleId === input.roleId) ? input.roleId : undefined
     const at = now().toISOString()
     const role: Role = {
-      roleId: drafted ?? newId('rol'),
+      roleId: adoptDraftId('rol', input.roleId, (id) => db.state().roles.some((r) => r.roleId === id)), // DEC-76
       merchantId,
       name: input.name.trim(),
       type: 'CUSTOM',
