@@ -11,12 +11,13 @@ import {
   Gauge,
   GitBranch,
   Library,
+  ScrollText,
   Settings,
   Settings2,
   ShieldCheck,
   UserCog,
-  UserRound,
   Users,
+  UsersRound,
   LayoutDashboard,
   ReceiptText,
   ScanFace,
@@ -24,21 +25,22 @@ import {
 } from 'lucide-react'
 import type { AccessRule } from './access'
 
-// Most-used first: dashboards (everyone), case review, configuration, then admin-only groups.
-// Governance = who may do what (Users, Roles) next to the record of what they did (Audit Logs).
+// Most-used first: dashboards (everyone), eKYC (case review and the projects that configure it), then admin groups.
+// REQ: DEC-103 — User Management = who may do what (Users, Roles); Governance = the record of what they did (Audit Logs).
+// Project Settings and Flows are opened from a project on the Projects screen, not from the menu.
 // REQ: DEC-99 — screens whose parts need different permissions open for any of them; each part checks its own.
 export const PROJECT_SETTINGS_ACTIONS = ['viewProjectSettings', 'viewIntegration', 'viewMembers', 'viewRouting'] as const
 export const PROJECTS_ACTIONS = ['createProjects', 'renameProjects', 'archiveProjects', 'viewProjectSettings', 'viewFlows', 'viewIntegration', 'viewMembers'] as const
 
-export const NAV_GROUPS = ['Dashboards', 'eKYC', 'Projects & Flows', 'Governance', 'Platform'] as const
+export const NAV_GROUPS = ['Dashboards', 'eKYC', 'User Management', 'Governance', 'Platform'] as const
 export type NavGroup = (typeof NAV_GROUPS)[number]
 
-/** The icon on each group's header in the sidebar (the items themselves show their icon only when the sidebar is narrow). */
+/** The icon on each group's header; a collapsed sidebar shows only these, with the group's screens in a flyout (DEC-103). */
 export const NAV_GROUP_ICONS: Record<NavGroup, LucideIcon> = {
   Dashboards: Gauge,
-  eKYC: ClipboardList,
-  'Projects & Flows': FolderKanban,
-  Governance: UserRound,
+  eKYC: ScanFace,
+  'User Management': UsersRound,
+  Governance: ScrollText,
   Platform: Settings,
 }
 
@@ -48,6 +50,8 @@ export interface NavItem {
   icon: LucideIcon
   group?: NavGroup // undefined = not in a menu group (mock-only pages)
   inMenu: boolean
+  /** The screen it is opened from (path): the breadcrumb shows it, and its menu entry stays highlighted. */
+  parent?: string
   /** REQ: DEC-72 / DEC-73 — the menu and the page guard both use it; services check again. */
   access?: AccessRule
   priority: 'P0' | 'P1' | 'P2' | 'P3'
@@ -113,6 +117,7 @@ export const NAV_ITEMS: NavItem[] = [
     icon: FileSearch,
     group: 'eKYC',
     inMenu: false,
+    parent: '/verifications',
     access: { project: 'viewCases' },
     priority: 'P0',
     built: true,
@@ -123,12 +128,13 @@ export const NAV_ITEMS: NavItem[] = [
       'Sections per DEC-44: end-user data, ID capture, Selfie (V1), Face match, Liveness, Risk (V4/V5), Rules applied, Activity.',
     ],
   },
-  // REQ: DEC-85 — Projects, Project Settings, Flows List, Flow Detail. Settings pages work on the header's project (DEC-96).
+  // REQ: DEC-85 / DEC-103 — Projects, Project Settings, Flows List, Flow Detail, in eKYC; only Projects is in the menu.
+  // Settings pages work on the header's project (DEC-96).
   {
     path: '/projects',
     label: 'Projects',
     icon: FolderKanban,
-    group: 'Projects & Flows',
+    group: 'eKYC',
     inMenu: true,
     access: { project: PROJECTS_ACTIONS },
     priority: 'P1',
@@ -139,8 +145,9 @@ export const NAV_ITEMS: NavItem[] = [
     path: '/project-settings',
     label: 'Project Settings',
     icon: Settings2,
-    group: 'Projects & Flows',
-    inMenu: true,
+    group: 'eKYC',
+    inMenu: false,
+    parent: '/projects',
     access: { project: PROJECT_SETTINGS_ACTIONS },
     priority: 'P1',
     built: true,
@@ -150,8 +157,9 @@ export const NAV_ITEMS: NavItem[] = [
     path: '/flows',
     label: 'Flows',
     icon: GitBranch,
-    group: 'Projects & Flows',
-    inMenu: true,
+    group: 'eKYC',
+    inMenu: false,
+    parent: '/projects',
     access: { project: 'viewFlows' },
     priority: 'P0',
     built: true,
@@ -161,8 +169,9 @@ export const NAV_ITEMS: NavItem[] = [
     path: '/flows/:flowId',
     label: 'Flow Detail',
     icon: GitBranch,
-    group: 'Projects & Flows',
+    group: 'eKYC',
     inMenu: false,
+    parent: '/flows',
     access: { project: 'viewFlows' },
     priority: 'P0',
     built: true,
@@ -194,7 +203,7 @@ export const NAV_ITEMS: NavItem[] = [
     path: '/users',
     label: 'Users',
     icon: Users,
-    group: 'Governance',
+    group: 'User Management',
     inMenu: true,
     access: { project: 'viewUsers' }, // REQ: DEC-102 — each button needs its own action
     priority: 'P1',
@@ -208,7 +217,7 @@ export const NAV_ITEMS: NavItem[] = [
     path: '/roles',
     label: 'Roles',
     icon: ShieldCheck,
-    group: 'Governance',
+    group: 'User Management',
     inMenu: true,
     access: { project: 'viewRoles' },
     priority: 'P1',
@@ -242,6 +251,12 @@ export const NAV_ITEMS: NavItem[] = [
 export interface RouteMeta {
   item: NavItem
   title: string // tab title: the Reference No on the detail page
+}
+
+/** The screens above an item, top first: Flow Detail → [Projects, Flows] (breadcrumb, menu highlight). */
+export function parentsOf(item: NavItem): NavItem[] {
+  const parent = item.parent && NAV_ITEMS.find((i) => i.path === item.parent)
+  return parent ? [...parentsOf(parent), parent] : []
 }
 
 export function routeMetaFor(pathname: string): RouteMeta | undefined {

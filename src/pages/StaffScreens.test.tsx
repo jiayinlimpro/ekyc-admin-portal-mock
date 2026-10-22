@@ -25,7 +25,7 @@ describe('screens for platform staff (DEC-99)', () => {
   it('Given Support, then the menu has what the role allows and nothing to manage users or roles', async () => {
     renderAt('/dashboard')
     await mainNav().findByRole('link', { name: 'Verifications' })
-    for (const shown of ['Overview', 'Verifications', 'Flows', 'Audit Logs', 'Merchants']) expect(mainNav().getByRole('link', { name: shown })).toBeTruthy()
+    for (const shown of ['Overview', 'Verifications', 'Projects', 'Audit Logs', 'Merchants']) expect(mainNav().getByRole('link', { name: shown })).toBeTruthy()
     for (const hidden of ['Users', 'Roles', 'Super admins', 'Workflow Registry', 'Billing']) expect(mainNav().queryByRole('link', { name: hidden })).toBeNull()
   })
 

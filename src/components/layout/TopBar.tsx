@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router'
 import { Bell, ChevronDown, ChevronRight, FolderKanban, Languages, Maximize, Minimize, Moon, PanelLeft, Search, Sun, UserRound } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAccess } from '@/app/access'
-import { routeMetaFor } from '@/app/nav'
+import { parentsOf, routeMetaFor } from '@/app/nav'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -48,20 +48,25 @@ function Breadcrumb() {
   const meta = routeMetaFor(pathname)
   const tabTitle = useTabs((s) => s.tabs.find((t) => t.key === pathname)?.title) // e.g. the case's Reference ID
   if (!meta) return null
-  const parts = [meta.item.group !== meta.title ? meta.item.group : undefined, meta.item.path === '/verifications/:caseId' ? 'Verifications' : undefined, tabTitle ?? meta.title].filter(Boolean)
+  // REQ: DEC-103 — group › the screens it is opened from (links) › this screen, e.g. eKYC › Projects › Flows.
+  const parts: { label: string; to?: string }[] = [
+    ...(meta.item.group && meta.item.group !== meta.title ? [{ label: meta.item.group }] : []),
+    ...parentsOf(meta.item).map((i) => ({ label: i.label, to: i.path })),
+    { label: tabTitle ?? meta.title },
+  ]
   return (
     <nav aria-label="Breadcrumb" className="min-w-0">
       <ol className="flex items-center gap-1 text-sm text-muted-foreground">
         {parts.map((p, i) => (
           <li key={i} className="flex min-w-0 items-center gap-1">
             {i > 0 && <ChevronRight className="size-3.5 shrink-0" aria-hidden />}
-            {p === 'Verifications' && i < parts.length - 1 ? (
-              <Link to="/verifications" className="hover:text-foreground">
-                {p}
+            {p.to ? (
+              <Link to={p.to} className="hover:text-foreground">
+                {p.label}
               </Link>
             ) : (
               <span className={i === parts.length - 1 ? 'truncate font-medium text-foreground' : 'truncate'} aria-current={i === parts.length - 1 ? 'page' : undefined}>
-                {p}
+                {p.label}
               </span>
             )}
           </li>

@@ -452,6 +452,16 @@ Rules changed on 2026-10-20 (Projects & Flows restructure) are marked **(changed
   Users and Access → Users + Roles ([FRS] method, DEC-74, DEC-76); Merchant Workflow Directory → Workflow Registry ("flows using it"); the [MS] Reports
   module → folded into the three dashboards (DEC-86). Overview, System Intelligence, Billing and Merchants otherwise follow
   [FRS]. [MS][PO 2026-10-20]
+- **DEC-103** **(new)** Sidebar menu [PO 2026-10-22]:
+  - Groups, in order: **Dashboards** (Overview, System Intelligence, Billing) · **eKYC** (Verifications, Projects) ·
+    **User Management** (Users, Roles) · **Governance** (Audit Logs) · **Platform** (Merchants, Super admins, Workflow
+    Registry). Group icons: gauge, face scan, people, scroll, cog.
+  - **Project Settings and Flows are not menu entries**: they are opened from a project on the Projects screen (its Flows
+    and Settings buttons, which also select that project in the header). The breadcrumb shows where they come from
+    (eKYC › Projects › Flows), and Projects stays highlighted in the menu while they are open.
+  - **Collapsed sidebar**: one icon per group (plus any top-level screen); hovering a group icon, or clicking it or
+    pressing Enter on it, opens a flyout to its right with the group's name and its screens. The group of the current
+    screen is highlighted. The expanded sidebar keeps the groups that open and close.
 - **DEC-86** **(changed)** Overview, System Intelligence and Billing are visible to every role; only the data differs.
   [PO 2026-10-20]
   - **Scope:** Platform Admin = all merchants (merchant filter shown); Merchant Owner = all the merchant's projects;

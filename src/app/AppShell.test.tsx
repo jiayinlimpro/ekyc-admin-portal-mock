@@ -69,8 +69,45 @@ describe('AppShell', () => {
     useSession.getState().switchUser(ADMIN)
     renderAt('/')
     await mainNav().findByRole('link', { name: /Merchants/ })
-    for (const shown of ['Users', 'Roles', /Billing/, /Audit Logs/, 'Workflow Registry', 'Projects', 'Flows', 'Merchants', 'Super admins', 'Verifications']) expect(mainNav().getByRole('link', { name: shown })).toBeTruthy()
+    for (const shown of ['Users', 'Roles', /Billing/, /Audit Logs/, 'Workflow Registry', 'Projects', 'Merchants', 'Super admins', 'Verifications']) expect(mainNav().getByRole('link', { name: shown })).toBeTruthy()
     for (const retired of [/eKYC Workflow/, /Developers/, 'Users and Access', /Merchant Workflow Directory/]) expect(mainNav().queryByRole('link', { name: retired })).toBeNull()
+  })
+
+  it('Given a Super admin, then the groups in order, Users and Roles under User Management, Audit Logs under Governance, Projects in eKYC, and no Flows or Project Settings entries (DEC-103)', async () => {
+    useSession.getState().switchUser(ADMIN)
+    renderAt('/')
+    await mainNav().findByRole('link', { name: /Merchants/ })
+    expect(mainNav().getAllByRole('heading', { level: 2 }).map((h) => h.textContent)).toEqual(['Dashboards', 'eKYC', 'User Management', 'Governance', 'Platform'])
+    const group = (name: string) => within(screen.getByRole('region', { name })).getAllByRole('link').map((l) => l.textContent)
+    expect(group('eKYC')).toEqual(['Verifications', 'Projects'])
+    expect(group('User Management')).toEqual(['Users', 'Roles'])
+    expect(group('Governance')).toEqual(['Audit Logs'])
+    for (const gone of ['Flows', 'Project Settings']) expect(mainNav().queryByRole('link', { name: gone })).toBeNull()
+  })
+
+  it('Given Flows (opened from a project), then the breadcrumb reads eKYC › Projects › Flows and Projects stays highlighted in the menu (DEC-103)', async () => {
+    useSession.getState().switchUser(OWNER)
+    useSession.getState().selectProject(fx('PRJ-0001'))
+    renderAt('/flows')
+    const crumbs = await screen.findByRole('navigation', { name: 'Breadcrumb' })
+    await waitFor(() => expect(within(crumbs).getAllByRole('listitem').map((l) => l.textContent)).toEqual(['eKYC', 'Projects', 'Flows']))
+    expect(within(crumbs).getByRole('link', { name: 'Projects' }).getAttribute('href')).toBe('/projects')
+    expect(mainNav().getByRole('link', { name: 'Projects' }).className).toContain('font-medium')
+  })
+
+  it('Given a collapsed sidebar, then only group icons; opening one shows a flyout with the group name and its screens (DEC-103)', async () => {
+    useSession.getState().switchUser(OWNER)
+    useUi.setState({ sidebarCollapsed: true })
+    const router = renderAt('/dashboard')
+    const group = await mainNav().findByRole('button', { name: 'User Management' })
+    expect(mainNav().queryByRole('link', { name: 'Users' })).toBeNull() // no item links in the narrow sidebar
+    expect(mainNav().getByRole('button', { name: 'Dashboards' }).className).toContain('font-medium') // the current group
+    fireEvent.click(group)
+    const flyout = await screen.findByRole('menu')
+    expect(within(flyout).getByText('User Management')).toBeTruthy()
+    expect(within(flyout).getAllByRole('menuitem').map((m) => m.textContent)).toEqual(['Users', 'Roles'])
+    fireEvent.click(within(flyout).getByRole('menuitem', { name: 'Roles' }))
+    await waitFor(() => expect(router.state.location.pathname).toBe('/roles'))
   })
 
   it('Given a Reviewer opens the Audit Log URL directly, then "No access" (DEC-72)', async () => {
