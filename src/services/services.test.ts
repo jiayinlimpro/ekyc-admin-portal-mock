@@ -75,11 +75,31 @@ describe('verificationService.list', () => {
     expect((await svc.list({ claim: 'UNCLAIMED', pageSize: 500 }, ALI)).items.every((r) => !r.claimedBy)).toBe(true)
   })
 
-  it('Given no sort, then oldest Last updated first; NEWEST reverses it (DEC-43)', async () => {
+  it('Given no sort, then oldest Last updated first; Last updated descending reverses it (DEC-43)', async () => {
     const oldest = (await svc.list({ statuses: ['PENDING_REVIEW'], pageSize: 500 }, ALI)).items.map((r) => r.lastUpdatedAt)
     expect(oldest).toEqual([...oldest].sort())
-    const newest = (await svc.list({ statuses: ['PENDING_REVIEW'], sort: 'NEWEST', pageSize: 500 }, ALI)).items.map((r) => r.lastUpdatedAt)
+    const newest = (await svc.list({ statuses: ['PENDING_REVIEW'], sort: { by: 'lastUpdatedAt', dir: 'desc' }, pageSize: 500 }, ALI)).items.map((r) => r.lastUpdatedAt)
     expect(newest).toEqual([...oldest].reverse())
+  })
+
+  it('Given a column sort, then Reference ID, status (lifecycle order) and risk (Low → High, none last) sort both ways (DEC-100)', async () => {
+    const list = async (by: 'referenceNo' | 'status' | 'riskLevel', dir: 'asc' | 'desc') => (await svc.list({ sort: { by, dir }, pageSize: 500 }, OWNER)).items
+    const refs = (await list('referenceNo', 'asc')).map((r) => r.referenceNo)
+    expect(refs).toEqual([...refs].sort())
+    expect((await list('referenceNo', 'desc')).map((r) => r.referenceNo)).toEqual([...refs].reverse())
+    const order = ['PROCESSING', 'PENDING_REVIEW', 'APPROVED', 'REJECTED']
+    const statuses = (await list('status', 'asc')).map((r) => order.indexOf(r.status))
+    expect(statuses).toEqual([...statuses].sort((a, b) => a - b))
+    const down = (await list('status', 'desc')).map((r) => order.indexOf(r.status))
+    expect(down).toEqual([...down].sort((a, b) => b - a))
+    const risk = ['LOW', 'MEDIUM', 'HIGH']
+    for (const dir of ['asc', 'desc'] as const) {
+      const levels = (await list('riskLevel', dir)).map((r) => r.riskLevel)
+      const rated = levels.filter(Boolean).map((l) => risk.indexOf(l!))
+      expect(new Set(levels.slice(rated.length))).toEqual(new Set([undefined])) // no risk level: last either way
+      expect(rated).toEqual([...rated].sort((a, b) => (dir === 'asc' ? a - b : b - a)))
+      expect(rated.length).toBeGreaterThan(0)
+    }
   })
 
   it('Given filter options, then only projects and flows in the case scope, with whether each flow runs risk', async () => {

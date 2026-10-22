@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { formatRemaining, mytDateToUtcIso } from '@/lib/format'
-import { DEFAULT_FILTERS, DEFAULT_PAGE_SIZE, isDefaultView, parseListParams, toQuery, toSearchParams, validateFilters, type ListParams } from './listQuery'
+import { DEFAULT_FILTERS, DEFAULT_PAGE_SIZE, isDefaultView, nextSort, parseListParams, toQuery, toSearchParams, validateFilters, type ListParams } from './listQuery'
 import { fx } from '@/lib/ids'
 
 const parse = (qs: string) => parseListParams(new URLSearchParams(qs))
@@ -8,7 +8,8 @@ const parse = (qs: string) => parseListParams(new URLSearchParams(qs))
 describe('parseListParams / toSearchParams', () => {
   it('Given no params, then the DEC-43 default view: Pending Review, oldest first, page 1', () => {
     expect(parse('')).toEqual({ filters: DEFAULT_FILTERS, page: 1, pageSize: DEFAULT_PAGE_SIZE })
-    expect(DEFAULT_FILTERS).toMatchObject({ statuses: ['PENDING_REVIEW'], sort: 'OLDEST' })
+    expect(DEFAULT_FILTERS).toMatchObject({ statuses: ['PENDING_REVIEW'] })
+    expect(parse('').sort).toBeUndefined() // the default order: Last updated, oldest first
   })
 
   it('round-trips every filter through the URL', () => {
@@ -25,8 +26,8 @@ describe('parseListParams / toSearchParams', () => {
         createdTo: '2026-09-25',
         riskLevels: ['HIGH'],
         lastUpdatedBy: 'MANUAL',
-        sort: 'NEWEST',
       },
+      sort: { by: 'riskLevel', dir: 'desc' },
       page: 3,
       pageSize: 50,
     }
@@ -46,6 +47,22 @@ describe('parseListParams / toSearchParams', () => {
 
   it('Given junk page, size, dates, claim and updatedBy, then defaults are used', () => {
     expect(parse('page=-2&size=7&from=25/09/2026&updatedBy=ROBOT&claim=SOMEONE')).toEqual({ filters: DEFAULT_FILTERS, page: 1, pageSize: DEFAULT_PAGE_SIZE })
+  })
+
+  it('Given a column sort, then it is written as column.direction; an old "newest" link means Last updated descending (DEC-100)', () => {
+    expect(toSearchParams({ filters: DEFAULT_FILTERS, sort: { by: 'status', dir: 'asc' }, page: 1, pageSize: DEFAULT_PAGE_SIZE }).toString()).toBe('sort=status.asc')
+    expect(parse('sort=newest').sort).toEqual({ by: 'lastUpdatedAt', dir: 'desc' })
+    expect(parse('sort=fullName.asc').sort).toBeUndefined() // not sortable (FRS)
+    expect(parse('sort=status.sideways').sort).toBeUndefined()
+  })
+
+  it('Given clicks on one column, then ascending, descending, then the default order; another column starts at ascending (DEC-100)', () => {
+    const asc = nextSort(undefined, 'referenceNo')
+    expect(asc).toEqual({ by: 'referenceNo', dir: 'asc' })
+    const desc = nextSort(asc, 'referenceNo')
+    expect(desc).toEqual({ by: 'referenceNo', dir: 'desc' })
+    expect(nextSort(desc, 'referenceNo')).toBeUndefined()
+    expect(nextSort(desc, 'status')).toEqual({ by: 'status', dir: 'asc' })
   })
 
   it('knows the default view whatever the status order', () => {
@@ -68,7 +85,8 @@ describe('toQuery', () => {
   })
 
   it('leaves empty filters out of the service query', () => {
-    expect(toQuery(parse('status=ALL'))).toEqual({ sort: 'OLDEST', page: 1, pageSize: DEFAULT_PAGE_SIZE })
+    expect(toQuery(parse('status=ALL'))).toEqual({ page: 1, pageSize: DEFAULT_PAGE_SIZE })
+    expect(toQuery(parse('status=ALL&sort=status.desc')).sort).toEqual({ by: 'status', dir: 'desc' })
   })
 })
 

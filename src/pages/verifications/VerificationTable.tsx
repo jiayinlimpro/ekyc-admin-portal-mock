@@ -1,3 +1,4 @@
+import { ArrowDown, ArrowUp, ChevronsUpDown } from 'lucide-react'
 import { Link } from 'react-router'
 import { RiskBadge } from '@/components/common/RiskBadge'
 import { StatusBadge } from '@/components/common/StatusBadge'
@@ -7,12 +8,45 @@ import { useNow } from '@/hooks/useNow'
 import { formatMyt } from '@/lib/format'
 import { DOCUMENT_TYPE_LABELS } from '@/lib/labels'
 import { cn } from '@/lib/utils'
+import type { VerificationSort, VerificationSortKey } from '@/services/verificationService'
 
 type Column = 'Full Name' | 'Project' | 'Flow' | 'Document' | 'Status' | 'Risk Level' | 'Claimed By' | 'Created (MYT)' | 'Last updated (MYT)'
 
 // Sticky first column: on narrow screens the table still scrolls sideways, with the Reference ID visible.
 // REQ: DEC-40 — related values share a column (second line) so the list fits a desktop screen without scrolling.
 const STICKY = 'sticky left-0 z-10 bg-card group-hover:bg-muted'
+
+// REQ: DEC-100 — the FRS sortable columns; Full Name, Merchant and the rest are not sortable.
+const SORT_KEY: Partial<Record<Column | 'Reference ID', VerificationSortKey>> = {
+  'Reference ID': 'referenceNo',
+  Status: 'status',
+  'Risk Level': 'riskLevel',
+  'Last updated (MYT)': 'lastUpdatedAt',
+}
+
+/** REQ: DEC-100 — a column name that sorts on click (ascending → descending → default), with its state as an icon. */
+function HeaderCell({ name, sort, onSort, className }: { name: Column | 'Reference ID'; sort?: VerificationSort; onSort?: (by: VerificationSortKey) => void; className?: string }) {
+  const key = SORT_KEY[name]
+  const th = cn('px-2 py-2 font-medium whitespace-nowrap', className)
+  if (!key || !onSort) {
+    return (
+      <th scope="col" className={th}>
+        {name}
+      </th>
+    )
+  }
+  const dir = sort?.by === key ? sort.dir : undefined
+  const Icon = dir === 'asc' ? ArrowUp : dir === 'desc' ? ArrowDown : ChevronsUpDown
+  const next = dir === 'asc' ? 'sort descending' : dir === 'desc' ? 'back to the default order' : 'sort ascending'
+  return (
+    <th scope="col" className={th} aria-sort={dir === 'asc' ? 'ascending' : dir === 'desc' ? 'descending' : 'none'}>
+      <button type="button" onClick={() => onSort(key)} title={`Click to ${next}`} className={cn('-mx-1 inline-flex items-center gap-1 rounded px-1 hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none', dir && 'text-foreground')}>
+        {name}
+        <Icon aria-hidden className={cn('size-3.5', !dir && 'opacity-50')} />
+      </button>
+    </th>
+  )
+}
 
 function When({ iso }: { iso: string }) {
   const [day, time] = formatMyt(iso).split(', ')
@@ -62,6 +96,8 @@ export function VerificationTable({
   showProject,
   showRisk,
   showMerchant = false,
+  sort,
+  onSort,
 }: {
   rows: VerificationSummary[]
   currentUserId: string
@@ -71,6 +107,9 @@ export function VerificationTable({
   showRisk: boolean
   /** Super admin across merchants: the merchant under the project ("Default" exists in every merchant). */
   showMerchant?: boolean
+  /** REQ: DEC-100 — the column sort; undefined = the default order. Without `onSort` the headers don't sort. */
+  sort?: VerificationSort
+  onSort?: (by: VerificationSortKey) => void
 }) {
   const now = useNow(1000) // drives the claim countdowns
   type Cell = [Column, (r: VerificationSummary) => React.ReactNode, boolean?]
@@ -92,13 +131,9 @@ export function VerificationTable({
         <caption className="sr-only">Verifications. Personal data other than Full Name is shown on the detail page only.</caption>
         <thead className="bg-muted/50 text-left text-xs text-muted-foreground">
           <tr>
-            <th scope="col" className="sticky left-0 z-10 bg-muted px-2 py-2 font-medium whitespace-nowrap">
-              Reference ID
-            </th>
+            <HeaderCell name="Reference ID" sort={sort} onSort={onSort} className="sticky left-0 z-10 bg-muted" />
             {cells.map(([c]) => (
-              <th key={c} scope="col" className="px-2 py-2 font-medium whitespace-nowrap">
-                {c}
-              </th>
+              <HeaderCell key={c} name={c} sort={sort} onSort={onSort} />
             ))}
           </tr>
         </thead>

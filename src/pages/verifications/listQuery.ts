@@ -2,7 +2,7 @@
 // Filters live in the URL so a filtered list can be shared and survives refresh / tab switches.
 import { RISK_LEVELS, VERIFICATION_STATUSES, type RiskLevel, type VerificationStatus } from '@/domain/types'
 import { mytDateToUtcIso } from '@/lib/format'
-import type { VerificationQuery } from '@/services/verificationService'
+import { VERIFICATION_SORT_KEYS, type VerificationQuery, type VerificationSort, type VerificationSortKey } from '@/services/verificationService'
 
 export const CLAIM_STATES = ['UNCLAIMED', 'MINE', 'OTHERS'] as const
 export type ClaimState = (typeof CLAIM_STATES)[number]
@@ -20,16 +20,29 @@ export interface ListFilters {
   createdTo: string
   riskLevels: RiskLevel[]
   lastUpdatedBy: '' | 'SYSTEM' | 'MANUAL'
-  sort: 'OLDEST' | 'NEWEST'
 }
 
 export interface ListParams {
   filters: ListFilters
+  /** REQ: DEC-100 — set by clicking a column name; undefined = the default order (Last updated, oldest first). */
+  sort?: VerificationSort
   page: number
   pageSize: number
 }
 
-/** REQ: DEC-43 — the default view: Pending Review cases in the user's projects, oldest first. */
+/** REQ: DEC-100 — each click on a sortable column: ascending → descending → back to the default order. */
+export function nextSort(current: VerificationSort | undefined, by: VerificationSortKey): VerificationSort | undefined {
+  if (current?.by !== by) return { by, dir: 'asc' }
+  return current.dir === 'asc' ? { by, dir: 'desc' } : undefined
+}
+
+function parseSort(raw: string | null): VerificationSort | undefined {
+  if (raw === 'newest') return { by: 'lastUpdatedAt', dir: 'desc' } // links from before column sorting
+  const [by, dir] = (raw ?? '').split('.')
+  return (VERIFICATION_SORT_KEYS as readonly string[]).includes(by) && (dir === 'asc' || dir === 'desc') ? { by: by as VerificationSortKey, dir } : undefined
+}
+
+/** REQ: DEC-43 — the default view: Pending Review cases in the user's projects, oldest first (no `sort`). */
 export const DEFAULT_FILTERS: ListFilters = {
   referenceNo: '',
   fullName: '',
@@ -42,7 +55,6 @@ export const DEFAULT_FILTERS: ListFilters = {
   createdTo: '',
   riskLevels: [],
   lastUpdatedBy: '',
-  sort: 'OLDEST',
 }
 
 export const PAGE_SIZES = [10, 20, 50, 100] as const
@@ -67,6 +79,7 @@ export function parseListParams(sp: URLSearchParams): ListParams {
   const status = sp.get('status')
   const page = Number(sp.get('page'))
   const size = Number(sp.get('size'))
+  const sort = parseSort(sp.get('sort'))
   return {
     filters: {
       referenceNo: sp.get('referenceNo')?.trim() ?? '',
@@ -80,8 +93,8 @@ export function parseListParams(sp: URLSearchParams): ListParams {
       createdTo: date('to'),
       riskLevels: list(sp.get('risk'), RISK_LEVELS),
       lastUpdatedBy: updatedBy === 'SYSTEM' || updatedBy === 'MANUAL' ? updatedBy : '',
-      sort: sp.get('sort') === 'newest' ? 'NEWEST' : 'OLDEST',
     },
+    ...(sort && { sort }),
     page: Number.isInteger(page) && page >= 1 ? page : 1,
     pageSize: (PAGE_SIZES as readonly number[]).includes(size) ? size : DEFAULT_PAGE_SIZE,
   }
@@ -103,7 +116,7 @@ export function toSearchParams(p: ListParams): URLSearchParams {
   set('to', f.createdTo)
   set('risk', f.riskLevels.join(','))
   set('updatedBy', f.lastUpdatedBy)
-  if (f.sort === 'NEWEST') sp.set('sort', 'newest')
+  if (p.sort) sp.set('sort', `${p.sort.by}.${p.sort.dir}`)
   if (p.page > 1) sp.set('page', String(p.page))
   if (p.pageSize !== DEFAULT_PAGE_SIZE) sp.set('size', String(p.pageSize))
   return sp
@@ -132,7 +145,7 @@ export function toQuery(p: ListParams, inView?: readonly string[]): Verification
     createdTo: f.createdTo ? mytDateToUtcIso(f.createdTo, true) : undefined,
     riskLevels: f.riskLevels.length ? f.riskLevels : undefined,
     lastUpdatedBy: f.lastUpdatedBy || undefined,
-    sort: f.sort,
+    ...(p.sort && { sort: p.sort }),
     page: p.page,
     pageSize: p.pageSize,
   }

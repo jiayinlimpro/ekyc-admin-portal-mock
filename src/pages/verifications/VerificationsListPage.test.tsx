@@ -39,6 +39,29 @@ describe('Verifications List', () => {
     expect(screen.getByText(/Pending Review cases in your projects, oldest first/)).toBeTruthy()
   })
 
+  it('Given clicks on the Status column name, then ascending, descending, then the default order; unsaved filters stay (DEC-100)', async () => {
+    const router = renderAt('/verifications?status=ALL')
+    await dataRows()
+    expect(screen.queryByLabelText(/Sort by/)).toBeNull() // no sort control in the filters
+    const header = () => within(table()).getByRole('columnheader', { name: /^Status/ })
+    expect(header().getAttribute('aria-sort')).toBe('none')
+    expect(within(table()).getByRole('columnheader', { name: 'Full Name' }).querySelector('button')).toBeNull() // not sortable (FRS)
+    fireEvent.change(screen.getByLabelText('Full Name'), { target: { value: 'tan' } }) // not searched yet
+    const order = ['Processing', 'Pending Review', 'Approved', 'Rejected']
+    const statuses = async () => (await dataRows()).map((r) => order.findIndex((s) => r.textContent!.includes(s)))
+    fireEvent.click(within(header()).getByRole('button'))
+    await waitFor(() => expect(header().getAttribute('aria-sort')).toBe('ascending'))
+    expect(router.state.location.search).toBe('?status=ALL&sort=status.asc')
+    expect(await statuses()).toEqual([...(await statuses())].sort((a, b) => a - b))
+    fireEvent.click(within(header()).getByRole('button'))
+    await waitFor(() => expect(header().getAttribute('aria-sort')).toBe('descending'))
+    expect((await statuses())[0]).toBe(3) // Rejected first
+    fireEvent.click(within(header()).getByRole('button'))
+    await waitFor(() => expect(header().getAttribute('aria-sort')).toBe('none'))
+    expect(router.state.location.search).toBe('?status=ALL')
+    expect((screen.getByLabelText('Full Name') as HTMLInputElement).value).toBe('tan')
+  })
+
   it('Given a Reviewer, then only their projects are listed and no NRIC, passport no. or client metadata appears (DEC-40)', async () => {
     renderAt('/verifications?status=ALL')
     const rows = await dataRows()

@@ -123,12 +123,6 @@ export function VerificationFilters({ initial, onSearch, onReset, options }: { i
             <option value="MANUAL">Manual (reviewer)</option>
           </NativeSelect>
         </Field>
-        <Field id="f-sort" label="Sort by last updated">
-          <NativeSelect id="f-sort" value={draft.sort} onChange={(e) => set('sort', e.target.value as ListFilters['sort'])}>
-            <option value="OLDEST">Oldest first</option>
-            <option value="NEWEST">Newest first</option>
-          </NativeSelect>
-        </Field>
         <Field id="f-from" label="Created from" hint="MYT">
           <Input id="f-from" type="date" value={draft.createdFrom} max={draft.createdTo || undefined} onChange={(e) => set('createdFrom', e.target.value)} aria-invalid={!!error} />
         </Field>

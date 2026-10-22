@@ -11,7 +11,7 @@ import { applyDecision, checkOwnershipAtSave, decisionReason, claim as claimRule
 import { evaluateCase } from '@/domain/checkRules'
 import { newCaseAllowedAt, revisionLabel } from '@/domain/flowRules'
 import { hasRisk } from '@/domain/registryRules'
-import { CHECKS, PHASE_LABELS, type Actor, type AuditAction, type CaseActivity, type Decision, type Flow, type Paged, type Project, type RiskLevel, type Verification, type VerificationDetail, type VerificationStatus, type VerificationSummary } from '@/domain/types'
+import { CHECKS, PHASE_LABELS, RISK_LEVELS, VERIFICATION_STATUSES, type Actor, type AuditAction, type CaseActivity, type Decision, type Flow, type Paged, type Project, type RiskLevel, type Verification, type VerificationDetail, type VerificationStatus, type VerificationSummary } from '@/domain/types'
 import { now } from '@/lib/clock'
 import { db } from '@/mocks/mockDb'
 import { mayInProject, projectById, projectIdsWhere, requireActive, roleIn } from './accessGuard'
@@ -20,6 +20,14 @@ import { settleRetiringFlow } from './flowService'
 import { ServiceError } from './errors'
 import { clientIpFor, simulateNetwork, wire } from './network'
 import { maskDetail } from '@/domain/piiMasking'
+
+/** REQ: DEC-100 — the columns the FRS lets the list sort on (never Full Name or Merchant). */
+export const VERIFICATION_SORT_KEYS = ['referenceNo', 'status', 'riskLevel', 'lastUpdatedAt'] as const
+export type VerificationSortKey = (typeof VERIFICATION_SORT_KEYS)[number]
+export interface VerificationSort {
+  by: VerificationSortKey
+  dir: 'asc' | 'desc'
+}
 
 // REQ: DEC-43 — filters, search and sort of the Verifications List.
 export interface VerificationQuery {
@@ -35,10 +43,30 @@ export interface VerificationQuery {
   createdTo?: string // ISO, inclusive
   riskLevels?: RiskLevel[]
   lastUpdatedBy?: 'SYSTEM' | 'MANUAL'
-  /** By Last updated (for Pending Review: when it started waiting). Default OLDEST (DEC-43). */
-  sort?: 'OLDEST' | 'NEWEST'
+  /** A column sort (DEC-100). Omitted = the default: Last updated, oldest first (the case waiting longest, DEC-43). */
+  sort?: VerificationSort
   page?: number // 1-based
   pageSize?: number
+}
+
+// REQ: DEC-100 — status in lifecycle order, risk Low → High; a case without a risk level is last either way.
+const STATUS_ORDER = (s: VerificationStatus) => VERIFICATION_STATUSES.indexOf(s)
+const RISK_ORDER = (r?: RiskLevel) => (r ? RISK_LEVELS.indexOf(r) : undefined)
+
+/** REQ: DEC-43 / DEC-100 — the chosen column, then the default order (Last updated oldest first, then Reference No.). */
+function compareBy(sort?: VerificationSort) {
+  const byDefault = (a: Verification, b: Verification) => a.lastUpdatedAt.localeCompare(b.lastUpdatedAt) || a.referenceNo.localeCompare(b.referenceNo)
+  if (!sort) return byDefault
+  const sign = sort.dir === 'asc' ? 1 : -1
+  return (a: Verification, b: Verification) => {
+    if (sort.by === 'riskLevel') {
+      const [x, y] = [RISK_ORDER(a.riskLevel), RISK_ORDER(b.riskLevel)]
+      if (x === undefined || y === undefined) return (x === undefined ? 1 : 0) - (y === undefined ? 1 : 0) || byDefault(a, b)
+      return sign * (x - y) || byDefault(a, b)
+    }
+    const c = sort.by === 'status' ? STATUS_ORDER(a.status) - STATUS_ORDER(b.status) : sort.by === 'referenceNo' ? a.referenceNo.localeCompare(b.referenceNo) : byDefault(a, b)
+    return sign * c || byDefault(a, b)
+  }
 }
 
 /** Projects and flows the user can filter on: those in their case scope (DEC-43). */
@@ -174,8 +202,7 @@ export const mockVerificationService: VerificationService = {
         if (q.createdTo && v.createdAt > q.createdTo) return false
         return true
       })
-      // REQ: DEC-43 — oldest first by default (the case waiting longest); ties by Reference No.
-      .sort((a, b) => (q.sort === 'NEWEST' ? -1 : 1) * (a.lastUpdatedAt.localeCompare(b.lastUpdatedAt) || a.referenceNo.localeCompare(b.referenceNo)))
+      .sort(compareBy(q.sort))
     const pageSize = Math.max(1, q.pageSize ?? 20)
     const page = Math.max(1, q.page ?? 1)
     return {

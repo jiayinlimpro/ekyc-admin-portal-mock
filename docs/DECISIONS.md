@@ -142,6 +142,13 @@ Rules changed on 2026-10-20 (Projects & Flows restructure) are marked **(changed
 - **DEC-43** **(new)** Verifications List filters: project, flow, workflow version, status, claim state (unclaimed / mine /
   others), risk level, date range; search by Reference ID and Full Name. Default view: `PENDING_REVIEW` cases in the user's
   projects, oldest first. [MS][FRS]
+- **DEC-100** **(new)** Verifications List sorting is on the column names, not in the filters [PO 2026-10-22]. Sortable
+  columns, per the FRS: Reference ID, Status, Risk Level, Last updated (never Full Name or Merchant). Each click on a
+  column: ascending → descending → back to the default order (Last updated, oldest first, DEC-43; this replaces the FRS
+  default "updatedAt descending" for the review queue). The column shows its state with a small icon (and `aria-sort`).
+  Status sorts in lifecycle order (Processing, Pending Review, Approved, Rejected); risk Low → High, cases without a risk
+  level last either way; ties by Last updated, then Reference ID. A sort applies at once and is kept in the URL
+  (`sort=status.asc`); it does not reset the filters. [FRS][PO 2026-10-22]
 - **DEC-44** **(new)** Verification Detail sections: header (Reference ID, case ID with copy (DEC-97), status, project, flow, workflow version,
   configuration revision, created, last updated) · claim panel · end-user data (email for V4/V5) · ID capture (images, result,
   soft rejects) · Selfie (V1 only: image, result) · Face match (result, threshold applied, score, retries used / allowed) ·

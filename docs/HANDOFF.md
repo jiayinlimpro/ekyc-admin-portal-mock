@@ -21,7 +21,7 @@ What the mock gives engineering, and what the real backend must do that a mock c
 
 | Area | Endpoint (draft) | Notes |
 |---|---|---|
-| Verifications | `GET /verifications?…` | Returns summaries only: no NRIC, passport, address or client metadata (DEC-40) |
+| Verifications | `GET /verifications?…` | Returns summaries only: no NRIC, passport, address or client metadata (DEC-40). `sort` = `referenceNo` / `status` / `riskLevel` / `lastUpdatedAt` + `asc` / `desc`; omitted = Last updated, oldest first (DEC-100) |
 | | `GET /verifications/{caseId}` | Full PII + client metadata; the **server** writes `SENSITIVE_PII_VIEW` for every open (DEC-41) |
 | | `POST /verifications/{caseId}/claim` | 409 `ALREADY_CLAIMED` / `NOT_CLAIMABLE`; claim is not a status (DEC-20) |
 | | `DELETE /verifications/{caseId}/claim` | Owner only; 409 `NOT_CLAIM_OWNER`; no supervisor release (DEC-23) |

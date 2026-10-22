@@ -8,7 +8,7 @@ import type { Paged, VerificationSummary } from '@/domain/types'
 import { isServiceError } from '@/services/errors'
 import { verificationService, type FilterOptions } from '@/services/verificationService'
 import { useSession } from '@/stores/sessionStore'
-import { DEFAULT_FILTERS, isDefaultView, PAGE_SIZES, parseListParams, toQuery, toSearchParams, type ListParams } from './listQuery'
+import { DEFAULT_FILTERS, isDefaultView, nextSort, PAGE_SIZES, parseListParams, toQuery, toSearchParams, type ListParams } from './listQuery'
 import { VerificationFilters } from './VerificationFilters'
 import { VerificationTable } from './VerificationTable'
 
@@ -77,7 +77,7 @@ export function VerificationsListPage() {
   }, [result.data, params, setSp])
 
   const go = (next: ListParams) => setSp(toSearchParams(next))
-  const onReset = () => go({ filters: DEFAULT_FILTERS, page: 1, pageSize: params.pageSize })
+  const onReset = () => go({ filters: DEFAULT_FILTERS, sort: params.sort, page: 1, pageSize: params.pageSize })
   const filtered = !isDefaultView(params.filters)
 
   return (
@@ -85,14 +85,14 @@ export function VerificationsListPage() {
       <header>
         <h1 className="text-2xl font-semibold">Verifications</h1>
         <p className="text-sm text-muted-foreground">
-          {!filtered ? 'Pending Review cases in your projects, oldest first. ' : ''}Open a case to review it. Claiming happens on the detail page; claim is not a status.
+          {!filtered ? `Pending Review cases in your projects${params.sort ? '' : ', oldest first'}. ` : ''}Open a case to review it. Claiming happens on the detail page; claim is not a status.
         </p>
       </header>
 
       <VerificationFilters
         key={`${filtersKey}|${viewKey}`} // re-mount when the applied filters or the header's project change
         initial={params.filters}
-        onSearch={(filters) => go({ filters, page: 1, pageSize: params.pageSize })}
+        onSearch={(filters) => go({ filters, sort: params.sort, page: 1, pageSize: params.pageSize })}
         onReset={onReset}
         options={options}
       />
@@ -114,7 +114,7 @@ export function VerificationsListPage() {
               <EmptyState
                 title={filtered ? 'No verifications match these filters' : 'Nothing waiting for review'}
                 action={
-                  <Button variant="outline" size="sm" onClick={() => (filtered ? onReset() : go({ filters: { ...DEFAULT_FILTERS, statuses: [] }, page: 1, pageSize: params.pageSize }))}>
+                  <Button variant="outline" size="sm" onClick={() => (filtered ? onReset() : go({ filters: { ...DEFAULT_FILTERS, statuses: [] }, sort: params.sort, page: 1, pageSize: params.pageSize }))}>
                     {filtered ? 'Reset filters' : 'Show all statuses'}
                   </Button>
                 }
@@ -130,6 +130,8 @@ export function VerificationsListPage() {
                 showProject={options.projects.length > 1}
                 showRisk={options.flows.some((f) => f.runsRisk)}
                 showMerchant={new Set(options.projects.map((p) => p.merchantId)).size > 1}
+                sort={params.sort}
+                onSort={(by) => go({ ...params, sort: nextSort(params.sort, by), page: 1 })} // applies at once, keeps unsaved filters
               />
             )}
             {data && data.total > 0 && (
