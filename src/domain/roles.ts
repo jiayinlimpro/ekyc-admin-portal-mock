@@ -107,6 +107,13 @@ export function accessEndsAt(day: Date | string): string {
   return `${ymd}T15:59:59.999Z` // 23:59:59.999 MYT
 }
 
+/** REQ: DEC-99 / OQ-31 — whether an email is on the company staff domain. */
+export const isStaffEmail = (email: string, domain: string) => email.trim().toLowerCase().endsWith(`@${domain.toLowerCase()}`)
+
+/** REQ: DEC-99 — an end date must be later than now; no end date means "Never". */
+export const endsAtError = (endsAt: string | undefined, now: Date): RuleError[] =>
+  endsAt && new Date(endsAt).getTime() <= now.getTime() ? [{ field: 'endsAt', message: 'The end date must be in the future.' }] : []
+
 /** REQ: DEC-99 — an access row whose end time has passed grants nothing. */
 export const hasEnded = (a: Pick<RoleAssignment, 'endsAt'>, now: Date) => !!a.endsAt && now.getTime() >= new Date(a.endsAt).getTime()
 

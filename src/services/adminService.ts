@@ -93,7 +93,7 @@ export const mockAdminService: AdminService = {
     await simulateNetwork('invite admin')
     requireActive(actor)
     requireAdmins(actor)
-    const email = requireNewUser(input)
+    const email = requireNewUser(input, 'INTERNAL')
     const account: UserAccount = {
       userId: adoptDraftId('usr', input.userId, (id) => db.state().accounts.some((a) => a.userId === id)),
       fullName: input.fullName.trim(),

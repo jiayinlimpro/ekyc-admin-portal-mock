@@ -43,3 +43,6 @@ export function riskLevelFromScore(score: number, bands = POLICY.riskBands): Ris
 
 /** OQ-14: mock token price (RM per liveness submission, DEC-60). */
 export const TOKEN_PRICE = 0.5
+
+/** OQ-31: the company staff email domain (DEC-99): platform staff and super admins must use it; merchant users may not. */
+export const STAFF_EMAIL_DOMAIN = 'ekyc-platform.example'

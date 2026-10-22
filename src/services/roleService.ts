@@ -5,9 +5,9 @@
 //   POST /merchants/{id}/roles      create      → 201 Role | 403 | 422
 //   PUT  /roles/{id}                update      → 200 Role | 403 | 422
 //   POST /roles/{id}/status         setStatus   → 200 Role | 422 (still assigned)
-import { canInMerchant, canInProject } from '@/domain/access'
-import { canGrant, GRANT_TOO_POWERFUL, holdersOf, isMerchantLevel, SYSTEM_DEFAULT_ROLES, validateRole, validateRoleStatus, withImpliedPermissions } from '@/domain/roles'
-import type { Actor, Permission, Role, RoleStatus } from '@/domain/types'
+import { canInMerchant, canInProject, canOnPlatform } from '@/domain/access'
+import { canGrant, GRANT_TOO_POWERFUL, holdersOf, isMerchantLevel, PLATFORM_DEFAULT_ROLES, SYSTEM_DEFAULT_ROLES, validateRole, validateRoleStatus, withImpliedPermissions } from '@/domain/roles'
+import type { Actor, Permission, Role, RoleAudience, RoleStatus } from '@/domain/types'
 import { now } from '@/lib/clock'
 import { permissionList } from '@/lib/labels'
 import { db } from '@/mocks/mockDb'
@@ -23,8 +23,8 @@ export interface RoleInput {
   permissions: Permission[]
 }
 
-/** A new role: the Role ID shown in the dialog (from `draftRoleId`) and its starting status (DEC-76). */
-export type NewRoleInput = RoleInput & { roleId?: string; status?: RoleStatus }
+/** A new role: the Role ID shown in the dialog (from `draftRoleId`), its starting status (DEC-76) and Type (DEC-99). */
+export type NewRoleInput = RoleInput & { roleId?: string; status?: RoleStatus; audience?: RoleAudience }
 
 /** A row on the Roles screen. `users` / `projects`: holders in the viewer's scope; "Affects N users in M projects" (DEC-76). */
 export type RoleRow = Role & { merchantName?: string; users: number; projects: number; heldForSelectedProjects: boolean }
@@ -38,13 +38,15 @@ export interface RoleService {
   assignable(merchantId: string, actor: Actor, projectId?: string): Promise<Role[]>
   /** REQ: DEC-76 — the Role ID shown read-only when the create dialog opens; `create` keeps it. */
   draftRoleId(actor: Actor): Promise<string>
-  create(merchantId: string, input: NewRoleInput, actor: Actor): Promise<Role>
+  /** A Merchant role for `merchantId`, or (super admin, Type = Platform) a platform role with no merchant (DEC-99). */
+  create(merchantId: string | undefined, input: NewRoleInput, actor: Actor): Promise<Role>
   update(roleId: string, input: RoleInput, actor: Actor): Promise<Role>
   setStatus(roleId: string, status: RoleStatus, actor: Actor): Promise<Role>
 }
 
 // System Default roles first, in catalogue order; then Custom roles by created time (DEC-97: never by ID).
-const systemOrder = (r: Role) => (r.type === 'SYSTEM_DEFAULT' ? SYSTEM_DEFAULT_ROLES.findIndex((x) => x.roleId === r.roleId) : SYSTEM_DEFAULT_ROLES.length)
+const SYSTEM_ORDER = [...SYSTEM_DEFAULT_ROLES, ...PLATFORM_DEFAULT_ROLES].map((r) => r.roleId)
+const systemOrder = (r: Role) => (r.type === 'SYSTEM_DEFAULT' ? SYSTEM_ORDER.indexOf(r.roleId) : SYSTEM_ORDER.length)
 const merchantName = (id?: string) => db.state().merchants.find((m) => m.merchantId === id)?.name
 const by = (actor: Actor): Actor => ({ userId: actor.userId, fullName: actor.fullName })
 
@@ -62,9 +64,40 @@ const accountsIn = (merchantId?: string) => db.state().accounts.filter((a) => !m
 function loadRole(me: AccountAccess, roleId: string): Role & { merchantId?: string } {
   const r = db.state().roles.find((x) => x.roleId === roleId)
   if (!r || (r.merchantId && me.level !== 'SUPER_ADMIN' && r.merchantId !== me.merchantId)) throw new ServiceError('NOT_FOUND', `Role ${roleId} not found.`)
+  // REQ: DEC-99 — platform roles exist only for super admins.
+  if (r.audience === 'PLATFORM') {
+    if (!canOnPlatform(me, 'manageStaff')) throw new ServiceError('NOT_FOUND', `Role ${roleId} not found.`)
+    return r
+  }
   if (r.merchantId) requireRoles(me, r.merchantId)
   else if (me.level !== 'SUPER_ADMIN') requireRoles(me, me.merchantId!)
   return r
+}
+
+const platformRoles = () => db.state().roles.filter((r) => r.audience === 'PLATFORM')
+
+/** REQ: DEC-99 — Type = Platform: super admin only; no merchant; platform permissions only. */
+function createPlatformRole(me: AccountAccess, input: NewRoleInput, actor: Actor): Role {
+  if (!canOnPlatform(me, 'manageStaff')) throw new ServiceError('FORBIDDEN', 'Only super admins create platform roles.')
+  const permissions = withImpliedPermissions(input.permissions)
+  const errors = validateRole({ name: input.name, permissions, audience: 'PLATFORM' }, platformRoles())
+  if (errors.length) throw validation(errors)
+  const at = now().toISOString()
+  const role: Role = {
+    roleId: adoptDraftId('rol', input.roleId, (id) => db.state().roles.some((r) => r.roleId === id)),
+    audience: 'PLATFORM',
+    name: input.name.trim(),
+    type: 'CUSTOM',
+    permissions,
+    status: input.status ?? 'ACTIVE',
+    createdAt: at,
+    createdBy: by(actor),
+    updatedAt: at,
+    updatedBy: by(actor),
+  }
+  db.setState((st) => ({ roles: [...st.roles, role] }))
+  auditAccess(actor, 'ROLE_CREATED', undefined, { roleId: role.roleId, name: role.name, type: 'Platform (internal)', permissions, status: role.status, summary: `Platform role ${role.name} created` })
+  return role
 }
 
 const putRole = (r: Role) => db.setState((st) => ({ roles: st.roles.map((x) => (x.roleId === r.roleId ? r : x)) }))
@@ -123,10 +156,11 @@ export const mockRoleService: RoleService = {
   async create(merchantId, input, actor) {
     await simulateNetwork('create role')
     const me = requireActive(actor)
-    if (!db.state().merchants.some((m) => m.merchantId === merchantId) || (me.level !== 'SUPER_ADMIN' && me.merchantId !== merchantId)) throw new ServiceError('NOT_FOUND', `Merchant ${merchantId} not found.`)
+    if (input.audience === 'PLATFORM') return wire(createPlatformRole(me, input, actor))
+    if (!merchantId || !db.state().merchants.some((m) => m.merchantId === merchantId) || (me.level !== 'SUPER_ADMIN' && me.merchantId !== merchantId)) throw new ServiceError('NOT_FOUND', `Merchant ${merchantId} not found.`)
     requireRoles(me, merchantId)
     const permissions = withImpliedPermissions(input.permissions)
-    const errors = validateRole({ name: input.name, permissions }, rolesFor(merchantId))
+    const errors = validateRole({ name: input.name, permissions, audience: 'MERCHANT' }, rolesFor(merchantId))
     if (errors.length) throw validation(errors)
     // REQ: DEC-74 — a role is a grant waiting to happen: nobody defines one more powerful than their own access.
     if (!canGrant(granter(me), permissions, { kind: 'ALL_PROJECTS' })) throw new ServiceError('FORBIDDEN', GRANT_TOO_POWERFUL)
@@ -156,9 +190,10 @@ export const mockRoleService: RoleService = {
     const holders = holdersOf(roleId, db.state().accounts)
     const heldForSelectedProjects = holders.some((a) => a.assignments.some((x) => x.roleId === roleId && x.scope.kind === 'PROJECTS'))
     const permissions = withImpliedPermissions(input.permissions)
-    const errors = validateRole({ name: input.name, permissions }, r.merchantId ? rolesFor(r.merchantId) : db.state().roles, { ...r, heldForSelectedProjects })
+    const others = r.audience === 'PLATFORM' ? platformRoles() : r.merchantId ? rolesFor(r.merchantId) : db.state().roles
+    const errors = validateRole({ name: input.name, permissions, audience: r.audience }, others, { ...r, heldForSelectedProjects })
     if (errors.length) throw validation(errors)
-    if (!canGrant(granter(me), permissions, { kind: 'ALL_PROJECTS' })) throw new ServiceError('FORBIDDEN', GRANT_TOO_POWERFUL)
+    if (r.audience === 'MERCHANT' && !canGrant(granter(me), permissions, { kind: 'ALL_PROJECTS' })) throw new ServiceError('FORBIDDEN', GRANT_TOO_POWERFUL)
     const changes = [
       ...(r.name !== input.name.trim() ? [{ field: 'Role name', from: r.name, to: input.name.trim() }] : []),
       ...(r.permissions.join() !== permissions.join() ? [{ field: `${r.name} permissions`, from: permissionList(r.permissions), to: permissionList(permissions) }] : []),
@@ -166,7 +201,7 @@ export const mockRoleService: RoleService = {
     if (!changes.length) return wire(r)
     const updated: Role = { ...r, name: input.name.trim(), permissions, updatedAt: now().toISOString(), updatedBy: by(actor) }
     putRole(updated)
-    auditAccess(actor, 'ROLE_UPDATED', r.merchantId!, { roleId, users: holders.length, changes })
+    auditAccess(actor, 'ROLE_UPDATED', r.merchantId, { roleId, users: holders.length, changes })
     // Holders who lost Claim (or Approve / reject) lose their open claims (DEC-74).
     releaseLostClaims(actor, holders.map((a) => a.userId), 'Role changed')
     return wire(updated)
@@ -181,7 +216,7 @@ export const mockRoleService: RoleService = {
     if (r.status === status) return wire(r)
     const updated: Role = { ...r, status, updatedAt: now().toISOString(), updatedBy: by(actor) }
     putRole(updated)
-    auditAccess(actor, 'ROLE_STATUS_CHANGED', r.merchantId!, { roleId, changes: [{ field: `${r.name} status`, from: r.status, to: status }] })
+    auditAccess(actor, 'ROLE_STATUS_CHANGED', r.merchantId, { roleId, changes: [{ field: `${r.name} status`, from: r.status, to: status }] })
     return wire(updated)
   },
 }

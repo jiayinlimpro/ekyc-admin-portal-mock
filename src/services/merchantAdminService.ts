@@ -11,7 +11,7 @@ import { canOnPlatform } from '@/domain/access'
 import { makeAudit } from '@/domain/audit'
 import { createFlow } from '@/domain/flowSettings'
 import { MERCHANT_TRANSITIONS, nameError, normalizeRegistrationNo, phoneError, statusChangeErrors, validateMerchantProfile, type MerchantProfileInput } from '@/domain/merchantRules'
-import { DEFAULT_CLAIM_TIMEOUT_MIN } from '@/domain/openQuestions'
+import { DEFAULT_CLAIM_TIMEOUT_MIN, STAFF_EMAIL_DOMAIN } from '@/domain/openQuestions'
 import { PROJECT_SETTING_DEFAULTS } from '@/domain/projectSettings'
 import { defaultVersion } from '@/domain/registryRules'
 import { SYSTEM_ROLE_IDS } from '@/domain/roles'
@@ -24,6 +24,7 @@ import { accountOf, nextAssignmentId, requireActive } from './accessGuard'
 import { ServiceError } from './errors'
 import { clientIpFor, simulateNetwork, wire } from './network'
 import { auditProject, validation } from './projectService'
+import { isStaffEmail } from '@/domain/roles'
 
 /** A row on the Merchants screen, with what the detail panel shows. */
 export interface MerchantRow extends Merchant {
@@ -103,6 +104,7 @@ export const mockMerchantAdminService: MerchantAdminService = {
     const s = db.state()
     const email = input.contactEmail.trim().toLowerCase()
     const errors = validateMerchantProfile(input, s.merchants, s.accounts.some((a) => a.email.toLowerCase() === email), isCountryCode)
+    if (!errors.some((e) => e.field === 'contactEmail') && isStaffEmail(email, STAFF_EMAIL_DOMAIN)) errors.push({ field: 'contactEmail', message: `Company staff emails (@${STAFF_EMAIL_DOMAIN}) can’t be used for merchant users.` })
     if (errors.length) throw validation(errors)
     const entry = defaultVersion(s.registry)
     if (!entry) throw validation([{ field: 'form', message: 'No default workflow version is set in the registry.' }])
