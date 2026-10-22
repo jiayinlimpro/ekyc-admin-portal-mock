@@ -54,7 +54,7 @@ describe('Users (DEC-74)', () => {
     await waitFor(() => expect(within(role).getAllByRole('option').length).toBeGreaterThan(1))
     fireEvent.change(role, { target: { value: fx('ROL-2026-0003') } })
     fireEvent.click(screen.getByRole('checkbox', { name: 'SME app' }))
-    expect(screen.getByRole('status').textContent).toBe('Aishah Binti Omar will be able to view cases, claim cases, approve / reject cases, view project reports in SME app.')
+    expect(screen.getByRole('status').textContent).toBe('Aishah Binti Omar will be able to view cases, claim cases, approve / reject cases, view project reports, export project reports in SME app.')
     expect(screen.queryByText('Access ends')).toBeNull() // no access end dates (DEC-99)
     fireEvent.click(screen.getByRole('button', { name: 'Invite user' }))
     const r = await row('Aishah Binti Omar')
@@ -158,6 +158,26 @@ describe('Roles (DEC-76)', () => {
     expect(view.checked && view.disabled).toBe(true)
     fireEvent.click(screen.getByRole('button', { name: 'Create role' }))
     expect((await row('Claimer')).textContent).toContain('Custom')
+  })
+
+  it('Given the permission matrix, then a row per module with View and Actions; the module box ticks the whole row and shows "mixed" when partly ticked (DEC-102)', async () => {
+    renderAt('/roles')
+    await row('Reviewer')
+    fireEvent.click(screen.getByRole('button', { name: /New role/ }))
+    await screen.findByLabelText('Role name')
+    const users = screen.getByRole('rowheader', { name: /Users/ }).closest('tr')!
+    expect(users.textContent).toBe('UsersViewInviteChange accessSuspend')
+    expect(screen.getByRole('rowheader', { name: /Projects/ }).closest('tr')!.textContent).toBe('Projects—CreateRenameArchive') // no View
+    const all = screen.getByRole('checkbox', { name: 'All Users permissions' }) as HTMLInputElement
+    fireEvent.click(all)
+    for (const p of ['View users', 'Invite users', 'Change user access', 'Suspend users']) expect((screen.getByRole('checkbox', { name: p }) as HTMLInputElement).checked).toBe(true)
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Suspend users' }))
+    expect(all.checked).toBe(false)
+    expect(all.indeterminate).toBe(true)
+    expect((screen.getByRole('checkbox', { name: 'View users' }) as HTMLInputElement).disabled).toBe(true) // Invite and Change access need it
+    fireEvent.click(all) // tick the rest
+    fireEvent.click(all) // and clear the row
+    expect(within(users).getAllByRole('checkbox').every((c) => !(c as HTMLInputElement).checked)).toBe(true)
   })
 
   it('Given New role as a Merchant Owner, then Type is locked to their merchant, then the generated Role ID, read-only (DEC-76, DEC-99)', async () => {

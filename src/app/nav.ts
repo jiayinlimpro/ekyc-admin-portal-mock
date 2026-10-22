@@ -27,8 +27,8 @@ import type { AccessRule } from './access'
 // Most-used first: dashboards (everyone), case review, configuration, then admin-only groups.
 // Governance = who may do what (Users, Roles) next to the record of what they did (Audit Logs).
 // REQ: DEC-99 — screens whose parts need different permissions open for any of them; each part checks its own.
-export const PROJECT_SETTINGS_ACTIONS = ['manageProjectSettings', 'viewIntegration', 'manageMembers', 'viewRouting'] as const
-export const PROJECTS_ACTIONS = ['manageProjects', 'manageProjectSettings', 'manageFlows', 'viewFlows', 'viewIntegration', 'manageMembers'] as const
+export const PROJECT_SETTINGS_ACTIONS = ['viewProjectSettings', 'viewIntegration', 'viewMembers', 'viewRouting'] as const
+export const PROJECTS_ACTIONS = ['createProjects', 'renameProjects', 'archiveProjects', 'viewProjectSettings', 'viewFlows', 'viewIntegration', 'viewMembers'] as const
 
 export const NAV_GROUPS = ['Dashboards', 'eKYC', 'Projects & Flows', 'Governance', 'Platform'] as const
 export type NavGroup = (typeof NAV_GROUPS)[number]
@@ -196,7 +196,7 @@ export const NAV_ITEMS: NavItem[] = [
     icon: Users,
     group: 'Governance',
     inMenu: true,
-    access: { project: 'manageUsersRoles' },
+    access: { project: 'viewUsers' }, // REQ: DEC-102 — each button needs its own action
     priority: 'P1',
     built: true,
     notes: [
@@ -210,10 +210,10 @@ export const NAV_ITEMS: NavItem[] = [
     icon: ShieldCheck,
     group: 'Governance',
     inMenu: true,
-    access: { project: 'manageUsersRoles' },
+    access: { project: 'viewRoles' },
     priority: 'P1',
     built: true,
-    notes: ['[FRS] Roles: grouped permission checkboxes; System Default roles locked; "Affects N users" before saving (DEC-76).'],
+    notes: ['[FRS] Roles: permission matrix (module × View × actions, DEC-102); System Default roles locked; "Affects N users" before saving (DEC-76).'],
   },
   {
     path: '/audit',

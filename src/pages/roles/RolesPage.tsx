@@ -1,4 +1,4 @@
-// REQ: DEC-76 — [FRS] User Management › Roles: grouped permission checkboxes; System Default roles locked.
+// REQ: DEC-76 / DEC-102 — [FRS] User Management › Roles: the permission matrix; System Default roles locked.
 import { useState, type FormEvent } from 'react'
 import { MoreVertical, Plus } from 'lucide-react'
 import { toast } from 'sonner'
@@ -11,70 +11,15 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
-import { impliedBy, ROLE_IN_USE, withImpliedPermissions } from '@/domain/roles'
-import { MERCHANT_PERMISSIONS, PROJECT_PERMISSIONS, type Permission, type RoleAudience, type RoleStatus } from '@/domain/types'
+import { ROLE_IN_USE } from '@/domain/roles'
+import type { Permission, RoleAudience, RoleStatus } from '@/domain/types'
 import { errorMessage, fieldErrors, useLoad } from '@/hooks/useLoad'
 import { formatMyt } from '@/lib/format'
-import { PERMISSION_LABELS, PLATFORM_PERMISSION_GROUPS } from '@/lib/labels'
 import { cn } from '@/lib/utils'
 import { merchantService } from '@/services/merchantService'
 import { roleService, type RoleRow } from '@/services/roleService'
 import { useSession } from '@/stores/sessionStore'
-
-const toggleIn = (value: Permission[], p: Permission, on: boolean) => (on ? withImpliedPermissions([...value, p]) : value.filter((x) => x !== p))
-
-function PermissionGroup({ title, hint, permissions, value, onChange, disabled }: { title: string; hint: string; permissions: readonly Permission[]; value: Permission[]; onChange: (v: Permission[]) => void; disabled: boolean }) {
-  const toggle = (p: Permission, on: boolean) => onChange(toggleIn(value, p, on))
-  // REQ: DEC-70 — View cases stays ticked while Claim or Approve / reject is ticked.
-  const implied = impliedBy(value)
-  const locked = (p: Permission) => implied.has(p)
-  return (
-    <fieldset className="rounded-md border p-3" disabled={disabled}>
-      <legend className="px-1 text-sm font-medium">{title}</legend>
-      <p className="mb-2 text-xs text-muted-foreground">{hint}</p>
-      <div className="grid gap-1 sm:grid-cols-2">
-        {permissions.map((p) => (
-          <label key={p} className={cn('flex items-center gap-2 text-sm', locked(p) && 'text-muted-foreground')}>
-            <input type="checkbox" checked={value.includes(p)} disabled={locked(p)} onChange={(e) => toggle(p, e.target.checked)} />
-            {PERMISSION_LABELS[p]}
-            {locked(p) && <span className="text-xs">(needed to claim or decide)</span>}
-          </label>
-        ))}
-      </div>
-    </fieldset>
-  )
-}
-
-/** REQ: DEC-99 — platform permissions, grouped by module with short action names; an action keeps its View ticked. */
-function PlatformPermissionGroups({ value, onChange, disabled }: { value: Permission[]; onChange: (v: Permission[]) => void; disabled: boolean }) {
-  const implied = impliedBy(value)
-  return (
-    <>
-      {PLATFORM_PERMISSION_GROUPS.map((g) => (
-        <fieldset key={g.title} className="rounded-md border p-3" disabled={disabled}>
-          <legend className="px-1 text-sm font-medium">{g.title}</legend>
-          <p className="mb-2 text-xs text-muted-foreground">{g.hint}</p>
-          <div className="space-y-1.5">
-            {g.modules.map((m) => (
-              <div key={m.module} className="grid gap-1 sm:grid-cols-[11rem_1fr] sm:items-center">
-                <span className="text-sm text-muted-foreground">{m.module}</span>
-                <div className="flex flex-wrap gap-x-4 gap-y-1" role="group" aria-label={m.module}>
-                  {m.actions.map(([p, label]) => (
-                    <label key={p} className={cn('flex items-center gap-2 text-sm', implied.has(p) && 'text-muted-foreground')} title={implied.has(p) ? 'Ticked because a stronger action needs it' : undefined}>
-                      <input type="checkbox" checked={value.includes(p)} disabled={implied.has(p)} onChange={(e) => onChange(toggleIn(value, p, e.target.checked))} aria-label={PERMISSION_LABELS[p]} />
-                      {label}
-                    </label>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-        </fieldset>
-      ))}
-      <p className="text-xs text-muted-foreground">Managing staff, platform roles and super admins is for super admins only, not a permission.</p>
-    </>
-  )
-}
+import { PermissionMatrix } from './PermissionMatrix'
 
 type Editing = { mode: 'create'; from?: RoleRow } | { mode: 'edit'; row: RoleRow }
 
@@ -94,8 +39,11 @@ function RoleDialog({
   onClose,
   onSaved,
   onDuplicate,
+  can,
 }: {
   editing: Editing
+  /** REQ: DEC-102 — Create (and Duplicate), Edit and Activate / deactivate are separate permissions. */
+  can: { create: boolean; edit: boolean; changeStatus: boolean }
   merchants: { merchantId: string; name: string }[]
   defaultMerchantId?: string
   /** REQ: DEC-99 — only super admins choose the Type; merchant admins see it locked to their merchant. */
@@ -107,7 +55,8 @@ function RoleDialog({
 }) {
   const actor = useSession((s) => s.actor)
   const row = editing.mode === 'edit' ? editing.row : undefined
-  const locked = row?.type === 'SYSTEM_DEFAULT'
+  const systemDefault = row?.type === 'SYSTEM_DEFAULT'
+  const locked = systemDefault || (!!row && !can.edit) // name and permissions read-only
   // REQ: DEC-76 — Duplicate starts a new Custom role from a copy of another (System Default included).
   const from = editing.mode === 'create' ? editing.from : undefined
   const [merchantId, setMerchantId] = useState(row?.merchantId ?? from?.merchantId ?? defaultMerchantId ?? '')
@@ -153,8 +102,10 @@ function RoleDialog({
           <DialogHeader>
             <DialogTitle>{row ? row.name : from ? `New role from ${from.name}` : 'New role'}</DialogTitle>
             <DialogDescription>
-              {locked
+              {systemDefault
                 ? 'System Default roles are shared and can’t be changed.'
+                : locked
+                  ? 'Read-only: you can view this role but not edit it.'
                 : platform
                   ? 'A role for internal staff. Which merchants it applies in is chosen when it is given to a user.'
                   : 'A role says what a user may do; where it applies is chosen when it is given to a user.'}
@@ -195,14 +146,7 @@ function RoleDialog({
             <Input id="r-name" value={name} onChange={(e) => setName(e.target.value)} readOnly={locked} aria-invalid={!!errors.name} autoFocus={!locked} />
           </FormField>
           <div className="space-y-3" aria-describedby={errors.permissions ? 'r-perm-error' : undefined}>
-            {platform ? (
-              <PlatformPermissionGroups value={permissions} onChange={setPermissions} disabled={locked || busy} />
-            ) : (
-              <>
-                <PermissionGroup title="Merchant-level" hint="A role with any of these can only be given for All projects." permissions={MERCHANT_PERMISSIONS} value={permissions} onChange={setPermissions} disabled={locked || busy} />
-                <PermissionGroup title="Project-level" hint="Apply in the projects the role is given for." permissions={PROJECT_PERMISSIONS} value={permissions} onChange={setPermissions} disabled={locked || busy} />
-              </>
-            )}
+            <PermissionMatrix audience={audience} value={permissions} onChange={setPermissions} disabled={locked || busy} />
             {errors.permissions && (
               <p id="r-perm-error" role="alert" className="text-xs text-destructive">
                 {errors.permissions}
@@ -213,7 +157,7 @@ function RoleDialog({
             </p>
           </div>
           {/* REQ: DEC-76 — Status; deactivating is blocked for System Default roles and for roles still assigned (DEC-78). */}
-          <fieldset aria-describedby="r-status-hint">
+          <fieldset aria-describedby="r-status-hint" disabled={!!row && !can.changeStatus}>
             <legend className="mb-1 text-xs font-medium text-muted-foreground">Status</legend>
             <div className="flex gap-4">
               {(['ACTIVE', 'INACTIVE'] as const).map((s) => (
@@ -243,7 +187,7 @@ function RoleDialog({
             </p>
           )}
           <DialogFooter>
-            {row && (
+            {row && can.create && (
               <Button type="button" variant="outline" disabled={busy} onClick={() => onDuplicate(row)}>
                 Duplicate
               </Button>
@@ -265,8 +209,10 @@ function RoleDialog({
 
 export function RolesPage() {
   const actor = useSession((s) => s.actor)
-  const { account } = useAccess()
+  const { account, allows } = useAccess()
   const isAdmin = account?.level === 'SUPER_ADMIN'
+  // REQ: DEC-102 / DEC-78 — hide what the user's permissions never allow.
+  const can = { create: allows({ project: 'createRoles' }), edit: allows({ project: 'editRoles' }), changeStatus: allows({ project: 'changeRoleStatus' }) }
   const rows = useLoad(() => roleService.list(actor), [actor.userId])
   const merchants = useLoad(() => merchantService.list(actor), [actor.userId])
   const [editing, setEditing] = useState<Editing>()
@@ -291,9 +237,11 @@ export function RolesPage() {
           <h1 className="text-2xl font-semibold">Roles</h1>
           <p className="text-sm text-muted-foreground">What users may do. Give roles to users on the Users screen, for All projects or selected projects.</p>
         </div>
-        <Button onClick={() => setEditing({ mode: 'create' })}>
-          <Plus aria-hidden /> New role
-        </Button>
+        {can.create && (
+          <Button onClick={() => setEditing({ mode: 'create' })}>
+            <Plus aria-hidden /> New role
+          </Button>
+        )}
       </header>
       <section aria-label="Role list" className="overflow-x-auto rounded-lg border bg-card">
         <table className={cn('w-full text-sm', rows.loading && rows.data && 'opacity-60')} aria-busy={rows.loading}>
@@ -330,9 +278,9 @@ export function RolesPage() {
                       }
                     />
                     <DropdownMenuContent align="end" className="w-64">
-                      <DropdownMenuItem onClick={() => setEditing({ mode: 'edit', row: r })}>{r.type === 'SYSTEM_DEFAULT' ? 'View' : 'Edit'}</DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => setEditing({ mode: 'create', from: r })}>Duplicate</DropdownMenuItem>
-                      {r.status === 'INACTIVE' ? (
+                      <DropdownMenuItem onClick={() => setEditing({ mode: 'edit', row: r })}>{r.type === 'SYSTEM_DEFAULT' || !can.edit ? 'View' : 'Edit'}</DropdownMenuItem>
+                      {can.create && <DropdownMenuItem onClick={() => setEditing({ mode: 'create', from: r })}>Duplicate</DropdownMenuItem>}
+                      {!can.changeStatus ? null : r.status === 'INACTIVE' ? (
                         <DropdownMenuItem onClick={() => void toggle(r)}>Activate</DropdownMenuItem>
                       ) : (
                         // REQ: DEC-78 — blocked by state: shown disabled with the reason.
@@ -356,6 +304,7 @@ export function RolesPage() {
           key={editing.mode === 'edit' ? editing.row.roleId : `new-${editing.from?.roleId ?? ''}`}
           editing={editing}
           onDuplicate={(from) => setEditing({ mode: 'create', from })}
+          can={can}
           merchants={isAdmin ? (merchants.data ?? []) : []}
           defaultMerchantId={isAdmin ? undefined : account?.merchantId}
           isSuper={isAdmin}

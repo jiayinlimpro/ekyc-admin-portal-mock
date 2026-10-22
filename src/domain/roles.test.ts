@@ -51,11 +51,11 @@ describe('roles: permissions from scoped assignments (DEC-70)', () => {
   })
 
   it('Given an All projects assignment, then it covers projects created later too', () => {
-    expect(permissionsIn([grant(PROJECT_ADMIN, ALL)], fx('PRJ-0099')).has('MANAGE_FLOWS')).toBe(true)
+    expect(permissionsIn([grant(PROJECT_ADMIN, ALL)], fx('PRJ-0099')).has('EDIT_FLOWS')).toBe(true)
   })
 
   it('Given a role with a merchant-level permission scoped to selected projects, then that permission does not count', () => {
-    const odd: Grant = { roleId: fx('ROL-2026-0100'), roleName: 'Odd', permissions: ['MANAGE_PROJECTS', 'VIEW_CASES'], scope: only(fx('PRJ-0001')) }
+    const odd: Grant = { roleId: fx('ROL-2026-0100'), roleName: 'Odd', permissions: ['CREATE_PROJECTS', 'VIEW_CASES'], scope: only(fx('PRJ-0001')) }
     expect([...permissionsIn([odd], fx('PRJ-0001'))]).toEqual(['VIEW_CASES'])
   })
 
@@ -64,8 +64,8 @@ describe('roles: permissions from scoped assignments (DEC-70)', () => {
     const rows = effectivePermissions(both, fx('PRJ-0001'))
     expect(rows.find((r) => r.permission === 'VIEW_CASES')!.from.map((g) => g.roleName)).toEqual(['Reviewer', 'Viewer', 'Merchant Owner'])
     expect(rows.find((r) => r.permission === 'CLAIM_CASES')!.from.map((g) => g.roleName)).toEqual(['Reviewer', 'Merchant Owner'])
-    expect(rows.some((r) => r.permission === 'MANAGE_PROJECTS')).toBe(false) // merchant-level, not from a project scope
-    expect(effectivePermissions(both, fx('PRJ-0002')).map((r) => r.permission)).toEqual(['VIEW_CASES', 'VIEW_PROJECT_REPORTS'])
+    expect(rows.some((r) => r.permission === 'CREATE_PROJECTS')).toBe(false) // merchant-level, not from a project scope
+    expect(effectivePermissions(both, fx('PRJ-0002')).map((r) => r.permission)).toEqual(['VIEW_CASES', 'VIEW_PROJECT_REPORTS', 'EXPORT_PROJECT_REPORTS'])
   })
 
   it('Given an inactive role, then its assignment grants nothing', () => {

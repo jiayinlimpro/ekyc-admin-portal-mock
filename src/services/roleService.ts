@@ -50,8 +50,11 @@ const systemOrder = (r: Role) => (r.type === 'SYSTEM_DEFAULT' ? SYSTEM_ORDER.ind
 const merchantName = (id?: string) => db.state().merchants.find((m) => m.merchantId === id)?.name
 const by = (actor: Actor): Actor => ({ userId: actor.userId, fullName: actor.fullName })
 
-function requireRoles(me: AccountAccess, merchantId: string) {
-  if (!canInMerchant(me, 'manageUsersRoles', merchantId)) throw new ServiceError('FORBIDDEN', 'You do not have permission to manage roles.')
+const ROLE_ACTION_TEXT = { viewRoles: 'view roles', createRoles: 'create roles', editRoles: 'edit roles', changeRoleStatus: 'activate or deactivate roles' } as const
+
+// REQ: DEC-102 — each operation on the Roles screen needs its own permission.
+function requireRoles(me: AccountAccess, merchantId: string, action: keyof typeof ROLE_ACTION_TEXT = 'viewRoles') {
+  if (!canInMerchant(me, action, merchantId)) throw new ServiceError('FORBIDDEN', `You do not have permission to ${ROLE_ACTION_TEXT[action]}.`)
 }
 
 /** Roles a merchant sees: the System Default ones and its own Custom ones. */
@@ -61,7 +64,7 @@ const rolesFor = (merchantId: string) => db.state().roles.filter((r) => r.audien
 const accountsIn = (merchantId?: string) => db.state().accounts.filter((a) => !merchantId || a.merchantId === merchantId)
 
 /** A Custom role the actor may change (System Default roles are read-only: validateRole says so). */
-function loadRole(me: AccountAccess, roleId: string): Role & { merchantId?: string } {
+function loadRole(me: AccountAccess, roleId: string, action: 'editRoles' | 'changeRoleStatus'): Role & { merchantId?: string } {
   const r = db.state().roles.find((x) => x.roleId === roleId)
   if (!r || (r.merchantId && me.level !== 'SUPER_ADMIN' && r.merchantId !== me.merchantId)) throw new ServiceError('NOT_FOUND', `Role ${roleId} not found.`)
   // REQ: DEC-99 — platform roles exist only for super admins.
@@ -69,8 +72,8 @@ function loadRole(me: AccountAccess, roleId: string): Role & { merchantId?: stri
     if (!canOnPlatform(me, 'manageStaff')) throw new ServiceError('NOT_FOUND', `Role ${roleId} not found.`)
     return r
   }
-  if (r.merchantId) requireRoles(me, r.merchantId)
-  else if (me.level !== 'SUPER_ADMIN') requireRoles(me, me.merchantId!)
+  if (r.merchantId) requireRoles(me, r.merchantId, action)
+  else if (me.level !== 'SUPER_ADMIN') requireRoles(me, me.merchantId!, action)
   return r
 }
 
@@ -137,7 +140,8 @@ export const mockRoleService: RoleService = {
   async assignable(merchantId, actor, projectId) {
     await simulateNetwork('assignable roles')
     const me = accountOf(actor)
-    const manages = canInMerchant(me, 'manageUsersRoles', merchantId) || db.state().projects.some((p) => p.merchantId === merchantId && canInProject(me, 'manageMembers', p))
+    // REQ: DEC-102 — the role picker of New user, Add / Edit access and Members.
+    const manages = canInMerchant(me, 'inviteUsers', merchantId) || canInMerchant(me, 'changeUserAccess', merchantId) || db.state().projects.some((p) => p.merchantId === merchantId && canInProject(me, 'manageMembers', p))
     if (!manages) throw new ServiceError('FORBIDDEN', 'You do not manage access in this merchant.')
     const open = db.state().projects.filter((p) => p.merchantId === merchantId && p.status === 'ACTIVE').map((p) => p.projectId)
     const g = granter(me)
@@ -149,7 +153,7 @@ export const mockRoleService: RoleService = {
   async draftRoleId(actor) {
     await simulateNetwork('draft role id')
     const me = accountOf(actor)
-    if (me.level !== 'SUPER_ADMIN') requireRoles(me, me.merchantId!)
+    if (me.level !== 'SUPER_ADMIN') requireRoles(me, me.merchantId!, 'createRoles')
     return newId('rol')
   },
 
@@ -158,7 +162,7 @@ export const mockRoleService: RoleService = {
     const me = requireActive(actor)
     if (input.audience === 'PLATFORM') return wire(createPlatformRole(me, input, actor))
     if (!merchantId || !db.state().merchants.some((m) => m.merchantId === merchantId) || (me.level !== 'SUPER_ADMIN' && me.merchantId !== merchantId)) throw new ServiceError('NOT_FOUND', `Merchant ${merchantId} not found.`)
-    requireRoles(me, merchantId)
+    requireRoles(me, merchantId, 'createRoles')
     const permissions = withImpliedPermissions(input.permissions)
     const errors = validateRole({ name: input.name, permissions, audience: 'MERCHANT' }, rolesFor(merchantId))
     if (errors.length) throw validation(errors)
@@ -186,7 +190,7 @@ export const mockRoleService: RoleService = {
   async update(roleId, input, actor) {
     await simulateNetwork('update role')
     const me = requireActive(actor)
-    const r = loadRole(me, roleId)
+    const r = loadRole(me, roleId, 'editRoles')
     const holders = holdersOf(roleId, db.state().accounts)
     const heldForSelectedProjects = holders.some((a) => a.assignments.some((x) => x.roleId === roleId && x.scope.kind === 'PROJECTS'))
     const permissions = withImpliedPermissions(input.permissions)
@@ -210,7 +214,7 @@ export const mockRoleService: RoleService = {
   async setStatus(roleId, status, actor) {
     await simulateNetwork('set role status')
     const me = requireActive(actor)
-    const r = loadRole(me, roleId)
+    const r = loadRole(me, roleId, 'changeRoleStatus')
     const errors = validateRoleStatus(r, status, holdersOf(roleId, db.state().accounts).length)
     if (errors.length) throw validation(errors)
     if (r.status === status) return wire(r)

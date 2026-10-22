@@ -200,16 +200,27 @@ function Settings({ selected }: { selected: MyProject }) {
         <div className="h-40 animate-pulse rounded-lg bg-muted" aria-busy />
       ) : (
         <div {...tabPanelProps(tab)}>
-          {tab === 'general' && <GeneralTab key={p.projectId} project={p} canEdit={may('manageProjectSettings')} onSaved={project.reload} />}
+          {/* REQ: DEC-102 — View project settings is read-only; Edit changes them. */}
+          {tab === 'general' &&
+            (may('viewProjectSettings') ? (
+              <GeneralTab key={p.projectId} project={p} canEdit={may('manageProjectSettings')} onSaved={project.reload} />
+            ) : (
+              <ReadOnlyNote>General settings need the View project settings permission.</ReadOnlyNote>
+            ))}
           {tab === 'integration' &&
             (may('viewIntegration') ? (
               <IntegrationTab project={p} />
             ) : (
-              <ReadOnlyNote>API keys and webhooks need the Manage API keys and webhook permission.</ReadOnlyNote>
+              <ReadOnlyNote>API keys and webhooks need the View API keys and webhook permission.</ReadOnlyNote>
             ))}
-          {tab === 'review' && <ReviewTab key={p.projectId} project={p} canEdit={may('manageProjectSettings')} onSaved={project.reload} />}
-          {tab === 'routing' && (may('viewRouting') ? <RoutingTab project={p} /> : <ReadOnlyNote>Routing is shown to users who manage flows or project settings.</ReadOnlyNote>)}
-          {tab === 'members' && (may('manageMembers') ? <MembersTab project={p} /> : <ReadOnlyNote>Members are managed by users with the Manage project members permission (DEC-77).</ReadOnlyNote>)}
+          {tab === 'review' &&
+            (may('viewProjectSettings') ? (
+              <ReviewTab key={p.projectId} project={p} canEdit={may('manageProjectSettings')} onSaved={project.reload} />
+            ) : (
+              <ReadOnlyNote>Review operations need the View project settings permission.</ReadOnlyNote>
+            ))}
+          {tab === 'routing' && (may('viewRouting') ? <RoutingTab project={p} /> : <ReadOnlyNote>Routing is shown to users who may view flows or project settings.</ReadOnlyNote>)}
+          {tab === 'members' && (may('viewMembers') ? <MembersTab project={p} /> : <ReadOnlyNote>Members need the View project members permission (DEC-77, DEC-102).</ReadOnlyNote>)}
         </div>
       )}
     </div>

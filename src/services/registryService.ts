@@ -109,7 +109,7 @@ export const mockRegistryService: RegistryService = {
   // REQ: DEC-56 — Active versions only; for anyone who may create flows somewhere.
   async listSelectable(actor) {
     await simulateNetwork('list selectable versions')
-    if (projectsWhere(accountOf(actor), 'manageFlows', db.state().projects).length === 0) throw new ServiceError('FORBIDDEN', 'You do not have permission to create flows.')
+    if (projectsWhere(accountOf(actor), 'createFlows', db.state().projects).length === 0) throw new ServiceError('FORBIDDEN', 'You do not have permission to create flows.')
     return wire(
       selectableForNewFlow(db.state().registry).map(({ code, name, description, phases, faceMatchMethod, requiredInputs, configurableChecks, isDefault }) => ({
         code,

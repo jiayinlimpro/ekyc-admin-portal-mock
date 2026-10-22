@@ -79,6 +79,7 @@ describe('userAdminService: the Users screen (DEC-74)', () => {
     expect(sme.permissions).toEqual([
       { permission: 'VIEW_CASES', from: ['Viewer · SME app'] },
       { permission: 'VIEW_PROJECT_REPORTS', from: ['Viewer · SME app'] },
+      { permission: 'EXPORT_PROJECT_REPORTS', from: ['Viewer · SME app'] },
     ])
     expect(d.effective.find((e) => e.projectId === fx('PRJ-0001'))!.permissions.find((p) => p.permission === 'CLAIM_CASES')!.from).toEqual(['Reviewer · Default'])
   })
@@ -117,8 +118,8 @@ describe('userAdminService: the Users screen (DEC-74)', () => {
     await expect(users.resendInvitation(ALI.userId, OWNER)).rejects.toMatchObject({ code: 'VALIDATION' })
   })
 
-  it('Given a user desk role (Manage users and roles only), then they give only access they hold themselves', async () => {
-    const desk = await roleService.create(fx('MER-0001'), { name: 'User desk', permissions: ['MANAGE_USERS_ROLES'] }, OWNER)
+  it('Given a user desk role (the Users permissions only), then they give only access they hold themselves', async () => {
+    const desk = await roleService.create(fx('MER-0001'), { name: 'User desk', permissions: ['VIEW_USERS', 'INVITE_USERS', 'CHANGE_USER_ACCESS', 'SUSPEND_USERS'] }, OWNER)
     await users.addAssignment(SITI.userId, { roleId: desk.roleId, scope: ALL }, OWNER)
     const invite = (scope: AssignmentScope, email: string) => users.invite(fx('MER-0001'), { fullName: 'New Reviewer', email, assignment: { roleId: REVIEWER, scope } }, SITI)
     expect((await invite(only(fx('PRJ-0001')), 'r1@atoz.example')).access[0].label).toBe('Reviewer · Default') // Siti is Reviewer there
@@ -132,7 +133,7 @@ describe('userAdminService: the Users screen (DEC-74)', () => {
   })
 
   it('Given a user desk role, then roles it can’t give anywhere are not offered', async () => {
-    const desk = await roleService.create(fx('MER-0001'), { name: 'User desk', permissions: ['MANAGE_USERS_ROLES'] }, OWNER)
+    const desk = await roleService.create(fx('MER-0001'), { name: 'User desk', permissions: ['VIEW_USERS', 'INVITE_USERS', 'CHANGE_USER_ACCESS', 'SUSPEND_USERS'] }, OWNER)
     await users.addAssignment(SITI.userId, { roleId: desk.roleId, scope: ALL }, OWNER)
     // Siti is a Reviewer in Default only: she can give Reviewer or Viewer there, and her own User desk role; nothing broader.
     expect((await roleService.assignable(fx('MER-0001'), SITI)).map((r) => r.name)).toEqual(['Reviewer', 'Viewer', 'User desk'])
@@ -150,6 +151,28 @@ describe('userAdminService: the Users screen (DEC-74)', () => {
 
   it('Given a user from another merchant, then "not found"', async () => {
     await expect(users.get(KAVITHA.userId, OWNER)).rejects.toMatchObject({ code: 'NOT_FOUND' })
+  })
+})
+
+describe('Users and Roles: one permission per action (DEC-102)', () => {
+  it('Given a role with View users and Invite only, then Siti invites but can’t suspend or change access; the detail says so', async () => {
+    const desk = await roleService.create(fx('MER-0001'), { name: 'Invite desk', permissions: ['INVITE_USERS'] }, OWNER)
+    expect(desk.permissions).toEqual(['VIEW_USERS', 'INVITE_USERS']) // the View comes with it
+    await users.addAssignment(SITI.userId, { roleId: desk.roleId, scope: ALL }, OWNER)
+    await users.invite(fx('MER-0001'), { fullName: 'New Viewer', email: 'nv@atoz.example', assignment: { roleId: VIEWER, scope: only(fx('PRJ-0001')) } }, SITI)
+    await expect(users.suspend(ALI.userId, SITI)).rejects.toMatchObject({ code: 'FORBIDDEN', message: 'You do not have permission to suspend or reactivate users.' })
+    const ali = await users.get(ALI.userId, SITI)
+    expect(ali.can).toEqual({ changeAccess: false, resendInvitation: true, suspend: false })
+    await expect(users.addAssignment(ALI.userId, { roleId: VIEWER, scope: only(fx('PRJ-0001')) }, SITI)).rejects.toMatchObject({ code: 'FORBIDDEN' })
+  })
+
+  it('Given a role with View roles only, then the Roles list opens but creating, editing and deactivating are refused', async () => {
+    const look = await roleService.create(fx('MER-0001'), { name: 'Role viewer', permissions: ['VIEW_ROLES'] }, OWNER)
+    await users.addAssignment(SITI.userId, { roleId: look.roleId, scope: ALL }, OWNER)
+    expect((await roleService.list(SITI)).length).toBeGreaterThan(0)
+    await expect(roleService.create(fx('MER-0001'), { name: 'Nope', permissions: ['VIEW_CASES'] }, SITI)).rejects.toMatchObject({ message: 'You do not have permission to create roles.' })
+    await expect(roleService.update(look.roleId, { name: 'Renamed', permissions: ['VIEW_ROLES'] }, SITI)).rejects.toMatchObject({ message: 'You do not have permission to edit roles.' })
+    await expect(roleService.setStatus(look.roleId, 'INACTIVE', SITI)).rejects.toMatchObject({ message: 'You do not have permission to activate or deactivate roles.' })
   })
 })
 

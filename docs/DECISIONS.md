@@ -217,7 +217,7 @@ Rules changed on 2026-10-20 (Projects & Flows restructure) are marked **(changed
     gives a user a role with a **scope**, *where*: **All projects** (every current and future project; labelled in the UI)
     or **Selected projects**. A user may hold several assignments; where they overlap, permissions are the **union**
     (no deny rules). Flow-level scope is not used (Option D kept in reserve).
-  - Permissions, grouped on the Roles screen:
+  - Permissions, grouped on the Roles screen (**split into module actions by DEC-102**; the table below is the original):
 
     | Merchant-level (assignable to All projects only) | Project-level |
     |---|---|
@@ -241,6 +241,44 @@ Rules changed on 2026-10-20 (Projects & Flows restructure) are marked **(changed
   - **Platform Admin** (internal; now called **Super admin**, DEC-99) is not a merchant role. **(changed)** It holds **every permission in every merchant**
     (cases, claim and approve / reject, API keys and webhook included), plus Workflow Registry, Merchants, Admins and
     Advanced thresholds (DEC-19) (DEC-75). [PO 2026-10-21]
+- **DEC-102** **(new)** Permissions are a **matrix of modules × View × actions** [PO 2026-10-22]. Each permission is a
+  module's View or one of its actions; the Roles form shows one row per module with a View column and an Actions column,
+  and a checkbox at the module name that ticks the whole row (partly ticked shows "mixed"; unticking clears the row).
+  Ticking an action ticks the module's View, locked while needed. The groups stay: Merchant role = **Merchant-level**
+  (only for All projects, DEC-70) and **Project-level**; Platform role = **Platform-level** and **Merchant access** (DEC-99).
+  The actions are the ones the product has, so they replace the coarse DEC-70 permissions:
+
+  | Group | Module | View | Actions |
+  |---|---|---|---|
+  | Merchant-level | Projects | — (everyone sees the projects they work in) | Create · Rename · Archive |
+  | | Users | View | Invite (and resend) · Change access (add, edit, remove rows) · Suspend (and reactivate; never delete, DEC-74) |
+  | | Roles | View | Create (and duplicate) · Edit · Deactivate (and activate; never delete, DEC-76) |
+  | | Billing and contract | View | Manage |
+  | | Merchant reports | View | Export |
+  | Project-level | Verifications | View | Claim · Approve / reject |
+  | | Flows | View | Create (and duplicate) · Edit · Activate / retire (and set default) · Change verification level (ticks Edit) |
+  | | Project settings | View | Edit (General, Review operations) |
+  | | API keys and webhook | View | Manage |
+  | | Members | View | Add / remove |
+  | | Project reports | View | Export |
+  | | Audit log | View | — |
+  | Platform-level | Merchants | View | Create / edit · Change status |
+  | | Workflow Registry | View | Manage |
+  | | Verification levels | View | Calibrate |
+  | | Platform billing | View | Manage |
+  | | Usage reports | View | Export |
+  | Merchant access | Verifications | View (masked) | See unmasked ID data · Claim / approve / reject (ticks unmasked) |
+  | | Flows | View | Edit |
+  | | API keys and webhook | View | Manage |
+  | | Audit log | View | — |
+
+  - Every screen and service checks the action itself (e.g. Suspend needs Suspend users, not "manage users"); what the
+    user can never do is hidden (DEC-78). View alone is read-only (Users, Roles, Flows, Project settings, Members).
+  - The split keeps everyone's access as it was: Merchant Owner and Project Admin hold every permission of their groups;
+    Reviewer and Viewer keep project reports **with Export** (the old View project reports included it); the old
+    "Manage users and roles" = all Users and Roles permissions, and so on. Names and defaults stay OQ-09.
+  - Differences from the reference picture: Users "Deactivate" is **Suspend** and Roles "Delete" is **Deactivate**,
+    because users and roles are never deleted (DEC-74, DEC-76).
 - **DEC-71** Client-side permission checks are UI only, not security. The real backend must enforce them.
 - **DEC-72** **(changed)** Every page checks the user's access to the project; hiding a menu item is not enough. A case from
   a project the user's assignments don't cover returns "not found" (not "forbidden"). [MS]
@@ -254,7 +292,7 @@ Rules changed on 2026-10-20 (Projects & Flows restructure) are marked **(changed
   merchant (Platform Admin only) and the first assignment; the user starts **Pending** and gets an invitation (Resend while
   Pending). Statuses `Pending`, `Active`, `Suspended`; users are never deleted (Suspend). **User detail**: an Access table
   (Role | Scope | Added by | Date) with Add / Edit / Remove. Rules [PO 2026-10-20]:
-  - Only users with Manage users and roles (or Platform Admin) manage users; on a project's Members tab, users with Manage
+  - Only users with the Users permissions (DEC-102: View, Invite, Change access, Suspend) or a super admin manage users; on a project's Members tab, users with Manage
     project members add or remove assignments **for that project**.
   - Nobody grants permissions they don't have themselves (for All projects: held in every project). Platform Admin is
     exempt, so it can set up a merchant's first Merchant Owner (DEC-92).
@@ -279,10 +317,10 @@ Rules changed on 2026-10-20 (Projects & Flows restructure) are marked **(changed
   - Superseded: "API keys and webhooks stay merchant-only" and "never claim or decide" [PO 2026-10-20].
 - **DEC-76** **(new)** **Roles** screen ([FRS] User Management › Roles): Role Name, Merchant
   (Platform Admin only), Role Type (`System Default` / `Custom`), Status, Users, Created At. The detail / create modal holds
-  the grouped permission checkboxes (at least one: "Roles require at least one action permission flag"). System Default
+  the permission matrix (DEC-102; at least one: "Roles require at least one action permission flag"). System Default
   roles are read-only. Editing a role applies at once to everyone holding it, in all their scopes, and shows "Affects N
   users" before saving. Roles are never deleted; deactivating one still assigned is refused: "Operation rejected. This role
-  is currently assigned to active records inside the system." Managed by users with Manage users and roles and by Platform
+  is currently assigned to active records inside the system." Managed by users with the Roles permissions (DEC-102) and by Platform
   Admin. [FRS][PO 2026-10-20]
   - **Duplicate** any role (System Default included) into a new Custom role, "Copy of …", to edit from there. The impact
     note reads "Affects N users in M projects". [PO 2026-10-21]

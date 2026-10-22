@@ -35,7 +35,7 @@ UAT scenarios: `docs/SCENARIOS.md`.
 - Manual vs automated = `lastUpdatedBy` (SYSTEM or user fullName + userId). It changes ONLY when status changes
   (never on claim, release or view).
 - Merchant → Project → Flow → Case. Each setting lives at exactly one level (DEC-91). Access = [FRS] Users + Roles with
-  scoped assignments (DEC-70): a role (permission checkboxes, merchant-level / project-level) is given to a user for All
+  scoped assignments (DEC-70): a role (permission matrix, module × View × actions, DEC-102) is given to a user for All
   projects (incl. future ones) or Selected projects; permissions are the union, no deny. Merchant-level permissions only
   via All projects. System Default roles (locked): Merchant Owner, Project Admin, Reviewer, Viewer. Every page checks
   access to the project; a case outside the user's projects is "not found".

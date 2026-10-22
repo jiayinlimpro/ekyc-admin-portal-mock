@@ -123,7 +123,7 @@ export const mockProjectService: ProjectService = {
           defaultFlowName: flows.find((f) => f.flowId === p.defaultFlowId)?.name ?? p.defaultFlowId,
           members: s.accounts.filter((a) => a.status !== 'SUSPENDED' && a.merchantId === p.merchantId && a.assignments.some((x) => covers(x.scope, p.projectId))).length,
           inFlightCases: s.verifications.filter((v) => v.projectId === p.projectId && IN_FLIGHT_STATUSES.includes(v.status)).length,
-          canManage: canInProject(me, 'manageProjects', p),
+          canManage: canInProject(me, 'renameProjects', p) || canInProject(me, 'archiveProjects', p),
         }
       })
       .sort((a, b) => a.merchantName.localeCompare(b.merchantName) || Number(b.isDefault) - Number(a.isDefault) || a.name.localeCompare(b.name))
@@ -133,7 +133,7 @@ export const mockProjectService: ProjectService = {
   async creatableMerchants(actor) {
     await simulateNetwork('creatable merchants')
     const me = accountOf(actor)
-    return wire(db.state().merchants.filter((m) => canInMerchant(me, 'manageProjects', m.merchantId)).map(({ merchantId, name }) => ({ merchantId, name })))
+    return wire(db.state().merchants.filter((m) => canInMerchant(me, 'createProjects', m.merchantId)).map(({ merchantId, name }) => ({ merchantId, name })))
   },
 
   async get(projectId, actor) {
@@ -149,7 +149,7 @@ export const mockProjectService: ProjectService = {
     if (!s.merchants.some((m) => m.merchantId === merchantId) || (me.level !== 'SUPER_ADMIN' && me.merchantId !== merchantId)) {
       throw new ServiceError('NOT_FOUND', `Merchant ${merchantId} not found.`)
     }
-    if (!canInMerchant(me, 'manageProjects', merchantId)) throw new ServiceError('FORBIDDEN', 'You do not have permission to create projects.')
+    if (!canInMerchant(me, 'createProjects', merchantId)) throw new ServiceError('FORBIDDEN', 'You do not have permission to create projects.')
     const errors = validateProjectName(input.name, s.projects.filter((p) => p.merchantId === merchantId))
     if (errors.length) throw validation(errors)
     const entry = defaultVersion(s.registry)
@@ -180,7 +180,7 @@ export const mockProjectService: ProjectService = {
     await simulateNetwork('rename project')
     requireActive(actor)
     const p = loadProject(actor, projectId)
-    requireInProject(actor, 'manageProjects', p, 'rename projects')
+    requireInProject(actor, 'renameProjects', p, 'rename projects')
     const errors = validateProjectName(name, db.state().projects.filter((x) => x.merchantId === p.merchantId && x.projectId !== projectId))
     if (errors.length) throw validation(errors)
     const n = name.trim()
@@ -194,7 +194,7 @@ export const mockProjectService: ProjectService = {
     await simulateNetwork('archive project')
     requireActive(actor)
     const p = loadProject(actor, projectId)
-    requireInProject(actor, 'manageProjects', p, 'archive projects')
+    requireInProject(actor, 'archiveProjects', p, 'archive projects')
     const error = archiveError(p, db.state().projects.filter((x) => x.merchantId === p.merchantId))
     if (error) throw validation([{ field: 'status', message: error }])
     db.setState((st) => ({ projects: st.projects.map((x) => (x.projectId === projectId ? { ...x, status: 'ARCHIVED' } : x)) }))

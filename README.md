@@ -74,7 +74,7 @@ project or "All my projects", and the menu follows your permissions there.
 | Verification detail | Claim bar, Reject with catalogue reasons, rules applied (revision), checks with retries, activity timeline |
 | Projects / Project Settings | Create, rename, archive; branding, API keys (shown once), webhook, claim timeout, read-only routing |
 | Flows / Flow Detail | Low / Standard / High with a 0–100 band bar, Advanced thresholds (super admin, staff with Calibrate), retries 1–5, what-if, revisions; read-only for Flows View |
-| Users / Roles | FRS lists with `Role · Scope` chips; invite (Pending, resend); Access table with Add / Edit / Remove and a plain-language preview; Effective access with "Comes from"; suspend; grouped permission checkboxes, System Default roles locked, Duplicate, "Affects N users in M projects" |
+| Users / Roles | FRS lists with `Role · Scope` chips; invite (Pending, resend); Access table with Add / Edit / Remove and a plain-language preview; Effective access with "Comes from"; suspend; permission matrix (module × View × actions, a module box ticks the row; DEC-102), System Default roles locked, Duplicate, "Affects N users in M projects" |
 | Project Settings › Members | Everyone with access to the project (All projects users inherited); add or remove for this project |
 | Audit Log | DEC-42 events with project and actor role |
 | Merchants | Super admins and staff with Merchants permissions, per the FRS: registration number, country, contact; Onboarding → Active → Suspended → Terminated with reasons (suspension locks the merchant's users out and stops its API keys); never deleted; a new merchant gets a Default project and owner |

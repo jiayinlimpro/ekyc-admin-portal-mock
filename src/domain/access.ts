@@ -23,16 +23,31 @@ export const PROJECT_ACTIONS = [
   'viewDashboards', // Overview, System Intelligence — data scoped (DEC-86)
   'viewBilling', // Billing — data scoped (DEC-86)
   'exportReports', // CSV exports of the dashboards and Billing
-  'manageProjects', // create, rename, archive
-  'manageUsersRoles', // Users and Roles screens
+  // REQ: DEC-102 — merchant-level, one per action.
+  'createProjects',
+  'renameProjects',
+  'archiveProjects',
+  'viewUsers',
+  'inviteUsers', // and resend the invitation
+  'changeUserAccess', // add, edit, remove access rows (DEC-74)
+  'suspendUsers', // and reactivate
+  'viewRoles',
+  'createRoles', // and duplicate
+  'editRoles',
+  'changeRoleStatus', // activate, deactivate
   'manageBilling',
   'viewMerchantReports',
-  'manageMembers', // Members tab of a project (DEC-77)
+  // Project-level.
+  'viewMembers', // Members tab of a project (DEC-77)
+  'manageMembers',
   'viewIntegration', // Integration tab, read-only
   'manageIntegration', // API keys, webhook, redirect URLs, IP allowlist
+  'viewProjectSettings', // General and Review operations, read-only
   'manageProjectSettings', // General and Review operations (DEC-54)
   'viewFlows', // Flows List / Detail, read-only
-  'manageFlows', // create, edit, activate, retire
+  'createFlows', // and duplicate
+  'editFlows',
+  'activateFlows', // activate, retire, set default
   'changeVerificationLevel', // thresholds, retries allowed, risk level
   'setAdvancedThresholds', // DEC-19: Super admin, or platform staff who may calibrate (DEC-99)
   'viewRouting',
@@ -44,26 +59,43 @@ export const PROJECT_ACTIONS = [
 ] as const
 export type ProjectAction = (typeof PROJECT_ACTIONS)[number]
 
-// REQ: DEC-70 — the merchant permission behind each action (any one is enough). Empty = not for merchant users.
+const FLOWS: readonly Permission[] = ['VIEW_FLOWS', 'CREATE_FLOWS', 'EDIT_FLOWS', 'ACTIVATE_FLOWS', 'CHANGE_VERIFICATION_LEVEL']
+const SETTINGS: readonly Permission[] = ['VIEW_PROJECT_SETTINGS', 'MANAGE_PROJECT_SETTINGS']
+
+// REQ: DEC-70 / DEC-102 — the merchant permission behind each action (any one is enough). A View action is also met by
+// any action of its module (the Roles screen ticks the View with it anyway). Empty = not for merchant users.
 const NEEDS: Record<ProjectAction, readonly Permission[]> = {
   viewDashboards: ['VIEW_PROJECT_REPORTS', 'VIEW_MERCHANT_REPORTS'],
-  viewBilling: ['VIEW_PROJECT_REPORTS', 'VIEW_MERCHANT_REPORTS'],
-  exportReports: ['VIEW_PROJECT_REPORTS', 'VIEW_MERCHANT_REPORTS'],
-  manageProjects: ['MANAGE_PROJECTS'],
-  manageUsersRoles: ['MANAGE_USERS_ROLES'],
+  viewBilling: ['VIEW_PROJECT_REPORTS', 'VIEW_MERCHANT_REPORTS', 'VIEW_BILLING', 'MANAGE_BILLING'],
+  exportReports: ['EXPORT_PROJECT_REPORTS', 'EXPORT_MERCHANT_REPORTS'],
+  createProjects: ['CREATE_PROJECTS'],
+  renameProjects: ['RENAME_PROJECTS'],
+  archiveProjects: ['ARCHIVE_PROJECTS'],
+  viewUsers: ['VIEW_USERS', 'INVITE_USERS', 'CHANGE_USER_ACCESS', 'SUSPEND_USERS'],
+  inviteUsers: ['INVITE_USERS'],
+  changeUserAccess: ['CHANGE_USER_ACCESS'],
+  suspendUsers: ['SUSPEND_USERS'],
+  viewRoles: ['VIEW_ROLES', 'CREATE_ROLES', 'EDIT_ROLES', 'CHANGE_ROLE_STATUS'],
+  createRoles: ['CREATE_ROLES'],
+  editRoles: ['EDIT_ROLES'],
+  changeRoleStatus: ['CHANGE_ROLE_STATUS'],
   manageBilling: ['MANAGE_BILLING'],
   viewMerchantReports: ['VIEW_MERCHANT_REPORTS'],
+  viewMembers: ['VIEW_MEMBERS', 'MANAGE_MEMBERS'],
   manageMembers: ['MANAGE_MEMBERS'],
-  viewIntegration: ['MANAGE_INTEGRATION'],
+  viewIntegration: ['VIEW_INTEGRATION', 'MANAGE_INTEGRATION'],
   manageIntegration: ['MANAGE_INTEGRATION'],
+  viewProjectSettings: SETTINGS,
   manageProjectSettings: ['MANAGE_PROJECT_SETTINGS'],
-  viewFlows: ['MANAGE_FLOWS'],
-  manageFlows: ['MANAGE_FLOWS'],
+  viewFlows: FLOWS,
+  createFlows: ['CREATE_FLOWS'],
+  editFlows: ['EDIT_FLOWS'],
+  activateFlows: ['ACTIVATE_FLOWS'],
   changeVerificationLevel: ['CHANGE_VERIFICATION_LEVEL'],
   setAdvancedThresholds: [],
-  viewRouting: ['MANAGE_FLOWS', 'MANAGE_PROJECT_SETTINGS'],
-  viewCases: ['VIEW_CASES'],
-  viewUnmaskedPii: ['VIEW_CASES'], // merchant users always see their own cases in full (DEC-41)
+  viewRouting: [...FLOWS, ...SETTINGS],
+  viewCases: ['VIEW_CASES', 'CLAIM_CASES', 'DECIDE_CASES'],
+  viewUnmaskedPii: ['VIEW_CASES', 'CLAIM_CASES', 'DECIDE_CASES'], // merchant users always see their own cases in full (DEC-41)
   claimCase: ['CLAIM_CASES'],
   decideCase: ['DECIDE_CASES'],
   viewAudit: ['VIEW_AUDIT_LOG'],
@@ -79,7 +111,9 @@ const STAFF_NEEDS: Partial<Record<ProjectAction, { platform?: readonly Permissio
   claimCase: { merchant: ['P_CASES_DECIDE'] },
   decideCase: { merchant: ['P_CASES_DECIDE'] },
   viewFlows: { merchant: ['P_FLOWS_VIEW', 'P_FLOWS_EDIT'] },
-  manageFlows: { merchant: ['P_FLOWS_EDIT'] },
+  createFlows: { merchant: ['P_FLOWS_EDIT'] },
+  editFlows: { merchant: ['P_FLOWS_EDIT'] },
+  activateFlows: { merchant: ['P_FLOWS_EDIT'] },
   changeVerificationLevel: { merchant: ['P_FLOWS_EDIT'] },
   setAdvancedThresholds: { platform: ['P_LEVELS_CALIBRATE'] },
   viewIntegration: { merchant: ['P_INTEGRATION_VIEW', 'P_INTEGRATION_MANAGE'] },

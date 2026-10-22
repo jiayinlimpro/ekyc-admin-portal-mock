@@ -64,13 +64,15 @@ const by = (actor: Actor) => ({ userId: actor.userId, fullName: actor.fullName }
 const entryOf = (code: string) => db.state().registry.find((e) => e.code === code)
 const inFlight = (flowId: string) => db.state().verifications.filter((v) => v.flowId === flowId && IN_FLIGHT_STATUSES.includes(v.status)).length
 
-// REQ: DEC-70 / DEC-75 — flows are managed with Manage flows, and by Super admin in any merchant.
-function loadFlow(actor: Actor, flowId: string, action: 'viewFlows' | 'manageFlows' = 'manageFlows'): { flow: Flow; project: Project } {
+const FLOW_ACTION_TEXT = { viewFlows: 'view flows', createFlows: 'create flows', editFlows: 'edit flows', activateFlows: 'activate or retire flows' } as const
+
+// REQ: DEC-70 / DEC-75 / DEC-102 — each flow operation needs its own action; Super admin may do all in any merchant.
+function loadFlow(actor: Actor, flowId: string, action: keyof typeof FLOW_ACTION_TEXT): { flow: Flow; project: Project } {
   const flow = db.state().flows.find((f) => f.flowId === flowId)
   const project = flow && projectById(flow.projectId)
   if (!flow || !project) throw new ServiceError('NOT_FOUND', `Flow ${flowId} not found.`)
   loadProject(actor, project.projectId) // "not found" outside the user's projects
-  requireInProject(actor, action, project, action === 'viewFlows' ? 'view flows' : 'manage flows')
+  requireInProject(actor, action, project, FLOW_ACTION_TEXT[action])
   return { flow, project }
 }
 
@@ -116,7 +118,7 @@ export const mockFlowService: FlowService = {
     await simulateNetwork('create flow')
     requireActive(actor)
     const project = loadProject(actor, projectId)
-    requireInProject(actor, 'manageFlows', project, 'manage flows')
+    requireInProject(actor, 'createFlows', project, 'create flows')
     if (project.status === 'ARCHIVED') throw validation([{ field: 'form', message: 'This project is archived, so it cannot get new flows.' }])
     const entry = selectableForNewFlow(db.state().registry).find((e) => e.code === input.workflowVersion)
     if (!entry) throw validation([{ field: 'workflowVersion', message: 'Choose an active workflow version.' }])
@@ -131,7 +133,7 @@ export const mockFlowService: FlowService = {
   async duplicate(flowId, actor) {
     await simulateNetwork('duplicate flow')
     requireActive(actor)
-    const { flow, project } = loadFlow(actor, flowId)
+    const { flow, project } = loadFlow(actor, flowId, 'createFlows')
     if (project.status === 'ARCHIVED') throw validation([{ field: 'form', message: 'This project is archived, so it cannot get new flows.' }])
     const at = now()
     const copy = duplicateFlow(flow, newId('flw'), at, by(actor))
@@ -144,7 +146,7 @@ export const mockFlowService: FlowService = {
   async save(flowId, next, reason, actor) {
     await simulateNetwork('save flow')
     requireActive(actor)
-    const { flow, project } = loadFlow(actor, flowId)
+    const { flow, project } = loadFlow(actor, flowId, 'editFlows')
     // REQ: DEC-70 — thresholds, retries allowed and risk level need Change verification level and retries.
     const levelChanged = JSON.stringify(flow.settings.checks) !== JSON.stringify(next.settings.checks) || JSON.stringify(flow.settings.risk) !== JSON.stringify(next.settings.risk)
     if (levelChanged) requireInProject(actor, 'changeVerificationLevel', project, 'change the verification level and retries')
@@ -166,7 +168,7 @@ export const mockFlowService: FlowService = {
   async activate(flowId, actor) {
     await simulateNetwork('activate flow')
     requireActive(actor)
-    const { flow, project } = loadFlow(actor, flowId)
+    const { flow, project } = loadFlow(actor, flowId, 'activateFlows')
     const entry = entryOf(flow.workflowVersion)
     const blocked = activateError(flow, project, entry)
     if (blocked) throw validation([{ field: 'status', message: blocked }])
@@ -189,7 +191,7 @@ export const mockFlowService: FlowService = {
   async retire(flowId, actor) {
     await simulateNetwork('retire flow')
     requireActive(actor)
-    const { flow, project } = loadFlow(actor, flowId)
+    const { flow, project } = loadFlow(actor, flowId, 'activateFlows')
     const blocked = retireError(flow, project)
     if (blocked) throw validation([{ field: 'status', message: blocked }])
     const at = now()
@@ -202,7 +204,7 @@ export const mockFlowService: FlowService = {
   async setDefault(flowId, actor) {
     await simulateNetwork('set default flow')
     requireActive(actor)
-    const { flow, project } = loadFlow(actor, flowId)
+    const { flow, project } = loadFlow(actor, flowId, 'activateFlows')
     const blocked = setDefaultFlowError(project, flow)
     if (blocked) throw validation([{ field: 'default', message: blocked }])
     db.setState((st) => ({ projects: st.projects.map((p) => (p.projectId === project.projectId ? { ...p, defaultFlowId: flowId } : p)) }))

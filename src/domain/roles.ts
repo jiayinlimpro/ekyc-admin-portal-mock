@@ -16,6 +16,7 @@ import {
   type RoleAssignment,
   type RuleError,
 } from './types'
+import { IMPLIES } from './permissionMatrix'
 import { fx } from '@/lib/ids'
 
 // REQ: DEC-70 — the System Default roles. Names and permissions are OQ-09 (the FRS access matrix is not available).
@@ -29,8 +30,9 @@ export const SYSTEM_ROLE_IDS = {
 export const SYSTEM_DEFAULT_ROLES: readonly Pick<Role, 'roleId' | 'name' | 'permissions'>[] = [
   { roleId: SYSTEM_ROLE_IDS.MERCHANT_OWNER, name: 'Merchant Owner', permissions: [...MERCHANT_ROLE_PERMISSIONS] },
   { roleId: SYSTEM_ROLE_IDS.PROJECT_ADMIN, name: 'Project Admin', permissions: [...PROJECT_PERMISSIONS] },
-  { roleId: SYSTEM_ROLE_IDS.REVIEWER, name: 'Reviewer', permissions: ['VIEW_CASES', 'CLAIM_CASES', 'DECIDE_CASES', 'VIEW_PROJECT_REPORTS'] },
-  { roleId: SYSTEM_ROLE_IDS.VIEWER, name: 'Viewer', permissions: ['VIEW_CASES', 'VIEW_PROJECT_REPORTS'] },
+  // REQ: DEC-102 — splitting the permissions kept each role's access: reports come with Export, as before.
+  { roleId: SYSTEM_ROLE_IDS.REVIEWER, name: 'Reviewer', permissions: ['VIEW_CASES', 'CLAIM_CASES', 'DECIDE_CASES', 'VIEW_PROJECT_REPORTS', 'EXPORT_PROJECT_REPORTS'] },
+  { roleId: SYSTEM_ROLE_IDS.VIEWER, name: 'Viewer', permissions: ['VIEW_CASES', 'VIEW_PROJECT_REPORTS', 'EXPORT_PROJECT_REPORTS'] },
 ]
 
 // REQ: DEC-99 — System Default platform roles, chosen on least privilege: unmasked ID data and decisions only for case
@@ -71,24 +73,14 @@ const MERCHANT_LEVEL: ReadonlySet<Permission> = new Set(MERCHANT_PERMISSIONS)
 
 export const isMerchantLevel = (permissions: readonly Permission[]) => permissions.some((p) => MERCHANT_LEVEL.has(p))
 
-/** REQ: DEC-70 — Claim and Approve / reject need View cases, so it is ticked with them. Returns the catalogue order. */
+/**
+ * REQ: DEC-70 / DEC-102 — every action ticks its module's View (Claim ticks View cases), plus the few actions that need
+ * another one (permissionMatrix.IMPLIES). Returns the catalogue order.
+ */
 export function withImpliedPermissions(permissions: readonly Permission[]): Permission[] {
   const set = new Set(permissions)
-  if (set.has('CLAIM_CASES') || set.has('DECIDE_CASES')) set.add('VIEW_CASES')
-  // REQ: DEC-99 — platform: each action ticks its View; a reviewer must see the documents.
-  const implies: [Permission, Permission[]][] = [
-    ['P_MERCHANTS_CREATE', ['P_MERCHANTS_VIEW']],
-    ['P_MERCHANTS_SUSPEND', ['P_MERCHANTS_VIEW']],
-    ['P_REGISTRY_MANAGE', ['P_REGISTRY_VIEW']],
-    ['P_LEVELS_CALIBRATE', ['P_LEVELS_VIEW']],
-    ['P_BILLING_MANAGE', ['P_BILLING_VIEW']],
-    ['P_REPORTS_EXPORT', ['P_REPORTS_VIEW']],
-    ['P_CASES_DECIDE', ['P_CASES_VIEW_UNMASKED', 'P_CASES_VIEW_MASKED']],
-    ['P_CASES_VIEW_UNMASKED', ['P_CASES_VIEW_MASKED']],
-    ['P_FLOWS_EDIT', ['P_FLOWS_VIEW']],
-    ['P_INTEGRATION_MANAGE', ['P_INTEGRATION_VIEW']],
-  ]
-  for (const [p, adds] of implies) if (set.has(p)) adds.forEach((x) => set.add(x))
+  const add = (p: Permission) => IMPLIES.get(p)?.forEach((q) => !set.has(q) && (set.add(q), add(q)))
+  for (const p of permissions) add(p)
   return PERMISSIONS.filter((p) => set.has(p))
 }
 

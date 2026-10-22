@@ -10,7 +10,7 @@ import { OpenQuestionTag } from '@/components/common/OpenQuestionTag'
 import { ErrorState } from '@/components/common/States'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { canInMerchant } from '@/domain/access'
+import { canInMerchant, canInProject } from '@/domain/access'
 import type { Project } from '@/domain/types'
 import { errorMessage, fieldErrors, useLoad } from '@/hooks/useLoad'
 import { cn } from '@/lib/utils'
@@ -96,7 +96,9 @@ export function MembersTab({ project }: { project: Project }) {
   const open = project.status === 'ACTIVE'
   const { account } = useAccess()
   // REQ: DEC-77 — inherited (All projects) access is changed on the user's details, for those who may open them.
-  const canOpenUsers = !!account && canInMerchant(account, 'manageUsersRoles', project.merchantId)
+  const canOpenUsers = !!account && canInMerchant(account, 'viewUsers', project.merchantId)
+  // REQ: DEC-102 — View members is read-only; adding and removing needs Add / remove.
+  const canManage = !!account && canInProject(account, 'manageMembers', project)
 
   const remove = async (userId: string, assignmentId: string, label: string) => {
     if (!window.confirm(`Remove ${label} from ${project.name}? Their open claims here are released.`)) return
@@ -113,7 +115,7 @@ export function MembersTab({ project }: { project: Project }) {
   return (
     <Card title="Members">
       <div className="space-y-4">
-        {open ? <AddMember project={project} onAdded={rows.reload} /> : <p className="rounded-md bg-muted px-3 py-2 text-sm text-muted-foreground">Archived projects keep their members, read-only.</p>}
+        {!canManage ? null : open ? <AddMember project={project} onAdded={rows.reload} /> : <p className="rounded-md bg-muted px-3 py-2 text-sm text-muted-foreground">Archived projects keep their members, read-only.</p>}
         <div className="overflow-x-auto rounded-md border">
           <table className={cn('w-full text-sm', rows.loading && rows.data && 'opacity-60')} aria-busy={rows.loading}>
             <thead className="bg-muted/50 text-left text-xs text-muted-foreground">

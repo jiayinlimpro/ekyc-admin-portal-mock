@@ -114,7 +114,9 @@ function Flows({ project }: { project: MyProject }) {
   const actor = useSession((s) => s.actor)
   const { account } = useAccess()
   // REQ: DEC-99 — Flows View opens the list read-only; creating and changing flows needs Manage flows (staff: Edit).
-  const canEdit = !!account && canInProject(account, 'manageFlows', project)
+  // REQ: DEC-102 — Create (and Duplicate) and Activate / retire (and Set as default) are separate permissions.
+  const canCreate = !!account && canInProject(account, 'createFlows', project)
+  const canActivate = !!account && canInProject(account, 'activateFlows', project)
   const navigate = useNavigate()
   const rows = useLoad(() => flowService.listRows(project.projectId, actor), [project.projectId, actor.userId])
   const [creating, setCreating] = useState(false)
@@ -138,7 +140,7 @@ function Flows({ project }: { project: MyProject }) {
           <h1 className="text-2xl font-semibold">Flows</h1>
           <p className="text-sm text-muted-foreground">{project.name} · settings live on each flow; saving an active flow creates a new revision for new sessions.</p>
         </div>
-        {project.status === 'ACTIVE' && canEdit && (
+        {project.status === 'ACTIVE' && canCreate && (
           <Button onClick={() => setCreating(true)}>
             <Plus aria-hidden /> New flow
           </Button>
@@ -199,12 +201,12 @@ function Flows({ project }: { project: MyProject }) {
                     />
                     <DropdownMenuContent align="end" className="w-44">
                       <DropdownMenuItem onClick={() => navigate(`/flows/${f.flowId}`)}>Open</DropdownMenuItem>
-                      {canEdit && <DropdownMenuItem onClick={() => void act(() => flowService.duplicate(f.flowId, actor), `${f.name} duplicated as Draft`)}>
+                      {canCreate && <DropdownMenuItem onClick={() => void act(() => flowService.duplicate(f.flowId, actor), `${f.name} duplicated as Draft`)}>
                         <Copy aria-hidden /> Duplicate
                       </DropdownMenuItem>}
-                      {canEdit && f.status === 'ACTIVE' && !f.isDefault && <DropdownMenuItem onClick={() => void act(() => flowService.setDefault(f.flowId, actor), `${f.name} is now the default`)}>Set as default</DropdownMenuItem>}
-                      {canEdit && f.status !== 'ACTIVE' && <DropdownMenuItem onClick={() => void act(() => flowService.activate(f.flowId, actor), `${f.name} activated`)}>Activate</DropdownMenuItem>}
-                      {canEdit && f.status === 'ACTIVE' && <DropdownMenuItem onClick={() => setRetiring(f)}>Retire</DropdownMenuItem>}
+                      {canActivate && f.status === 'ACTIVE' && !f.isDefault && <DropdownMenuItem onClick={() => void act(() => flowService.setDefault(f.flowId, actor), `${f.name} is now the default`)}>Set as default</DropdownMenuItem>}
+                      {canActivate && f.status !== 'ACTIVE' && <DropdownMenuItem onClick={() => void act(() => flowService.activate(f.flowId, actor), `${f.name} activated`)}>Activate</DropdownMenuItem>}
+                      {canActivate && f.status === 'ACTIVE' && <DropdownMenuItem onClick={() => setRetiring(f)}>Retire</DropdownMenuItem>}
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </td>

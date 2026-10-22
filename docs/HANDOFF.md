@@ -44,7 +44,8 @@ What the mock gives engineering, and what the real backend must do that a mock c
 `src/domain/*Rules.ts` plus their Vitest files are the rules as code. The backend must **re-implement them
 server-side**. The tests (Given/When/Then names) are a shared spec; port or mirror them.
 
-- `roles.ts`: permission catalogue, System Default roles, grants from assignments, scope / grant / last-owner rules.
+- `permissionMatrix.ts`: every permission as a module View or action (DEC-102), and what each action implies.
+- `roles.ts`: System Default roles, grants from assignments, scope / grant / last-owner rules.
 - `access.ts`: each action's permission; `canInProject`, `canInMerchant` (All projects grants only), `hasProject`.
 - `checkRules.ts`: per-check thresholds, retries, the last attempt decides (DEC-15, DEC-16), V4 risk gate.
 - `claimRules.ts`: claim, cancel, expiry, overlay enablement, save-time ownership check, decisions (DEC-31).

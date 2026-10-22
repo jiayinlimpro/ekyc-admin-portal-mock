@@ -262,7 +262,7 @@ function UserDialog({ userId, onClose, onChanged }: { userId: string; onClose: (
             <section aria-label="Access">
               <div className="mb-2 flex items-center justify-between gap-2">
                 <h3 className="text-sm font-semibold">Access</h3>
-                {u.canManage && (
+                {u.can.changeAccess && (
                   <Button size="sm" variant="outline" onClick={() => setEditing({ mode: 'add' })}>
                     <Plus aria-hidden /> Add access
                   </Button>
@@ -318,7 +318,7 @@ function UserDialog({ userId, onClose, onChanged }: { userId: string; onClose: (
                 {!u.assignments.length && (
                   <div className="flex flex-wrap items-center justify-between gap-2 px-3 py-4 text-sm text-muted-foreground">
                     No access yet. Add access so they can use the portal.
-                    {u.canManage && (
+                    {u.can.changeAccess && (
                       <Button size="sm" onClick={() => setEditing({ mode: 'add' })}>
                         <Plus aria-hidden /> Add access
                       </Button>
@@ -331,19 +331,19 @@ function UserDialog({ userId, onClose, onChanged }: { userId: string; onClose: (
           </div>
         )}
         <DialogFooter>
-          {u?.canManage && u.status === 'PENDING' && (
+          {u?.can.resendInvitation && u.status === 'PENDING' && (
             <Button variant="outline" onClick={() => void act(() => userAdminService.resendInvitation(u.userId, actor), `Invitation resent to ${u.email}`)}>
               Resend invitation
             </Button>
           )}
-          {u?.canManage && u.status !== 'SUSPENDED' && (
+          {u?.can.suspend && u.status !== 'SUSPENDED' && (
             <span title={u.suspendBlocked} className="inline-flex">
               <Button variant="destructive" disabled={!!u.suspendBlocked} aria-description={u.suspendBlocked} onClick={() => window.confirm(`Suspend ${u.fullName}? They can’t sign in and their open claims are released.`) && void act(() => userAdminService.suspend(u.userId, actor), `${u.fullName} suspended`)}>
                 Suspend
               </Button>
             </span>
           )}
-          {u?.canManage && u.status === 'SUSPENDED' && (
+          {u?.can.suspend && u.status === 'SUSPENDED' && (
             <Button variant="outline" onClick={() => void act(() => userAdminService.reactivate(u.userId, actor), `${u.fullName} reactivated`)}>
               Reactivate
             </Button>

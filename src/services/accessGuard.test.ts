@@ -37,7 +37,7 @@ describe('accessGuard (DEC-71, DEC-72)', () => {
   it('Given the Super admin, then cases in every project (DEC-75)', () => {
     expect(projectIdsWhere(ADMIN, 'viewCases').size).toBe(db.state().projects.length)
     expect(mayInProject(ADMIN, 'manageIntegration', fx('PRJ-0003'))).toBe(true)
-    expect(projectIdsWhere(ADMIN, 'manageFlows').size).toBe(db.state().projects.length)
+    expect(projectIdsWhere(ADMIN, 'editFlows').size).toBe(db.state().projects.length)
   })
 })
 

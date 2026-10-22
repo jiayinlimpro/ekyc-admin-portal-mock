@@ -323,18 +323,42 @@ export interface Flow {
   updatedBy: ClaimHolder | { userId: 'SYSTEM'; fullName: 'SYSTEM' }
 }
 
-// REQ: DEC-70 — permissions, grouped as on the Roles screen. Merchant-level ones only work in an All projects assignment.
-export const MERCHANT_PERMISSIONS = ['MANAGE_BILLING', 'MANAGE_USERS_ROLES', 'MANAGE_PROJECTS', 'VIEW_MERCHANT_REPORTS'] as const
+// REQ: DEC-70 / DEC-102 — permissions, one per module action (src/domain/permissionMatrix.ts lays them out as on the
+// Roles screen). Merchant-level ones only work in an All projects assignment.
+export const MERCHANT_PERMISSIONS = [
+  'CREATE_PROJECTS',
+  'RENAME_PROJECTS',
+  'ARCHIVE_PROJECTS',
+  'VIEW_USERS',
+  'INVITE_USERS', // and resend the invitation
+  'CHANGE_USER_ACCESS', // add, edit, remove access rows
+  'SUSPEND_USERS', // suspend and reactivate
+  'VIEW_ROLES',
+  'CREATE_ROLES', // and duplicate
+  'EDIT_ROLES',
+  'CHANGE_ROLE_STATUS', // activate and deactivate
+  'VIEW_BILLING',
+  'MANAGE_BILLING',
+  'VIEW_MERCHANT_REPORTS',
+  'EXPORT_MERCHANT_REPORTS',
+] as const
 export const PROJECT_PERMISSIONS = [
   'VIEW_CASES',
   'CLAIM_CASES',
   'DECIDE_CASES',
-  'MANAGE_PROJECT_SETTINGS',
-  'MANAGE_INTEGRATION', // API keys and webhook
-  'MANAGE_FLOWS',
+  'VIEW_FLOWS',
+  'CREATE_FLOWS', // and duplicate
+  'EDIT_FLOWS',
+  'ACTIVATE_FLOWS', // activate, retire, set default
   'CHANGE_VERIFICATION_LEVEL', // thresholds, retries allowed, risk level
+  'VIEW_PROJECT_SETTINGS',
+  'MANAGE_PROJECT_SETTINGS',
+  'VIEW_INTEGRATION',
+  'MANAGE_INTEGRATION', // API keys and webhook
+  'VIEW_MEMBERS',
   'MANAGE_MEMBERS',
   'VIEW_PROJECT_REPORTS',
+  'EXPORT_PROJECT_REPORTS',
   'VIEW_AUDIT_LOG',
 ] as const
 export type MerchantPermission = (typeof MERCHANT_PERMISSIONS)[number]

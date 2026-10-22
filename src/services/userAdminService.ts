@@ -70,8 +70,8 @@ export interface UserDetail extends UserRow {
   assignments: AssignmentRow[]
   /** Nobody changes their own access (DEC-74). */
   isSelf: boolean
-  /** The viewer may add access, resend the invitation, suspend and reactivate. */
-  canManage: boolean
+  /** REQ: DEC-102 — what the viewer may do here, one permission each (never on themselves). */
+  can: { changeAccess: boolean; resendInvitation: boolean; suspend: boolean }
   /** REQ: DEC-78 — Suspend is shown but disabled, with this reason (the last Merchant Owner). */
   suspendBlocked?: string
   /** REQ: DEC-74 — per project of the merchant: each permission and the access rows ("Comes from") that grant it. */
@@ -162,19 +162,22 @@ export function requireNewUser(input: { fullName: string; email: string }, kind:
 const singleProject = (scope: AssignmentScope) => (scope.kind === 'PROJECTS' && scope.projectIds.length === 1 ? scope.projectIds[0] : undefined)
 
 /**
- * REQ: DEC-74 / DEC-77 — who may give or take access in a scope: Manage users and roles (merchant-wide), or Manage project
- * members in every selected project.
+ * REQ: DEC-74 / DEC-77 / DEC-102 — who may give or take access in a scope: Change user access (merchant-wide), or Add /
+ * remove project members in every selected project. Inviting gives the first access row (`inviting`).
  */
-function mayManageScope(me: AccountAccess, merchantId: string, scope: AssignmentScope): boolean {
-  if (canInMerchant(me, 'manageUsersRoles', merchantId)) return true
+function mayManageScope(me: AccountAccess, merchantId: string, scope: AssignmentScope, inviting = false): boolean {
+  if (canInMerchant(me, inviting ? 'inviteUsers' : 'changeUserAccess', merchantId)) return true
   return scope.kind === 'PROJECTS' && scope.projectIds.every((id) => {
     const p = projectOf(id)
     return !!p && p.merchantId === merchantId && canInProject(me, 'manageMembers', p)
   })
 }
 
-function requireUsersScreen(me: AccountAccess, merchantId: string) {
-  if (!canInMerchant(me, 'manageUsersRoles', merchantId)) throw new ServiceError('FORBIDDEN', 'You do not have permission to manage users.')
+const USER_ACTION_TEXT = { viewUsers: 'view users', inviteUsers: 'invite users', suspendUsers: 'suspend or reactivate users' } as const
+
+// REQ: DEC-102 — each operation on the Users screen needs its own permission.
+function requireUsersScreen(me: AccountAccess, merchantId: string, action: keyof typeof USER_ACTION_TEXT = 'viewUsers') {
+  if (!canInMerchant(me, action, merchantId)) throw new ServiceError('FORBIDDEN', `You do not have permission to ${USER_ACTION_TEXT[action]}.`)
 }
 
 /** A merchant user the actor may see, or "not found". Super admins are internal and not listed (DEC-70). */
@@ -196,12 +199,12 @@ const openProjectIds = (merchantId: string, keep: AssignmentScope | undefined) =
     .map((p) => p.projectId)
 
 /** Role, scope and "grant only what you hold" checks for a new or edited assignment. */
-function checkAssignment(me: AccountAccess, merchantId: string, input: AssignmentInput, keep?: AssignmentScope): Role {
+function checkAssignment(me: AccountAccess, merchantId: string, input: AssignmentInput, keep?: AssignmentScope, inviting = false): Role {
   const role = roleOf(input.roleId)
   if (!role || (role.merchantId && role.merchantId !== merchantId)) throw validation([{ field: 'roleId', message: 'Choose a role.' }])
   const errors = [...validateAssignment(role, input.scope, openProjectIds(merchantId, keep))]
   if (errors.length) throw validation(errors)
-  if (!mayManageScope(me, merchantId, input.scope)) throw new ServiceError('FORBIDDEN', 'You do not manage access for these projects.')
+  if (!mayManageScope(me, merchantId, input.scope, inviting)) throw new ServiceError('FORBIDDEN', 'You do not manage access for these projects.')
   if (!canGrant(me.level === 'SUPER_ADMIN' ? 'SUPER_ADMIN' : me.grants, role.permissions, input.scope)) throw new ServiceError('FORBIDDEN', GRANT_TOO_POWERFUL)
   return role
 }
@@ -267,7 +270,11 @@ function detailOf(actor: Actor, a: UserAccount & { merchantId: string }): UserDe
     ...rowOf(a),
     lastActiveAt: a.lastActiveAt,
     isSelf,
-    canManage: !isSelf && canInMerchant(me, 'manageUsersRoles', a.merchantId),
+    can: {
+      changeAccess: !isSelf && canInMerchant(me, 'changeUserAccess', a.merchantId),
+      resendInvitation: !isSelf && canInMerchant(me, 'inviteUsers', a.merchantId),
+      suspend: !isSelf && canInMerchant(me, 'suspendUsers', a.merchantId),
+    },
     suspendBlocked: ownerErrors(a.merchantId, { ...a, status: 'SUSPENDED' })[0]?.message,
     effective: db
       .state()
@@ -316,14 +323,14 @@ function membersOf(actor: Actor, p: Project): MemberRow[] {
     .sort((x, y) => Number(y.roles.some((r) => r.inherited)) - Number(x.roles.some((r) => r.inherited)) || x.fullName.localeCompare(y.fullName))
 }
 
-/** The project, if the actor may manage its members; otherwise "not found" / "forbidden" (DEC-72). */
-function membersProject(actor: Actor, projectId: string): Project {
+/** The project, if the actor may view (or manage) its members; otherwise "not found" / "forbidden" (DEC-72, DEC-102). */
+function membersProject(actor: Actor, projectId: string, action: 'viewMembers' | 'manageMembers' = 'manageMembers'): Project {
   const me = accountOf(actor)
   const p = projectOf(projectId)
   if (!p || (me.level !== 'SUPER_ADMIN' && me.merchantId !== p.merchantId) || (me.level !== 'SUPER_ADMIN' && !me.grants.some((g) => covers(g.scope, projectId)))) {
     throw new ServiceError('NOT_FOUND', `Project ${projectId} not found.`)
   }
-  if (!canInProject(me, 'manageMembers', p)) throw new ServiceError('FORBIDDEN', 'You do not have permission to manage members in this project.')
+  if (!canInProject(me, action, p)) throw new ServiceError('FORBIDDEN', `You do not have permission to ${action === 'viewMembers' ? 'view' : 'manage'} members in this project.`)
   return p
 }
 
@@ -353,7 +360,7 @@ export const mockUserAdminService: UserAdminService = {
   async draftUserId(actor) {
     await simulateNetwork('draft user id')
     const me = accountOf(actor)
-    if (me.level !== 'SUPER_ADMIN') requireUsersScreen(me, me.merchantId!)
+    if (me.level !== 'SUPER_ADMIN') requireUsersScreen(me, me.merchantId!, 'inviteUsers')
     return newId('usr')
   },
 
@@ -361,9 +368,9 @@ export const mockUserAdminService: UserAdminService = {
     await simulateNetwork('invite user')
     const me = requireActive(actor)
     if (!db.state().merchants.some((m) => m.merchantId === merchantId) || (me.level !== 'SUPER_ADMIN' && me.merchantId !== merchantId)) throw new ServiceError('NOT_FOUND', `Merchant ${merchantId} not found.`)
-    requireUsersScreen(me, merchantId)
+    requireUsersScreen(me, merchantId, 'inviteUsers')
     const email = requireNewUser(input, 'MERCHANT')
-    checkAssignment(me, merchantId, input.assignment)
+    checkAssignment(me, merchantId, input.assignment, undefined, true)
     const at = now().toISOString()
     const account: UserAccount & { merchantId: string } = {
       userId: adoptDraftId('usr', input.userId, (id) => db.state().accounts.some((a) => a.userId === id)),
@@ -386,7 +393,7 @@ export const mockUserAdminService: UserAdminService = {
     await simulateNetwork('resend invitation')
     const me = requireActive(actor)
     const a = loadUser(me, userId)
-    requireUsersScreen(me, a.merchantId)
+    requireUsersScreen(me, a.merchantId, 'inviteUsers')
     if (a.status !== 'PENDING') throw validation([{ field: 'status', message: 'Only Pending users have an invitation to resend.' }])
     const invitationId = newId('inv') // a resend replaces the invitation: the old link stops working
     putAccount({ ...a, invitationId })
@@ -446,7 +453,7 @@ export const mockUserAdminService: UserAdminService = {
     await simulateNetwork('suspend user')
     const me = requireActive(actor)
     const a = loadUser(me, userId)
-    requireUsersScreen(me, a.merchantId)
+    requireUsersScreen(me, a.merchantId, 'suspendUsers')
     notSelf(actor, a)
     if (a.status === 'SUSPENDED') return wire(rowOf(a))
     const updated = { ...a, status: 'SUSPENDED' as const }
@@ -461,7 +468,7 @@ export const mockUserAdminService: UserAdminService = {
     await simulateNetwork('reactivate user')
     const me = requireActive(actor)
     const a = loadUser(me, userId)
-    requireUsersScreen(me, a.merchantId)
+    requireUsersScreen(me, a.merchantId, 'suspendUsers')
     notSelf(actor, a)
     if (a.status !== 'SUSPENDED') return wire(rowOf(a))
     const updated = { ...a, status: 'ACTIVE' as const }
@@ -472,7 +479,7 @@ export const mockUserAdminService: UserAdminService = {
 
   async listMembers(projectId, actor) {
     await simulateNetwork('list members')
-    return wire(membersOf(actor, membersProject(actor, projectId)))
+    return wire(membersOf(actor, membersProject(actor, projectId, 'viewMembers')))
   },
 
   async memberCandidates(projectId, actor) {

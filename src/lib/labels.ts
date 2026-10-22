@@ -2,26 +2,45 @@ import type { AttemptOutcome, AuditAction, DocumentType, FlowStatus, MerchantSta
 
 export const FLOW_STATUS_LABELS: Record<FlowStatus, string> = { DRAFT: 'Draft', ACTIVE: 'Active', RETIRING: 'Retiring', INACTIVE: 'Inactive' }
 
-// REQ: DEC-70 — permission names on the Roles screen (the list is OQ-09).
+// REQ: DEC-70 / DEC-102 — each permission as a phrase, for Effective access, the access preview and audit entries. The
+// Roles screen shows the matrix instead (domain/permissionMatrix). The list is OQ-09.
 export const PERMISSION_LABELS: Record<Permission, string> = {
+  CREATE_PROJECTS: 'Create projects',
+  RENAME_PROJECTS: 'Rename projects',
+  ARCHIVE_PROJECTS: 'Archive projects',
+  VIEW_USERS: 'View users',
+  INVITE_USERS: 'Invite users',
+  CHANGE_USER_ACCESS: 'Change user access',
+  SUSPEND_USERS: 'Suspend users',
+  VIEW_ROLES: 'View roles',
+  CREATE_ROLES: 'Create roles',
+  EDIT_ROLES: 'Edit roles',
+  CHANGE_ROLE_STATUS: 'Deactivate roles',
+  VIEW_BILLING: 'View billing and contract',
   MANAGE_BILLING: 'Manage billing and contract',
-  MANAGE_USERS_ROLES: 'Manage users and roles',
-  MANAGE_PROJECTS: 'Create, rename, archive projects',
   VIEW_MERCHANT_REPORTS: 'View merchant-wide reports',
+  EXPORT_MERCHANT_REPORTS: 'Export merchant-wide reports',
   VIEW_CASES: 'View cases',
   CLAIM_CASES: 'Claim cases',
   DECIDE_CASES: 'Approve / reject cases',
-  MANAGE_PROJECT_SETTINGS: 'Manage project settings',
-  MANAGE_INTEGRATION: 'Manage API keys and webhook',
-  MANAGE_FLOWS: 'Manage flows',
+  VIEW_FLOWS: 'View flows',
+  CREATE_FLOWS: 'Create flows',
+  EDIT_FLOWS: 'Edit flows',
+  ACTIVATE_FLOWS: 'Activate / retire flows',
   CHANGE_VERIFICATION_LEVEL: 'Change verification level and retries',
-  MANAGE_MEMBERS: 'Manage project members',
+  VIEW_PROJECT_SETTINGS: 'View project settings',
+  MANAGE_PROJECT_SETTINGS: 'Edit project settings',
+  VIEW_INTEGRATION: 'View API keys and webhook',
+  MANAGE_INTEGRATION: 'Manage API keys and webhook',
+  VIEW_MEMBERS: 'View project members',
+  MANAGE_MEMBERS: 'Add / remove project members',
   VIEW_PROJECT_REPORTS: 'View project reports',
+  EXPORT_PROJECT_REPORTS: 'Export project reports',
   VIEW_AUDIT_LOG: 'View audit log',
   // REQ: DEC-99 — platform permissions, written "Module · action".
   P_MERCHANTS_VIEW: 'Merchants · View',
-  P_MERCHANTS_CREATE: 'Merchants · Create',
-  P_MERCHANTS_SUSPEND: 'Merchants · Suspend',
+  P_MERCHANTS_CREATE: 'Merchants · Create / edit',
+  P_MERCHANTS_SUSPEND: 'Merchants · Change status',
   P_REGISTRY_VIEW: 'Workflow Registry · View',
   P_REGISTRY_MANAGE: 'Workflow Registry · Manage',
   P_LEVELS_VIEW: 'Verification levels · View',
@@ -39,31 +58,6 @@ export const PERMISSION_LABELS: Record<Permission, string> = {
   P_INTEGRATION_MANAGE: 'API keys and webhook · Manage',
   P_AUDIT_VIEW: 'Audit log · View',
 }
-
-/** REQ: DEC-99 — the Roles form shows platform permissions grouped by module, with short action names. */
-export const PLATFORM_PERMISSION_GROUPS: { title: string; hint: string; modules: { module: string; actions: [Permission, string][] }[] }[] = [
-  {
-    title: 'Platform-level',
-    hint: 'Apply across the platform.',
-    modules: [
-      { module: 'Merchants', actions: [['P_MERCHANTS_VIEW', 'View'], ['P_MERCHANTS_CREATE', 'Create'], ['P_MERCHANTS_SUSPEND', 'Suspend']] },
-      { module: 'Workflow Registry', actions: [['P_REGISTRY_VIEW', 'View'], ['P_REGISTRY_MANAGE', 'Manage']] },
-      { module: 'Verification levels', actions: [['P_LEVELS_VIEW', 'View'], ['P_LEVELS_CALIBRATE', 'Calibrate']] },
-      { module: 'Platform billing', actions: [['P_BILLING_VIEW', 'View'], ['P_BILLING_MANAGE', 'Manage']] },
-      { module: 'Usage reports', actions: [['P_REPORTS_VIEW', 'View'], ['P_REPORTS_EXPORT', 'Export']] },
-    ],
-  },
-  {
-    title: 'Merchant access',
-    hint: 'Apply in the merchants the user is given.',
-    modules: [
-      { module: 'Verifications', actions: [['P_CASES_VIEW_MASKED', 'View (masked)'], ['P_CASES_VIEW_UNMASKED', 'See unmasked ID data'], ['P_CASES_DECIDE', 'Claim / approve / reject']] },
-      { module: 'Flows', actions: [['P_FLOWS_VIEW', 'View'], ['P_FLOWS_EDIT', 'Edit']] },
-      { module: 'API keys and webhook', actions: [['P_INTEGRATION_VIEW', 'View'], ['P_INTEGRATION_MANAGE', 'Manage']] },
-      { module: 'Audit log', actions: [['P_AUDIT_VIEW', 'View']] },
-    ],
-  },
-]
 
 /** REQ: DEC-99 — account types. */
 export const ACCOUNT_TYPE_LABELS = { SUPER_ADMIN: 'Super admin', PLATFORM_STAFF: 'Platform (internal)', MERCHANT_USER: 'Merchant' } as const

@@ -86,8 +86,8 @@ function Editor({ detail, onSaved }: { detail: FlowDetail; onSaved: () => void }
   const canSetAdvanced = !!account && !!project && canInProject(account, 'setAdvancedThresholds', project)
   // REQ: DEC-70 — thresholds, retries and risk level need Change verification level and retries.
   const canChangeLevel = !!account && !!project && canInProject(account, 'changeVerificationLevel', project)
-  // REQ: DEC-99 — Flows View is read-only; saving needs Manage flows (staff: Flows Edit).
-  const canEdit = !!account && !!project && canInProject(account, 'manageFlows', project)
+  // REQ: DEC-99 / DEC-102 — Flows View is read-only; saving needs Edit (staff: Flows Edit).
+  const canEdit = !!account && !!project && canInProject(account, 'editFlows', project)
   const editable = canEdit && (flow.status === 'DRAFT' || flow.status === 'ACTIVE')
   const [draft, setDraft] = useState<FlowEdit>({ name: flow.name, description: flow.description, settings: structuredClone(flow.settings) })
   const [reason, setReason] = useState('')
@@ -286,6 +286,10 @@ export function FlowDetailPage() {
   const headerProject = useSession((s) => s.projectId)
   const detail = useLoad(() => flowService.get(flowId, actor), [flowId, actor.userId])
   const d = detail.data?.flow.flowId === flowId ? detail.data : undefined
+  // REQ: DEC-102 — Activate / retire / set default and Duplicate each need their own permission.
+  const { account, projects } = useAccess()
+  const flowProject = d && projects.find((p) => p.projectId === d.flow.projectId)
+  const may = (a: 'activateFlows' | 'createFlows') => !!account && !!flowProject && canInProject(account, a, flowProject)
 
   // REQ: DEC-96 — settings work on one project: follow the flow's project in the header.
   useEffect(() => {
@@ -336,17 +340,17 @@ export function FlowDetailPage() {
           )}
         </div>
         <div className="flex flex-wrap gap-2">
-          {f.status !== 'ACTIVE' && (
+          {may('activateFlows') && f.status !== 'ACTIVE' && (
             <Button size="sm" onClick={() => void act(() => flowService.activate(f.flowId, actor), `${f.name} activated`)}>
               Activate
             </Button>
           )}
-          {f.status === 'ACTIVE' && !d.isDefault && (
+          {may('activateFlows') && f.status === 'ACTIVE' && !d.isDefault && (
             <Button size="sm" variant="outline" onClick={() => void act(() => flowService.setDefault(f.flowId, actor), `${f.name} is now the default`)}>
               Set as default
             </Button>
           )}
-          {f.status === 'ACTIVE' && (
+          {may('activateFlows') && f.status === 'ACTIVE' && (
             <Button
               size="sm"
               variant="outline"
@@ -357,9 +361,11 @@ export function FlowDetailPage() {
               Retire
             </Button>
           )}
-          <Button size="sm" variant="outline" onClick={() => void act(() => flowService.duplicate(f.flowId, actor), `${f.name} duplicated as Draft`)}>
-            Duplicate
-          </Button>
+          {may('createFlows') && (
+            <Button size="sm" variant="outline" onClick={() => void act(() => flowService.duplicate(f.flowId, actor), `${f.name} duplicated as Draft`)}>
+              Duplicate
+            </Button>
+          )}
         </div>
       </header>
       <Editor key={`${f.flowId}|${f.revision}|${f.status}|${f.updatedAt}`} detail={d} onSaved={detail.reload} />
