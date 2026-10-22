@@ -225,7 +225,7 @@ Rules changed on 2026-10-20 (Projects & Flows restructure) are marked **(changed
   - **System Default roles** (locked, the same for every merchant): **Merchant Owner** (every permission), **Project Admin**
     (every project-level permission), **Reviewer** (view, claim, approve / reject, project reports), **Viewer** (view cases,
     project reports). Merchants add **Custom** roles. Role names are OQ-09.
-  - **Platform Admin** (internal) is not a merchant role. **(changed)** It holds **every permission in every merchant**
+  - **Platform Admin** (internal; now called **Super admin**, DEC-99) is not a merchant role. **(changed)** It holds **every permission in every merchant**
     (cases, claim and approve / reject, API keys and webhook included), plus Workflow Registry, Merchants, Admins and
     Advanced thresholds (DEC-19) (DEC-75). [PO 2026-10-21]
 - **DEC-71** Client-side permission checks are UI only, not security. The real backend must enforce them.
@@ -254,7 +254,7 @@ Rules changed on 2026-10-20 (Projects & Flows restructure) are marked **(changed
     each permission with a "Comes from" chip naming the access row that grants it. The Add / Edit access dialog shows a
     plain-language preview ("Ali will be able to … in SME app") and lists only roles the actor may give. A user with no
     access shows "No access yet. Add access so they can use the portal." with Add access.
-  - Not used [PO 2026-10-21]: access end dates (temporary cover), and per-flow scope (DEC-70; two users with the same role
+  - Not used [PO 2026-10-21]: per-flow scope. (Access end dates: now used, DEC-99.) Previously also: access end dates, and per-flow scope (DEC-70; two users with the same role
     can already work in different projects, because the scope belongs to each assignment).
   - The Users screen lists merchant users only; Platform Admins are managed on **Admins** (DEC-79).
 - **DEC-75** **(changed)** Platform Admin can do everything a Merchant Owner can, in any merchant, for onboarding and support:
@@ -289,7 +289,7 @@ Rules changed on 2026-10-20 (Projects & Flows restructure) are marked **(changed
     Merchant Owner: "At least one Merchant Owner (All projects) is required").
   - Services check every action anyway (DEC-71). Screens a user can't open show "No access"; a case or project outside
     their access is "not found" (DEC-72).
-- **DEC-79** **(new)** **Admins** (Platform menu, Platform Admin only): the internal Platform Admin accounts, kept apart from
+- **DEC-79** **(new; renamed Super admins, DEC-99)** **Admins** (Platform menu, Platform Admin only): the internal Platform Admin accounts, kept apart from
   merchant users. Columns Full Name, Email, Status, Created At, Last active; sorted by Created At, newest first. New admin = full
   name and work email; starts Pending (Resend invitation); Suspend / Reactivate; never deleted. No roles or scopes: Platform
   Admin rights are fixed (DEC-70). At least one active Platform Admin must remain; nobody suspends themselves. Audited with
@@ -318,6 +318,57 @@ Rules changed on 2026-10-20 (Projects & Flows restructure) are marked **(changed
   - **No delete:** merchants are never deleted; Terminated keeps the records (retention: OQ-29).
   - **Resend invitation** while the merchant is Onboarding and its first owner is still Pending.
   - Not added for now: registered address, TIN / SST, billing email, compliance contact (OQ-30).
+
+## Internal (platform) staff
+- **DEC-99** **(new)** Three account types [PO 2026-10-22]:
+
+  | Type | Belongs to | Managed in | Access |
+  |---|---|---|---|
+  | **Super admin** (was "Platform Admin") | No merchant | Platform › **Super admins** (DEC-79) | Everything; outside the role system; never created or listed in the Users / Roles forms |
+  | **Platform staff** (internal) | No merchant | Users / Roles with Type = Platform | A platform role, given for All merchants (including future ones) or Selected merchants |
+  | **Merchant user** | Exactly one merchant | Users / Roles with Type = Merchant | A merchant role, given for All projects or Selected projects (DEC-70) |
+
+  - **Type** is the first field of New role and New user: `Platform (internal)` or `Merchant`. Only super admins choose
+    it; merchant admins see it locked as "Merchant · <their merchant>". It can't be changed after creation (no conversion).
+  - **Platform permissions** (Roles form, Type = Platform), real actions only:
+    - Platform-level: Merchants (View, Create, Suspend) · Workflow Registry (View, Manage) · Verification levels (View,
+      Calibrate) · Platform billing (View, Manage) · Usage reports (View, Export).
+    - Merchant access, in the merchants the user is given: Verifications (View masked, See unmasked ID data, Claim /
+      approve / reject) · Flows (View, Edit) · API keys and webhook (View, Manage) · Audit log (View).
+    - Ticked with them: any action ticks its View; See unmasked ticks View masked; Claim / approve / reject ticks both
+      View masked and See unmasked (a reviewer must see the documents).
+    - Managing staff, platform roles and super admins is not a permission: super admin only.
+  - What they open: Merchants View = the list and details; Create = add, edit details, resend invitation; Suspend = every
+    status change (DEC-98). Registry View = read-only; Manage = register, edit, status, default. Calibrate = Advanced
+    thresholds (DEC-19). Platform billing View = Billing for every merchant. Usage reports View = Overview and System
+    Intelligence for every merchant; Export = the CSV exports. Flows View = Flows List / Detail read-only; Edit = save,
+    activate, retire. API keys View = Integration read-only; Manage = create, rotate, revoke, webhook. Verification levels
+    View and Platform billing Manage have no screen in the mock yet (presets are OQ-02; prices OQ-14).
+  - **Masked case view:** without See unmasked ID data, Verification Detail shows the full name but masks the ID number
+    (last 4 visible), date of birth (year), address, email and client IP, and hides the images. The open is still audited
+    as `SENSITIVE_PII_VIEW` (marked masked). Merchant users keep the full view (DEC-41).
+  - **System Default platform roles** (locked, like the merchant ones; Duplicate to adapt):
+
+    | Role | Platform-level | Merchant access | Usually given for |
+    |---|---|---|---|
+    | Platform Operations | Merchants View, Create, Suspend · Registry View · Levels View · Usage reports View | Verifications View masked · Flows View, Edit · API keys View, Manage · Audit log View | All merchants |
+    | Support | Merchants View · Usage reports View | Verifications View masked · Flows View · API keys View · Audit log View | All merchants |
+    | Verification Specialist | — | Verifications View masked, See unmasked, Claim / approve / reject · Audit log View | Selected merchants (those that outsource review) |
+    | Finance | Merchants View · Platform billing View, Manage · Usage reports View, Export | — | — (no merchant access) |
+    | Workflow Engineer | Registry View, Manage · Levels View, Calibrate · Usage reports View | Flows View | All merchants |
+
+    Least privilege: unmasked ID data and decisions only for case review; Finance sees no customer data; only Operations
+    changes API keys.
+  - **New user, Type = Platform:** Name · Email (the company staff domain, OQ-31) · Staff role (platform roles only) ·
+    Merchant access: `All merchants, including future merchants` (default) or `Selected merchants` (hidden, with "This role
+    has no merchant access permissions", when the role has none) · Access ends: Never (default) or a date.
+    **Type = Merchant:** Merchant (locked for merchant admins) · Name · Email (the staff domain is not allowed) · Role
+    (that merchant's roles only) · Project access (DEC-70) · Access ends. Changing the merchant resets role and projects.
+  - **Access ends** (changes DEC-74 "no end dates") on each access row: from the end of that day (MYT) the row grants
+    nothing, shows as "Ended", and claims that needed it are released at the next sweep.
+  - **Guardrails:** platform roles only for platform staff; merchant roles only for users of the same merchant. Merchant
+    admins can't create, list or open platform roles or staff; a direct URL is "not found". Super admins and the
+    Super admins screen stay as they are. Platform staff never manage users or roles.
 
 ## Identifiers
 - **DEC-97** **(new)** Identifiers [PO 2026-10-21]:
