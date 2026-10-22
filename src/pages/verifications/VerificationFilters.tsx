@@ -119,7 +119,7 @@ export function VerificationFilters({ initial, onSearch, onReset, options }: { i
         </Field>
         <Field id="f-updated" label="Last Updated By">
           <NativeSelect id="f-updated" value={draft.lastUpdatedBy} onChange={(e) => set('lastUpdatedBy', e.target.value as ListFilters['lastUpdatedBy'])}>
-            <option value="">System or manual</option>
+            <option value="">All</option>
             <option value="SYSTEM">SYSTEM (automated)</option>
             <option value="MANUAL">Manual (reviewer)</option>
           </NativeSelect>
