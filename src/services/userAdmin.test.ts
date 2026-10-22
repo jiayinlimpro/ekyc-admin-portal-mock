@@ -116,9 +116,9 @@ describe('userAdminService: the Users screen (DEC-74)', () => {
   })
 
   it('Given Hafiz on SME app, then only roles he may give there are offered; the owner gets every role', async () => {
-    expect((await roleService.assignable(fx('MER-0001'), HAFIZ, fx('PRJ-0002'))).map((r) => r.name)).toEqual(['Project Admin', 'Reviewer', 'Viewer'])
+    expect((await roleService.assignable(fx('MER-0001'), HAFIZ, fx('PRJ-0002'))).map((r) => r.name)).toEqual(['Project Admin', 'Reviewer', 'Viewer', 'Fraud Analyst'])
     await expect(roleService.assignable(fx('MER-0001'), HAFIZ, fx('PRJ-0001'))).resolves.toEqual([])
-    expect((await roleService.assignable(fx('MER-0001'), OWNER)).map((r) => r.name)).toEqual(['Merchant Owner', 'Project Admin', 'Reviewer', 'Viewer'])
+    expect((await roleService.assignable(fx('MER-0001'), OWNER)).map((r) => r.name)).toEqual(['Merchant Owner', 'Project Admin', 'Reviewer', 'Viewer', 'Fraud Analyst'])
   })
 
   it('Given a user desk role, then roles it can’t give anywhere are not offered', async () => {
@@ -175,7 +175,8 @@ describe('userAdminService: a project’s Members tab (DEC-77)', () => {
 describe('roleService: the Roles screen (DEC-76)', () => {
   it('Given the Merchant Owner, then System Default roles first and only their merchant’s Custom roles, with user counts', async () => {
     const rows = await roleService.list(OWNER)
-    expect(rows.map((r) => r.name)).toEqual(['Merchant Owner', 'Project Admin', 'Reviewer', 'Viewer'])
+    expect(rows.map((r) => r.name)).toEqual(['Merchant Owner', 'Project Admin', 'Reviewer', 'Viewer', 'Fraud Analyst'])
+    expect(rows.find((r) => r.name === 'Fraud Analyst')!.users).toBe(0)
     expect(rows.find((r) => r.name === 'Reviewer')!.users).toBe(4) // Ali, Siti, Nurul, Yap (suspended still holds it)
     const all = await roleService.list(ADMIN)
     expect(all.find((r) => r.name === 'Compliance Auditor')).toMatchObject({ type: 'CUSTOM', merchantName: 'Vantage', users: 1, projects: 1 })
@@ -185,9 +186,26 @@ describe('roleService: the Roles screen (DEC-76)', () => {
   it('Given a new role, then at least one permission; Claim ticks View cases; audited', async () => {
     await expect(roleService.create(fx('MER-0001'), { name: 'Empty', permissions: [] }, OWNER)).rejects.toMatchObject({ message: ROLE_NEEDS_PERMISSION })
     const r = await roleService.create(fx('MER-0001'), { name: 'Claimer', permissions: ['CLAIM_CASES'] }, OWNER)
-    expect(r).toMatchObject({ roleId: expect.stringMatching(/^rol_/), type: 'CUSTOM', permissions: ['VIEW_CASES', 'CLAIM_CASES'] })
+    expect(r).toMatchObject({ roleId: expect.stringMatching(/^rol_/), type: 'CUSTOM', status: 'ACTIVE', permissions: ['VIEW_CASES', 'CLAIM_CASES'] })
     expect(await lastAudit('ROLE_CREATED')).toMatchObject({ merchantId: fx('MER-0001'), actorRole: 'Merchant Owner' })
     await expect(roleService.create(fx('MER-0001'), { name: 'Mine', permissions: ['VIEW_CASES'] }, ALI)).rejects.toMatchObject({ code: 'FORBIDDEN' })
+  })
+
+  it('Given the dialog’s drafted Role ID, then the new role keeps it; it can start Inactive (DEC-76)', async () => {
+    const id = await roleService.draftRoleId(OWNER)
+    expect(id).toMatch(/^rol_[a-z][a-z0-9]{23}$/)
+    const r = await roleService.create(fx('MER-0001'), { roleId: id, name: 'Night shift', permissions: ['VIEW_CASES'], status: 'INACTIVE' }, OWNER)
+    expect(r).toMatchObject({ roleId: id, status: 'INACTIVE' })
+    expect((await roleService.assignable(fx('MER-0001'), OWNER)).some((x) => x.roleId === id)).toBe(false) // inactive: can't be given
+    const again = await roleService.create(fx('MER-0001'), { roleId: id, name: 'Night shift 2', permissions: ['VIEW_CASES'] }, OWNER)
+    expect(again.roleId).not.toBe(id) // an ID already used is never reused
+    await expect(roleService.draftRoleId(ALI)).rejects.toMatchObject({ code: 'FORBIDDEN' })
+  })
+
+  it('Given Fraud Analyst (nobody holds it), then it can be deactivated and activated again', async () => {
+    const id = fx('ROL-2026-0006')
+    expect((await roleService.setStatus(id, 'INACTIVE', OWNER)).status).toBe('INACTIVE')
+    expect((await roleService.setStatus(id, 'ACTIVE', OWNER)).status).toBe('ACTIVE')
   })
 
   it('Given a System Default role, then it cannot be edited', async () => {

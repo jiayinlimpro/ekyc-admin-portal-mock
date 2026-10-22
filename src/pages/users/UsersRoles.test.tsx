@@ -116,6 +116,37 @@ describe('Roles (DEC-76)', () => {
     expect((await row('Claimer')).textContent).toContain('Custom')
   })
 
+  it('Given New role, then the first field is the generated Role ID, read-only; the role keeps it (DEC-76)', async () => {
+    renderAt('/roles')
+    await row('Reviewer')
+    fireEvent.click(screen.getByRole('button', { name: /New role/ }))
+    const id = (await screen.findByLabelText('Role ID')) as HTMLInputElement
+    await waitFor(() => expect(id.value).toMatch(/^rol_[a-z0-9]{24}$/))
+    expect(id.disabled && id.readOnly).toBe(true)
+    const form = id.closest('form')!
+    expect(within(form).getAllByRole('textbox')[0]).toBe(id) // first field
+    fireEvent.change(screen.getByLabelText('Role name'), { target: { value: 'Night shift' } })
+    fireEvent.click(screen.getByRole('checkbox', { name: 'View cases' }))
+    fireEvent.click(screen.getByRole('radio', { name: 'Inactive' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Create role' }))
+    expect((await row('Night shift')).textContent).toContain('Inactive')
+  })
+
+  it('Given the Actions menu, then Fraud Analyst (unassigned) can be deactivated; Reviewer can’t, with the reason', async () => {
+    vi.spyOn(window, 'confirm').mockReturnValue(true)
+    renderAt('/roles')
+    fireEvent.click(within(await row('Reviewer')).getByRole('button', { name: 'Actions for Reviewer' }))
+    const item = await screen.findByRole('menuitem', { name: /Deactivate/ })
+    expect(item.getAttribute('aria-disabled') ?? item.getAttribute('data-disabled')).toBeTruthy()
+    expect(item.textContent).toContain('can’t be deactivated')
+    fireEvent.keyDown(item, { key: 'Escape' })
+    cleanup()
+    renderAt('/roles')
+    fireEvent.click(within(await row('Fraud Analyst')).getByRole('button', { name: 'Actions for Fraud Analyst' }))
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'Deactivate' }))
+    await waitFor(async () => expect((await row('Fraud Analyst')).textContent).toContain('Inactive'))
+  })
+
   it('Given Platform Admin, then the Merchant column and the Custom role with "Affects N users"', async () => {
     useSession.getState().switchUser(ADMIN)
     renderAt('/roles')

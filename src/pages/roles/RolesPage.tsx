@@ -1,6 +1,6 @@
 // REQ: DEC-76 — [FRS] User Management › Roles: grouped permission checkboxes; System Default roles locked.
 import { useState, type FormEvent } from 'react'
-import { Plus } from 'lucide-react'
+import { MoreVertical, Plus } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAccess } from '@/app/access'
 import { FormField } from '@/components/common/FormField'
@@ -9,10 +9,11 @@ import { OpenQuestionTag } from '@/components/common/OpenQuestionTag'
 import { ErrorState } from '@/components/common/States'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
-import { withImpliedPermissions } from '@/domain/roles'
-import { MERCHANT_PERMISSIONS, PROJECT_PERMISSIONS, type Permission } from '@/domain/types'
-import { fieldErrors, useLoad } from '@/hooks/useLoad'
+import { ROLE_IN_USE, withImpliedPermissions } from '@/domain/roles'
+import { MERCHANT_PERMISSIONS, PROJECT_PERMISSIONS, type Permission, type RoleStatus } from '@/domain/types'
+import { errorMessage, fieldErrors, useLoad } from '@/hooks/useLoad'
 import { formatMyt } from '@/lib/format'
 import { PERMISSION_LABELS } from '@/lib/labels'
 import { cn } from '@/lib/utils'
@@ -45,6 +46,13 @@ function PermissionGroup({ title, hint, permissions, value, onChange, disabled }
 
 type Editing = { mode: 'create'; from?: RoleRow } | { mode: 'edit'; row: RoleRow }
 
+/** REQ: DEC-76 / DEC-78 — why a role can't be deactivated now; shown on the disabled control. */
+function deactivateBlocked(row: Pick<RoleRow, 'type' | 'users' | 'status'>): string | undefined {
+  if (row.type === 'SYSTEM_DEFAULT') return 'System Default roles are shared by every merchant and can’t be deactivated.'
+  if (row.status === 'ACTIVE' && row.users > 0) return ROLE_IN_USE
+  return undefined
+}
+
 function RoleDialog({
   editing,
   merchants,
@@ -68,6 +76,10 @@ function RoleDialog({
   const [merchantId, setMerchantId] = useState(row?.merchantId ?? from?.merchantId ?? defaultMerchantId ?? '')
   const [name, setName] = useState(row?.name ?? (from ? `Copy of ${from.name}` : ''))
   const [permissions, setPermissions] = useState<Permission[]>(row?.permissions ?? from?.permissions ?? [])
+  const [status, setStatus] = useState<RoleStatus>(row?.status ?? 'ACTIVE')
+  // REQ: DEC-76 — the Role ID is generated when the dialog opens and shown read-only.
+  const draft = useLoad(() => (row ? Promise.resolve(row.roleId) : roleService.draftRoleId(actor)), [row?.roleId, actor.userId])
+  const blocked = row ? deactivateBlocked(row) : undefined
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [busy, setBusy] = useState(false)
 
@@ -86,9 +98,14 @@ function RoleDialog({
   }
   const submit = (e: FormEvent) => {
     e.preventDefault()
-    if (row) return void run(() => roleService.update(row.roleId, { name, permissions }, actor), `${name.trim()} saved`)
+    if (row) {
+      return void run(async () => {
+        if (!locked) await roleService.update(row.roleId, { name, permissions }, actor)
+        if (status !== row.status) await roleService.setStatus(row.roleId, status, actor)
+      }, `${name.trim()} saved`)
+    }
     if (!merchantId) return setErrors({ merchantId: 'Choose a merchant.' })
-    void run(() => roleService.create(merchantId, { name, permissions }, actor), `${name.trim()} created`)
+    void run(() => roleService.create(merchantId, { roleId: draft.data, name, permissions, status }, actor), `${name.trim()} created`)
   }
   return (
     <Dialog open onOpenChange={(o) => !o && !busy && onClose()}>
@@ -102,6 +119,9 @@ function RoleDialog({
                 : 'A role says what a user may do; where it applies is chosen when it is given to a user.'}
             </DialogDescription>
           </DialogHeader>
+          <FormField id="r-id" label="Role ID" hint={row ? undefined : 'Generated; it can’t be changed.'}>
+            <Input id="r-id" value={draft.data ?? ''} placeholder={draft.loading ? 'Generating…' : ''} readOnly disabled className="font-mono text-xs" />
+          </FormField>
           {!row && merchants.length > 1 && (
             <FormField id="r-merchant" label="Merchant" error={errors.merchantId}>
               <NativeSelect id="r-merchant" value={merchantId} onChange={(e) => setMerchantId(e.target.value)}>
@@ -129,6 +149,21 @@ function RoleDialog({
               Permission list and System Default roles not confirmed yet <OpenQuestionTag id="OQ-09" />
             </p>
           </div>
+          {/* REQ: DEC-76 — Status; deactivating is blocked for System Default roles and for roles still assigned (DEC-78). */}
+          <fieldset aria-describedby="r-status-hint">
+            <legend className="mb-1 text-xs font-medium text-muted-foreground">Status</legend>
+            <div className="flex gap-4">
+              {(['ACTIVE', 'INACTIVE'] as const).map((s) => (
+                <label key={s} className={cn('flex items-center gap-2 text-sm', s === 'INACTIVE' && !!blocked && status === 'ACTIVE' && 'text-muted-foreground')}>
+                  <input type="radio" name="r-status" checked={status === s} disabled={busy || (s === 'INACTIVE' && !!blocked && status === 'ACTIVE')} onChange={() => setStatus(s)} />
+                  {s === 'ACTIVE' ? 'Active' : 'Inactive'}
+                </label>
+              ))}
+            </div>
+            <p id="r-status-hint" className="mt-1 text-xs text-muted-foreground">
+              {blocked && status === 'ACTIVE' ? blocked : 'An inactive role grants nothing and can’t be given to users.'}
+            </p>
+          </fieldset>
           {row && !locked && row.users > 0 && (
             <p className="rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:bg-amber-500/10 dark:text-amber-200" role="status">
               Affects {row.users} user{row.users === 1 ? '' : 's'} in {row.projects} project{row.projects === 1 ? '' : 's'}: changes apply at once wherever they hold this role.
@@ -145,17 +180,6 @@ function RoleDialog({
             </p>
           )}
           <DialogFooter>
-            {row && !locked && (
-              <Button
-                type="button"
-                variant="outline"
-                className="sm:mr-auto"
-                disabled={busy}
-                onClick={() => void run(() => roleService.setStatus(row.roleId, row.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE', actor), row.status === 'ACTIVE' ? `${row.name} deactivated` : `${row.name} activated`)}
-              >
-                {row.status === 'ACTIVE' ? 'Deactivate' : 'Activate'}
-              </Button>
-            )}
             {row && (
               <Button type="button" variant="outline" disabled={busy} onClick={() => onDuplicate(row)}>
                 Duplicate
@@ -164,8 +188,8 @@ function RoleDialog({
             <Button type="button" variant="outline" disabled={busy} onClick={onClose}>
               {locked ? 'Close' : 'Cancel'}
             </Button>
-            {!locked && (
-              <Button type="submit" disabled={busy}>
+            {(!locked || status !== row?.status) && (
+              <Button type="submit" disabled={busy || (!row && !draft.data)}>
                 {busy ? 'Saving…' : row ? 'Save' : 'Create role'}
               </Button>
             )}
@@ -183,7 +207,18 @@ export function RolesPage() {
   const rows = useLoad(() => roleService.list(actor), [actor.userId])
   const merchants = useLoad(() => merchantService.list(actor), [actor.userId])
   const [editing, setEditing] = useState<Editing>()
-  const headers = ['Role Name', ...(isAdmin ? ['Merchant'] : []), 'Role Type', 'Status', 'Users', 'Created At']
+  const headers = ['Role Name', ...(isAdmin ? ['Merchant'] : []), 'Role Type', 'Status', 'Users', 'Created At', 'Actions']
+  const toggle = async (r: RoleRow) => {
+    const to = r.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE'
+    if (to === 'INACTIVE' && !window.confirm(`Deactivate ${r.name}? It can no longer be given to users.`)) return
+    try {
+      await roleService.setStatus(r.roleId, to, actor)
+      toast.success(`${r.name} ${to === 'ACTIVE' ? 'activated' : 'deactivated'}`)
+      rows.reload()
+    } catch (e) {
+      toast.error(errorMessage(e))
+    }
+  }
 
   if (rows.error && !rows.data) return <ErrorState message={rows.error} onRetry={rows.reload} />
   return (
@@ -221,6 +256,32 @@ export function RolesPage() {
                 <td className="px-3 py-2">{r.status === 'ACTIVE' ? 'Active' : 'Inactive'}</td>
                 <td className="px-3 py-2 text-right tabular-nums">{r.users}</td>
                 <td className="px-3 py-2 whitespace-nowrap">{formatMyt(r.createdAt)}</td>
+                <td className="px-3 py-2">
+                  <DropdownMenu>
+                    <DropdownMenuTrigger
+                      render={
+                        <Button variant="ghost" size="icon-sm" aria-label={`Actions for ${r.name}`}>
+                          <MoreVertical aria-hidden />
+                        </Button>
+                      }
+                    />
+                    <DropdownMenuContent align="end" className="w-64">
+                      <DropdownMenuItem onClick={() => setEditing({ mode: 'edit', row: r })}>{r.type === 'SYSTEM_DEFAULT' ? 'View' : 'Edit'}</DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => setEditing({ mode: 'create', from: r })}>Duplicate</DropdownMenuItem>
+                      {r.status === 'INACTIVE' ? (
+                        <DropdownMenuItem onClick={() => void toggle(r)}>Activate</DropdownMenuItem>
+                      ) : (
+                        // REQ: DEC-78 — blocked by state: shown disabled with the reason.
+                        <DropdownMenuItem disabled={!!deactivateBlocked(r)} onClick={() => void toggle(r)}>
+                          <span className="flex flex-col">
+                            Deactivate
+                            {deactivateBlocked(r) && <span className="text-xs text-muted-foreground">{deactivateBlocked(r)}</span>}
+                          </span>
+                        </DropdownMenuItem>
+                      )}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </td>
               </tr>
             ))}
           </tbody>

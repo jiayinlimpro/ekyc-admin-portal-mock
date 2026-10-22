@@ -31,6 +31,7 @@ data** before a UAT run.
 | A10 | Lim Wei Jie | Platform › Admins | Lim and Nor Aisyah only (not on Users); Suspend disabled on his own row; New admin starts Pending |
 | A11 | Lim Wei Jie | Merchants › Add Merchant: Malaysia, registration no `1312525-A` | "Malaysian registration numbers have 12 digits"; with `202101012345` it is created as Onboarding, with its Default project and a Pending owner |
 | A12 | Lim Wei Jie | Merchants › Tesla › ⋮ › Change status › Suspended, with a reason | Tesla shows Suspended; Wong Kah Heng can no longer be picked in Switch user; its API keys show "Stopped"; the audit log has the reason |
+| A13 | Tan Mei Ling | Roles › New role; then ⋮ on Reviewer and on Fraud Analyst | The dialog opens with a generated Role ID (read-only) and a Status field; Reviewer's Deactivate is disabled with the reason; Fraud Analyst (nobody holds it) can be deactivated and activated again |
 
 | ID | Reference ID | Project › Flow | Scenario | Expected behaviour |
 |---|---|---|---|---|

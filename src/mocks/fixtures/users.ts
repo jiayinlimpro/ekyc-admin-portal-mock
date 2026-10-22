@@ -47,6 +47,8 @@ const ACCOUNT_SPECS: AccountSpec[] = [
 
 /** Vantage's Custom role: read-only access plus the audit log (DEC-76). */
 export const AUDITOR_ROLE_ID = fx('ROL-2026-0005')
+/** Atoz's Custom role that nobody holds yet: it can be deactivated (DEC-76). */
+export const FRAUD_ANALYST_ROLE_ID = fx('ROL-2026-0006')
 
 /** REQ: DEC-70 / DEC-76 — the System Default roles (shared, locked) plus one Custom role. */
 export function buildRoles(now: Date): Role[] {
@@ -65,7 +67,21 @@ export function buildRoles(now: Date): Role[] {
     updatedAt: auditorAt,
     updatedBy: VANTAGE_OWNER,
   }
-  return [...system, auditor]
+  const fraudAt = new Date(now.getTime() - 30 * 86_400_000).toISOString()
+  const atozOwner = { userId: fx('USR-2026-0002'), fullName: 'Tan Mei Ling' }
+  const fraudAnalyst: Role = {
+    roleId: FRAUD_ANALYST_ROLE_ID,
+    merchantId: fx('MER-0001'),
+    name: 'Fraud Analyst',
+    type: 'CUSTOM',
+    permissions: ['VIEW_CASES', 'VIEW_PROJECT_REPORTS', 'VIEW_AUDIT_LOG'],
+    status: 'ACTIVE',
+    createdAt: fraudAt,
+    createdBy: atozOwner,
+    updatedAt: fraudAt,
+    updatedBy: atozOwner,
+  }
+  return [...system, auditor, fraudAnalyst]
 }
 
 const ROLE_IDS: Record<RoleKey, string> = { ...SYSTEM_ROLE_IDS, AUDITOR: AUDITOR_ROLE_ID }

@@ -16,12 +16,15 @@ import { ServiceError } from './errors'
 import { simulateNetwork, wire } from './network'
 import { validation } from './projectService'
 import { auditAccess, releaseLostClaims } from './userAdminService'
-import { newId } from '@/lib/ids'
+import { isId, newId } from '@/lib/ids'
 
 export interface RoleInput {
   name: string
   permissions: Permission[]
 }
+
+/** A new role: the Role ID shown in the dialog (from `draftRoleId`) and its starting status (DEC-76). */
+export type NewRoleInput = RoleInput & { roleId?: string; status?: RoleStatus }
 
 /** A row on the Roles screen. `users` / `projects`: holders in the viewer's scope; "Affects N users in M projects" (DEC-76). */
 export type RoleRow = Role & { merchantName?: string; users: number; projects: number; heldForSelectedProjects: boolean }
@@ -33,7 +36,9 @@ export interface RoleService {
    * when given (Members tab: project-level roles only), otherwise in at least one scope.
    */
   assignable(merchantId: string, actor: Actor, projectId?: string): Promise<Role[]>
-  create(merchantId: string, input: RoleInput, actor: Actor): Promise<Role>
+  /** REQ: DEC-76 — the Role ID shown read-only when the create dialog opens; `create` keeps it. */
+  draftRoleId(actor: Actor): Promise<string>
+  create(merchantId: string, input: NewRoleInput, actor: Actor): Promise<Role>
   update(roleId: string, input: RoleInput, actor: Actor): Promise<Role>
   setStatus(roleId: string, status: RoleStatus, actor: Actor): Promise<Role>
 }
@@ -107,6 +112,13 @@ export const mockRoleService: RoleService = {
     return wire(rolesFor(merchantId).filter((r) => r.status === 'ACTIVE' && grantable(r)))
   },
 
+  async draftRoleId(actor) {
+    await simulateNetwork('draft role id')
+    const me = accountOf(actor)
+    if (me.level !== 'PLATFORM_ADMIN') requireRoles(me, me.merchantId!)
+    return newId('rol')
+  },
+
   async create(merchantId, input, actor) {
     await simulateNetwork('create role')
     const me = requireActive(actor)
@@ -117,21 +129,23 @@ export const mockRoleService: RoleService = {
     if (errors.length) throw validation(errors)
     // REQ: DEC-74 — a role is a grant waiting to happen: nobody defines one more powerful than their own access.
     if (!canGrant(granter(me), permissions, { kind: 'ALL_PROJECTS' })) throw new ServiceError('FORBIDDEN', GRANT_TOO_POWERFUL)
+    // The dialog's Role ID is kept if it is well-formed and unused; otherwise a new one is made (DEC-76, DEC-97).
+    const drafted = input.roleId && isId('rol', input.roleId) && !db.state().roles.some((r) => r.roleId === input.roleId) ? input.roleId : undefined
     const at = now().toISOString()
     const role: Role = {
-      roleId: newId('rol'),
+      roleId: drafted ?? newId('rol'),
       merchantId,
       name: input.name.trim(),
       type: 'CUSTOM',
       permissions,
-      status: 'ACTIVE',
+      status: input.status ?? 'ACTIVE',
       createdAt: at,
       createdBy: by(actor),
       updatedAt: at,
       updatedBy: by(actor),
     }
     db.setState((st) => ({ roles: [...st.roles, role] }))
-    auditAccess(actor, 'ROLE_CREATED', merchantId, { roleId: role.roleId, name: role.name, permissions, summary: `Role ${role.name} created` })
+    auditAccess(actor, 'ROLE_CREATED', merchantId, { roleId: role.roleId, name: role.name, permissions, status: role.status, summary: `Role ${role.name} created${role.status === 'INACTIVE' ? ' (inactive)' : ''}` })
     return wire(role)
   },
 
