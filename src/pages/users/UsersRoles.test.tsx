@@ -98,7 +98,7 @@ describe('Users (DEC-74)', () => {
     expect(screen.queryByLabelText('Type', { selector: 'select' })).toBeNull()
   })
 
-  it('Given a super admin, when New user is Platform, then name, company email, staff role, merchant access and end date; listed as Platform (DEC-99)', async () => {
+  it('Given a super admin, when New user is Platform, then name, company email, staff role and merchant access, no Access ends; listed as Platform (DEC-99)', async () => {
     useSession.getState().switchUser(ADMIN)
     renderAt('/users')
     expect((await row('Daniel Tan')).textContent).toContain('Platform (internal)')
@@ -116,8 +116,7 @@ describe('Users (DEC-74)', () => {
     expect((screen.getByRole('radio', { name: 'All merchants, including future merchants' }) as HTMLInputElement).checked).toBe(true)
     fireEvent.click(screen.getByRole('radio', { name: 'Selected merchants' }))
     fireEvent.click(screen.getByRole('checkbox', { name: 'Vantage' }))
-    fireEvent.click(screen.getByRole('radio', { name: 'On' }))
-    fireEvent.change(screen.getByLabelText('Access ends on'), { target: { value: '2027-01-31' } })
+    expect(dialog.queryByText('Access ends')).toBeNull() // not on New user for platform staff
     fireEvent.click(screen.getByRole('button', { name: 'Invite user' }))
     const r = await row('Mira Chen')
     expect(r.textContent).toContain('Support · Vantage')

@@ -72,7 +72,7 @@ export function EndsField({ idPrefix, value, onChange, error }: { idPrefix: stri
  * REQ: DEC-99 — platform staff: Staff role (platform roles only), Merchant access (All merchants, including future
  * ones, by default; or Selected merchants), Access ends. A role with no merchant access needs no merchants.
  */
-export function StaffAccessFields({ idPrefix, roles, merchants, value, onChange, errors }: { idPrefix: string; roles: Role[]; merchants: MerchantOption[]; value: AssignmentInput; onChange: (v: AssignmentInput) => void; errors: Record<string, string> }) {
+export function StaffAccessFields({ idPrefix, roles, merchants, value, onChange, errors, showEnds = true }: { idPrefix: string; roles: Role[]; merchants: MerchantOption[]; value: AssignmentInput; onChange: (v: AssignmentInput) => void; errors: Record<string, string>; /** REQ: DEC-99 — not on New user for platform staff. */ showEnds?: boolean }) {
   const role = roles.find((r) => r.roleId === value.roleId)
   const selected = value.scope.kind === 'MERCHANTS' ? value.scope.merchantIds : []
   const toggle = (id: string, on: boolean) => onChange({ ...value, scope: { kind: 'MERCHANTS', merchantIds: on ? [...selected, id] : selected.filter((x) => x !== id) } })
@@ -119,7 +119,7 @@ export function StaffAccessFields({ idPrefix, roles, merchants, value, onChange,
           )}
         </fieldset>
       )}
-      <EndsField idPrefix={idPrefix} value={value.endsAt} onChange={(endsAt) => onChange({ ...value, endsAt })} error={errors.endsAt} />
+      {showEnds && <EndsField idPrefix={idPrefix} value={value.endsAt} onChange={(endsAt) => onChange({ ...value, endsAt })} error={errors.endsAt} />}
     </>
   )
 }

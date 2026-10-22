@@ -113,7 +113,7 @@ function InviteDialog({ merchants, isSuper, ownMerchant, onClose, onSaved }: { m
             <>
               {nameField}
               {emailField}
-              <StaffAccessFields idPrefix="nu" roles={roles.data ?? []} merchants={merchants} value={assignment} onChange={setAssignment} errors={errors} />
+              <StaffAccessFields idPrefix="nu" roles={roles.data ?? []} merchants={merchants} value={assignment} onChange={setAssignment} errors={errors} showEnds={false} />
             </>
           ) : (
             <>

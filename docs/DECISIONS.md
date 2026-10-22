@@ -361,7 +361,8 @@ Rules changed on 2026-10-20 (Projects & Flows restructure) are marked **(changed
     changes API keys.
   - **New user, Type = Platform:** Name · Email (the company staff domain, OQ-31) · Staff role (platform roles only) ·
     Merchant access: `All merchants, including future merchants` (default) or `Selected merchants` (hidden, with "This role
-    has no merchant access permissions", when the role has none) · Access ends: Never (default) or a date.
+    has no merchant access permissions", when the role has none). No Access ends on this form [PO 2026-10-22]; an end
+    date can be set later with Add / Edit access.
     **Type = Merchant:** Merchant (locked for merchant admins) · Name · Email (the staff domain is not allowed) · Role
     (that merchant's roles only) · Project access (DEC-70) · Access ends. Changing the merchant resets role and projects.
   - **Access ends** (changes DEC-74 "no end dates") on each access row: from the end of that day (MYT) the row grants
