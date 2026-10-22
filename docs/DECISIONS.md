@@ -273,6 +273,11 @@ Rules changed on 2026-10-20 (Projects & Flows restructure) are marked **(changed
   Admin. [FRS][PO 2026-10-20]
   - **Duplicate** any role (System Default included) into a new Custom role, "Copy of …", to edit from there. The impact
     note reads "Affects N users in M projects". [PO 2026-10-21]
+  - The create / edit dialog starts with the **Role ID**: generated when the dialog opens, shown read-only, never edited
+    (FRS "auto-generates a unique identity key"). A **Status** field (Active / Inactive) sits in the dialog, and each row
+    has an Actions menu (Edit, Duplicate, Activate / Deactivate). Deactivating a role that is assigned, or any System
+    Default role (shared by every merchant), is shown disabled with the reason (DEC-78). An inactive role grants nothing
+    and can't be given. [PO 2026-10-22]
 - **DEC-77** **(new)** Project Settings › **Members** tab: everyone with access to the project and their role, including
   users with All projects access (marked "inherited"). Adding a member creates an assignment scoped to that project. An
   archived project keeps its assignments read-only and leaves the switcher. [PO 2026-10-20] Adding from this tab fixes the
@@ -325,8 +330,8 @@ Rules changed on 2026-10-20 (Projects & Flows restructure) are marked **(changed
   - **Shown on screen** only where people copy or quote them: Flow ID (Flows List and Flow Detail, copy button: merchants
     send it as `flow_id`), case ID (Verification Detail, copy; in webhooks), API key (masked, `key_…a91f`), webhook event
     ID (delivery log; not in the mock). Internal screens may show Merchant ID (Merchants) and Project ID (Projects, for
-    developers). Users, roles, assignments, invitations, attempts, files and audit events are never shown; audit exports
-    include the event ID. People are identified by name and email, roles by name; "Last updated by" shows the name.
+    developers). Users, assignments, invitations, attempts, files and audit events are never shown; audit exports include
+    the event ID. Exception: the Role ID is shown read-only in the Role dialog (DEC-76) [PO 2026-10-22]. People are identified by name and email, roles by name; "Last updated by" shows the name.
   - **Reference ID** is the **merchant's own reference** for the end user, sent when the session is created. It is stored
     alongside the case ID, searchable, shown in the list, and never used as the key; case URLs and webhooks use the case ID.
     Uniqueness: OQ-17.
