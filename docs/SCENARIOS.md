@@ -45,10 +45,10 @@ data** before a UAT run.
 | ID | Reference ID | Project › Flow | Scenario | Expected behaviour |
 |---|---|---|---|---|
 | S01 | KYC-260901-900001 | Vantage Default › Standard onboarding (V1) | Both checks ≥ Auto-Pass | APPROVED · SYSTEM; no risk panel |
-| S02 | KYC-260901-900002 | Atoz Default › Malaysian onboarding (V4) | Checks pass, risk HIGH | PENDING_REVIEW, reason "Risk Assessment not passed" |
+| S02 | KYC-260901-900002 | Atoz Default › Malaysian onboarding (V4) | Checks pass, risk HIGH | PENDING_REVIEW, reason "Risk Assessment not passed"; Risk shows Noise 82 (screen pattern, recompressed) and Email Validity 64 (disposable) |
 | S03 | KYC-260901-900003 | Atoz Default › Malaysian onboarding (V4) | Face match 80.4 → 82.1 → 84.0 → 88.5 | PENDING_REVIEW, "Liveness face does not match ID face (Retry Not Allowed)" |
 | S04 | KYC-260901-900004 | Atoz Default › Malaysian onboarding (V4) | Liveness below Auto-Reject on all 4 submissions | REJECTED · SYSTEM, "Face not live (Retry Not Allowed)" |
-| S05 | KYC-260901-900005 | Atoz Default › Malaysian onboarding (V4) | Stopped at ID capture, no submission yet | PROCESSING; read-only |
+| S05 | KYC-260901-900005 | Atoz Default › Malaysian onboarding (V4) | Stopped at ID capture, no submission yet | PROCESSING; read-only; ID capture shows why: image 300 × 240 and Address not read (both fail) |
 | S06 | KYC-260901-900006 | Atoz Default › Malaysian onboarding (V4) | Liveness retries used up, last 74.5 (review band) | PENDING_REVIEW, "Face not live (Retry Not Allowed)"; 4 submissions, same Ref |
 | S07 | KYC-260901-900007 | Atoz Default › Malaysian onboarding (V4) | Claimed by Ali, ~2 min left | As Ali: decision enabled + warning. As Siti: disabled "Claimed by Ali Bin Ahmad" |
 | S08 | KYC-260901-900008 | Atoz Default › Malaysian onboarding (V4) | Claimed by Ali, expires mid-review | Time-warp past expiry → decision disables and a toast warns. To prove the **service-side** check: Dev → *Skip UI claim checks*, fill the form, time-warp, save → refused; claim timeout and blocked decision audited |
@@ -64,3 +64,4 @@ data** before a UAT run.
 | S18 | KYC-260901-900018 | Atoz Default › Foreigner onboarding (V4, High face match) | Face match below 90 on all 4 submissions | REJECTED · SYSTEM; 120-min cooldown: same end user may start a new case only 2 h after rejection (DEC-26) |
 | S19 | KYC-260901-900019 | Vantage Default › Standard onboarding (V1, Advanced face match 82/93) | Face match (ID vs selfie) 70.0, retry pending | PROCESSING; selfie retakes are free and unlimited |
 | S20 | KYC-260901-900020 | Vantage Default › Standard onboarding (V1, accepts Driving License) | Driving License; face match 80.1 → 84.0 → 86.2 → 88.0 | PENDING_REVIEW, "ID face and Selfie face do not match (Retry Not Allowed)"; End-user data shows IC, licence class and validity |
+| S21 | KYC-260901-900021 | Atoz Default › Malaysian onboarding (V4) | Face match 86.0 → 87.5 → 88.0 → 89.2; face search finds an existing user (97.6) | PENDING_REVIEW for the face match only; "Existing user found" is shown for information and changes nothing (DEC-105) |

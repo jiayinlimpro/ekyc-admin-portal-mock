@@ -1,8 +1,23 @@
 // Shared builders for seeded and hand-written records. Status is always computed by checkRules.evaluateCase, never random.
 import { evaluateCase, type FlowContext } from '@/domain/checkRules'
-import { riskLevelFromScore } from '@/domain/openQuestions'
+import { POLICY, RISK_REASON_CODES, riskLevelFromScore } from '@/domain/openQuestions'
 import { hasRisk } from '@/domain/registryRules'
-import type { Attempt, Check, ClientMetadata, Flow, FlowRevision, RegistryEntry, Verification, WorkflowVersion } from '@/domain/types'
+import { ENGINE_THRESHOLDS, OCR_FIELDS } from '@/domain/telemetry'
+import {
+  RISK_CATEGORIES,
+  type Attempt,
+  type AttemptTelemetry,
+  type Check,
+  type ClientMetadata,
+  type DocumentType,
+  type Flow,
+  type FlowRevision,
+  type IdCaptureTelemetry,
+  type RegistryEntry,
+  type RiskCategoryScore,
+  type Verification,
+  type WorkflowVersion,
+} from '@/domain/types'
 import { revisionAt } from './fixtures/catalog'
 import type { Person } from './malaysia'
 import { caseIdOf, stableId } from '@/lib/ids'
@@ -24,11 +39,16 @@ export interface CaseSpec {
   riskScore?: number // V4: engine output, used once every check has a non-reject result
   softRejects?: number
   abandoned?: 'ABORTED' | 'TIMED_OUT'
+  /** DEC-105 overrides; otherwise generated from the Reference No (stable). */
+  idCapture?: Partial<IdCaptureTelemetry>
+  duplicateSimilarity?: number
+  riskCategories?: RiskCategoryScore[]
 }
 
 /** Builds a case in its SYSTEM-assigned state (checkRules.evaluateCase). Manual decisions and claims are applied afterwards. */
 export function buildCase(spec: CaseSpec): Verification {
   const rev = revisionAt(spec.revisions, spec.flow.flowId, spec.startedAt)!
+  const rand = rng(spec.referenceNo) // REQ: DEC-105 — telemetry is stable per case across resets (MOCK-05)
   const flow: FlowContext = { checks: spec.entry.configurableChecks, faceMatchMethod: spec.entry.faceMatchMethod, hasRisk: hasRisk(spec.entry), settings: rev.settings }
   const pre = evaluateCase({ submissions: spec.submissions }, flow)
   // Risk runs once onboarding completes without a reject (FRS AWS flow: V4 runs risk after onboarding).
@@ -50,7 +70,17 @@ export function buildCase(spec: CaseSpec): Verification {
             if (s?.length) scores[c] = s[Math.min(i, s.length - 1)]
           }
           const final = i === rounds - 1 && ev.status !== 'PROCESSING'
-          return { attemptId: stableId('att', `${spec.referenceNo}:${i + 1}`), attemptNo: i + 1, phase: 'LIVENESS', startedAt: at(i), outcome: final ? 'COMPLETED' : 'FAILED_RETAKE', isUserRetake: i > 0, phaseScores: scores }
+          return {
+            attemptId: stableId('att', `${spec.referenceNo}:${i + 1}`),
+            attemptNo: i + 1,
+            phase: 'LIVENESS',
+            startedAt: at(i),
+            outcome: final ? 'COMPLETED' : 'FAILED_RETAKE',
+            isUserRetake: i > 0,
+            phaseScores: scores,
+            faceImage: { fileId: stableId('file', `${spec.referenceNo}:face:${i + 1}`), url: spec.entry.faceMatchMethod === 'ID_VS_SELFIE' ? '/mock/selfie.svg' : '/mock/liveness.svg' },
+            telemetry: attemptTelemetry(rand, spec.entry.faceMatchMethod === 'ID_VS_SELFIE', scores.FACE_MATCH),
+          }
         })
 
   // REQ: DEC-03 — lastUpdatedAt only moves on status change: PROCESSING was set when the user entered the flow.
@@ -72,6 +102,9 @@ export function buildCase(spec: CaseSpec): Verification {
     attempts,
     riskLevel,
     riskScore: riskRan ? spec.riskScore : undefined,
+    riskCategories: riskRan ? (spec.riskCategories ?? riskCategories(rand, spec.riskScore!)) : undefined,
+    idCapture: { ...idCapture(rand, spec.person.documentType, rounds === 0), ...spec.idCapture },
+    duplicateUser: rounds === 0 ? undefined : duplicateUser(spec.duplicateSimilarity ?? (rand() < 0.06 ? between(rand, 90, 99.5) : between(rand, 8, 62))),
     documentType: spec.person.documentType,
     pii: email ? { ...spec.person.pii, email } : spec.person.pii,
     clientMetadata: spec.metadata,
@@ -84,6 +117,76 @@ export function buildCase(spec: CaseSpec): Verification {
     submissions: spec.submissions,
     idCaptureSoftRejects: spec.softRejects ?? 0,
   }
+}
+
+/** Small seeded PRNG (mulberry32 over a string hash): telemetry stays the same for a Reference No. */
+function rng(seed: string): () => number {
+  let h = 1779033703
+  for (let i = 0; i < seed.length; i++) h = Math.imul(h ^ seed.charCodeAt(i), 3432918353)
+  return () => {
+    h = (h + 0x6d2b79f5) | 0
+    let t = Math.imul(h ^ (h >>> 15), 1 | h)
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296
+  }
+}
+const between = (r: () => number, min: number, max: number) => Math.round((min + r() * (max - min)) * 10) / 10
+const T = ENGINE_THRESHOLDS
+
+// REQ: DEC-105 / DEC-18 — an ID image or selfie that fails the engine checks is retaken (free), so the accepted one passes.
+// A session that stopped at ID capture sometimes shows why: its last image failed one check.
+function idCapture(r: () => number, documentType: DocumentType, stoppedAtId: boolean): IdCaptureTelemetry {
+  const ok: IdCaptureTelemetry = {
+    facesFound: 1,
+    faceConfidence: between(r, 96, 99.9),
+    eyesOpen: true,
+    occluded: false,
+    imageWidth: [1280, 1600, 1920][Math.floor(r() * 3)],
+    imageHeight: [800, 1000, 1200][Math.floor(r() * 3)],
+    ocrFieldsMissing: [],
+  }
+  if (!stoppedAtId || r() < 0.5) return ok
+  const fields = OCR_FIELDS[documentType]
+  const fail = Math.floor(r() * 3)
+  if (fail === 0) return { ...ok, imageWidth: 300, imageHeight: 240 }
+  if (fail === 1) return { ...ok, faceConfidence: between(r, 60, T.faceConfidenceMin - 1) }
+  return { ...ok, ocrFieldsMissing: [fields[fields.length - 1]] }
+}
+
+/** Lower similarity comes with a poorer (still passing) selfie, as in real sessions. */
+function attemptTelemetry(r: () => number, selfie: boolean, similarity: number | undefined): AttemptTelemetry {
+  const q = similarity === undefined ? 1 : Math.max(0, Math.min(1, (similarity - 60) / 40))
+  const sign = () => (r() < 0.5 ? -1 : 1)
+  return {
+    matchedFaceConfidence: similarity === undefined ? undefined : between(r, 95, 99.9),
+    selfie: selfie
+      ? {
+          faceConfidence: between(r, 92 + 5 * q, 99.9),
+          eyesOpen: true,
+          occluded: false,
+          sharpness: between(r, 28 + 40 * q, 50 + 45 * q),
+          brightness: between(r, 30 + 30 * q, 55 + 35 * q),
+          yaw: sign() * between(r, 1, 26 - 18 * q),
+          pitch: sign() * between(r, 1, 24 - 16 * q),
+          faceSizePx: Math.round(between(r, 70 + 120 * q, 140 + 160 * q)),
+        }
+      : undefined,
+  }
+}
+
+function duplicateUser(similarity: number) {
+  return { existingUser: similarity >= T.duplicateSimilarityMin, similarity }
+}
+
+// OQ-25 (mock): one category drives the overall score; the others are at or below it.
+function riskCategories(r: () => number, overall: number): RiskCategoryScore[] {
+  const driver = Math.floor(r() * RISK_CATEGORIES.length)
+  return RISK_CATEGORIES.map((category, i) => {
+    const score = i === driver ? overall : Math.round(r() * overall)
+    const codes = RISK_REASON_CODES[category]
+    const reasonCodes = score < POLICY.riskBands.mediumFrom ? [] : codes.slice(0, score >= POLICY.riskBands.highFrom ? 2 : 1).map((c) => c.code)
+    return { category, score, reasonCodes }
+  })
 }
 
 function emailFor(fullName: string, referenceNo: string): string {

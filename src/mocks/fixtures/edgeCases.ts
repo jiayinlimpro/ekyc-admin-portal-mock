@@ -1,9 +1,9 @@
-// Named scenarios S01–S19 (docs/SCENARIOS.md). Each one is a UAT test case with a fixed Reference No (MOCK-05).
+// Named scenarios S01–S21 (docs/SCENARIOS.md). Each one is a UAT test case with a fixed Reference No (MOCK-05).
 // Thresholds referred to below come from the flow revision (fixtures/catalog.ts) and the presets (OQ-02).
 import { Faker, en } from '@faker-js/faker'
 import { makeAudit } from '@/domain/audit'
 import { applyDecision } from '@/domain/claimRules'
-import type { Actor, AuditEntry, Check, DocumentType, UpdatedBy, Verification, VerificationStatus } from '@/domain/types'
+import type { Actor, AuditEntry, Check, DocumentType, IdCaptureTelemetry, RiskCategoryScore, UpdatedBy, Verification, VerificationStatus } from '@/domain/types'
 import { buildCase } from '../builders'
 import { clientMetadata, fakeIp, person } from '../malaysia'
 import type { Catalog } from './catalog'
@@ -44,6 +44,7 @@ export const EDGE_CASES: EdgeCaseExpectation[] = [
   { id: 'S18', title: 'Rejected 30 min ago; 120-min cooldown running', asUserId: fx('USR-2026-0012'), referenceNo: 'KYC-260901-900018', flowId: fx('FLW-0002'), status: 'REJECTED', reason: 'Liveness face does not match ID face (Retry Not Allowed)', lastUpdatedBy: 'SYSTEM' },
   { id: 'S19', title: 'V1 face match (ID vs selfie) below threshold, retry pending', asUserId: fx('USR-2026-0044'), referenceNo: 'KYC-260901-900019', flowId: fx('FLW-0005'), status: 'PROCESSING' },
   { id: 'S20', title: 'Driving License: face match retries used up, last in review band', asUserId: fx('USR-2026-0044'), referenceNo: 'KYC-260901-900020', flowId: fx('FLW-0005'), status: 'PENDING_REVIEW', reason: 'ID face and Selfie face do not match (Retry Not Allowed)' },
+  { id: 'S21', title: 'Existing user found (duplicate, information only)', asUserId: fx('USR-2026-0012'), referenceNo: 'KYC-260901-900021', flowId: fx('FLW-0001'), status: 'PENDING_REVIEW', reason: 'Liveness face does not match ID face (Retry Not Allowed)' },
 ]
 
 const MIN = 60_000
@@ -65,7 +66,7 @@ export function buildEdgeCases(ctx: { now: Date; catalog: Catalog }): {
     flowId: string,
     startMin: number,
     submissions: Partial<Record<Check, number[]>>,
-    opts: { riskScore?: number; documentType?: DocumentType; stepMin?: number } = {},
+    opts: { riskScore?: number; documentType?: DocumentType; stepMin?: number; idCapture?: Partial<IdCaptureTelemetry>; duplicateSimilarity?: number; riskCategories?: RiskCategoryScore[] } = {},
   ): Verification => {
     const flow = catalog.flows.find((x) => x.flowId === flowId)!
     const p = person(f, now, opts.documentType ?? 'MYKAD')
@@ -80,6 +81,9 @@ export function buildEdgeCases(ctx: { now: Date; catalog: Catalog }): {
       submissions,
       stepMin: opts.stepMin ?? 2,
       riskScore: opts.riskScore ?? 20,
+      idCapture: opts.idCapture,
+      duplicateSimilarity: opts.duplicateSimilarity ?? 20 + seq, // REQ: DEC-105 — new users, except S21
+      riskCategories: opts.riskCategories,
     })
   }
   const passes = (n: number) => Array.from({ length: n }, (_, i) => 95.5 + i * 0.4)
@@ -111,10 +115,18 @@ export function buildEdgeCases(ctx: { now: Date; catalog: Catalog }): {
   // Atoz "Malaysian onboarding" FLW-0001 R2: face match reject < 85 / approve ≥ 95, liveness < 70 / ≥ 85, 3 retries.
   const out: Verification[] = [
     make(1, fx('FLW-0005'), 95, { FACE_MATCH: [95.5], LIVENESS: [97.4] }),
-    make(2, fx('FLW-0001'), 90, { FACE_MATCH: [96.1], LIVENESS: [97.4] }, { riskScore: 82 }),
+    make(2, fx('FLW-0001'), 90, { FACE_MATCH: [96.1], LIVENESS: [97.4] }, {
+      riskScore: 82,
+      riskCategories: [
+        { category: 'EXIF', score: 35, reasonCodes: [] },
+        { category: 'NOISE', score: 82, reasonCodes: ['NOISE_SCREEN_PATTERN', 'NOISE_RECOMPRESSED'] },
+        { category: 'EMAIL_VALIDITY', score: 64, reasonCodes: ['EMAIL_DISPOSABLE'] },
+        { category: 'OSINT', score: 20, reasonCodes: [] },
+      ],
+    }),
     make(3, fx('FLW-0001'), 88, { FACE_MATCH: [80.4, 82.1, 84.0, 88.5], LIVENESS: passes(4) }, { riskScore: 15 }),
     make(4, fx('FLW-0001'), 86, { FACE_MATCH: passes(4), LIVENESS: [45.0, 52.4, 48.9, 50.2] }),
-    make(5, fx('FLW-0001'), 84, {}),
+    make(5, fx('FLW-0001'), 84, {}, { idCapture: { imageWidth: 300, imageHeight: 240, ocrFieldsMissing: ['Address'] } }), // why the user stopped (DEC-105)
     make(6, fx('FLW-0001'), 82, { FACE_MATCH: passes(4), LIVENESS: [52.3, 58.9, 61.0, 74.5] }, { stepMin: 4 }),
     claimFor(make(7, fx('FLW-0001'), 76, { FACE_MATCH: [83.0, 84.0, 86.0, 90.2], LIVENESS: passes(4) }, { riskScore: 22 }), ali, 28), // 2 min left
     claimFor(make(8, fx('FLW-0001'), 74, { FACE_MATCH: passes(4), LIVENESS: [65.0, 68.0, 72.0, 80.0] }, { riskScore: 18 }), ali, 20), // 10 min left
@@ -136,6 +148,8 @@ export function buildEdgeCases(ctx: { now: Date; catalog: Catalog }): {
     make(19, fx('FLW-0005'), 25, { FACE_MATCH: [70.0] }),
     // Vantage FLW-0005 R2 accepts Driving License: face match < 82 / ≥ 93, 3 retries used, last 88.0 → review; liveness passes.
     make(20, fx('FLW-0005'), 20, { FACE_MATCH: [80.1, 84.0, 86.2, 88.0], LIVENESS: [96.2] }, { documentType: 'DRIVING_LICENSE' }),
+    // Atoz FLW-0001: face match in the review band after 3 retries; the face search found an existing user (97.6).
+    make(21, fx('FLW-0001'), 50, { FACE_MATCH: [86.0, 87.5, 88.0, 89.2], LIVENESS: passes(4) }, { riskScore: 18, duplicateSimilarity: 97.6 }),
   ]
 
   // S16: Nurul (Reviewer, SME app) looked at it a few minutes ago without claiming it.

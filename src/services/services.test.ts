@@ -34,13 +34,13 @@ async function expectError(p: Promise<unknown>, code: string, message?: string) 
 }
 
 describe('verificationService.list', () => {
-  it('Given a list page, then rows contain no NRIC, passport, address or client metadata (DEC-40)', async () => {
+  it('Given a list page, then rows contain no NRIC, passport, address, client metadata, telemetry or duplicate-user result (DEC-40)', async () => {
     const page = await svc.list({ pageSize: 500 }, OWNER)
     expect(page.total).toBeGreaterThan(50)
     for (const row of page.items) {
       expect(Object.keys(row)).not.toEqual(expect.arrayContaining(['pii']))
       const json = JSON.stringify(row)
-      for (const leak of ['nric', 'passportNo', 'address', 'clientMetadata', 'ip', 'dob']) expect(json).not.toContain(`"${leak}"`)
+      for (const leak of ['nric', 'passportNo', 'address', 'clientMetadata', 'ip', 'dob', 'duplicateUser', 'idCapture', 'riskCategories', 'telemetry']) expect(json).not.toContain(`"${leak}"`)
     }
   })
 

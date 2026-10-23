@@ -29,6 +29,11 @@ export type WorkflowVersion = (typeof WORKFLOW_VERSIONS)[number]
 export const RISK_LEVELS = ['LOW', 'MEDIUM', 'HIGH'] as const
 export type RiskLevel = (typeof RISK_LEVELS)[number]
 
+// REQ: DEC-105 — the risk engine's categories, each scored 0–100 (higher = riskier) with reason codes (OQ-25).
+export const RISK_CATEGORIES = ['EXIF', 'NOISE', 'EMAIL_VALIDITY', 'OSINT'] as const
+export type RiskCategory = (typeof RISK_CATEGORIES)[number]
+export const RISK_CATEGORY_LABELS: Record<RiskCategory, string> = { EXIF: 'EXIF Score', NOISE: 'Noise Score', EMAIL_VALIDITY: 'Email Validity Score', OSINT: 'OSINT Score' }
+
 /** Who is signed in. What they may do is read from their account and project roles (UserAccount, DEC-70), never from the session. */
 export interface Actor {
   userId: string
@@ -50,7 +55,50 @@ export interface Attempt {
   startedAt: string // ISO UTC
   outcome: AttemptOutcome
   isUserRetake: boolean // REQ: DEC-18 — Retry KPI counts only these
-  phaseScores: Partial<Record<CapturePhase, number>>
+  phaseScores: Partial<Record<CapturePhase, number>> // FACE_MATCH = similarity, LIVENESS = liveness confidence
+  faceImage?: StoredFile // the face matched in this attempt: the selfie (V1) or the liveness frame (V3/V4/V5)
+  telemetry?: AttemptTelemetry // REQ: DEC-105
+}
+
+// REQ: DEC-105 — engine metrics, shown on Verification Detail with their fixed thresholds (`ENGINE_THRESHOLDS`).
+/** The accepted ID image (or the last one, if the session stopped at ID capture). Retakes before it are `idCaptureSoftRejects`. */
+export interface IdCaptureTelemetry {
+  facesFound: number
+  faceConfidence: number // 0–100: a face was detected (not a match score)
+  eyesOpen: boolean
+  occluded: boolean // face covered (mask, hand, glare)
+  imageWidth: number // px
+  imageHeight: number // px
+  ocrFieldsMissing: string[] // required fields of the document type (`OCR_FIELDS`) that were not read
+}
+
+/** V1 selfie quality, per face match submission. */
+export interface SelfieTelemetry {
+  faceConfidence: number
+  eyesOpen: boolean
+  occluded: boolean
+  sharpness: number // 0–100
+  brightness: number // 0–100
+  yaw: number // degrees, signed
+  pitch: number // degrees, signed
+  faceSizePx: number // shorter side of the face box
+}
+
+export interface AttemptTelemetry {
+  selfie?: SelfieTelemetry // V1 only
+  matchedFaceConfidence?: number // face match: confidence that the matched face is a face (not the similarity)
+}
+
+/** REQ: DEC-105 — the face search across the merchant's users. Information only: never changes a check or the status. */
+export interface DuplicateUserCheck {
+  existingUser: boolean // best similarity ≥ ENGINE_THRESHOLDS.duplicateSimilarityMin
+  similarity?: number // best match found; absent when no face was searched against yet
+}
+
+export interface RiskCategoryScore {
+  category: RiskCategory
+  score: number // 0–100, higher = riskier
+  reasonCodes: string[] // OQ-25: `RISK_REASON_CODES`
 }
 
 /** An uploaded image (ID document, selfie, liveness frame). `url` is a sample image in the mock. */
@@ -102,6 +150,9 @@ export interface Verification {
   attempts: Attempt[]
   riskLevel?: RiskLevel // V4 only
   riskScore?: number // V4 only
+  riskCategories?: RiskCategoryScore[] // REQ: DEC-105 — V4/V5, when risk ran
+  idCapture?: IdCaptureTelemetry // REQ: DEC-105 — absent when no ID image was submitted
+  duplicateUser?: DuplicateUserCheck // REQ: DEC-105 — absent until a face was searched; never in VerificationSummary (DEC-40)
   documentType: DocumentType
   pii: Pii
   clientMetadata: ClientMetadata

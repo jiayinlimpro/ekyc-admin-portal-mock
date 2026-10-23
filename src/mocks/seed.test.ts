@@ -4,7 +4,9 @@ import { evaluateCase } from '@/domain/checkRules'
 import { isClaimActive } from '@/domain/claimRules'
 import { inCooldown, revisionLabel, validateProjectName } from '@/domain/flowRules'
 import { validateFlow } from '@/domain/flowSettings'
+import { RISK_REASON_CODES } from '@/domain/openQuestions'
 import { hasRisk, validateRegistryInput } from '@/domain/registryRules'
+import { ENGINE_THRESHOLDS, idCaptureMetrics, selfieMetrics } from '@/domain/telemetry'
 import { grantsOf, SYSTEM_ROLE_IDS } from '@/domain/roles'
 import { VERIFICATION_STATUSES, type UserAccount } from '@/domain/types'
 import { NOW } from '@/test/factories'
@@ -154,6 +156,56 @@ describe('seedDatabase', () => {
 
   it('Empty Demo Merchant has no records (S14)', () => {
     expect(db.verifications.filter((v) => v.merchantId === fx('MER-0006'))).toHaveLength(0)
+  })
+})
+
+describe('telemetry, duplicate user and risk categories (DEC-105)', () => {
+  it('Given a case past ID capture, then its accepted ID image passes every engine check', () => {
+    for (const v of db.verifications.filter((x) => x.attempts.some((a) => Object.keys(a.phaseScores).length > 0))) {
+      expect(idCaptureMetrics(v.idCapture!, v.documentType).every((m) => m.result === 'PASS'), v.referenceNo).toBe(true)
+    }
+  })
+
+  it('Given each attempt, then a face image and matched face confidence; V1 attempts also carry passing selfie metrics', () => {
+    for (const v of db.verifications) {
+      const v1 = entryOf(v.workflowVersion).faceMatchMethod === 'ID_VS_SELFIE'
+      for (const a of v.attempts.filter((x) => x.phaseScores.FACE_MATCH !== undefined)) {
+        expect(a.faceImage?.url, v.referenceNo).toBe(v1 ? '/mock/selfie.svg' : '/mock/liveness.svg')
+        expect(a.telemetry?.matchedFaceConfidence).toBeGreaterThan(ENGINE_THRESHOLDS.matchedFaceConfidenceMin)
+        if (v1) expect(selfieMetrics(a.telemetry!.selfie!).every((m) => m.result === 'PASS'), v.referenceNo).toBe(true)
+        else expect(a.telemetry?.selfie).toBeUndefined()
+      }
+    }
+  })
+
+  it('Given the duplicate-user result, then "existing" means similarity ≥ 90, and some seeded cases have one', () => {
+    const checked = db.verifications.filter((v) => v.duplicateUser)
+    for (const v of checked) expect(v.duplicateUser!.existingUser).toBe(v.duplicateUser!.similarity! >= ENGINE_THRESHOLDS.duplicateSimilarityMin)
+    expect(checked.some((v) => v.duplicateUser!.existingUser)).toBe(true)
+  })
+
+  it('Given risk ran, then the four categories, the highest equal to the overall score, with known reason codes', () => {
+    const withRisk = db.verifications.filter((v) => v.riskScore !== undefined)
+    expect(withRisk.length).toBeGreaterThan(0)
+    for (const v of withRisk) {
+      expect(v.riskCategories!.map((c) => c.category)).toEqual(['EXIF', 'NOISE', 'EMAIL_VALIDITY', 'OSINT'])
+      expect(Math.max(...v.riskCategories!.map((c) => c.score)), v.referenceNo).toBe(v.riskScore)
+      for (const c of v.riskCategories!) for (const code of c.reasonCodes) expect(RISK_REASON_CODES[c.category].map((x) => x.code)).toContain(code)
+    }
+    expect(db.verifications.filter((v) => v.riskScore === undefined).every((v) => v.riskCategories === undefined)).toBe(true)
+  })
+
+  it('S05 shows why the user stopped at ID capture; S21 found an existing user but is in review only for its face match', () => {
+    const failed = idCaptureMetrics(byRef('KYC-260901-900005').idCapture!, 'MYKAD').filter((m) => m.result === 'FAIL').map((m) => m.label)
+    expect(failed).toEqual(['Image size', 'OCR fields detected'])
+    const s21 = byRef('KYC-260901-900021')
+    expect(s21.duplicateUser).toEqual({ existingUser: true, similarity: 97.6 })
+    expect(s21.status).toBe('PENDING_REVIEW')
+    const flow = flowOf(s21.flowId)
+    const entry = entryOf(flow.workflowVersion)
+    const rev = revisionOf(s21.flowId, s21.configRevision)
+    const ev = evaluateCase({ submissions: s21.submissions, riskLevel: s21.riskLevel }, { checks: entry.configurableChecks, faceMatchMethod: entry.faceMatchMethod, hasRisk: hasRisk(entry), settings: rev.settings })
+    expect(ev.status).toBe(s21.status) // the duplicate result is not an input
   })
 })
 
