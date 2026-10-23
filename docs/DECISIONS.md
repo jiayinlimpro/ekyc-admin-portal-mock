@@ -476,6 +476,16 @@ Rules changed on 2026-10-20 (Projects & Flows restructure) are marked **(changed
     | Project role | Developer | Project › Members | API keys and webhook; Flows View; no case access |
     | Project role | Viewer | Project › Members | Verifications View list, View details; Flows View; Project reports |
 
+  - **Platform roles cover every merchant module** [PO 2026-10-23]: a platform role has more rows than a merchant role.
+    Rows: Merchants, Workflow Registry, Verification levels, Platform billing, Usage reports (platform-wide), then the
+    merchant modules with the same wording, applying in every merchant: Projects, Users, Roles, Verifications, Flows,
+    Project settings, API keys and webhook, Members, Project roles, Audit log. Billing and contract is covered by
+    Platform billing, and Merchant / Project reports by Usage reports (both already span every merchant).
+    - This replaces DEC-99's "platform staff never manage users or roles": staff may manage merchants' users, roles,
+      projects and members when their role allows it. Still super admin only: staff, platform roles, super admins.
+    - "Give only what you hold" (DEC-74) compares merchant permissions; staff hold platform permissions, so like super
+      admins they are not limited by it when they have the Users / Roles / Members permission. Nobody changes their own
+      access.
   - **Identity and forms** (unchanged): cuid2 IDs; User and Role IDs generated, read-only, shown in forms and detail
     panels, never in lists. Platform users use the company email domain (OQ-31); merchant users can't.
   - **Landing** (refines DEC-84): users land on Overview when they may open it; a role without dashboards (Support,
