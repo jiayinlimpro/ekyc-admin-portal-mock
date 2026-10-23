@@ -43,3 +43,10 @@ export function formatDate(isoDate: string): string {
   const [y, m, d] = isoDate.split('-').map(Number)
   return `${String(d).padStart(2, '0')} ${MONTHS[m - 1]} ${y}`
 }
+
+/** A duration stored in seconds, as people read it: "30 min", "2 min 30 s", "45 s" (DEC-53). */
+export function formatSeconds(sec: number): string {
+  const m = Math.floor(sec / 60)
+  const s = sec % 60
+  return [m ? `${m} min` : '', s || !m ? `${s} s` : ''].filter(Boolean).join(' ')
+}

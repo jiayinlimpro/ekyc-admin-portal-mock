@@ -250,7 +250,7 @@ export const mockVerificationService: VerificationService = {
     const at = now()
     sweepExpiredClaims(at)
     const v = load(caseId, actor)
-    const r = claimRule(v, actor, { mayClaim: mayInProject(actor, 'claimCase', v.projectId), claimTimeoutMin: projectById(v.projectId)!.claimTimeoutMin }, at)
+    const r = claimRule(v, actor, { mayClaim: mayInProject(actor, 'claimCase', v.projectId), claimTimeoutSec: projectById(v.projectId)!.claimTimeoutSec }, at)
     if (!r.ok) throw new ServiceError(r.code, r.message)
     // REQ: DEC-03 — claiming does not touch lastUpdatedBy / lastUpdatedAt.
     const updated = db.updateVerification(caseId, (x) => ({ ...x, ...r.value }))

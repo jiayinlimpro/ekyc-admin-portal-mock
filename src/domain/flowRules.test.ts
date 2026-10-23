@@ -27,7 +27,7 @@ const project = (overrides: Partial<Project> = {}): Project => ({
   status: 'ACTIVE',
   isDefault: true,
   defaultFlowId: fx('FLW-0001'),
-  claimTimeoutMin: 30,
+  claimTimeoutSec: 30 * 60,
   createdAt: NOW.toISOString(),
   createdBy: 'SYSTEM',
   branding: {},

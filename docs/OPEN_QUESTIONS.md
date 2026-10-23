@@ -10,7 +10,7 @@ Each question is a **parameter**, not a fact. The mock uses the default below. I
 | OQ-01 | How do check results combine? Does a reject in one check outweigh a review in another? (MS OQ-5) | `REJECT_WINS`: any reject → REJECTED, else any review → PENDING_REVIEW | `POLICY.phaseCombination` |
 | OQ-02 | Low / Standard / High preset values (reject below / approve at or above) | Face match: Low 80/90, Standard 85/95, High 90/97 · Liveness: Low 60/80, Standard 70/85, High 80/92 | `THRESHOLD_PRESETS` |
 | OQ-03 | Range for "Retries allowed" (default 3) | 1–5 | `RETRY_LIMITS` |
-| OQ-04 | Default auto-release claim timeout and warning time (MS OQ-4) | 30 min timeout, warning 5 min before expiry | Project `claimTimeoutMin` / `POLICY.claimWarningMin` |
+| OQ-04 | Default auto-release claim timeout and warning time (MS OQ-4) | 30 min timeout, warning 5 min before expiry | Project `claimTimeoutSec` (seconds; entered in minutes, DEC-53) / `POLICY.claimWarningMin` |
 | OQ-05 | Is V4 Risk configured by a maximum allowed level (mock) or by scores? Can risk auto-reject? V5: per-component thresholds or only the final action? (MS OQ-6) | V4: max allowed level `MEDIUM`, risk never auto-rejects. V5 risk form not built | Flow `risk` |
 | OQ-06 | Risk score → level bands, and risk weighting | score < 40 LOW, < 70 MEDIUM, else HIGH; weighting not modelled | `POLICY.riskBands` |
 | OQ-09 | Final role names, System Default roles and the permission list (MS OQ-3; the FRS "User Access Matrix" spreadsheet). Also: are separate read and edit permissions needed (e.g. see users without changing them)? | System Default: Merchant Owner, Project Admin, Reviewer, Viewer; permissions as in DEC-70, one per area (no read-only variants) | `src/domain/roles.ts` |

@@ -47,7 +47,7 @@ describe('projectService (DEC-92, DEC-93, DEC-96)', () => {
 
   it('Given the Merchant Owner creates a project, then it starts with a Draft default flow on the registry default (MOCK-12), audited', async () => {
     const p = await projectService.create(fx('MER-0001'), { name: 'Branch kiosks' }, OWNER)
-    expect(p).toMatchObject({ projectId: expect.stringMatching(/^prj_/), merchantId: fx('MER-0001'), status: 'ACTIVE', isDefault: false, defaultFlowId: expect.stringMatching(/^flw_/), claimTimeoutMin: 30 })
+    expect(p).toMatchObject({ projectId: expect.stringMatching(/^prj_/), merchantId: fx('MER-0001'), status: 'ACTIVE', isDefault: false, defaultFlowId: expect.stringMatching(/^flw_/), claimTimeoutSec: 1800 })
     const flow = db.state().flows.find((f) => f.flowId === p.defaultFlowId)!
     expect(flow).toMatchObject({ projectId: p.projectId, status: 'DRAFT', workflowVersion: 'V1', revision: 0 })
     expect(await lastAudit('PROJECT_CREATED')).toMatchObject({ actorRole: 'Merchant Owner', projectId: p.projectId, details: { name: 'Branch kiosks' } })

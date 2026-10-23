@@ -13,7 +13,7 @@ import { Input } from '@/components/ui/input'
 import { canInProject } from '@/domain/access'
 import { revisionLabel } from '@/domain/flowRules'
 import { DEFAULT_CLAIM_WARNING_MIN } from '@/domain/openQuestions'
-import { LANGUAGES, type Language } from '@/domain/projectSettings'
+import { claimTimeoutFromMinutes, LANGUAGES, type Language } from '@/domain/projectSettings'
 import type { Flow, Project } from '@/domain/types'
 import { errorMessage, useLoad } from '@/hooks/useLoad'
 import { flowService } from '@/services/flowService'
@@ -102,12 +102,15 @@ function GeneralTab({ project, canEdit, onSaved }: { project: Project; canEdit: 
 // REQ: DEC-22 / DEC-53 — auto-release claim timeout per project.
 function ReviewTab({ project, canEdit, onSaved }: { project: Project; canEdit: boolean; onSaved: () => void }) {
   const actor = useSession((s) => s.actor)
-  const [value, setValue] = useState(String(project.claimTimeoutMin))
+  // REQ: DEC-53 — entered in whole minutes; sent (and shown in grey) as seconds.
+  const [value, setValue] = useState(String(Math.round(project.claimTimeoutSec / 60)))
   const [error, setError] = useState<string>()
+  const parsed = claimTimeoutFromMinutes(value)
   const save = async () => {
     setError(undefined)
+    if ('error' in parsed) return setError(parsed.error)
     try {
-      await projectService.updateClaimTimeout(project.projectId, Number(value), actor)
+      await projectService.updateClaimTimeout(project.projectId, parsed.sec, actor)
       toast.success('Claim timeout saved', { description: 'Applies to claims made from now on.' })
       onSaved()
     } catch (e) {
@@ -118,7 +121,12 @@ function ReviewTab({ project, canEdit, onSaved }: { project: Project; canEdit: b
     <Card title="Review operations">
       <div className="max-w-sm space-y-3">
         <FormField id="r-timeout" label="Auto-release claim timeout (minutes)" error={error} hint={`Claims end by Release, this timeout, a decision, or removal from the project. Reviewers are warned ${DEFAULT_CLAIM_WARNING_MIN} min before expiry.`}>
-          <Input id="r-timeout" type="number" min={1} step={1} value={value} disabled={!canEdit} onChange={(e) => setValue(e.target.value)} aria-invalid={!!error} />
+          <div className="flex items-center gap-3">
+            <Input id="r-timeout" type="number" min={1} step={1} value={value} disabled={!canEdit} onChange={(e) => setValue(e.target.value)} aria-invalid={!!error} aria-describedby="r-timeout-sec" className="w-28" />
+            <span id="r-timeout-sec" className="text-sm whitespace-nowrap text-muted-foreground tabular-nums">
+              {'sec' in parsed ? `= ${parsed.sec.toLocaleString('en-MY')} seconds` : '= — seconds'}
+            </span>
+          </div>
         </FormField>
         {canEdit ? (
           <Button size="sm" onClick={() => void save()}>

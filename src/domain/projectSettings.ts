@@ -36,9 +36,16 @@ export function validateGeneral(g: GeneralSettings): RuleError[] {
   return errors
 }
 
-// REQ: DEC-53 — claim timeout >= 1 minute (whole minutes).
-export function claimTimeoutError(min: number): string | undefined {
-  return Number.isInteger(min) && min >= 1 ? undefined : 'Claim timeout must be a whole number of minutes, at least 1.'
+// REQ: DEC-53 — the API takes seconds, at least 60; the screen sends whole minutes × 60.
+export function claimTimeoutError(sec: number): string | undefined {
+  return Number.isInteger(sec) && sec >= 60 ? undefined : 'Claim timeout must be at least 1 minute (60 seconds), in whole seconds.'
+}
+
+/** The screen's minutes field: a whole number of minutes, at least 1; returns the seconds to send, or the message. */
+export function claimTimeoutFromMinutes(input: string): { sec: number } | { error: string } {
+  const min = Number(input)
+  if (!input.trim() || !Number.isInteger(min) || min < 1) return { error: 'Enter a whole number of minutes, at least 1.' }
+  return { sec: min * 60 }
 }
 
 // REQ: DEC-54 — redirect URLs and the webhook are HTTPS; origins are scheme + host (+ port); the allowlist is IPv4 / CIDR.
@@ -69,7 +76,7 @@ export function diffSettings(before: Partial<Project>, after: Partial<Project>):
     push('Logo URL', before.branding?.logoUrl, after.branding?.logoUrl)
   }
   if ('language' in after) push('Language', before.language && LANGUAGES[before.language], after.language && LANGUAGES[after.language])
-  if ('claimTimeoutMin' in after) push('Claim timeout (min)', before.claimTimeoutMin, after.claimTimeoutMin)
+  if ('claimTimeoutSec' in after) push('Claim timeout (seconds)', before.claimTimeoutSec, after.claimTimeoutSec)
   if ('redirectUrls' in after) push('Redirect URLs', before.redirectUrls, after.redirectUrls)
   if ('allowedOrigins' in after) push('Allowed web origins', before.allowedOrigins, after.allowedOrigins)
   if ('ipAllowlist' in after) push('IP allowlist', before.ipAllowlist, after.ipAllowlist)

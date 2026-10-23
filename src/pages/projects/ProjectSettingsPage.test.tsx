@@ -75,16 +75,19 @@ describe('Project Settings (DEC-54, DEC-96)', () => {
     expect((await panel()).getByRole('button', { name: 'Save general settings' })).toBeTruthy()
   })
 
-  it('Given Review operations, then 0 is refused and 20 saves (DEC-53)', async () => {
+  it('Given Review operations, then minutes are typed, the seconds show beside them; 0 is refused and 20 min saves as 1,200 s (DEC-53)', async () => {
     useSession.getState().selectProject(fx('PRJ-0001'))
     renderAt('/project-settings?tab=review')
     const p = await panel()
+    expect((p.getByLabelText(/claim timeout/i) as HTMLInputElement).value).toBe('30')
+    expect(p.getByText('= 1,800 seconds')).toBeTruthy()
     fireEvent.change(p.getByLabelText(/claim timeout/i), { target: { value: '0' } })
     fireEvent.click(p.getByRole('button', { name: 'Save' }))
     expect((await p.findByRole('alert')).textContent).toMatch(/at least 1/)
     fireEvent.change(p.getByLabelText(/claim timeout/i), { target: { value: '20' } })
+    expect(p.getByText('= 1,200 seconds')).toBeTruthy()
     fireEvent.click(p.getByRole('button', { name: 'Save' }))
-    await waitFor(() => expect(db.state().projects.find((x) => x.projectId === fx('PRJ-0001'))!.claimTimeoutMin).toBe(20))
+    await waitFor(() => expect(db.state().projects.find((x) => x.projectId === fx('PRJ-0001'))!.claimTimeoutSec).toBe(1200))
   })
 
   it('Given Routing, then the default flow and the passport rule are shown read-only (DEC-95)', async () => {

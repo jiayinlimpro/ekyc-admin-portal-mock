@@ -15,7 +15,7 @@ import {
 import type { Verification } from './types'
 
 const cfg = { claimWarningMin: 5 }
-const ctx = { mayClaim: true, claimTimeoutMin: 30 }
+const ctx = { mayClaim: true, claimTimeoutSec: 30 * 60 }
 
 function claimedBy(actor: typeof ALI, minutesLeft: number, base: Partial<Verification> = {}): Verification {
   return verification({
@@ -57,7 +57,7 @@ describe('claim (DEC-20 … DEC-22)', () => {
   })
 
   it("Given the project's claim timeout is 45 min, then the claim expires 45 min after claiming (DEC-22)", () => {
-    const r = claim(verification(), ALI, { mayClaim: true, claimTimeoutMin: 45 }, NOW)
+    const r = claim(verification(), ALI, { mayClaim: true, claimTimeoutSec: 45 * 60 }, NOW)
     expect(r.ok && r.value.claimExpiresAt).toBe(at(minutes(45)).toISOString())
   })
 })

@@ -11,7 +11,7 @@ import { canInMerchant, canInProject, hasProject, roleNamesInProject, type Proje
 import { makeAudit } from '@/domain/audit'
 import { createFlow } from '@/domain/flowSettings'
 import { archiveError, IN_FLIGHT_STATUSES, validateProjectName } from '@/domain/flowRules'
-import { DEFAULT_CLAIM_TIMEOUT_MIN } from '@/domain/openQuestions'
+import { DEFAULT_CLAIM_TIMEOUT_SEC } from '@/domain/openQuestions'
 import { claimTimeoutError, diffSettings, PROJECT_SETTING_DEFAULTS, validateGeneral, type GeneralSettings } from '@/domain/projectSettings'
 import { defaultVersion } from '@/domain/registryRules'
 import { covers } from '@/domain/roles'
@@ -50,7 +50,8 @@ export interface ProjectService {
   archive(projectId: string, actor: Actor): Promise<Project>
   updateGeneral(projectId: string, input: GeneralSettings, actor: Actor): Promise<Project>
   /** REQ: DEC-22 / DEC-53 — applies to claims made from now on. */
-  updateClaimTimeout(projectId: string, claimTimeoutMin: number, actor: Actor): Promise<Project>
+  /** REQ: DEC-53 — seconds, at least 60 (the screen sends whole minutes × 60). */
+  updateClaimTimeout(projectId: string, claimTimeoutSec: number, actor: Actor): Promise<Project>
 }
 
 export const validation = (errors: RuleError[]) => new ServiceError('VALIDATION', errors[0].message, errors)
@@ -166,7 +167,7 @@ export const mockProjectService: ProjectService = {
       status: 'ACTIVE',
       isDefault: false,
       defaultFlowId: flowId,
-      claimTimeoutMin: DEFAULT_CLAIM_TIMEOUT_MIN,
+      claimTimeoutSec: DEFAULT_CLAIM_TIMEOUT_SEC,
       createdAt: at.toISOString(),
       createdBy: actor.fullName,
       ...structuredClone(PROJECT_SETTING_DEFAULTS),
@@ -218,14 +219,14 @@ export const mockProjectService: ProjectService = {
     return saveSettings(actor, p, next)
   },
 
-  async updateClaimTimeout(projectId, claimTimeoutMin, actor) {
+  async updateClaimTimeout(projectId, claimTimeoutSec, actor) {
     await simulateNetwork('update claim timeout')
     requireActive(actor)
     const p = loadProject(actor, projectId)
     requireInProject(actor, 'manageProjectSettings', p, 'change project settings')
-    const error = claimTimeoutError(claimTimeoutMin)
-    if (error) throw validation([{ field: 'claimTimeoutMin', message: error }])
-    return saveSettings(actor, p, { claimTimeoutMin })
+    const error = claimTimeoutError(claimTimeoutSec)
+    if (error) throw validation([{ field: 'claimTimeoutSec', message: error }])
+    return saveSettings(actor, p, { claimTimeoutSec })
   },
 }
 

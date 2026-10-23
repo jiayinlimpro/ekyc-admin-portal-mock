@@ -41,7 +41,7 @@ export const CLEARED_CLAIM: ClaimFields = { claimedBy: undefined, claimedAt: und
 /** What the claimer may do in the case's project (access.canInProject 'claimCase') and that project's timeout. */
 export interface ClaimContext {
   mayClaim: boolean
-  claimTimeoutMin: number // REQ: DEC-22 — per project (OQ-04)
+  claimTimeoutSec: number // REQ: DEC-22 — per project, in seconds (OQ-04)
 }
 
 // REQ: DEC-21 / DEC-22
@@ -57,7 +57,7 @@ export function claim(v: Verification, actor: Pick<Actor, 'userId' | 'fullName'>
     value: {
       claimedBy: { userId: actor.userId, fullName: actor.fullName },
       claimedAt: now.toISOString(),
-      claimExpiresAt: new Date(now.getTime() + ctx.claimTimeoutMin * 60_000).toISOString(),
+      claimExpiresAt: new Date(now.getTime() + ctx.claimTimeoutSec * 1000).toISOString(),
     },
   }
 }

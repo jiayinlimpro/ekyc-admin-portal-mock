@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { formatRemaining, mytDateToUtcIso } from '@/lib/format'
+import { formatRemaining, formatSeconds, mytDateToUtcIso } from '@/lib/format'
 import { DEFAULT_FILTERS, DEFAULT_PAGE_SIZE, isDefaultView, nextSort, parseListParams, toQuery, toSearchParams, validateFilters, type ListParams } from './listQuery'
 import { fx } from '@/lib/ids'
 
@@ -102,6 +102,12 @@ describe('formatting helpers', () => {
     expect(formatRemaining(12 * 60_000 + 30_000)).toBe('12 min left')
     expect(formatRemaining(45_000)).toBe('45 s left')
     expect(formatRemaining(0)).toBe('expired')
+  })
+
+  it('Given a duration in seconds, then it reads as minutes and seconds (DEC-53)', () => {
+    expect(formatSeconds(1800)).toBe('30 min')
+    expect(formatSeconds(150)).toBe('2 min 30 s')
+    expect(formatSeconds(45)).toBe('45 s')
   })
 
   it('maps a MYT date to its UTC start', () => {

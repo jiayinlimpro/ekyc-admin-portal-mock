@@ -11,7 +11,7 @@ import { canOnPlatform } from '@/domain/access'
 import { makeAudit } from '@/domain/audit'
 import { createFlow } from '@/domain/flowSettings'
 import { MERCHANT_TRANSITIONS, nameError, normalizeRegistrationNo, phoneError, statusChangeErrors, validateMerchantProfile, type MerchantProfileInput } from '@/domain/merchantRules'
-import { DEFAULT_CLAIM_TIMEOUT_MIN, STAFF_EMAIL_DOMAIN } from '@/domain/openQuestions'
+import { DEFAULT_CLAIM_TIMEOUT_SEC, STAFF_EMAIL_DOMAIN } from '@/domain/openQuestions'
 import { PROJECT_SETTING_DEFAULTS } from '@/domain/projectSettings'
 import { defaultVersion } from '@/domain/registryRules'
 import { SYSTEM_ROLE_IDS } from '@/domain/roles'
@@ -128,7 +128,7 @@ export const mockMerchantAdminService: MerchantAdminService = {
       status: 'ACTIVE',
       isDefault: true,
       defaultFlowId: flowId,
-      claimTimeoutMin: DEFAULT_CLAIM_TIMEOUT_MIN,
+      claimTimeoutSec: DEFAULT_CLAIM_TIMEOUT_SEC,
       createdAt: at.toISOString(),
       createdBy: 'SYSTEM',
       ...structuredClone(PROJECT_SETTING_DEFAULTS),

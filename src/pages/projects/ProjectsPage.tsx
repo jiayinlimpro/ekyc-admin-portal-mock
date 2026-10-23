@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { errorMessage, useLoad } from '@/hooks/useLoad'
-import { formatMyt } from '@/lib/format'
+import { formatMyt, formatSeconds } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { isServiceError } from '@/services/errors'
 import { projectService, type ProjectRow } from '@/services/projectService'
@@ -184,7 +184,7 @@ export function ProjectsPage() {
                 <td className="px-3 py-2">{r.defaultFlowName}</td>
                 <td className="px-3 py-2 tabular-nums">{r.members}</td>
                 <td className="px-3 py-2 tabular-nums">{r.inFlightCases}</td>
-                <td className="px-3 py-2 whitespace-nowrap">{r.claimTimeoutMin} min</td>
+                <td className="px-3 py-2 whitespace-nowrap">{formatSeconds(r.claimTimeoutSec)}</td>
                 <td className="px-3 py-2 whitespace-nowrap">
                   {formatMyt(r.createdAt).split(', ')[0]}
                   <div className="text-xs text-muted-foreground">{r.createdBy}</div>

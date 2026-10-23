@@ -24,15 +24,15 @@ describe('Project Settings › General and Review operations', () => {
     expect(await last(['PROJECT_SETTING_CHANGED'])).toMatchObject({ actorRole: 'Project Admin', projectId: fx('PRJ-0002'), details: { changes: [{ field: 'Primary colour', from: '—', to: '#0F766E' }, { field: 'Language', from: '—', to: 'Bahasa Melayu' }] } })
   })
 
-  it('Given a new claim timeout, then new claims use it (DEC-22) and a timeout below 1 is refused (DEC-53)', async () => {
-    await expect(projectService.updateClaimTimeout(fx('PRJ-0001'), 0, OWNER)).rejects.toMatchObject({ code: 'VALIDATION' })
-    await projectService.updateClaimTimeout(fx('PRJ-0001'), 10, OWNER)
+  it('Given a new claim timeout in seconds, then new claims use it (DEC-22) and less than 60 s is refused (DEC-53)', async () => {
+    await expect(projectService.updateClaimTimeout(fx('PRJ-0001'), 59, OWNER)).rejects.toMatchObject({ code: 'VALIDATION' })
+    await projectService.updateClaimTimeout(fx('PRJ-0001'), 600, OWNER)
     const v = await verificationService.claim(caseIdOf('KYC-260901-900010'), ALI)
     expect(Date.parse(v.claimExpiresAt!) - Date.parse(v.claimedAt!)).toBe(10 * 60_000)
   })
 
   it('Given a Reviewer, then settings are refused', async () => {
-    await expect(projectService.updateClaimTimeout(fx('PRJ-0001'), 20, ALI)).rejects.toMatchObject({ code: 'FORBIDDEN' })
+    await expect(projectService.updateClaimTimeout(fx('PRJ-0001'), 1200, ALI)).rejects.toMatchObject({ code: 'FORBIDDEN' })
   })
 })
 

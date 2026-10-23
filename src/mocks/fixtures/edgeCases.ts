@@ -85,7 +85,7 @@ export function buildEdgeCases(ctx: { now: Date; catalog: Catalog }): {
   const passes = (n: number) => Array.from({ length: n }, (_, i) => 95.5 + i * 0.4)
 
   const claimFor = (v: Verification, actor: Actor, claimedMinAgo: number): Verification => {
-    const timeoutMin = catalog.projects.find((p) => p.projectId === v.projectId)!.claimTimeoutMin // REQ: DEC-22
+    const timeoutMin = catalog.projects.find((p) => p.projectId === v.projectId)!.claimTimeoutSec / 60 // REQ: DEC-22
     const claimedAt = ago(claimedMinAgo)
     const ref = { merchantId: v.merchantId, projectId: v.projectId, caseId: v.caseId, referenceNo: v.referenceNo, actorRole: 'Reviewer' } // Ali and Siti review Atoz Default
     audit.push(makeAudit({ id: '', now: new Date(claimedAt.getTime() - MIN), action: 'SENSITIVE_PII_VIEW', actor, ip: fakeIp(f), ...ref }))

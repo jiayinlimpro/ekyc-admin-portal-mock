@@ -244,7 +244,7 @@ export interface Project {
   status: ProjectStatus
   isDefault: boolean // the merchant's Default project (DEC-92)
   defaultFlowId: string // exactly one default flow per project (DEC-94)
-  claimTimeoutMin: number // REQ: DEC-22 — OQ-04
+  claimTimeoutSec: number // REQ: DEC-22 / DEC-53 — seconds (entered in minutes); OQ-04
   createdAt: string
   createdBy: string // fullName, or SYSTEM
   // REQ: DEC-54 — Project Settings › General (blank = the merchant default) and › Integration.

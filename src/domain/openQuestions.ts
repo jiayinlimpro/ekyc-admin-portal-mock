@@ -29,7 +29,7 @@ export const RETRY_LIMITS = { min: 1, max: 5, default: 3 } as const
 export const DEFAULT_COOLDOWN_MIN = 0
 
 /** OQ-04 */
-export const DEFAULT_CLAIM_TIMEOUT_MIN = 30
+export const DEFAULT_CLAIM_TIMEOUT_SEC = 30 * 60 // 30 minutes
 export const DEFAULT_CLAIM_WARNING_MIN = 5
 
 /** OQ-05 */

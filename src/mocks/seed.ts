@@ -19,7 +19,7 @@ import { fx, stableId } from '@/lib/ids'
 export const SEED = 2026
 export const BACKGROUND_COUNT = 300
 /** Bump when the shape of MockDbState changes: persisted demo data is then re-seeded. */
-export const DB_VERSION = 14
+export const DB_VERSION = 15
 
 export interface MockDbState {
   dbVersion: number
@@ -181,7 +181,7 @@ export function seedDatabase(now: Date): MockDbState {
     const v = verifications[i]
     if (v.status !== 'PENDING_REVIEW') continue
     const actor = f.helpers.arrayElement(reviewersOf(v))
-    const timeoutMin = catalog.projects.find((p) => p.projectId === v.projectId)!.claimTimeoutMin // REQ: DEC-22
+    const timeoutMin = catalog.projects.find((p) => p.projectId === v.projectId)!.claimTimeoutSec / 60 // REQ: DEC-22
     const age = now.getTime() - Date.parse(v.lastUpdatedAt)
     const ip = fakeIp(f)
     const ref = { merchantId: v.merchantId, projectId: v.projectId, caseId: v.caseId, referenceNo: v.referenceNo, ip, actorRole: roleOf(actor, v) }
