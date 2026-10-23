@@ -162,12 +162,14 @@ describe('Roles (DEC-76, DEC-104)', () => {
     expect((await row('Claimer')).textContent).toContain('Custom')
   })
 
-  it('Given the permission matrix, then Merchant-wide and Project-level rows with View and Actions; the module box ticks the whole row and shows "mixed" (DEC-102, DEC-104)', async () => {
+  it('Given the permission matrix, then one table of modules with View and Actions (no sections); the module box ticks the whole row and shows "mixed" (DEC-102, DEC-104)', async () => {
     renderAt('/roles')
     await row('Reviewer')
     fireEvent.click(screen.getByRole('button', { name: /New role/ }))
     await screen.findByLabelText('Role name')
-    expect(screen.getAllByRole('group').map((g) => g.querySelector('legend')?.textContent).filter(Boolean)).toEqual(expect.arrayContaining(['Merchant-wide', 'Project-level']))
+    const legends = () => screen.getAllByRole('group').map((g) => g.querySelector(':scope > legend')?.textContent).filter(Boolean)
+    expect(legends()).toContain('Permissions')
+    for (const old of ['Merchant-wide', 'Project-level', 'Platform-wide', 'Merchant data']) expect(screen.queryByText(old)).toBeNull()
     const users = screen.getByRole('rowheader', { name: /Users/ }).closest('tr')!
     expect(users.textContent).toBe('UsersViewInviteChange roleSuspend')
     expect(screen.getByRole('rowheader', { name: /Projects/ }).closest('tr')!.textContent).toBe('Projects—CreateRenameArchive') // no View
@@ -201,8 +203,9 @@ describe('Roles (DEC-76, DEC-104)', () => {
     expect((await row('Night shift')).textContent).toContain('Inactive')
   })
 
-  it('Given the Actions menu, then Fraud Analyst (unassigned) can be deactivated; Reviewer can’t, with the reason', async () => {
+  it('Given the Actions menu, then a Custom role nobody holds can be deactivated; Reviewer can’t, with the reason', async () => {
     vi.spyOn(window, 'confirm').mockReturnValue(true)
+    await roleService.create(fx('MER-0001'), { name: 'Fraud Analyst', permissions: ['VIEW_CASE_LIST'] }, OWNER)
     renderAt('/roles')
     fireEvent.click(within(await row('Reviewer')).getByRole('button', { name: 'Actions for Reviewer' }))
     const item = await screen.findByRole('menuitem', { name: /Deactivate/ })
@@ -216,7 +219,7 @@ describe('Roles (DEC-76, DEC-104)', () => {
     await waitFor(async () => expect((await row('Fraud Analyst')).textContent).toContain('Inactive'))
   })
 
-  it('Given a super admin, when New role is Platform, then Platform-wide and Merchant data; Approve ticks Claim and View details; it lists as Platform', async () => {
+  it('Given a super admin, when New role is Platform, then one table (no sections); Approve ticks Claim and View details; it lists as Platform', async () => {
     useSession.getState().switchUser(ADMIN)
     renderAt('/roles')
     expect((await row('Support')).textContent).toContain('Platform (internal)')
@@ -224,7 +227,8 @@ describe('Roles (DEC-76, DEC-104)', () => {
     const type = (await screen.findByLabelText('Type')) as HTMLSelectElement
     fireEvent.change(type, { target: { value: 'PLATFORM' } })
     expect(screen.queryByLabelText('Merchant')).toBeNull()
-    expect(screen.getAllByRole('group').map((g) => g.querySelector('legend')?.textContent).filter(Boolean)).toEqual(expect.arrayContaining(['Platform-wide', 'Merchant data']))
+    for (const old of ['Platform-wide', 'Merchant data']) expect(screen.queryByText(old)).toBeNull()
+    expect(screen.getByRole('rowheader', { name: /Merchants/ })).toBeTruthy()
     fireEvent.change(screen.getByLabelText('Role name'), { target: { value: 'Night reviewer' } })
     fireEvent.click(screen.getByRole('checkbox', { name: 'Verifications · Approve / reject' }))
     for (const p of ['Verifications · View list', 'Verifications · View details', 'Verifications · Claim / release']) expect((screen.getByRole('checkbox', { name: p }) as HTMLInputElement).checked).toBe(true)

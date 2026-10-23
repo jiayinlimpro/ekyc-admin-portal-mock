@@ -287,11 +287,10 @@ describe('accounts (DEC-70, DEC-74)', () => {
     }
   })
 
-  it('covers every System Default role, a Custom role, different roles per project, and Pending and Suspended users', () => {
+  it('covers every System Default merchant role (and no Custom role), different roles per project, and Pending and Suspended users', () => {
     const held = new Set(db.accounts.flatMap((a) => a.assignments.map((x) => x.roleId)))
-    for (const r of db.roles.filter((x) => x.audience === 'MERCHANT' && x.name !== 'Fraud Analyst')) expect(held.has(r.roleId), r.name).toBe(true)
-    expect(held.has(db.roles.find((x) => x.name === 'Fraud Analyst')!.roleId)).toBe(false) // unassigned, so it can be deactivated (DEC-76)
-    expect(db.roles.some((r) => r.type === 'CUSTOM')).toBe(true)
+    for (const r of db.roles.filter((x) => x.audience === 'MERCHANT')) expect(held.has(r.roleId), r.name).toBe(true)
+    expect(db.roles.every((r) => r.type === 'SYSTEM_DEFAULT')).toBe(true) // only the decided roles (DEC-104)
     expect(roleNamesInProject(accessOf(account(fx('USR-2026-0012'))), project(fx('PRJ-0001')))).toEqual(['Reviewer'])
     expect(roleNamesInProject(accessOf(account(fx('USR-2026-0012'))), project(fx('PRJ-0002')))).toEqual(['Viewer'])
     expect(db.accounts.map((a) => a.status)).toEqual(expect.arrayContaining(['PENDING', 'SUSPENDED']))

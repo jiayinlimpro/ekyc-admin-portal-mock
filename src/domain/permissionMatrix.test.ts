@@ -1,43 +1,40 @@
 import { describe, expect, it } from 'vitest'
-import { MERCHANT_PERMISSIONS, MERCHANT_ROLE_PERMISSIONS, PLATFORM_ROLE_PERMISSIONS, PROJECT_PERMISSIONS } from './types'
-import { dependentsOf, groupsFor, modulePermissions, PERMISSION_MATRIX } from './permissionMatrix'
+import { MERCHANT_ROLE_PERMISSIONS, PLATFORM_ROLE_PERMISSIONS } from './types'
+import { dependentsOf, modulePermissions, modulesFor } from './permissionMatrix'
 import { PLATFORM_DEFAULT_ROLES, SYSTEM_DEFAULT_ROLES, withImpliedPermissions } from './roles'
 
-const group = (key: string) => PERMISSION_MATRIX.find((g) => g.key === key)!
-const inGroup = (key: string) => group(key).modules.flatMap(modulePermissions)
-const rows = (key: string) => group(key).modules.map((m) => [m.module, m.viewLabel ?? (m.view ? 'View' : '—'), m.actions.map((x) => x.label).join(', ') || '—'])
+const rows = (audience: 'MERCHANT' | 'PLATFORM') => modulesFor(audience).map((m) => [m.module, m.viewLabel ?? (m.view ? 'View' : '—'), m.actions.map((x) => x.label).join(', ') || '—'])
 
 describe('permission matrix (DEC-102, DEC-104)', () => {
-  it('Given each role Type, then its matrix holds every permission of that Type exactly once', () => {
-    const merchant = groupsFor('MERCHANT').flatMap((g) => g.modules.flatMap(modulePermissions))
-    const platform = groupsFor('PLATFORM').flatMap((g) => g.modules.flatMap(modulePermissions))
+  it('Given each role Type, then one list of modules holding every permission of that Type exactly once (no sections)', () => {
+    const merchant = modulesFor('MERCHANT').flatMap(modulePermissions)
+    const platform = modulesFor('PLATFORM').flatMap(modulePermissions)
     expect([...merchant].sort()).toEqual([...MERCHANT_ROLE_PERMISSIONS].sort())
     expect([...platform].sort()).toEqual([...PLATFORM_ROLE_PERMISSIONS].sort())
     expect(new Set(merchant).size).toBe(merchant.length)
   })
 
-  it('Given the groups, then Merchant-wide / Project-level for merchant roles and Platform-wide / Merchant data for platform roles', () => {
-    expect(groupsFor('MERCHANT').map((g) => g.title)).toEqual(['Merchant-wide', 'Project-level'])
-    expect(groupsFor('PLATFORM').map((g) => g.title)).toEqual(['Platform-wide', 'Merchant data'])
-    expect(inGroup('MERCHANT_WIDE').sort()).toEqual([...MERCHANT_PERMISSIONS].sort())
-    expect(inGroup('PROJECT_LEVEL').sort()).toEqual([...PROJECT_PERMISSIONS].sort())
-  })
-
-  it('Given the rows, then the real actions with "—" where none; Users and Roles are never deleted', () => {
-    expect(rows('MERCHANT_WIDE')).toEqual([
+  it('Given a Merchant role, then these rows with "—" where none; users and roles are never deleted', () => {
+    expect(rows('MERCHANT')).toEqual([
       ['Projects', '—', 'Create, Rename, Archive'],
       ['Users', 'View', 'Invite, Change role, Suspend'],
       ['Roles', 'View', 'Create, Edit, Deactivate'],
       ['Billing and contract', 'View', 'Manage'],
       ['Merchant reports', 'View', 'Export'],
+      ['Verifications', 'View list', 'View details, Claim / release, Approve / reject'],
+      ['Flows', 'View', 'Create, Edit, Activate / retire, Change verification level'],
+      ['Project settings', 'View', 'Edit'],
+      ['API keys and webhook', 'View', 'Manage'],
+      ['Members', 'View', 'Add / remove'],
+      ['Project reports', 'View', 'Export'],
+      ['Audit log', 'View', '—'],
     ])
-    expect(rows('PROJECT_LEVEL')[0]).toEqual(['Verifications', 'View list', 'View details, Claim / release, Approve / reject'])
-    expect(rows('PROJECT_LEVEL').at(-1)).toEqual(['Audit log', 'View', '—'])
   })
 
-  it('Given the same module in both Types, then the same wording (DEC-104)', () => {
-    const merchant = new Map(group('PROJECT_LEVEL').modules.map((m) => [m.module, m.actions.map((x) => x.label)]))
-    for (const m of group('MERCHANT_DATA').modules) expect(m.actions.map((x) => x.label), m.module).toEqual(merchant.get(m.module))
+  it('Given a Platform role, then platform modules and the merchant data modules, with the same wording as merchant roles', () => {
+    expect(rows('PLATFORM').map((r) => r[0])).toEqual(['Merchants', 'Workflow Registry', 'Verification levels', 'Platform billing', 'Usage reports', 'Verifications', 'Flows', 'API keys and webhook', 'Audit log'])
+    const merchant = new Map(rows('MERCHANT').map((r) => [r[0], r.slice(1)]))
+    for (const m of ['Verifications', 'Flows', 'API keys and webhook', 'Audit log']) expect(rows('PLATFORM').find((r) => r[0] === m)!.slice(1), m).toEqual(merchant.get(m))
   })
 
   it('Given Verifications, then each step needs the one before: Approve → Claim → View details → View list', () => {

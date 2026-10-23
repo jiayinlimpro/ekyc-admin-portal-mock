@@ -61,31 +61,13 @@ const ACCOUNT_SPECS: AccountSpec[] = [
   { userId: fx('USR-2026-0080'), fullName: 'Rajesh A/L Muthu', email: 'rajesh.muthu@emptydemo.example', level: 'MERCHANT_USER', merchantId: fx('MER-0006'), role: 'OWNER', addedBy: SUPER_ADMIN, status: 'ACTIVE', invitedDaysAgo: 20, lastActiveHoursAgo: 48 },
 ]
 
-/** Atoz's Custom role that nobody holds yet: it can be deactivated (DEC-76). */
-export const FRAUD_ANALYST_ROLE_ID = fx('ROL-2026-0006')
-
-/** REQ: DEC-76 / DEC-104 — the System Default roles (shared, locked) plus one Custom role. */
+/** REQ: DEC-76 / DEC-104 — the System Default roles only (shared, locked); merchants create their Custom roles. */
 export function buildRoles(now: Date): Role[] {
   const at = new Date(now.getTime() - 400 * 86_400_000).toISOString()
   const system = SYSTEM_DEFAULT_ROLES.map((r): Role => ({ ...r, audience: 'MERCHANT', permissions: [...r.permissions], type: 'SYSTEM_DEFAULT', status: 'ACTIVE', createdAt: at, createdBy: SUPER_ADMIN, updatedAt: at, updatedBy: SUPER_ADMIN }))
   // REQ: DEC-99 — the System Default platform roles.
   const platform = PLATFORM_DEFAULT_ROLES.map((r): Role => ({ ...r, audience: 'PLATFORM', permissions: [...r.permissions], type: 'SYSTEM_DEFAULT', status: 'ACTIVE', createdAt: at, createdBy: SUPER_ADMIN, updatedAt: at, updatedBy: SUPER_ADMIN }))
-  const fraudAt = new Date(now.getTime() - 30 * 86_400_000).toISOString()
-  const atozOwner = { userId: fx('USR-2026-0002'), fullName: 'Tan Mei Ling' }
-  const fraudAnalyst: Role = {
-    roleId: FRAUD_ANALYST_ROLE_ID,
-    audience: 'MERCHANT',
-    merchantId: fx('MER-0001'),
-    name: 'Fraud Analyst',
-    type: 'CUSTOM',
-    permissions: ['VIEW_CASE_LIST', 'VIEW_CASE_DETAILS', 'VIEW_PROJECT_REPORTS', 'EXPORT_PROJECT_REPORTS', 'VIEW_AUDIT_LOG'],
-    status: 'ACTIVE',
-    createdAt: fraudAt,
-    createdBy: atozOwner,
-    updatedAt: fraudAt,
-    updatedBy: atozOwner,
-  }
-  return [...system, ...platform, fraudAnalyst]
+  return [...system, ...platform]
 }
 
 const ROLE_IDS: Record<RoleKey, string> = { ...SYSTEM_ROLE_IDS, ...PLATFORM_ROLE_IDS }

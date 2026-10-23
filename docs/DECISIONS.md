@@ -447,9 +447,11 @@ Rules changed on 2026-10-20 (Projects & Flows restructure) are marked **(changed
     **View details** (the case page with name, ID number and images) → **Claim / release** → **Approve / reject**; each
     needs the one before. The API enforces the same rules. Oversight is the audit log: every open of a case page is logged
     (`SENSITIVE_PII_VIEW`: who, which case, when).
-  - **Permission layout** (Roles form, both Types): module rows, columns Module | View | Actions, "—" where none.
-    Groups: Merchant Type = **Merchant-wide** and **Project-level**; Platform Type = **Platform-wide** and **Merchant data**.
-    The same action has the same wording in both Types. Ticking an action ticks what it needs; unticking a permission
+  - **Permission layout** (Roles form, both Types): **one table**, module rows, columns Module | View | Actions, "—"
+    where none. **No sections** [PO 2026-10-23]: where a role applies is decided by where it is given (Users or Members),
+    and staff have no scope. A note under the merchant table says that a role with Projects, Users, Roles, Billing and
+    contract or Merchant reports permissions can only be given on Users. The same action has the same wording in both
+    Types. Ticking an action ticks what it needs; unticking a permission
     (View included) clears what depends on it. Managing staff, platform roles and super admins is not a permission.
   - **System Default roles** (OQ-09):
 
@@ -474,6 +476,8 @@ Rules changed on 2026-10-20 (Projects & Flows restructure) are marked **(changed
   - **Landing** (refines DEC-84): users land on Overview when they may open it; a role without dashboards (Support,
     Implementation, Billing, Developer, Member) lands on the first screen of its menu, and the pinned Overview tab is
     hidden for it.
+  - **System Default roles only** in the demo data: the Custom role examples (Compliance Auditor, Fraud Analyst) are
+    removed; merchants create Custom roles on the Roles screen.
   - **Superseded:** scopes on a role assignment (Selected projects / flows on New user; DEC-70, DEC-74); merchant scope for
     platform staff (DEC-99); flow-level access; "Project access" on New user; the masked case view (DEC-99); the platform
     roles Platform Operations, Verification Specialist and Workflow Engineer; Merchant Owner (now **Owner**).

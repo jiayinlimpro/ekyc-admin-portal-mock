@@ -127,8 +127,8 @@ describe('userAdminService: the Users screen (DEC-74, DEC-104)', () => {
   })
 
   it('Given the role pickers, then New user / Change role offer every role the actor may give; Members offers project roles only', async () => {
-    expect((await roleService.assignable(fx('MER-0001'), OWNER)).map((r) => r.name)).toEqual(['Owner', 'Admin', 'Billing', 'Auditor', 'Member', 'Project Admin', 'Reviewer', 'Developer', 'Viewer', 'Fraud Analyst'])
-    expect((await roleService.assignable(fx('MER-0001'), HAFIZ, fx('PRJ-0002'))).map((r) => r.name)).toEqual(['Project Admin', 'Reviewer', 'Developer', 'Viewer', 'Fraud Analyst'])
+    expect((await roleService.assignable(fx('MER-0001'), OWNER)).map((r) => r.name)).toEqual(['Owner', 'Admin', 'Billing', 'Auditor', 'Member', 'Project Admin', 'Reviewer', 'Developer', 'Viewer'])
+    expect((await roleService.assignable(fx('MER-0001'), HAFIZ, fx('PRJ-0002'))).map((r) => r.name)).toEqual(['Project Admin', 'Reviewer', 'Developer', 'Viewer'])
     await expect(roleService.assignable(fx('MER-0001'), HAFIZ, fx('PRJ-0001'))).resolves.toEqual([])
   })
 
@@ -190,8 +190,9 @@ describe('userAdminService: a project’s Members tab (DEC-77, DEC-104)', () => 
 describe('roleService: the Roles screen (DEC-76, DEC-104)', () => {
   it('Given the Owner, then the System Default roles first and only their merchant’s Custom roles, with user counts', async () => {
     const rows = await roleService.list(OWNER)
-    expect(rows.map((r) => r.name)).toEqual(['Owner', 'Admin', 'Billing', 'Auditor', 'Member', 'Project Admin', 'Reviewer', 'Developer', 'Viewer', 'Fraud Analyst'])
-    expect(rows.find((r) => r.name === 'Fraud Analyst')!.users).toBe(0)
+    expect(rows.map((r) => r.name)).toEqual(['Owner', 'Admin', 'Billing', 'Auditor', 'Member', 'Project Admin', 'Reviewer', 'Developer', 'Viewer'])
+    await roleService.create(fx('MER-0001'), { name: 'Night shift', permissions: ['VIEW_CASE_LIST'] }, OWNER)
+    expect((await roleService.list(OWNER)).at(-1)).toMatchObject({ name: 'Night shift', type: 'CUSTOM', users: 0 }) // Custom roles after the defaults
     expect(rows.find((r) => r.name === 'Reviewer')!.users).toBe(4) // Ali, Siti, Nurul, Yap (suspended still holds it)
     expect(rows.find((r) => r.name === 'Reviewer')!.projects).toBe(2) // Default and SME app
     expect(rows.find((r) => r.name === 'Member')!.users).toBe(7)
@@ -216,8 +217,8 @@ describe('roleService: the Roles screen (DEC-76, DEC-104)', () => {
     await expect(roleService.draftRoleId(ALI)).rejects.toMatchObject({ code: 'FORBIDDEN' })
   })
 
-  it('Given Fraud Analyst (nobody holds it), then it can be deactivated and activated again', async () => {
-    const id = fx('ROL-2026-0006')
+  it('Given a Custom role nobody holds, then it can be deactivated and activated again', async () => {
+    const id = (await roleService.create(fx('MER-0001'), { name: 'Spare', permissions: ['VIEW_CASE_LIST'] }, OWNER)).roleId
     expect((await roleService.setStatus(id, 'INACTIVE', OWNER)).status).toBe('INACTIVE')
     expect((await roleService.setStatus(id, 'ACTIVE', OWNER)).status).toBe('ACTIVE')
   })
@@ -226,8 +227,8 @@ describe('roleService: the Roles screen (DEC-76, DEC-104)', () => {
     await expect(roleService.update(REVIEWER, { name: 'Reviewer', permissions: ['VIEW_CASE_LIST'] }, OWNER)).rejects.toMatchObject({ code: 'VALIDATION' })
   })
 
-  it('Given Fraud Analyst given to Siti in SME app loses View audit log, then she loses it at once; while held it can’t be deactivated', async () => {
-    const id = fx('ROL-2026-0006')
+  it('Given a Custom role given to Siti in SME app loses View audit log, then she loses it at once; while held it can’t be deactivated', async () => {
+    const id = (await roleService.create(fx('MER-0001'), { name: 'Fraud Analyst', permissions: ['VIEW_CASE_DETAILS', 'VIEW_AUDIT_LOG'] }, OWNER)).roleId
     await users.addMember(fx('PRJ-0002'), SITI.userId, id, OWNER)
     expect(mayInProject(SITI, 'viewAudit', fx('PRJ-0002'))).toBe(true)
     await roleService.update(id, { name: 'Fraud Analyst', permissions: ['VIEW_CASE_LIST', 'VIEW_CASE_DETAILS'] }, OWNER)

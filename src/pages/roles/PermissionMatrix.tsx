@@ -1,7 +1,7 @@
 // REQ: DEC-102 / DEC-104 — the role's permissions as a matrix: one row per module, a View column and an Actions column. The
 // checkbox at the module name ticks every permission of the module (partly ticked shows as "mixed"). Ticking a permission
 // ticks what it needs; unticking one (View included) clears what depends on it.
-import { dependentsOf, groupsFor, modulePermissions, type PermissionModule } from '@/domain/permissionMatrix'
+import { dependentsOf, modulePermissions, modulesFor, type PermissionModule } from '@/domain/permissionMatrix'
 import { withImpliedPermissions } from '@/domain/roles'
 import type { Permission, RoleAudience } from '@/domain/types'
 import { PERMISSION_LABELS } from '@/lib/labels'
@@ -55,33 +55,32 @@ function ModuleRow({ m, value, onChange }: { m: PermissionModule; value: Permiss
 
 export function PermissionMatrix({ audience, value, onChange, disabled }: { audience: RoleAudience; value: Permission[]; onChange: (v: Permission[]) => void; disabled: boolean }) {
   return (
-    <>
-      {groupsFor(audience).map((g) => (
-        <fieldset key={g.key} className="rounded-md border p-3" disabled={disabled}>
-          <legend className="px-1 text-sm font-medium">{g.title}</legend>
-          <p className="mb-2 text-xs text-muted-foreground">{g.hint}</p>
-          <table className="w-full table-fixed text-sm">
-            <colgroup>
-              <col className="w-36 sm:w-48" />
-              <col className="w-20 sm:w-36" />
-              <col />
-            </colgroup>
-            <thead className="text-left text-xs text-muted-foreground">
-              <tr>
-                <th scope="col" className="pb-1 font-medium">Module</th>
-                <th scope="col" className="pb-1 font-medium">View</th>
-                <th scope="col" className="pb-1 font-medium">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {g.modules.map((m) => (
-                <ModuleRow key={m.module} m={m} value={value} onChange={onChange} />
-              ))}
-            </tbody>
-          </table>
-        </fieldset>
-      ))}
-      {audience === 'PLATFORM' && <p className="text-xs text-muted-foreground">Managing staff, platform roles and super admins is for super admins only, not a permission.</p>}
-    </>
+    <fieldset className="rounded-md border p-3" disabled={disabled}>
+      <legend className="px-1 text-sm font-medium">Permissions</legend>
+      <table className="w-full table-fixed text-sm">
+        <colgroup>
+          <col className="w-36 sm:w-48" />
+          <col className="w-20 sm:w-36" />
+          <col />
+        </colgroup>
+        <thead className="text-left text-xs text-muted-foreground">
+          <tr>
+            <th scope="col" className="pb-1 font-medium">Module</th>
+            <th scope="col" className="pb-1 font-medium">View</th>
+            <th scope="col" className="pb-1 font-medium">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {modulesFor(audience).map((m) => (
+            <ModuleRow key={m.module} m={m} value={value} onChange={onChange} />
+          ))}
+        </tbody>
+      </table>
+      <p className="mt-2 text-xs text-muted-foreground">
+        {audience === 'PLATFORM'
+          ? 'A platform role applies to every merchant. Managing staff, platform roles and super admins is for super admins only, not a permission.'
+          : 'A role with Projects, Users, Roles, Billing and contract or Merchant reports permissions can only be given on Users, not in Project › Members.'}
+      </p>
+    </fieldset>
   )
 }
