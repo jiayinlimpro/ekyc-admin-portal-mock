@@ -184,7 +184,7 @@ Rules changed on 2026-10-20 (Projects & Flows restructure) are marked **(changed
 - **DEC-53** **(changed)** Validation: `0 <= autoReject < autoPass <= 100`; retries allowed within OQ-03; cooldown `>= 0`
   minutes; claim timeout `>= 1` minute; reason for change `>= 10` characters.
   - **Claim timeout in seconds** [PO 2026-10-23]: the API and data hold `claimTimeoutSec` (seconds, `>= 60`). People
-    enter whole **minutes**; the screen shows the seconds it sends in grey beside the field ("= 1,800 seconds"), and
+    enter whole **minutes**; the screen shows the seconds it sends in grey beside the field ("(1,800 seconds)"), and
     shows timeouts as minutes elsewhere ("30 min"). Typing minutes avoids a 30-second claim by mistake.
 - **DEC-54** **(new)** Project Settings tabs: **General** (name, branding override, language; blank branding inherits the
   merchant default) · **Integration** (API keys: name, created, last used, status, create / rotate / revoke, key shown once;

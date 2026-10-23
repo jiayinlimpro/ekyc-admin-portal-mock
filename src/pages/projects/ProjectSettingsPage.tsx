@@ -124,7 +124,7 @@ function ReviewTab({ project, canEdit, onSaved }: { project: Project; canEdit: b
           <div className="flex items-center gap-3">
             <Input id="r-timeout" type="number" min={1} step={1} value={value} disabled={!canEdit} onChange={(e) => setValue(e.target.value)} aria-invalid={!!error} aria-describedby="r-timeout-sec" className="w-28" />
             <span id="r-timeout-sec" className="text-sm whitespace-nowrap text-muted-foreground tabular-nums">
-              {'sec' in parsed ? `= ${parsed.sec.toLocaleString('en-MY')} seconds` : '= — seconds'}
+              {'sec' in parsed ? `(${parsed.sec.toLocaleString('en-MY')} seconds)` : ''}
             </span>
           </div>
         </FormField>
