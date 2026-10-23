@@ -435,23 +435,28 @@ Rules changed on 2026-10-20 (Projects & Flows restructure) are marked **(changed
     it, merchant admins see "Merchant · <their merchant>"; it never changes. Platform roles only for platform staff,
     merchant roles only for that merchant's users. There is no "Project" type: project roles are Merchant roles. System
     Default roles are locked and can be duplicated; merchants create Custom roles.
-  - **Where a merchant role is given decides where it applies.** On **Users** (create / edit user): the whole merchant:
-    its merchant-wide permissions, and its project-level permissions in **all projects**, including future ones. On
-    **Project › Members**: **that project only**. A user's access in a project is the union of the two (no deny).
-    - **Member** is a System Default role with no permissions and the default on New user: such a user gets access only
-      through Project › Members. Help text on New user: "Project permissions in this role apply to all projects. To limit
-      access to some projects, choose Member and add the user in each project."
-    - The Members role picker lists only roles **without** merchant-wide permissions. Members also lists the users who
-      reach the project through their merchant role, marked **inherited (read-only)**.
+  - **Two role tables** [PO 2026-10-23, revised]: they don't affect each other; a user's access in a project is the
+    **union** of their merchant role and their project role there (no deny).
+    - **Merchant roles** (Roles screen; given on **Users**, one per user): every merchant role except Member applies to
+      the **whole merchant and all its projects**, including future ones. They may hold merchant-wide and project
+      permissions. System Default: Owner, Admin, Billing, Auditor, Member.
+    - **Project roles** (Project Settings › **Roles** tab of each project; given in **Project › Members**, that project
+      only). They hold project permissions only. System Default (in every project): Project Admin, Reviewer, Developer,
+      Viewer. A Custom project role belongs to the project it was made in; **Duplicate from another project** copies one.
+      Managed with the project permission **Project roles** (View · Create · Edit · Deactivate).
+    - **Member** (merchant role, no permissions) is the default on New user: such a user gets access only through
+      Project › Members. Help text on New user: "This role applies to the whole merchant and all its projects. For
+      selected projects only, keep Member and add the user in Project › Members."
+    - Example: a merchant **Auditor** who is **Viewer in Project A** sees the case list in every project, and case pages
+      in Project A only.
+    - Members also lists the users who reach the project through their merchant role, marked **inherited (read-only)**.
   - **Personal data: no masking.** Verifications permissions: **View list** (the list; no personal data, DEC-40) →
     **View details** (the case page with name, ID number and images) → **Claim / release** → **Approve / reject**; each
     needs the one before. The API enforces the same rules. Oversight is the audit log: every open of a case page is logged
     (`SENSITIVE_PII_VIEW`: who, which case, when).
   - **Permission layout** (Roles form, both Types): **one table**, module rows, columns Module | View | Actions, "—"
-    where none. **No sections** [PO 2026-10-23]: where a role applies is decided by where it is given (Users or Members),
-    and staff have no scope. A note under the merchant table says that a role with Projects, Users, Roles, Billing and
-    contract or Merchant reports permissions can only be given on Users. The same action has the same wording in both
-    Types. Ticking an action ticks what it needs; unticking a permission
+    where none. **No sections** [PO 2026-10-23]: a merchant role shows every module, a project role only the project
+    modules, a platform role the platform modules. The same action has the same wording everywhere. Ticking an action ticks what it needs; unticking a permission
     (View included) clears what depends on it. Managing staff, platform roles and super admins is not a permission.
   - **System Default roles** (OQ-09):
 
@@ -461,23 +466,26 @@ Rules changed on 2026-10-20 (Projects & Flows restructure) are marked **(changed
     | Platform | Support | Users | Merchant data: View list, View details; Flows View; API keys and webhook View; Audit log View. No decisions, no changes |
     | Platform | Implementation | Users | Merchants View, Create; Workflow Registry; Verification levels; Merchant data: Flows (all), API keys and webhook (all) |
     | Platform | Finance | Users | Platform billing; Usage reports |
-    | Merchant | Owner | Users | Everything; at least one active Owner required (DEC-74) |
-    | Merchant | Admin | Users | Users, Roles, Projects, Merchant reports; every project-level permission (in all projects) |
-    | Merchant | Billing | Users | Billing and contract |
-    | Merchant | Auditor | Users | Merchant reports; Audit log and Verifications View list in all projects; no case pages |
-    | Merchant | Member | Users | Nothing (default) |
-    | Merchant | Project Admin | Project › Members | Project settings, Flows (all), API keys and webhook, Members, all case actions, Project reports, Audit log |
-    | Merchant | Reviewer | Project › Members | Verifications View list, View details, Claim / release, Approve / reject; Flows View; Project reports |
-    | Merchant | Developer | Project › Members | API keys and webhook; Flows View; no case access |
-    | Merchant | Viewer | Project › Members | Verifications View list, View details; Flows View; Project reports |
+    | Merchant role | Owner | Users | Everything, in all projects; at least one active Owner required (DEC-74) |
+    | Merchant role | Admin | Users | Users, Roles, Projects, Merchant reports; every project permission in all projects |
+    | Merchant role | Billing | Users | Billing and contract |
+    | Merchant role | Auditor | Users | Merchant reports; Audit log and Verifications View list in all projects; no case pages |
+    | Merchant role | Member | Users | Nothing (default) |
+    | Project role | Project Admin | Project › Members | Project settings, Project roles, Flows (all), API keys and webhook, Members, all case actions, Project reports, Audit log |
+    | Project role | Reviewer | Project › Members | Verifications View list, View details, Claim / release, Approve / reject; Flows View; Project reports |
+    | Project role | Developer | Project › Members | API keys and webhook; Flows View; no case access |
+    | Project role | Viewer | Project › Members | Verifications View list, View details; Flows View; Project reports |
 
   - **Identity and forms** (unchanged): cuid2 IDs; User and Role IDs generated, read-only, shown in forms and detail
     panels, never in lists. Platform users use the company email domain (OQ-31); merchant users can't.
   - **Landing** (refines DEC-84): users land on Overview when they may open it; a role without dashboards (Support,
     Implementation, Billing, Developer, Member) lands on the first screen of its menu, and the pinned Overview tab is
     hidden for it.
-  - **System Default roles only** in the demo data: the Custom role examples (Compliance Auditor, Fraud Analyst) are
-    removed; merchants create Custom roles on the Roles screen.
+  - **Demo data** reviewed [PO 2026-10-23]: every merchant has an Owner (The Boring Company's primary contact Farah is
+    Owner); Atoz has a Custom merchant role (User Coordinator) and Custom project roles (Fraud Checker in Default, held;
+    Release Tester in SME app, not held); new demo users: Grace Lim (Auditor + Viewer in SME app), Aaron Teoh (User
+    Coordinator), Zainab Hassan (Member + Fraud Checker in Default), Lim Siew Mei (3Nova: Reviewer in Wallet app and in
+    the archived Pilot 2025).
   - **Superseded:** scopes on a role assignment (Selected projects / flows on New user; DEC-70, DEC-74); merchant scope for
     platform staff (DEC-99); flow-level access; "Project access" on New user; the masked case view (DEC-99); the platform
     roles Platform Operations, Verification Specialist and Workflow Engineer; Merchant Owner (now **Owner**).
