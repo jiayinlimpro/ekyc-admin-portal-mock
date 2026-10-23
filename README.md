@@ -35,24 +35,31 @@ If `npm` scripts are blocked in PowerShell: `Set-ExecutionPolicy -Scope CurrentU
 **Who you are.** There is no real login. Open `/login` and pick a user, use **Dev → Switch user**, or add
 `?as=siti.yusof@atoz.example` to any link (the user's email).
 
-| User | Access (role · scope) | Merchant |
+| User | Access: merchant role (Users) · project roles (Members) | Merchant |
 |---|---|---|
 | Lim Wei Jie (weijie.lim@ekyc-platform.example) | Super admin: everything in every merchant (DEC-75, DEC-99) | — |
 | Nor Aisyah Binti Hamid (aisyah.hamid@ekyc-platform.example) | Super admin (second one, for the Super admins screen) | — |
-| Daniel Tan (daniel.tan@ekyc-platform.example) | Platform staff · Support · All merchants (masked cases, read-only flows and keys) | — |
-| Priya Nair (priya.nair@ekyc-platform.example) | Platform staff · Verification Specialist · Vantage | — |
+| Rizal Hakim (rizal.hakim@ekyc-platform.example) | Platform staff · Platform Admin (all platform and merchant data) | — |
+| Daniel Tan (daniel.tan@ekyc-platform.example) | Platform staff · Support (case list and pages, read-only flows and keys, audit log) | — |
+| Priya Nair (priya.nair@ekyc-platform.example) | Platform staff · Support | — |
+| Marcus Lee (marcus.lee@ekyc-platform.example) | Platform staff · Implementation (merchants, flows, keys, registry, levels) | — |
 | Hannah Lee (hannah.lee@ekyc-platform.example) | Platform staff · Finance (billing and reports, no customer data) | — |
-| Tan Mei Ling (meiling.tan@atoz.example) | Merchant Owner · All projects | Atoz Software Tech |
-| Ali Bin Ahmad (ali.ahmad@atoz.example) | Reviewer · Default; Viewer · SME app | Atoz Software Tech |
-| Siti Aminah Binti Yusof (siti.yusof@atoz.example) | Reviewer · Default | Atoz Software Tech |
-| Hafiz Bin Rahman (hafiz.rahman@atoz.example) | Project Admin · SME app | Atoz Software Tech |
-| Nurul Huda Binti Kamaruddin (nurul.huda@atoz.example) | Reviewer · SME app | Atoz Software Tech |
-| Ahmad Faiz Bin Zulkifli (faiz.zulkifli@vantage.example) | Merchant Owner · All projects | Vantage |
-| Kavitha A/P Subramaniam (kavitha.s@vantage.example) | Reviewer · Default; Compliance Auditor (Custom role) · All projects | Vantage |
+| Tan Mei Ling (meiling.tan@atoz.example) | Owner | Atoz Software Tech |
+| Lee Jia Hui (jiahui.lee@atoz.example) | Admin (users, roles, projects; every project) | Atoz Software Tech |
+| Muthu A/L Rajan (muthu.rajan@atoz.example) | Billing | Atoz Software Tech |
+| Ali Bin Ahmad (ali.ahmad@atoz.example) | Member · Reviewer in Default, Viewer in SME app | Atoz Software Tech |
+| Siti Aminah Binti Yusof (siti.yusof@atoz.example) | Member · Reviewer in Default | Atoz Software Tech |
+| Hafiz Bin Rahman (hafiz.rahman@atoz.example) | Member · Project Admin in SME app | Atoz Software Tech |
+| Nurul Huda Binti Kamaruddin (nurul.huda@atoz.example) | Member · Reviewer in SME app | Atoz Software Tech |
+| Kenneth Ooi (kenneth.ooi@atoz.example) | Member · Developer in SME app (keys, no cases) | Atoz Software Tech |
+| Ahmad Faiz Bin Zulkifli (faiz.zulkifli@vantage.example) | Owner | Vantage |
+| Kavitha A/P Subramaniam (kavitha.s@vantage.example) | Auditor (case list, no case pages) · Reviewer in Default | Vantage |
 
-Access follows the [FRS] Users and Roles method with **scoped assignments** (DEC-70): a role says what you may do, the
-scope says where (All projects, including new ones, or selected projects). The header's project switcher picks one
-project or "All my projects", and the menu follows your permissions there.
+Access (DEC-104): each merchant user has **one merchant role**, given on Users: it applies to the whole merchant and
+all its projects. **Project roles** are given in Project › Members: that project only. **Member** (the default) gives
+nothing by itself. Platform staff have one platform role, for every merchant. No masking: View list, View details,
+Claim / release, Approve / reject; every case page open is audited. The header's project switcher picks one project or
+"All my projects", and the menu follows your permissions there.
 
 **The Dev menu** (top right, amber) is mock-only:
 - **Switch user.**
@@ -75,11 +82,11 @@ project or "All my projects", and the menu follows your permissions there.
 | Projects / Project Settings | Create, rename, archive; branding, API keys (shown once), webhook, claim timeout, read-only routing |
 | Flows / Flow Detail | Low / Standard / High with a 0–100 band bar, Advanced thresholds (super admin, staff with Calibrate), retries 1–5, what-if, revisions; read-only for Flows View |
 | Users / Roles | FRS lists with `Role · Scope` chips; invite (Pending, resend); Access table with Add / Edit / Remove and a plain-language preview; Effective access with "Comes from"; suspend; permission matrix (module × View × actions, a module box ticks the row; DEC-102), System Default roles locked, Duplicate, "Affects N users in M projects" |
-| Project Settings › Members | Everyone with access to the project (All projects users inherited); add or remove for this project |
+| Project Settings › Members | Project roles for this project (add / remove; roles without merchant-wide permissions); merchant-role users listed as inherited (read-only) |
 | Audit Log | DEC-42 events with project and actor role |
 | Merchants | Super admins and staff with Merchants permissions, per the FRS: registration number, country, contact; Onboarding → Active → Suspended → Terminated with reasons (suspension locks the merchant's users out and stops its API keys); never deleted; a new merchant gets a Default project and owner |
 | Super admins / Workflow Registry | Super admin accounts (super admins only); versions and flows using them (read-only with Registry View) |
-| Users / Roles with Type | Super admins create Platform (internal) roles and staff: platform permissions by module, merchant access for All or Selected merchants |
+| Users / Roles with Type | Super admins create Platform (internal) roles and staff (one role, every merchant); merchant users get one merchant role (Member by default) |
 
 Values tagged **OPEN QUESTION** are placeholders, not signed-off requirements.
 

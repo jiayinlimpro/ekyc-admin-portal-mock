@@ -471,6 +471,9 @@ Rules changed on 2026-10-20 (Projects & Flows restructure) are marked **(changed
 
   - **Identity and forms** (unchanged): cuid2 IDs; User and Role IDs generated, read-only, shown in forms and detail
     panels, never in lists. Platform users use the company email domain (OQ-31); merchant users can't.
+  - **Landing** (refines DEC-84): users land on Overview when they may open it; a role without dashboards (Support,
+    Implementation, Billing, Developer, Member) lands on the first screen of its menu, and the pinned Overview tab is
+    hidden for it.
   - **Superseded:** scopes on a role assignment (Selected projects / flows on New user; DEC-70, DEC-74); merchant scope for
     platform staff (DEC-99); flow-level access; "Project access" on New user; the masked case view (DEC-99); the platform
     roles Platform Operations, Verification Specialist and Workflow Engineer; Merchant Owner (now **Owner**).
