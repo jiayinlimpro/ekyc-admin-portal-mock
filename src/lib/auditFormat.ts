@@ -8,7 +8,7 @@ export function summarizeAudit(e: AuditEntry): string {
   const d = e.details
   switch (e.action) {
     case 'SENSITIVE_PII_VIEW':
-      return 'Opened the record with unmasked personal data'
+      return 'Opened the case page (personal data)'
     case 'CASE_CLAIMED': {
       const until = str(d.claimExpiresAt)
       return until ? `Claim expires ${formatMyt(until)} MYT` : 'Claimed for review'

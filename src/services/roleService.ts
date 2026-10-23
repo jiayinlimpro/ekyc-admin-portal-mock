@@ -140,13 +140,13 @@ export const mockRoleService: RoleService = {
   async assignable(merchantId, actor, projectId) {
     await simulateNetwork('assignable roles')
     const me = accountOf(actor)
-    // REQ: DEC-102 — the role picker of New user, Add / Edit access and Members.
-    const manages = canInMerchant(me, 'inviteUsers', merchantId) || canInMerchant(me, 'changeUserAccess', merchantId) || db.state().projects.some((p) => p.merchantId === merchantId && canInProject(me, 'manageMembers', p))
+    // REQ: DEC-102 / DEC-104 — the role picker of New user and Change role (merchant role), and of Members (with `projectId`).
+    const manages = canInMerchant(me, 'inviteUsers', merchantId) || canInMerchant(me, 'changeUserRole', merchantId) || db.state().projects.some((p) => p.merchantId === merchantId && canInProject(me, 'manageMembers', p))
     if (!manages) throw new ServiceError('FORBIDDEN', 'You do not manage access in this merchant.')
-    const open = db.state().projects.filter((p) => p.merchantId === merchantId && p.status === 'ACTIVE').map((p) => p.projectId)
     const g = granter(me)
-    const inProject = (r: Role, id: string) => !isMerchantLevel(r.permissions) && canGrant(g, r.permissions, { kind: 'PROJECTS', projectIds: [id] })
-    const grantable = (r: Role) => (projectId ? inProject(r, projectId) : canGrant(g, r.permissions, { kind: 'ALL_PROJECTS' }) || open.some((id) => inProject(r, id)))
+    // Members: only roles without merchant-wide permissions, for that project.
+    const inProject = (r: Role, id: string) => r.permissions.length > 0 && !isMerchantLevel(r.permissions) && canGrant(g, r.permissions, { kind: 'PROJECTS', projectIds: [id] })
+    const grantable = (r: Role) => (projectId ? inProject(r, projectId) : canGrant(g, r.permissions, { kind: 'ALL_PROJECTS' }))
     return wire(rolesFor(merchantId).filter((r) => r.status === 'ACTIVE' && grantable(r)))
   },
 

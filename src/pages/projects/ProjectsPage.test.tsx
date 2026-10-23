@@ -36,10 +36,10 @@ beforeEach(async () => {
 afterEach(cleanup)
 
 describe('Projects (DEC-90, DEC-93)', () => {
-  it('Given the Merchant Owner, then both Atoz projects with flows, members and open cases', async () => {
+  it('Given the Owner, then both Atoz projects with flows, members and open cases', async () => {
     renderAt('/projects')
     const def = await rowOf('Default')
-    expect(def.textContent).toContain('Merchant Owner')
+    expect(def.textContent).toContain('Owner')
     expect(def.textContent).toContain('Malaysian onboarding')
     expect(def.textContent).toMatch(/2 active \/ 3/) // Malaysian, Foreigner active; Tourist draft
     expect((await rowOf('SME app')).textContent).toContain('45 min')
@@ -55,7 +55,7 @@ describe('Projects (DEC-90, DEC-93)', () => {
     expect(row.textContent).toContain('0 active / 1')
     expect(row.textContent).toContain('Default flow')
     fireEvent.click(screen.getByRole('button', { name: /Switch project/ }))
-    expect((await screen.findAllByRole('menuitemradio')).map((o) => o.textContent)).toContain('Branch kiosksMerchant Owner')
+    expect((await screen.findAllByRole('menuitemradio')).map((o) => o.textContent)).toContain('Branch kiosksOwner')
   })
 
   it('Given a duplicate name, then the error shows on the field', async () => {
@@ -91,10 +91,16 @@ describe('Projects (DEC-90, DEC-93)', () => {
     expect((await list()).getAllByRole('columnheader').map((h) => h.textContent)).toContain('Merchant')
   })
 
-  it('Given a Reviewer, then Projects is "No access"', async () => {
-    useSession.getState().switchUser(ALI)
+  it('Given Billing (merchant-wide billing only), then Projects is "No access"; a Reviewer sees projects read-only (DEC-104: Flows View)', async () => {
+    useSession.getState().switchUser({ userId: fx('USR-2026-0037'), fullName: 'Muthu A/L Rajan' })
     renderAt('/projects')
     await screen.findByRole('heading', { name: 'No access' })
+    cleanup()
+    useSession.getState().switchUser(ALI)
+    renderAt('/projects')
+    await rowOf('Default')
+    expect(screen.queryByRole('button', { name: /New project/ })).toBeNull()
+    expect(screen.queryByRole('button', { name: /Rename/ })).toBeNull()
   })
 
   it('Given Flows on a row, then the header switches to that project', async () => {

@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen, within } from '@testing-library/react'
+import { cleanup, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { createMemoryRouter } from 'react-router'
 import { RouterProvider } from 'react-router/dom'
@@ -9,9 +9,14 @@ import { devService } from '@/services/devService'
 import { DEFAULT_DEV_FLAGS, useDevFlags } from '@/stores/devFlagsStore'
 import { useSession } from '@/stores/sessionStore'
 
-const DANIEL = { userId: fx('USR-2026-0006'), fullName: 'Daniel Tan' } // Support · All merchants
+const DANIEL = { userId: fx('USR-2026-0006'), fullName: 'Daniel Tan' } // Support
+const MARCUS = { userId: fx('USR-2026-0009'), fullName: 'Marcus Lee' } // Implementation
 const HANNAH = { userId: fx('USR-2026-0008'), fullName: 'Hannah Lee' } // Finance
-const renderAt = (path: string) => render(<RouterProvider router={createMemoryRouter(routes, { initialEntries: [path] })} />)
+const renderAt = (path: string) => {
+  const router = createMemoryRouter(routes, { initialEntries: [path] })
+  render(<RouterProvider router={router} />)
+  return router
+}
 const mainNav = () => within(screen.getByRole('navigation', { name: 'Main' }))
 
 beforeEach(async () => {
@@ -21,25 +26,31 @@ beforeEach(async () => {
 })
 afterEach(cleanup)
 
-describe('screens for platform staff (DEC-99)', () => {
-  it('Given Support, then the menu has what the role allows and nothing to manage users or roles', async () => {
-    renderAt('/dashboard')
+describe('screens for platform staff (DEC-99, DEC-104)', () => {
+  it('Given Support, then the menu has what the role allows: cases, projects (flows, keys) and the audit log; no dashboards or admin', async () => {
+    renderAt('/verifications')
     await mainNav().findByRole('link', { name: 'Verifications' })
-    for (const shown of ['Overview', 'Verifications', 'Projects', 'Audit Logs', 'Merchants']) expect(mainNav().getByRole('link', { name: shown })).toBeTruthy()
-    for (const hidden of ['Users', 'Roles', 'Super admins', 'Workflow Registry', 'Billing']) expect(mainNav().queryByRole('link', { name: hidden })).toBeNull()
+    for (const shown of ['Verifications', 'Projects', 'Audit Logs']) expect(mainNav().getByRole('link', { name: shown })).toBeTruthy()
+    for (const hidden of ['Overview', 'Merchants', 'Users', 'Roles', 'Super admins', 'Workflow Registry', 'Billing']) expect(mainNav().queryByRole('link', { name: hidden })).toBeNull()
   })
 
-  it('Given Support opens a case, then it is masked: ID number and images hidden, and it says so', async () => {
+  it('Given Support opens the portal, then it lands on Verifications (no Overview for this role) and there is no Overview tab', async () => {
+    const router = renderAt('/')
+    await waitFor(() => expect(router.state.location.pathname).toBe('/verifications'))
+    expect(within(screen.getByRole('navigation', { name: 'Open pages' })).queryByRole('link', { name: 'Overview' })).toBeNull()
+  })
+
+  it('Given Support opens a case, then the full page, no masking; the view is logged', async () => {
     renderAt(`/verifications/${caseIdOf('KYC-260901-900003')}`)
-    expect(await screen.findByText(/Masked: you don’t have “See unmasked ID data”/)).toBeTruthy()
-    expect(screen.getAllByText('Hidden: needs “See unmasked ID data”').length).toBeGreaterThan(0)
-    expect(screen.queryByRole('img', { name: /front \(sample image/ })).toBeNull()
+    expect(await screen.findByText(/Your view is logged/)).toBeTruthy()
+    expect(screen.getByRole('img', { name: /front \(sample image/ })).toBeTruthy()
   })
 
-  it('Given Support on Merchants, then the list without Add Merchant', async () => {
+  it('Given Implementation on Merchants, then Add Merchant', async () => {
+    useSession.getState().switchUser(MARCUS)
     renderAt('/merchants')
     await screen.findByRole('rowheader', { name: 'Tesla' })
-    expect(screen.queryByRole('button', { name: /Add Merchant/ })).toBeNull()
+    expect(screen.getByRole('button', { name: /Add Merchant/ })).toBeTruthy()
   })
 
   it('Given Support on Flows, then the flows read-only: no New flow, and the detail says read-only', async () => {

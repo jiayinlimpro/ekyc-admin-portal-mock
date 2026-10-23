@@ -51,14 +51,15 @@ export function BillingPage() {
   const period = periods.data?.includes(sp.get('period') ?? '') ? sp.get('period')! : periods.data?.[0]
   const report = useLoad(() => (period ? analyticsService.billing({ period, ...d.scope }, d.actor) : Promise.resolve(undefined)), [period, d.key, d.actor.userId])
 
+  // REQ: DEC-99 — exports need Export (staff: Usage reports · Export). Hooks before the early return.
+  const canExport = useAccess().allows({ project: 'exportReports' })
+
   const error = periods.error ?? report.error
   if (error && !report.data) return <ErrorState message={error} onRetry={() => (periods.error ? periods.reload() : report.reload())} />
   const r = report.data
   const t = r?.totals
   const loading = report.loading
 
-  // REQ: DEC-99 — exports need Export (staff: Usage reports · Export).
-  const canExport = useAccess().allows({ project: 'exportReports' })
   const exportCsv = () => {
     if (!r) return
     const a = document.createElement('a')

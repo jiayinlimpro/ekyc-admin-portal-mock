@@ -33,8 +33,8 @@ test('reviewer finds an unclaimed pending record, claims it, approves it, and th
   await expect(page.locator('section[aria-label="Audit entries"]')).toContainText('SENSITIVE_PII_VIEW')
 })
 
-test('reviewer cannot open settings screens: no Flows in the menu and "No access" on the URL', async ({ page }) => {
-  await page.goto('/flows?as=ali.ahmad@atoz.example')
+test('reviewer cannot open admin screens: no Users in the menu and "No access" on the URL (DEC-104)', async ({ page }) => {
+  await page.goto('/users?as=ali.ahmad@atoz.example')
   await expect(page.getByRole('heading', { name: 'No access' })).toBeVisible()
-  await expect(page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: 'Flows' })).toHaveCount(0)
+  await expect(page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: 'Users' })).toHaveCount(0)
 })

@@ -83,7 +83,7 @@ describe('Super admins screen (DEC-79, DEC-99)', () => {
     expect(within(row).getByRole('button', { name: 'Resend invitation' })).toBeTruthy()
   })
 
-  it('Given a Merchant Owner, then Admins is "No access"', async () => {
+  it('Given a Owner, then Admins is "No access"', async () => {
     useSession.getState().switchUser(OWNER)
     renderAt('/admins')
     await screen.findByRole('heading', { name: 'No access' })

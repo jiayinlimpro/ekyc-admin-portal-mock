@@ -19,7 +19,6 @@ import { sweepExpiredClaims } from './claimSweep'
 import { settleRetiringFlow } from './flowService'
 import { ServiceError } from './errors'
 import { clientIpFor, simulateNetwork, wire } from './network'
-import { maskDetail } from '@/domain/piiMasking'
 
 /** REQ: DEC-100 — the columns the FRS lets the list sort on (never Full Name or Merchant). */
 export const VERIFICATION_SORT_KEYS = ['referenceNo', 'status', 'riskLevel', 'lastUpdatedAt'] as const
@@ -233,15 +232,16 @@ export const mockVerificationService: VerificationService = {
     await simulateNetwork('get verification')
     const at = now()
     sweepExpiredClaims(at)
-    const v = load(caseId, actor) // REQ: DEC-25 / DEC-41 — every project member who can view the case sees its full detail
+    const v = load(caseId, actor)
+    // REQ: DEC-104 — the case page needs View details (no masking); View list alone sees the case only in the list.
+    if (!mayInProject(actor, 'viewCaseDetails', v.projectId)) throw new ServiceError('FORBIDDEN', 'You can see this case in the list, but not its details.')
+    // REQ: DEC-41 / DEC-104 — every open is audited (who, which case, when): the oversight for personal data.
     const key = opts?.requestId ? `${actor.userId}:${caseId}:${opts.requestId}` : undefined
-    // REQ: DEC-99 — platform staff without "See unmasked ID data" get the masked view; the open is audited either way.
-    const unmasked = mayInProject(actor, 'viewUnmaskedPii', v.projectId)
     if (!key || !loggedPiiViews.has(key)) {
       if (key) loggedPiiViews.add(key)
-      audit(actor, 'SENSITIVE_PII_VIEW', v, at, { requestId: opts?.requestId, ...(unmasked ? {} : { masked: true }) })
+      audit(actor, 'SENSITIVE_PII_VIEW', v, at, { requestId: opts?.requestId })
     }
-    return unmasked ? toDetail(v) : maskDetail(toDetail(v))
+    return toDetail(v)
   },
 
   async claim(caseId, actor) {

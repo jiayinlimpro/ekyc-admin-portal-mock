@@ -16,7 +16,7 @@ export function Guarded({ item, page: Page }: { item: NavItem; page?: ComponentT
   if (rule && access.error) return <ErrorState message={access.error} onRetry={access.retry} />
   // REQ: DEC-73 — signed in, but no assignment covers any project yet.
   if (rule && access.account?.level === 'MERCHANT_USER' && !access.projects.length) {
-    return <EmptyState title="You don’t have access to any project yet">Ask your Merchant Owner to give you a role on the Users screen.</EmptyState>
+    return <EmptyState title="You don’t have access to any project yet">Ask an admin of your merchant to add you to a project (Project › Members) or give you a role on the Users screen.</EmptyState>
   }
   if (!access.allows(rule)) return <ForbiddenPage page={item.label} />
   if (!Page) return <PlaceholderPage item={item} />

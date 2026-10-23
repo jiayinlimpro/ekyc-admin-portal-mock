@@ -63,7 +63,7 @@ describe('Overview', () => {
 })
 
 describe('Overview by project and flow (DEC-86)', () => {
-  it('Given the Merchant Owner, then By project shows both Atoz projects with pass rate and waiting time', async () => {
+  it('Given the Owner, then By project shows both Atoz projects with pass rate and waiting time', async () => {
     useSession.getState().switchUser(OWNER)
     renderAt('/dashboard?days=90')
     const table = within(await screen.findByRole('region', { name: 'By project' }))

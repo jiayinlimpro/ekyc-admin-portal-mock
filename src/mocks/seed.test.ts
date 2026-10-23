@@ -280,8 +280,8 @@ describe('accounts (DEC-70, DEC-74)', () => {
     expect(new Set(ids).size).toBe(ids.length)
   })
 
-  it('Given every merchant with users, then a Merchant Owner (All projects) or a Project Admin can manage it', () => {
-    const managers = [SYSTEM_ROLE_IDS.MERCHANT_OWNER, SYSTEM_ROLE_IDS.PROJECT_ADMIN] as string[]
+  it('Given every merchant with users, then an Owner or a Project Admin can manage it', () => {
+    const managers = [SYSTEM_ROLE_IDS.OWNER, SYSTEM_ROLE_IDS.PROJECT_ADMIN] as string[]
     for (const m of db.merchants) {
       expect(db.accounts.some((a) => a.merchantId === m.merchantId && a.assignments.some((x) => managers.includes(x.roleId))), m.merchantId).toBe(true)
     }

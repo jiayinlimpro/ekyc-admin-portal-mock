@@ -1,29 +1,31 @@
-// REQ: DEC-102 — the role's permissions as a matrix: one row per module, a View column and an Actions column. The checkbox
-// at the module name ticks every permission of the module (partly ticked shows as "mixed"); an action keeps its View ticked.
-import { groupsFor, modulePermissions, type PermissionModule } from '@/domain/permissionMatrix'
-import { impliedBy, withImpliedPermissions } from '@/domain/roles'
+// REQ: DEC-102 / DEC-104 — the role's permissions as a matrix: one row per module, a View column and an Actions column. The
+// checkbox at the module name ticks every permission of the module (partly ticked shows as "mixed"). Ticking a permission
+// ticks what it needs; unticking one (View included) clears what depends on it.
+import { dependentsOf, groupsFor, modulePermissions, type PermissionModule } from '@/domain/permissionMatrix'
+import { withImpliedPermissions } from '@/domain/roles'
 import type { Permission, RoleAudience } from '@/domain/types'
 import { PERMISSION_LABELS } from '@/lib/labels'
-import { cn } from '@/lib/utils'
 
-const NEEDED = 'Ticked because an action in this row needs it'
+/** Unticking clears the permission and everything that needs it (DEC-104). */
+const without = (value: readonly Permission[], drop: readonly Permission[]) => {
+  const gone = new Set(drop.flatMap((p) => [p, ...dependentsOf(p)]))
+  return value.filter((p) => !gone.has(p))
+}
 
-function Box({ permission, label, value, implied, onToggle }: { permission: Permission; label: string; value: readonly Permission[]; implied: Set<Permission>; onToggle: (p: Permission, on: boolean) => void }) {
-  const locked = implied.has(permission)
+function Box({ permission, label, value, onToggle }: { permission: Permission; label: string; value: readonly Permission[]; onToggle: (p: Permission, on: boolean) => void }) {
   return (
-    <label className={cn('inline-flex items-center gap-1.5 text-sm whitespace-nowrap', locked && 'text-muted-foreground')} title={locked ? NEEDED : undefined}>
-      <input type="checkbox" className="size-4 accent-primary" checked={value.includes(permission)} disabled={locked} onChange={(e) => onToggle(permission, e.target.checked)} aria-label={PERMISSION_LABELS[permission]} />
+    <label className="inline-flex items-center gap-1.5 text-sm whitespace-nowrap">
+      <input type="checkbox" className="size-4 accent-primary" checked={value.includes(permission)} onChange={(e) => onToggle(permission, e.target.checked)} aria-label={PERMISSION_LABELS[permission]} />
       {label}
     </label>
   )
 }
 
-function ModuleRow({ m, value, implied, onChange }: { m: PermissionModule; value: Permission[]; implied: Set<Permission>; onChange: (v: Permission[]) => void }) {
+function ModuleRow({ m, value, onChange }: { m: PermissionModule; value: Permission[]; onChange: (v: Permission[]) => void }) {
   const all = modulePermissions(m)
   const ticked = all.filter((p) => value.includes(p)).length
-  const toggle = (p: Permission, on: boolean) => onChange(on ? withImpliedPermissions([...value, p]) : value.filter((x) => x !== p))
-  // Unticking the module clears its row; whatever another row still needs comes back ticked.
-  const toggleModule = (on: boolean) => onChange(withImpliedPermissions(on ? [...value, ...all] : value.filter((p) => !all.includes(p))))
+  const toggle = (p: Permission, on: boolean) => onChange(on ? withImpliedPermissions([...value, p]) : without(value, [p]))
+  const toggleModule = (on: boolean) => onChange(on ? withImpliedPermissions([...value, ...all]) : without(value, all))
   return (
     <tr className="border-t align-top">
       <th scope="row" className="py-2 pr-3 text-left font-medium">
@@ -41,10 +43,10 @@ function ModuleRow({ m, value, implied, onChange }: { m: PermissionModule; value
           {m.module}
         </label>
       </th>
-      <td className="py-2 pr-3">{m.view ? <Box permission={m.view} label={m.viewLabel ?? 'View'} value={value} implied={implied} onToggle={toggle} /> : <span className="text-muted-foreground" aria-label="No separate View">—</span>}</td>
+      <td className="py-2 pr-3">{m.view ? <Box permission={m.view} label={m.viewLabel ?? 'View'} value={value} onToggle={toggle} /> : <span className="text-muted-foreground" aria-label="No separate View">—</span>}</td>
       <td className="py-2">
         <div className="flex flex-wrap gap-x-4 gap-y-1.5" role="group" aria-label={`${m.module} actions`}>
-          {m.actions.length ? m.actions.map((x) => <Box key={x.permission} permission={x.permission} label={x.label} value={value} implied={implied} onToggle={toggle} />) : <span className="text-muted-foreground">—</span>}
+          {m.actions.length ? m.actions.map((x) => <Box key={x.permission} permission={x.permission} label={x.label} value={value} onToggle={toggle} />) : <span className="text-muted-foreground">—</span>}
         </div>
       </td>
     </tr>
@@ -52,7 +54,6 @@ function ModuleRow({ m, value, implied, onChange }: { m: PermissionModule; value
 }
 
 export function PermissionMatrix({ audience, value, onChange, disabled }: { audience: RoleAudience; value: Permission[]; onChange: (v: Permission[]) => void; disabled: boolean }) {
-  const implied = impliedBy(value)
   return (
     <>
       {groupsFor(audience).map((g) => (
@@ -74,7 +75,7 @@ export function PermissionMatrix({ audience, value, onChange, disabled }: { audi
             </thead>
             <tbody>
               {g.modules.map((m) => (
-                <ModuleRow key={m.module} m={m} value={value} implied={implied} onChange={onChange} />
+                <ModuleRow key={m.module} m={m} value={value} onChange={onChange} />
               ))}
             </tbody>
           </table>

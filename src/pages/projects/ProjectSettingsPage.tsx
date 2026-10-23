@@ -57,7 +57,7 @@ function GeneralTab({ project, canEdit, onSaved }: { project: Project; canEdit: 
     <Card title="General">
       <fieldset disabled={!canEdit} className="grid max-w-2xl gap-4 sm:grid-cols-2">
         <legend className="sr-only">General settings</legend>
-        <FormField id="g-name" label="Project name" hint="Rename on the Projects screen (Super admin, Merchant Owner).">
+        <FormField id="g-name" label="Project name" hint="Renamed on the Projects screen.">
           <Input id="g-name" value={project.name} readOnly />
         </FormField>
         <FormField id="g-language" label="Language" hint="Blank uses the merchant default.">

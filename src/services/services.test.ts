@@ -159,7 +159,7 @@ describe('per-project case access (DEC-70, DEC-72)', () => {
     expect(v).toMatchObject({ status: 'APPROVED', lastUpdatedBy: { kind: 'USER', userId: ADMIN.userId } })
   })
 
-  it('Given the Merchant Owner, then cases from every Atoz project are visible; a one-project admin sees fewer', async () => {
+  it('Given the Owner, then cases from every Atoz project are visible; a one-project admin sees fewer', async () => {
     const owner = (await svc.list({}, OWNER)).total
     expect(owner).toBe((await svc.list({}, ALI)).total) // Ali is a member of both Atoz projects
     expect((await svc.list({}, HAFIZ)).total).toBeLessThan(owner)
@@ -304,7 +304,7 @@ describe('decide (DEC-24, DEC-30)', () => {
 })
 
 describe('auditService and merchantService scoping (DEC-70, DEC-72)', () => {
-  it('Given the Merchant Owner, then audit entries and merchants are limited to their merchant', async () => {
+  it('Given the Owner, then audit entries and merchants are limited to their merchant', async () => {
     const log = await auditService.list({ pageSize: 1000 }, OWNER)
     expect(log.items.every((e) => e.merchantId === fx('MER-0001'))).toBe(true)
     expect(log.items.some((e) => e.action === 'API_KEY_ROTATED')).toBe(true) // merchant-wide entries included

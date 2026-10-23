@@ -80,7 +80,7 @@ export const mockMerchantAdminService: MerchantAdminService = {
     return wire(
       s.merchants
         .map((m): MerchantRow => {
-          const owner = s.accounts.find((a) => a.merchantId === m.merchantId && a.assignments.some((x) => x.roleId === SYSTEM_ROLE_IDS.MERCHANT_OWNER))
+          const owner = s.accounts.find((a) => a.merchantId === m.merchantId && a.assignments.some((x) => x.roleId === SYSTEM_ROLE_IDS.OWNER))
           return {
             ...m,
             countryName: countryName(m.country),
@@ -140,8 +140,8 @@ export const mockMerchantAdminService: MerchantAdminService = {
       email,
       level: 'MERCHANT_USER',
       merchantId: merchant.merchantId,
-      // REQ: DEC-92 — the primary contact becomes Merchant Owner for All projects.
-      assignments: [{ assignmentId: nextAssignmentId(), roleId: SYSTEM_ROLE_IDS.MERCHANT_OWNER, scope: { kind: 'ALL_PROJECTS' }, addedBy: { userId: actor.userId, fullName: actor.fullName }, addedAt: at.toISOString() }],
+      // REQ: DEC-92 / DEC-104 — the primary contact's merchant role is Owner.
+      assignments: [{ assignmentId: nextAssignmentId(), roleId: SYSTEM_ROLE_IDS.OWNER, scope: { kind: 'ALL_PROJECTS' }, addedBy: { userId: actor.userId, fullName: actor.fullName }, addedAt: at.toISOString() }],
       status: 'PENDING',
       invitationId: newId('inv'),
       invitedAt: at.toISOString(),
@@ -150,7 +150,7 @@ export const mockMerchantAdminService: MerchantAdminService = {
     audit(actor, 'MERCHANT_CREATED', merchant.merchantId, { name: merchant.name, registrationNo: merchant.registrationNo, country: merchant.country, status: 'ONBOARDING' })
     auditProject(actor, 'PROJECT_CREATED', project, { name: project.name, isDefault: true }, at)
     auditProject(actor, 'FLOW_CREATED', project, { flowId, name: flow.name, workflowVersion: flow.workflowVersion, isDefault: true }, at)
-    audit(actor, 'USER_INVITED', merchant.merchantId, { userId: owner.userId, fullName: owner.fullName, email, access: 'Merchant Owner · All projects', invitationId: owner.invitationId })
+    audit(actor, 'USER_INVITED', merchant.merchantId, { userId: owner.userId, fullName: owner.fullName, email, access: 'Owner · All projects', invitationId: owner.invitationId })
     return wire(merchant)
   },
 

@@ -107,8 +107,8 @@ function RoleDialog({
                 : locked
                   ? 'Read-only: you can view this role but not edit it.'
                 : platform
-                  ? 'A role for internal staff. Which merchants it applies in is chosen when it is given to a user.'
-                  : 'A role says what a user may do; where it applies is chosen when it is given to a user.'}
+                  ? 'A role for internal staff: it applies to every merchant (staff have one role, no scope).'
+                  : 'Given on Users, the role applies to the whole merchant; given in Project › Members, to that project only.'}
             </DialogDescription>
           </DialogHeader>
           {/* REQ: DEC-99 — Type first: chosen by super admins on create; locked afterwards and for merchant admins. */}
@@ -235,7 +235,7 @@ export function RolesPage() {
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold">Roles</h1>
-          <p className="text-sm text-muted-foreground">What users may do. Give roles to users on the Users screen, for All projects or selected projects.</p>
+          <p className="text-sm text-muted-foreground">What users may do. Given on Users, a role applies to the whole merchant; given in Project › Members, to that project only.</p>
         </div>
         {can.create && (
           <Button onClick={() => setEditing({ mode: 'create' })}>

@@ -15,7 +15,7 @@ export function PiiSection({ v }: { v: VerificationDetail }) {
         ['Full Name', p.fullName],
         ['IC', <span key="ic" className="font-mono">{p.nric}</span>],
         ['Licence class', p.licenceClass],
-        ['Valid until', p.licenceValidUntil && (v.masked ? p.licenceValidUntil : formatDate(p.licenceValidUntil))],
+        ['Valid until', p.licenceValidUntil && formatDate(p.licenceValidUntil)],
         ['Nationality', p.nationality],
         ['Address', p.address],
       ]
@@ -25,14 +25,14 @@ export function PiiSection({ v }: { v: VerificationDetail }) {
         ['Passport No', <span key="passport" className="font-mono">{p.passportNo}</span>],
         ['Nationality', p.nationality],
         ['Gender', p.gender],
-        ['Date of Birth', v.masked ? p.dob : formatDate(p.dob)],
+        ['Date of Birth', formatDate(p.dob)],
         ['Address (MY)', p.address],
       ]
     : [
         ['Full Name', p.fullName],
         ['NRIC', <span key="nric" className="font-mono">{p.nric}</span>],
         ['Gender', p.gender],
-        ['Date of Birth', v.masked ? p.dob : formatDate(p.dob)],
+        ['Date of Birth', formatDate(p.dob)],
         ['Nationality', p.nationality],
         ['Religion', p.religion],
         ['Address', p.address],
@@ -44,7 +44,7 @@ export function PiiSection({ v }: { v: VerificationDetail }) {
       aside={
         <span className="flex items-center gap-1 text-xs text-muted-foreground">
           <Eye className="size-3.5" aria-hidden />
-          {v.masked ? 'Masked: you don’t have “See unmasked ID data” · your view is logged' : 'Unmasked · your view is logged'}
+          Your view is logged
         </span>
       }
     >

@@ -1,7 +1,5 @@
 import { describe, expect, it } from 'vitest'
 import {
-  coversMerchant,
-  hasMerchantAccess,
   scopeLabel,
   WRONG_ROLE_TYPE,
   accessChips,
@@ -37,7 +35,7 @@ const only = (...projectIds: string[]): AssignmentScope => ({ kind: 'PROJECTS', 
 const assign = (roleId: string, scope: AssignmentScope, n = 1): RoleAssignment => ({ assignmentId: `ASG-${n}`, roleId, scope, addedBy: by, addedAt: AT })
 const grant = (roleId: string, scope: AssignmentScope): Grant => ({ roleId, roleName: role(roleId).name, permissions: role(roleId).permissions, scope })
 
-const { MERCHANT_OWNER, PROJECT_ADMIN, REVIEWER, VIEWER } = SYSTEM_ROLE_IDS
+const { OWNER: MERCHANT_OWNER, PROJECT_ADMIN, REVIEWER, VIEWER } = SYSTEM_ROLE_IDS
 // The paste's example: Mei is Reviewer in Retail and Viewer in SME.
 const MEI = [grant(REVIEWER, only(fx('PRJ-0001'))), grant(VIEWER, only(fx('PRJ-0002')))]
 
@@ -45,7 +43,7 @@ describe('roles: permissions from scoped assignments (DEC-70)', () => {
   it('Given a user with two assignments, then each project gets the union of the grants covering it', () => {
     expect(permissionsIn(MEI, fx('PRJ-0001')).has('CLAIM_CASES')).toBe(true)
     expect(permissionsIn(MEI, fx('PRJ-0002')).has('CLAIM_CASES')).toBe(false)
-    expect(permissionsIn(MEI, fx('PRJ-0002')).has('VIEW_CASES')).toBe(true)
+    expect(permissionsIn(MEI, fx('PRJ-0002')).has('VIEW_CASE_DETAILS')).toBe(true)
     expect(coversProject(MEI, fx('PRJ-0003'))).toBe(false)
     expect(roleNamesIn([...MEI, grant(VIEWER, only(fx('PRJ-0001')))], fx('PRJ-0001'))).toEqual(['Reviewer', 'Viewer'])
   })
@@ -55,17 +53,17 @@ describe('roles: permissions from scoped assignments (DEC-70)', () => {
   })
 
   it('Given a role with a merchant-level permission scoped to selected projects, then that permission does not count', () => {
-    const odd: Grant = { roleId: fx('ROL-2026-0100'), roleName: 'Odd', permissions: ['CREATE_PROJECTS', 'VIEW_CASES'], scope: only(fx('PRJ-0001')) }
-    expect([...permissionsIn([odd], fx('PRJ-0001'))]).toEqual(['VIEW_CASES'])
+    const odd: Grant = { roleId: fx('ROL-2026-0100'), roleName: 'Odd', permissions: ['CREATE_PROJECTS', 'VIEW_CASE_LIST'], scope: only(fx('PRJ-0001')) }
+    expect([...permissionsIn([odd], fx('PRJ-0001'))]).toEqual(['VIEW_CASE_LIST'])
   })
 
   it('Given overlapping grants, then Effective access names every grant each permission comes from', () => {
     const both = [grant(REVIEWER, only(fx('PRJ-0001'))), grant(VIEWER, ALL), grant(MERCHANT_OWNER, only(fx('PRJ-0001')))]
     const rows = effectivePermissions(both, fx('PRJ-0001'))
-    expect(rows.find((r) => r.permission === 'VIEW_CASES')!.from.map((g) => g.roleName)).toEqual(['Reviewer', 'Viewer', 'Merchant Owner'])
-    expect(rows.find((r) => r.permission === 'CLAIM_CASES')!.from.map((g) => g.roleName)).toEqual(['Reviewer', 'Merchant Owner'])
-    expect(rows.some((r) => r.permission === 'CREATE_PROJECTS')).toBe(false) // merchant-level, not from a project scope
-    expect(effectivePermissions(both, fx('PRJ-0002')).map((r) => r.permission)).toEqual(['VIEW_CASES', 'VIEW_PROJECT_REPORTS', 'EXPORT_PROJECT_REPORTS'])
+    expect(rows.find((r) => r.permission === 'VIEW_CASE_DETAILS')!.from.map((g) => g.roleName)).toEqual(['Reviewer', 'Viewer', 'Owner'])
+    expect(rows.find((r) => r.permission === 'CLAIM_CASES')!.from.map((g) => g.roleName)).toEqual(['Reviewer', 'Owner'])
+    expect(rows.some((r) => r.permission === 'CREATE_PROJECTS')).toBe(false) // merchant-wide, not from a project role
+    expect(effectivePermissions(both, fx('PRJ-0002')).map((r) => r.permission)).toEqual(['VIEW_CASE_LIST', 'VIEW_CASE_DETAILS', 'VIEW_FLOWS', 'VIEW_PROJECT_REPORTS', 'EXPORT_PROJECT_REPORTS'])
   })
 
   it('Given an inactive role, then its assignment grants nothing', () => {
@@ -77,24 +75,33 @@ describe('roles: permissions from scoped assignments (DEC-70)', () => {
     const names: Record<string, string> = { [fx('PRJ-0001')]: 'Retail app', [fx('PRJ-0002')]: 'SME app (archived)' }
     expect(accessSummary(MEI, (id) => names[id])).toBe('Reviewer · Retail app; Viewer · SME app (archived)')
     expect(accessChips(MEI, (id) => names[id], (id) => id === fx('PRJ-0002')).map((c) => c.archived)).toEqual([false, true])
-    expect(accessSummary([grant(MERCHANT_OWNER, ALL)], (id) => id)).toBe('Merchant Owner · All projects')
+    expect(accessSummary([grant(MERCHANT_OWNER, ALL)], (id) => id)).toBe('Owner · All projects')
   })
 
-  it('Given Claim or Approve ticked, then View cases is ticked too, in catalogue order', () => {
-    expect(withImpliedPermissions(['DECIDE_CASES', 'VIEW_AUDIT_LOG'])).toEqual(['VIEW_CASES', 'DECIDE_CASES', 'VIEW_AUDIT_LOG'])
+  it('Given Approve ticked, then Claim, View details and View list are ticked too, in catalogue order (DEC-104)', () => {
+    expect(withImpliedPermissions(['DECIDE_CASES', 'VIEW_AUDIT_LOG'])).toEqual(['VIEW_CASE_LIST', 'VIEW_CASE_DETAILS', 'CLAIM_CASES', 'DECIDE_CASES', 'VIEW_AUDIT_LOG'])
+  })
+
+  it('Given a Member (no permissions), then it opens no project, even given for the whole merchant (DEC-104)', () => {
+    const member = grant(SYSTEM_ROLE_IDS.MEMBER, ALL)
+    expect(coversProject([member], fx('PRJ-0001'))).toBe(false)
+    expect(coversProject([member, grant(REVIEWER, only(fx('PRJ-0001')))], fx('PRJ-0001'))).toBe(true)
+    expect(roleNamesIn([member, grant(REVIEWER, only(fx('PRJ-0001')))], fx('PRJ-0001'))).toEqual(['Reviewer'])
   })
 })
 
-describe('roles: giving access (DEC-70, DEC-74, DEC-77)', () => {
+describe('roles: giving access (DEC-74, DEC-77, DEC-104)', () => {
   const open = [fx('PRJ-0001'), fx('PRJ-0002')]
 
-  it('Given a role with merchant-level permissions, when it is scoped to selected projects, then it is refused', () => {
-    expect(validateAssignment(role(MERCHANT_OWNER), only(fx('PRJ-0001')), open)).toEqual([{ field: 'scope', message: MERCHANT_LEVEL_SCOPE }])
+  it('Given a role with merchant-wide permissions, then only on Users (whole merchant), never in Project › Members', () => {
+    expect(validateAssignment(role(MERCHANT_OWNER), only(fx('PRJ-0001')), open)).toEqual([{ field: 'roleId', message: MERCHANT_LEVEL_SCOPE }])
     expect(validateAssignment(role(MERCHANT_OWNER), ALL, open)).toEqual([])
+    expect(validateAssignment(role(SYSTEM_ROLE_IDS.ADMIN), only(fx('PRJ-0001')), open)[0].message).toBe(MERCHANT_LEVEL_SCOPE)
   })
 
-  it('Given selected projects, when none is chosen or one is archived, then it is refused', () => {
+  it('Given a project role, then exactly one open project', () => {
     expect(validateAssignment(role(REVIEWER), only(), open)[0].field).toBe('scope')
+    expect(validateAssignment(role(REVIEWER), only(fx('PRJ-0001'), fx('PRJ-0002')), open)[0].field).toBe('scope')
     expect(validateAssignment(role(REVIEWER), only(fx('PRJ-0008')), open)[0].message).toMatch(/Archived/)
     expect(validateAssignment(role(REVIEWER), only(fx('PRJ-0002')), open)).toEqual([])
   })
@@ -111,12 +118,12 @@ describe('roles: giving access (DEC-70, DEC-74, DEC-77)', () => {
     expect(canGrant(MEI, role(PROJECT_ADMIN).permissions, only(fx('PRJ-0001')))).toBe(false)
   })
 
-  it('Given a Merchant Owner or Super admin, then they can give any role for All projects', () => {
+  it('Given an Owner or Super admin, then they can give any role for the whole merchant', () => {
     expect(canGrant([grant(MERCHANT_OWNER, ALL)], role(MERCHANT_OWNER).permissions, ALL)).toBe(true)
     expect(canGrant('SUPER_ADMIN', role(MERCHANT_OWNER).permissions, ALL)).toBe(true)
   })
 
-  it('Given the only Merchant Owner, when their owner assignment goes, then it is refused; with a second owner it is not', () => {
+  it('Given the only Owner, when their Owner role goes, then it is refused; with a second Owner it is not', () => {
     const owner = { assignments: [assign(MERCHANT_OWNER, ALL)] }
     const other = { assignments: [assign(MERCHANT_OWNER, ALL, 2)] }
     const demoted = { assignments: [assign(PROJECT_ADMIN, ALL)] }
@@ -130,23 +137,23 @@ describe('roles: the Roles screen (DEC-76)', () => {
   const others = ROLES
 
   it('Given no permission ticked, then the FRS message is shown', () => {
-    expect(validateRole({ name: 'Auditor', permissions: [] }, others)).toEqual([{ field: 'permissions', message: ROLE_NEEDS_PERMISSION }])
+    expect(validateRole({ name: 'Compliance desk', permissions: [] }, others)).toEqual([{ field: 'permissions', message: ROLE_NEEDS_PERMISSION }])
   })
 
   it('Given a name already used (any case), then it is refused', () => {
-    expect(validateRole({ name: ' reviewer ', permissions: ['VIEW_CASES'] }, others)[0]).toMatchObject({ field: 'name' })
-    expect(validateRole({ name: 'Auditor', permissions: ['VIEW_AUDIT_LOG'] }, others)).toEqual([])
+    expect(validateRole({ name: ' reviewer ', permissions: ['VIEW_CASE_LIST'] }, others)[0]).toMatchObject({ field: 'name' })
+    expect(validateRole({ name: 'Compliance desk', permissions: ['VIEW_AUDIT_LOG'] }, others)).toEqual([])
   })
 
   it('Given a System Default role, then it cannot be edited or deactivated', () => {
     const owner = role(MERCHANT_OWNER)
-    expect(validateRole({ name: 'Boss', permissions: ['VIEW_CASES'] }, others, { ...owner, heldForSelectedProjects: false })).toHaveLength(1)
+    expect(validateRole({ name: 'Boss', permissions: ['VIEW_CASE_LIST'] }, others, { ...owner, heldForSelectedProjects: false })).toHaveLength(1)
     expect(validateRoleStatus(owner, 'INACTIVE', 0)).toHaveLength(1)
   })
 
-  it('Given a Custom role held for selected projects, when a merchant-level permission is added, then it is refused', () => {
+  it('Given a Custom role given in Project › Members, when a merchant-wide permission is added, then it is refused', () => {
     const custom = { roleId: fx('ROL-2026-0100'), type: 'CUSTOM' as const, heldForSelectedProjects: true }
-    const perms: Permission[] = ['VIEW_CASES', 'MANAGE_BILLING']
+    const perms: Permission[] = ['VIEW_CASE_LIST', 'MANAGE_BILLING']
     expect(validateRole({ name: 'Ops', permissions: perms }, others, custom)[0].field).toBe('permissions')
     expect(validateRole({ name: 'Ops', permissions: perms }, others, { ...custom, heldForSelectedProjects: false })).toEqual([])
   })
@@ -162,25 +169,18 @@ describe('roles: the Roles screen (DEC-76)', () => {
   })
 })
 
-describe('roles: platform roles and access end dates (DEC-99)', () => {
-  it('Given platform actions, then each ticks its View; Claim / approve / reject ticks both views', () => {
-    expect(withImpliedPermissions(['P_CASES_DECIDE'])).toEqual(['P_CASES_VIEW_MASKED', 'P_CASES_VIEW_UNMASKED', 'P_CASES_DECIDE'])
+describe('roles: platform roles (DEC-99, DEC-104)', () => {
+  it('Given platform actions, then each ticks what it needs', () => {
+    expect(withImpliedPermissions(['P_CASES_CLAIM'])).toEqual(['P_CASES_LIST', 'P_CASES_DETAILS', 'P_CASES_CLAIM'])
     expect(withImpliedPermissions(['P_MERCHANTS_SUSPEND', 'P_INTEGRATION_MANAGE'])).toEqual(['P_MERCHANTS_VIEW', 'P_MERCHANTS_SUSPEND', 'P_INTEGRATION_VIEW', 'P_INTEGRATION_MANAGE'])
   })
 
-  it('Given a role Type, then only its own permissions; merchant roles take project scopes, platform roles merchant scopes', () => {
-    expect(validateRole({ name: 'Mixed', permissions: ['VIEW_CASES', 'P_FLOWS_VIEW'], audience: 'MERCHANT' }, [])[0].field).toBe('permissions')
-    const platformRole = { permissions: ['P_CASES_VIEW_MASKED'] as Permission[], status: 'ACTIVE' as const, audience: 'PLATFORM' as const }
-    expect(validateAssignment(platformRole, { kind: 'ALL_MERCHANTS' }, [], [])).toEqual([])
+  it('Given a role Type, then only its own permissions; merchant roles for merchant users, platform roles for staff (no scope)', () => {
+    expect(validateRole({ name: 'Mixed', permissions: ['VIEW_CASE_LIST', 'P_FLOWS_VIEW'], audience: 'MERCHANT' }, [])[0].field).toBe('permissions')
+    const platformRole = { permissions: ['P_CASES_LIST'] as Permission[], status: 'ACTIVE' as const, audience: 'PLATFORM' as const }
+    expect(validateAssignment(platformRole, { kind: 'ALL_MERCHANTS' }, [])).toEqual([])
     expect(validateAssignment(platformRole, only(fx('PRJ-0001')), [fx('PRJ-0001')])[0].message).toBe(WRONG_ROLE_TYPE)
     expect(validateAssignment({ ...role(REVIEWER) }, { kind: 'ALL_MERCHANTS' }, [])[0].message).toBe(WRONG_ROLE_TYPE)
-    expect(validateAssignment(platformRole, { kind: 'MERCHANTS', merchantIds: [] }, [], ['mer_a'])[0].field).toBe('scope')
-  })
-
-  it('Given merchant scopes, then labels and coverage by merchant', () => {
     expect(scopeLabel({ kind: 'ALL_MERCHANTS' }, (x) => x)).toBe('All merchants')
-    expect(scopeLabel({ kind: 'MERCHANTS', merchantIds: ['mer_a'] }, (x) => x, () => 'Vantage')).toBe('Vantage')
-    expect(coversMerchant({ kind: 'MERCHANTS', merchantIds: ['mer_a'] }, 'mer_b')).toBe(false)
-    expect(hasMerchantAccess(['P_BILLING_VIEW'])).toBe(false)
   })
 })

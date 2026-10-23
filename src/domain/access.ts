@@ -1,9 +1,9 @@
-// Access checks (DEC-70, DEC-72, DEC-75, DEC-86, DEC-99). Three account types:
+// Access checks (DEC-70, DEC-72, DEC-75, DEC-86, DEC-99, DEC-104). Three account types:
 // - Super admin: everything, everywhere (outside the role system).
-// - Platform staff: platform-level permissions anywhere, merchant-access permissions in the merchants their grants cover.
-// - Merchant user: the union of the grants covering a project, inside their own merchant.
+// - Platform staff: one platform role, no scope: platform-wide permissions and merchant-data permissions everywhere.
+// - Merchant user: their merchant role (whole merchant) plus their project roles (Members), inside their own merchant.
 // REQ: DEC-71 — UI-only checks. The real backend must enforce the same rules.
-import { coversMerchant, coversProject, merchantWidePermissions, permissionsIn, roleNamesIn, staffMerchantPermissions, staffPlatformPermissions } from './roles'
+import { coversProject, merchantWidePermissions, permissionsIn, roleNamesIn, staffMerchantPermissions, staffPlatformPermissions } from './roles'
 import type { Permission, Project, UserAccess } from './types'
 
 /** Platform-wide actions: no project involved. */
@@ -29,7 +29,7 @@ export const PROJECT_ACTIONS = [
   'archiveProjects',
   'viewUsers',
   'inviteUsers', // and resend the invitation
-  'changeUserAccess', // add, edit, remove access rows (DEC-74)
+  'changeUserRole', // the user's merchant role (DEC-104)
   'suspendUsers', // and reactivate
   'viewRoles',
   'createRoles', // and duplicate
@@ -51,9 +51,9 @@ export const PROJECT_ACTIONS = [
   'changeVerificationLevel', // thresholds, retries allowed, risk level
   'setAdvancedThresholds', // DEC-19: Super admin, or platform staff who may calibrate (DEC-99)
   'viewRouting',
-  'viewCases',
-  'viewUnmaskedPii', // Verification Detail unmasked (DEC-41); otherwise masked (DEC-99)
-  'claimCase',
+  'viewCases', // the Verifications list (DEC-104: View list)
+  'viewCaseDetails', // the case page with personal data (View details); every open audited (DEC-41)
+  'claimCase', // claim and release
   'decideCase', // only on the user's own claim (claimRules)
   'viewAudit',
 ] as const
@@ -71,9 +71,9 @@ const NEEDS: Record<ProjectAction, readonly Permission[]> = {
   createProjects: ['CREATE_PROJECTS'],
   renameProjects: ['RENAME_PROJECTS'],
   archiveProjects: ['ARCHIVE_PROJECTS'],
-  viewUsers: ['VIEW_USERS', 'INVITE_USERS', 'CHANGE_USER_ACCESS', 'SUSPEND_USERS'],
+  viewUsers: ['VIEW_USERS', 'INVITE_USERS', 'CHANGE_USER_ROLE', 'SUSPEND_USERS'],
   inviteUsers: ['INVITE_USERS'],
-  changeUserAccess: ['CHANGE_USER_ACCESS'],
+  changeUserRole: ['CHANGE_USER_ROLE'],
   suspendUsers: ['SUSPEND_USERS'],
   viewRoles: ['VIEW_ROLES', 'CREATE_ROLES', 'EDIT_ROLES', 'CHANGE_ROLE_STATUS'],
   createRoles: ['CREATE_ROLES'],
@@ -94,27 +94,27 @@ const NEEDS: Record<ProjectAction, readonly Permission[]> = {
   changeVerificationLevel: ['CHANGE_VERIFICATION_LEVEL'],
   setAdvancedThresholds: [],
   viewRouting: [...FLOWS, ...SETTINGS],
-  viewCases: ['VIEW_CASES', 'CLAIM_CASES', 'DECIDE_CASES'],
-  viewUnmaskedPii: ['VIEW_CASES', 'CLAIM_CASES', 'DECIDE_CASES'], // merchant users always see their own cases in full (DEC-41)
-  claimCase: ['CLAIM_CASES'],
+  viewCases: ['VIEW_CASE_LIST', 'VIEW_CASE_DETAILS', 'CLAIM_CASES', 'DECIDE_CASES'],
+  viewCaseDetails: ['VIEW_CASE_DETAILS', 'CLAIM_CASES', 'DECIDE_CASES'],
+  claimCase: ['CLAIM_CASES', 'DECIDE_CASES'],
   decideCase: ['DECIDE_CASES'],
   viewAudit: ['VIEW_AUDIT_LOG'],
 }
 
-// REQ: DEC-99 — what platform staff need: a platform-level permission (anywhere) or a merchant-access one (in that merchant).
+// REQ: DEC-99 / DEC-104 — what platform staff need: a platform-wide permission or a merchant-data one (both everywhere).
 const STAFF_NEEDS: Partial<Record<ProjectAction, { platform?: readonly Permission[]; merchant?: readonly Permission[] }>> = {
   viewDashboards: { platform: ['P_REPORTS_VIEW'] },
   viewBilling: { platform: ['P_BILLING_VIEW'] },
   exportReports: { platform: ['P_REPORTS_EXPORT'] },
-  viewCases: { merchant: ['P_CASES_VIEW_MASKED', 'P_CASES_VIEW_UNMASKED', 'P_CASES_DECIDE'] },
-  viewUnmaskedPii: { merchant: ['P_CASES_VIEW_UNMASKED'] },
-  claimCase: { merchant: ['P_CASES_DECIDE'] },
+  viewCases: { merchant: ['P_CASES_LIST', 'P_CASES_DETAILS', 'P_CASES_CLAIM', 'P_CASES_DECIDE'] },
+  viewCaseDetails: { merchant: ['P_CASES_DETAILS', 'P_CASES_CLAIM', 'P_CASES_DECIDE'] },
+  claimCase: { merchant: ['P_CASES_CLAIM', 'P_CASES_DECIDE'] },
   decideCase: { merchant: ['P_CASES_DECIDE'] },
-  viewFlows: { merchant: ['P_FLOWS_VIEW', 'P_FLOWS_EDIT'] },
-  createFlows: { merchant: ['P_FLOWS_EDIT'] },
+  viewFlows: { merchant: ['P_FLOWS_VIEW', 'P_FLOWS_CREATE', 'P_FLOWS_EDIT', 'P_FLOWS_ACTIVATE', 'P_FLOWS_LEVEL'] },
+  createFlows: { merchant: ['P_FLOWS_CREATE'] },
   editFlows: { merchant: ['P_FLOWS_EDIT'] },
-  activateFlows: { merchant: ['P_FLOWS_EDIT'] },
-  changeVerificationLevel: { merchant: ['P_FLOWS_EDIT'] },
+  activateFlows: { merchant: ['P_FLOWS_ACTIVATE'] },
+  changeVerificationLevel: { merchant: ['P_FLOWS_LEVEL'] },
   setAdvancedThresholds: { platform: ['P_LEVELS_CALIBRATE'] },
   viewIntegration: { merchant: ['P_INTEGRATION_VIEW', 'P_INTEGRATION_MANAGE'] },
   manageIntegration: { merchant: ['P_INTEGRATION_MANAGE'] },
@@ -135,16 +135,16 @@ const any = (have: Set<Permission>, need: readonly Permission[] | undefined) => 
 /** Super admins and platform staff: internal accounts with no merchant (DEC-99). */
 export const isInternal = (user: Pick<UserAccess, 'level'>) => user.level === 'SUPER_ADMIN' || user.level === 'PLATFORM_STAFF'
 
-function staffCan(user: UserAccess, action: ProjectAction, merchantId: string): boolean {
+function staffCan(user: UserAccess, action: ProjectAction): boolean {
   const need = STAFF_NEEDS[action]
   if (!need) return false
-  return any(staffPlatformPermissions(user.grants), need.platform) || any(staffMerchantPermissions(user.grants, merchantId), need.merchant)
+  return any(staffPlatformPermissions(user.grants), need.platform) || any(staffMerchantPermissions(user.grants), need.merchant)
 }
 
 /** REQ: DEC-72 — the user reaches the project at all; outside it, the project and its cases are "not found". */
 export function hasProject(user: UserAccess, project: Where): boolean {
   if (user.level === 'SUPER_ADMIN') return true
-  if (user.level === 'PLATFORM_STAFF') return PROJECT_ACTIONS.some((a) => staffCan(user, a, project.merchantId))
+  if (user.level === 'PLATFORM_STAFF') return PROJECT_ACTIONS.some((a) => staffCan(user, a))
   return user.merchantId === project.merchantId && coversProject(user.grants, project.projectId)
 }
 
@@ -157,13 +157,13 @@ export function permissionsInProject(user: UserAccess, project: Where): Set<Perm
 /** Role names in a project, e.g. ["Reviewer"], or ["Super admin"]: header, Projects screen and audit entries (DEC-42, DEC-73). */
 export function roleNamesInProject(user: UserAccess, project: Where): string[] {
   if (user.level === 'SUPER_ADMIN') return ['Super admin']
-  if (user.level === 'PLATFORM_STAFF') return [...new Set(user.grants.filter((g) => coversMerchant(g.scope, project.merchantId)).map((g) => g.roleName))]
+  if (user.level === 'PLATFORM_STAFF') return [...new Set(user.grants.map((g) => g.roleName))]
   return user.merchantId === project.merchantId ? roleNamesIn(user.grants, project.projectId) : []
 }
 
 export function canInProject(user: UserAccess, action: ProjectAction, project: Where): boolean {
   if (user.level === 'SUPER_ADMIN') return true
-  if (user.level === 'PLATFORM_STAFF') return staffCan(user, action, project.merchantId)
+  if (user.level === 'PLATFORM_STAFF') return staffCan(user, action)
   return any(permissionsInProject(user, project), NEEDS[action])
 }
 
@@ -173,7 +173,7 @@ export function canInProject(user: UserAccess, action: ProjectAction, project: W
  */
 export function canInMerchant(user: UserAccess, action: ProjectAction, merchantId: string): boolean {
   if (user.level === 'SUPER_ADMIN') return true
-  if (user.level === 'PLATFORM_STAFF') return action === 'viewAudit' && staffCan(user, 'viewAudit', merchantId)
+  if (user.level === 'PLATFORM_STAFF') return action === 'viewAudit' && staffCan(user, 'viewAudit')
   return user.merchantId === merchantId && any(merchantWidePermissions(user.grants), NEEDS[action])
 }
 

@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router'
 import { Bell, ChevronDown, ChevronRight, FolderKanban, Languages, Maximize, Minimize, Moon, PanelLeft, Search, Sun, UserRound } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAccess } from '@/app/access'
+import { canInProject } from '@/domain/access'
 import { parentsOf, routeMetaFor } from '@/app/nav'
 import { Button } from '@/components/ui/button'
 import {
@@ -196,6 +197,7 @@ function RoleLines() {
 function RefSearch() {
   const navigate = useNavigate()
   const actor = useSession((s) => s.actor)
+  const { account } = useAccess()
   const [q, setQ] = useState('')
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault()
@@ -205,7 +207,9 @@ function RefSearch() {
     const toList = `/verifications?status=ALL&referenceNo=${encodeURIComponent(v)}`
     try {
       const exact = (await verificationService.list({ referenceNo: v, pageSize: 50 }, actor)).items.filter((r) => r.referenceNo.toLowerCase() === v.toLowerCase())
-      navigate(exact.length === 1 ? `/verifications/${exact[0].caseId}` : toList)
+      // REQ: DEC-104 — the case opens only for View details; otherwise the list shows it.
+      const canOpen = exact.length === 1 && !!account && canInProject(account, 'viewCaseDetails', exact[0])
+      navigate(canOpen ? `/verifications/${exact[0].caseId}` : toList)
     } catch {
       navigate(toList)
     }

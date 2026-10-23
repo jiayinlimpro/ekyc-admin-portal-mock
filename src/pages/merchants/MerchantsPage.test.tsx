@@ -126,7 +126,7 @@ describe('Merchants (DEC-98, DEC-92)', () => {
     await waitFor(async () => expect((await auditService.list({ actions: ['USER_INVITATION_RESENT'] }, ADMIN)).items[0].details).toMatchObject({ email: 'rajesh.muthu@emptydemo.example' }))
   })
 
-  it('Given a Merchant Owner, then Merchants is "No access"', async () => {
+  it('Given a Owner, then Merchants is "No access"', async () => {
     useSession.getState().switchUser(OWNER)
     renderAt('/merchants')
     await screen.findByRole('heading', { name: 'No access' })

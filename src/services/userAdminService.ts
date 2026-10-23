@@ -1,13 +1,10 @@
-// Users API (mock): [FRS] User Management › Users with scoped role assignments (DEC-70, DEC-74, DEC-77).
-// Users with Manage users and roles (or Super admin) manage everything here; on a project's Members tab, users with
-// Manage project members add and remove access for that project only.
+// Users API (mock): [FRS] User Management › Users (DEC-74) under the DEC-104 model. A merchant user has one merchant
+// role, set here (whole merchant, all projects), plus project roles set in Project › Members (that project only).
 //   GET    /users?merchantId=…                      list               → 200 UserRow[]
 //   GET    /users/{id}                              get                → 200 UserDetail | 404
 //   POST   /merchants/{id}/users                    invite             → 201 UserRow (Pending) | 403 | 422
 //   POST   /users/{id}/invitation                   resendInvitation   → 200 UserRow | 422 (not Pending)
-//   POST   /users/{id}/assignments                  addAssignment      → 200 UserDetail | 403 | 422
-//   PUT    /users/{id}/assignments/{aid}            changeAssignment   → 200 UserDetail | 403 | 422
-//   DELETE /users/{id}/assignments/{aid}            removeAssignment   → 200 UserDetail | 403 | 422 (last owner)
+//   PUT    /users/{id}/role                         setRole            → 200 UserDetail | 403 | 422 (last Owner)
 //   POST   /users/{id}/suspend | /reactivate        suspend/reactivate → 200 UserRow
 //   GET    /projects/{id}/members                   listMembers        → 200 MemberRow[]
 //   POST   /projects/{id}/members                   addMember          → 200 MemberRow[]
@@ -15,8 +12,8 @@
 import { canInMerchant, canInProject } from '@/domain/access'
 import { makeAudit } from '@/domain/audit'
 import { CLEARED_CLAIM, isClaimActive } from '@/domain/claimRules'
-import { allArchived, canGrant, chipLabel, covers, effectivePermissions, hasMerchantAccess, isStaffEmail, GRANT_TOO_POWERFUL, grantsOf, lastOwnerError, scopeLabel, validateAssignment, type AccessChip } from '@/domain/roles'
-import type { Actor, AssignmentScope, AuditAction, Permission, Project, Role, RoleAssignment, RuleError, UserAccount, UserStatus } from '@/domain/types'
+import { allArchived, canGrant, chipLabel, covers, coversProject, DEFAULT_MERCHANT_ROLE_ID, effectivePermissions, isStaffEmail, GRANT_TOO_POWERFUL, grantsOf, lastOwnerError, SYSTEM_ROLE_IDS, validateAssignment, type AccessChip } from '@/domain/roles'
+import { MERCHANT_PERMISSIONS, type Actor, type AssignmentScope, type AuditAction, type Permission, type Project, type Role, type RoleAssignment, type RuleError, type UserAccount, type UserStatus } from '@/domain/types'
 import { now } from '@/lib/clock'
 import { db } from '@/mocks/mockDb'
 import { accountOf, nextAssignmentId, requireActive, roleIn, withAccess, type AccountAccess } from './accessGuard'
@@ -26,17 +23,13 @@ import { validation } from './projectService'
 import { adoptDraftId, newId } from '@/lib/ids'
 import { STAFF_EMAIL_DOMAIN } from '@/domain/openQuestions'
 
-export interface AssignmentInput {
-  roleId: string
-  scope: AssignmentScope
-}
-
 export interface InviteInput {
   /** The User ID shown in the form (from `draftUserId`), kept on save (DEC-97). */
   userId?: string
   fullName: string
   email: string
-  assignment: AssignmentInput
+  /** REQ: DEC-104 — the merchant role (whole merchant); Member when left out. */
+  roleId?: string
 }
 
 /** A row on the Users screen (DEC-74). */
@@ -46,39 +39,38 @@ export interface UserRow {
   email: string
   merchantId: string
   merchantName: string
-  access: AccessChip[] // "Reviewer · Default", "Viewer · SME app" (DEC-74)
+  access: AccessChip[] // "Owner · All projects", "Reviewer · Default" (DEC-74)
   status: UserStatus
   createdAt: string
 }
 
-export interface AssignmentRow {
+/** REQ: DEC-104 — a project role from Project › Members, shown read-only on the user's details. */
+export interface ProjectRoleRow {
   assignmentId: string
-  roleId: string
+  projectId: string
+  projectName: string // "SME app (archived)" for an archived project
   roleName: string
-  scope: AssignmentScope
-  scopeLabel: string // "SME app (archived)" for an archived project
   addedBy: Actor
   addedAt: string
-  /** The viewer may edit or remove it (never when every project in it is archived). */
-  editable: boolean
-  /** REQ: DEC-78 — Remove is shown but disabled, with this reason (the last Merchant Owner). */
-  removeBlocked?: string
 }
 
 export interface UserDetail extends UserRow {
   lastActiveAt?: string
-  assignments: AssignmentRow[]
+  /** REQ: DEC-104 — the merchant role: whole merchant, all projects. */
+  merchantRole?: { roleId: string; roleName: string }
+  projectRoles: ProjectRoleRow[]
   /** Nobody changes their own access (DEC-74). */
   isSelf: boolean
   /** REQ: DEC-102 — what the viewer may do here, one permission each (never on themselves). */
-  can: { changeAccess: boolean; resendInvitation: boolean; suspend: boolean }
-  /** REQ: DEC-78 — Suspend is shown but disabled, with this reason (the last Merchant Owner). */
+  can: { changeRole: boolean; resendInvitation: boolean; suspend: boolean }
+  /** REQ: DEC-78 — shown but disabled, with this reason (the last Owner). */
   suspendBlocked?: string
-  /** REQ: DEC-74 — per project of the merchant: each permission and the access rows ("Comes from") that grant it. */
+  changeRoleBlocked?: string
+  /** REQ: DEC-74 — per project of the merchant: each permission and the roles ("Comes from") that grant it. */
   effective: { projectId: string; projectName: string; permissions: { permission: Permission; from: string[] }[] }[]
 }
 
-/** A row on a project's Members tab (DEC-77): everyone with access, All projects users marked inherited. */
+/** A row on a project's Members tab (DEC-77): everyone with access, merchant-role access marked inherited. */
 export interface MemberRow {
   userId: string
   fullName: string
@@ -94,16 +86,14 @@ export interface UserAdminService {
   draftUserId(actor: Actor): Promise<string>
   invite(merchantId: string, input: InviteInput, actor: Actor): Promise<UserRow>
   resendInvitation(userId: string, actor: Actor): Promise<UserRow>
-  addAssignment(userId: string, input: AssignmentInput, actor: Actor): Promise<UserDetail>
-  changeAssignment(userId: string, assignmentId: string, input: AssignmentInput, actor: Actor): Promise<UserDetail>
-  removeAssignment(userId: string, assignmentId: string, actor: Actor): Promise<UserDetail>
+  /** REQ: DEC-104 — the user's merchant role (Change role). */
+  setRole(userId: string, roleId: string, actor: Actor): Promise<UserDetail>
   suspend(userId: string, actor: Actor): Promise<UserRow>
   reactivate(userId: string, actor: Actor): Promise<UserRow>
   listMembers(projectId: string, actor: Actor): Promise<MemberRow[]>
   /** Users of the project's merchant who could be added (not suspended). */
   memberCandidates(projectId: string, actor: Actor): Promise<Pick<UserRow, 'userId' | 'fullName' | 'email'>[]>
   addMember(projectId: string, userId: string, roleId: string, actor: Actor): Promise<MemberRow[]>
-  /** Takes the project out of the assignment's scope (the assignment goes when no project is left). */
   removeMember(projectId: string, userId: string, assignmentId: string, actor: Actor): Promise<MemberRow[]>
 }
 
@@ -118,8 +108,12 @@ const projectName = (id: string) => {
 }
 const merchantName = (id?: string) => db.state().merchants.find((m) => m.merchantId === id)?.name ?? id ?? ''
 const roleOf = (roleId: string) => db.state().roles.find((r) => r.roleId === roleId)
-const label = (a: Pick<RoleAssignment, 'roleId' | 'scope'>) => chipLabel(roleOf(a.roleId)?.name ?? a.roleId, a.scope, projectName)
+const roleNameOf = (roleId: string) => roleOf(roleId)?.name ?? roleId
+/** REQ: DEC-104 — "Owner · All projects", "Reviewer · SME app"; Member alone (it grants nothing). */
+const label = (a: Pick<RoleAssignment, 'roleId' | 'scope'>) => (a.roleId === SYSTEM_ROLE_IDS.MEMBER ? roleNameOf(a.roleId) : chipLabel(roleNameOf(a.roleId), a.scope, projectName))
 const by = (actor: Actor): Actor => ({ userId: actor.userId, fullName: actor.fullName })
+const isMerchantWide = (p: Permission) => (MERCHANT_PERMISSIONS as readonly Permission[]).includes(p)
+const merchantRoleOfUser = (a: UserAccount) => a.assignments.find((x) => x.scope.kind === 'ALL_PROJECTS')
 
 /** The actor's roles for merchant-level audit entries: "Super admin", or their role names. */
 function merchantRoleOf(me: AccountAccess): string {
@@ -159,28 +153,14 @@ export function requireNewUser(input: { fullName: string; email: string }, kind:
   return email
 }
 
-const singleProject = (scope: AssignmentScope) => (scope.kind === 'PROJECTS' && scope.projectIds.length === 1 ? scope.projectIds[0] : undefined)
-
-/**
- * REQ: DEC-74 / DEC-77 / DEC-102 — who may give or take access in a scope: Change user access (merchant-wide), or Add /
- * remove project members in every selected project. Inviting gives the first access row (`inviting`).
- */
-function mayManageScope(me: AccountAccess, merchantId: string, scope: AssignmentScope, inviting = false): boolean {
-  if (canInMerchant(me, inviting ? 'inviteUsers' : 'changeUserAccess', merchantId)) return true
-  return scope.kind === 'PROJECTS' && scope.projectIds.every((id) => {
-    const p = projectOf(id)
-    return !!p && p.merchantId === merchantId && canInProject(me, 'manageMembers', p)
-  })
-}
-
-const USER_ACTION_TEXT = { viewUsers: 'view users', inviteUsers: 'invite users', suspendUsers: 'suspend or reactivate users' } as const
+const USER_ACTION_TEXT = { viewUsers: 'view users', inviteUsers: 'invite users', changeUserRole: 'change user roles', suspendUsers: 'suspend or reactivate users' } as const
 
 // REQ: DEC-102 — each operation on the Users screen needs its own permission.
 function requireUsersScreen(me: AccountAccess, merchantId: string, action: keyof typeof USER_ACTION_TEXT = 'viewUsers') {
   if (!canInMerchant(me, action, merchantId)) throw new ServiceError('FORBIDDEN', `You do not have permission to ${USER_ACTION_TEXT[action]}.`)
 }
 
-/** A merchant user the actor may see, or "not found". Super admins are internal and not listed (DEC-70). */
+/** A merchant user the actor may see, or "not found". Super admins and staff are internal and not listed here (DEC-70). */
 function loadUser(me: AccountAccess, userId: string): UserAccount & { merchantId: string } {
   const a = db.state().accounts.find((x) => x.userId === userId)
   if (!a || !a.merchantId || (me.level !== 'SUPER_ADMIN' && a.merchantId !== me.merchantId)) throw new ServiceError('NOT_FOUND', `User ${userId} not found.`)
@@ -191,25 +171,31 @@ function notSelf(actor: Actor, a: UserAccount) {
   if (a.userId === actor.userId) throw validation([{ field: 'user', message: 'You can’t change your own access.' }])
 }
 
-/** Projects of the merchant that take new members; projects already in `keep` stay allowed (archived ones stay read-only). */
-const openProjectIds = (merchantId: string, keep: AssignmentScope | undefined) =>
-  db
-    .state()
-    .projects.filter((p) => p.merchantId === merchantId && (p.status === 'ACTIVE' || (keep?.kind === 'PROJECTS' && keep.projectIds.includes(p.projectId))))
-    .map((p) => p.projectId)
+const openProjectIds = (merchantId: string) => db.state().projects.filter((p) => p.merchantId === merchantId && p.status === 'ACTIVE').map((p) => p.projectId)
+const granter = (me: AccountAccess) => (me.level === 'SUPER_ADMIN' ? ('SUPER_ADMIN' as const) : me.grants)
 
-/** Role, scope and "grant only what you hold" checks for a new or edited assignment. */
-function checkAssignment(me: AccountAccess, merchantId: string, input: AssignmentInput, keep?: AssignmentScope, inviting = false): Role {
-  const role = roleOf(input.roleId)
+/** REQ: DEC-104 — a merchant role of this merchant, given for the whole merchant; nobody gives more than they hold (DEC-74). */
+function checkMerchantRole(me: AccountAccess, merchantId: string, roleId: string): Role {
+  const role = roleOf(roleId)
   if (!role || (role.merchantId && role.merchantId !== merchantId)) throw validation([{ field: 'roleId', message: 'Choose a role.' }])
-  const errors = [...validateAssignment(role, input.scope, openProjectIds(merchantId, keep))]
+  const errors = validateAssignment(role, { kind: 'ALL_PROJECTS' }, []) // a platform role: WRONG_ROLE_TYPE
   if (errors.length) throw validation(errors)
-  if (!mayManageScope(me, merchantId, input.scope, inviting)) throw new ServiceError('FORBIDDEN', 'You do not manage access for these projects.')
-  if (!canGrant(me.level === 'SUPER_ADMIN' ? 'SUPER_ADMIN' : me.grants, role.permissions, input.scope)) throw new ServiceError('FORBIDDEN', GRANT_TOO_POWERFUL)
+  if (!canGrant(granter(me), role.permissions, { kind: 'ALL_PROJECTS' })) throw new ServiceError('FORBIDDEN', GRANT_TOO_POWERFUL)
   return role
 }
 
-/** REQ: DEC-74 — at least one Merchant Owner (All projects) remains among the merchant's users that are not suspended. */
+/** REQ: DEC-77 / DEC-104 — a project role: Add / remove members in that project; no merchant-wide permissions. */
+function checkProjectRole(me: AccountAccess, p: Project, roleId: string): Role {
+  const role = roleOf(roleId)
+  if (!role || (role.merchantId && role.merchantId !== p.merchantId)) throw validation([{ field: 'roleId', message: 'Choose a role.' }])
+  const scope: AssignmentScope = { kind: 'PROJECTS', projectIds: [p.projectId] }
+  const errors = validateAssignment(role, scope, openProjectIds(p.merchantId))
+  if (errors.length) throw validation(errors)
+  if (!canGrant(granter(me), role.permissions, scope)) throw new ServiceError('FORBIDDEN', GRANT_TOO_POWERFUL)
+  return role
+}
+
+/** REQ: DEC-74 — at least one Owner remains among the merchant's users that are not suspended. */
 function ownerErrors(merchantId: string, changed: UserAccount): RuleError[] {
   const users = db.state().accounts.filter((a) => a.merchantId === merchantId)
   const live = (us: UserAccount[]) => us.filter((a) => a.status !== 'SUSPENDED')
@@ -240,14 +226,15 @@ export function releaseLostClaims(actor: Actor, userIds: readonly string[], reas
   }
 }
 
-/** REQ: DEC-74 / DEC-99 — one chip per access row; grey when every project in it is archived. */
-export function chipsOf(assignments: readonly RoleAssignment[]): AccessChip[] {
-  return assignments.flatMap((x) => {
-    const role = roleOf(x.roleId)
-    if (!role || role.status !== 'ACTIVE') return []
-    const name = role.audience === 'PLATFORM' && !hasMerchantAccess(role.permissions) ? `${role.name} · Platform-wide` : chipLabel(role.name, x.scope, projectName, merchantName)
-    return [{ label: name, archived: allArchived(x.scope, isArchived) }]
-  })
+/** REQ: DEC-74 / DEC-104 — the merchant role first, then one chip per project role; grey when the project is archived. */
+function chipsOf(assignments: readonly RoleAssignment[]): AccessChip[] {
+  return [...assignments]
+    .sort((x, y) => Number(y.scope.kind === 'ALL_PROJECTS') - Number(x.scope.kind === 'ALL_PROJECTS'))
+    .flatMap((x) => {
+      const role = roleOf(x.roleId)
+      if (!role || role.status !== 'ACTIVE') return []
+      return [{ label: label(x), archived: allArchived(x.scope, isArchived) }]
+    })
 }
 
 function rowOf(a: UserAccount & { merchantId: string }): UserRow {
@@ -266,16 +253,22 @@ function rowOf(a: UserAccount & { merchantId: string }): UserRow {
 function detailOf(actor: Actor, a: UserAccount & { merchantId: string }): UserDetail {
   const me = accountOf(actor)
   const isSelf = a.userId === actor.userId
+  const mine = merchantRoleOfUser(a)
   return {
     ...rowOf(a),
     lastActiveAt: a.lastActiveAt,
+    merchantRole: mine && { roleId: mine.roleId, roleName: roleNameOf(mine.roleId) },
+    projectRoles: a.assignments.flatMap((x) =>
+      x.scope.kind === 'PROJECTS' ? x.scope.projectIds.map((projectId) => ({ assignmentId: x.assignmentId, projectId, projectName: projectName(projectId), roleName: roleNameOf(x.roleId), addedBy: x.addedBy, addedAt: x.addedAt })) : [],
+    ),
     isSelf,
     can: {
-      changeAccess: !isSelf && canInMerchant(me, 'changeUserAccess', a.merchantId),
+      changeRole: !isSelf && canInMerchant(me, 'changeUserRole', a.merchantId),
       resendInvitation: !isSelf && canInMerchant(me, 'inviteUsers', a.merchantId),
       suspend: !isSelf && canInMerchant(me, 'suspendUsers', a.merchantId),
     },
     suspendBlocked: ownerErrors(a.merchantId, { ...a, status: 'SUSPENDED' })[0]?.message,
+    changeRoleBlocked: ownerErrors(a.merchantId, { ...a, assignments: a.assignments.filter((x) => x !== mine) })[0]?.message,
     effective: db
       .state()
       .projects.filter((p) => p.merchantId === a.merchantId)
@@ -284,41 +277,31 @@ function detailOf(actor: Actor, a: UserAccount & { merchantId: string }): UserDe
         projectName: projectName(p.projectId),
         permissions: effectivePermissions(grantsOf(a.assignments, db.state().roles), p.projectId).map(({ permission, from }) => ({ permission, from: from.map((g) => chipLabel(g.roleName, g.scope, projectName)) })),
       })),
-    assignments: a.assignments.map((x) => ({
-      assignmentId: x.assignmentId,
-      roleId: x.roleId,
-      roleName: roleOf(x.roleId)?.name ?? x.roleId,
-      scope: x.scope,
-      scopeLabel: scopeLabel(x.scope, projectName),
-      addedBy: x.addedBy,
-      addedAt: x.addedAt,
-      editable: !isSelf && !allArchived(x.scope, isArchived) && mayManageScope(me, a.merchantId, x.scope),
-      removeBlocked: ownerErrors(a.merchantId, { ...a, assignments: a.assignments.filter((y) => y.assignmentId !== x.assignmentId) })[0]?.message,
-    })),
   }
 }
 
+/** REQ: DEC-77 / DEC-104 — project roles (removable) and merchant roles that give something here (inherited, read-only). */
 function membersOf(actor: Actor, p: Project): MemberRow[] {
   const me = accountOf(actor)
   const open = p.status === 'ACTIVE'
+  const mayManage = canInProject(me, 'manageMembers', p)
+  const counts = (x: RoleAssignment) => covers(x.scope, p.projectId) && (x.scope.kind === 'PROJECTS' || (roleOf(x.roleId)?.permissions.some((perm) => !isMerchantWide(perm)) ?? false))
   return db
     .state()
-    .accounts.filter((a) => a.merchantId === p.merchantId && a.assignments.some((x) => covers(x.scope, p.projectId)))
+    .accounts.filter((a) => a.merchantId === p.merchantId && a.assignments.some(counts))
     .map((a) => ({
       userId: a.userId,
       fullName: a.fullName,
       email: a.email,
       status: a.status,
-      roles: a.assignments
-        .filter((x) => covers(x.scope, p.projectId))
-        .map((x) => ({
-          assignmentId: x.assignmentId,
-          roleName: roleOf(x.roleId)?.name ?? x.roleId,
-          label: label(x),
-          inherited: x.scope.kind === 'ALL_PROJECTS',
-          // All projects access is managed on the Users screen; archived projects are read-only (DEC-77).
-          removable: open && x.scope.kind === 'PROJECTS' && a.userId !== actor.userId && mayManageScope(me, p.merchantId, { kind: 'PROJECTS', projectIds: [p.projectId] }),
-        })),
+      roles: a.assignments.filter(counts).map((x) => ({
+        assignmentId: x.assignmentId,
+        roleName: roleNameOf(x.roleId),
+        label: label(x),
+        inherited: x.scope.kind === 'ALL_PROJECTS',
+        // The merchant role is changed on Users; archived projects are read-only (DEC-77).
+        removable: open && x.scope.kind === 'PROJECTS' && a.userId !== actor.userId && mayManage,
+      })),
     }))
     .sort((x, y) => Number(y.roles.some((r) => r.inherited)) - Number(x.roles.some((r) => r.inherited)) || x.fullName.localeCompare(y.fullName))
 }
@@ -327,7 +310,7 @@ function membersOf(actor: Actor, p: Project): MemberRow[] {
 function membersProject(actor: Actor, projectId: string, action: 'viewMembers' | 'manageMembers' = 'manageMembers'): Project {
   const me = accountOf(actor)
   const p = projectOf(projectId)
-  if (!p || (me.level !== 'SUPER_ADMIN' && me.merchantId !== p.merchantId) || (me.level !== 'SUPER_ADMIN' && !me.grants.some((g) => covers(g.scope, projectId)))) {
+  if (!p || (me.level !== 'SUPER_ADMIN' && me.merchantId !== p.merchantId) || (me.level !== 'SUPER_ADMIN' && !coversProject(me.grants, projectId))) {
     throw new ServiceError('NOT_FOUND', `Project ${projectId} not found.`)
   }
   if (!canInProject(me, action, p)) throw new ServiceError('FORBIDDEN', `You do not have permission to ${action === 'viewMembers' ? 'view' : 'manage'} members in this project.`)
@@ -370,7 +353,8 @@ export const mockUserAdminService: UserAdminService = {
     if (!db.state().merchants.some((m) => m.merchantId === merchantId) || (me.level !== 'SUPER_ADMIN' && me.merchantId !== merchantId)) throw new ServiceError('NOT_FOUND', `Merchant ${merchantId} not found.`)
     requireUsersScreen(me, merchantId, 'inviteUsers')
     const email = requireNewUser(input, 'MERCHANT')
-    checkAssignment(me, merchantId, input.assignment, undefined, true)
+    // REQ: DEC-104 — the merchant role, Member by default (access then comes from Project › Members).
+    const role = checkMerchantRole(me, merchantId, input.roleId || DEFAULT_MERCHANT_ROLE_ID)
     const at = now().toISOString()
     const account: UserAccount & { merchantId: string } = {
       userId: adoptDraftId('usr', input.userId, (id) => db.state().accounts.some((a) => a.userId === id)),
@@ -378,14 +362,13 @@ export const mockUserAdminService: UserAdminService = {
       email,
       level: 'MERCHANT_USER',
       merchantId,
-      assignments: [{ assignmentId: nextAssignmentId(), ...input.assignment, addedBy: by(actor), addedAt: at }],
+      assignments: [{ assignmentId: nextAssignmentId(), roleId: role.roleId, scope: { kind: 'ALL_PROJECTS' }, addedBy: by(actor), addedAt: at }],
       status: 'PENDING',
       invitationId: newId('inv'),
       invitedAt: at,
     }
     db.setState((st) => ({ accounts: [...st.accounts, account] }))
-    const access = label(account.assignments[0])
-    auditAccess(actor, 'USER_INVITED', merchantId, { userId: account.userId, fullName: account.fullName, email, access, summary: `${account.fullName} invited as ${access}` }, singleProject(input.assignment.scope))
+    auditAccess(actor, 'USER_INVITED', merchantId, { userId: account.userId, fullName: account.fullName, email, access: role.name, summary: `${account.fullName} invited as ${role.name}` })
     return wire(rowOf(account))
   },
 
@@ -401,51 +384,21 @@ export const mockUserAdminService: UserAdminService = {
     return wire(rowOf(a))
   },
 
-  async addAssignment(userId, input, actor) {
-    await simulateNetwork('add access')
+  async setRole(userId, roleId, actor) {
+    await simulateNetwork('change role')
     const me = requireActive(actor)
     const a = loadUser(me, userId)
+    requireUsersScreen(me, a.merchantId, 'changeUserRole')
     notSelf(actor, a)
-    checkAssignment(me, a.merchantId, input)
-    const assignment: RoleAssignment = { assignmentId: nextAssignmentId(), roleId: input.roleId, scope: input.scope, addedBy: by(actor), addedAt: now().toISOString() }
-    const updated = { ...a, assignments: [...a.assignments, assignment] }
-    putAccount(updated)
-    auditAccess(actor, 'USER_ACCESS_ADDED', a.merchantId, { userId, fullName: a.fullName, assignmentId: assignment.assignmentId, summary: `${a.fullName}: ${label(assignment)} added` }, singleProject(input.scope))
-    return wire(detailOf(actor, updated))
-  },
-
-  async changeAssignment(userId, assignmentId, input, actor) {
-    await simulateNetwork('change access')
-    const me = requireActive(actor)
-    const a = loadUser(me, userId)
-    notSelf(actor, a)
-    const old = a.assignments.find((x) => x.assignmentId === assignmentId)
-    if (!old) throw new ServiceError('NOT_FOUND', `Access ${assignmentId} not found.`)
-    if (!mayManageScope(me, a.merchantId, old.scope)) throw new ServiceError('FORBIDDEN', 'You do not manage access for these projects.')
-    checkAssignment(me, a.merchantId, input, old.scope)
-    const next: RoleAssignment = { ...old, roleId: input.roleId, scope: input.scope }
-    const updated = { ...a, assignments: a.assignments.map((x) => (x.assignmentId === assignmentId ? next : x)) }
-    if (label(old) === label(next)) return wire(detailOf(actor, a))
+    const role = checkMerchantRole(me, a.merchantId, roleId)
+    const old = merchantRoleOfUser(a)
+    if (old?.roleId === roleId) return wire(detailOf(actor, a))
+    const next: RoleAssignment = { assignmentId: old?.assignmentId ?? nextAssignmentId(), roleId, scope: { kind: 'ALL_PROJECTS' }, addedBy: by(actor), addedAt: now().toISOString() }
+    const updated = { ...a, assignments: [next, ...a.assignments.filter((x) => x !== old)] }
     requireOwnerRemains(a.merchantId, updated)
     putAccount(updated)
-    auditAccess(actor, 'USER_ACCESS_CHANGED', a.merchantId, { userId, fullName: a.fullName, assignmentId, changes: [{ field: `${a.fullName} access`, from: label(old), to: label(next) }] }, singleProject(old.scope) === singleProject(next.scope) ? singleProject(next.scope) : undefined)
-    releaseLostClaims(actor, [userId], 'Access changed')
-    return wire(detailOf(actor, updated))
-  },
-
-  async removeAssignment(userId, assignmentId, actor) {
-    await simulateNetwork('remove access')
-    const me = requireActive(actor)
-    const a = loadUser(me, userId)
-    notSelf(actor, a)
-    const old = a.assignments.find((x) => x.assignmentId === assignmentId)
-    if (!old) throw new ServiceError('NOT_FOUND', `Access ${assignmentId} not found.`)
-    if (!mayManageScope(me, a.merchantId, old.scope)) throw new ServiceError('FORBIDDEN', 'You do not manage access for these projects.')
-    const updated = { ...a, assignments: a.assignments.filter((x) => x.assignmentId !== assignmentId) }
-    requireOwnerRemains(a.merchantId, updated)
-    putAccount(updated)
-    auditAccess(actor, 'USER_ACCESS_REMOVED', a.merchantId, { userId, fullName: a.fullName, assignmentId, changes: [{ field: `${a.fullName} access`, from: label(old), to: 'Removed' }] }, singleProject(old.scope))
-    releaseLostClaims(actor, [userId], 'Access removed')
+    auditAccess(actor, 'USER_ACCESS_CHANGED', a.merchantId, { userId, fullName: a.fullName, changes: [{ field: `${a.fullName} role`, from: old ? roleNameOf(old.roleId) : '—', to: role.name }] })
+    releaseLostClaims(actor, [userId], 'Role changed')
     return wire(detailOf(actor, updated))
   },
 
@@ -494,34 +447,35 @@ export const mockUserAdminService: UserAdminService = {
     )
   },
 
+  // REQ: DEC-77 / DEC-104 — a project role for that project only; roles with merchant-wide permissions are refused.
   async addMember(projectId, userId, roleId, actor) {
+    await simulateNetwork('add member')
+    const me = requireActive(actor)
     const p = membersProject(actor, projectId)
     if (p.status !== 'ACTIVE') throw validation([{ field: 'scope', message: 'Archived projects keep their members but take no new ones.' }])
-    await mockUserAdminService.addAssignment(userId, { roleId, scope: { kind: 'PROJECTS', projectIds: [projectId] } }, actor)
+    const a = loadUser(me, userId)
+    notSelf(actor, a)
+    const role = checkProjectRole(me, p, roleId)
+    const assignment: RoleAssignment = { assignmentId: nextAssignmentId(), roleId: role.roleId, scope: { kind: 'PROJECTS', projectIds: [projectId] }, addedBy: by(actor), addedAt: now().toISOString() }
+    putAccount({ ...a, assignments: [...a.assignments, assignment] })
+    auditAccess(actor, 'USER_ACCESS_ADDED', a.merchantId, { userId, fullName: a.fullName, assignmentId: assignment.assignmentId, summary: `${a.fullName}: ${label(assignment)} added` }, projectId)
     return wire(membersOf(actor, p))
   },
 
   async removeMember(projectId, userId, assignmentId, actor) {
-    const p = membersProject(actor, projectId)
+    await simulateNetwork('remove member')
     const me = requireActive(actor)
+    const p = membersProject(actor, projectId)
     if (p.status !== 'ACTIVE') throw validation([{ field: 'scope', message: 'Archived projects are read-only.' }])
     const a = loadUser(me, userId)
+    notSelf(actor, a)
     const old = a.assignments.find((x) => x.assignmentId === assignmentId)
     if (!old || old.scope.kind !== 'PROJECTS' || !old.scope.projectIds.includes(projectId)) {
-      throw validation([{ field: 'assignmentId', message: 'All projects access is managed on the Users screen.' }])
+      throw validation([{ field: 'assignmentId', message: 'The merchant role is changed on the Users screen.' }])
     }
-    const rest = old.scope.projectIds.filter((id) => id !== projectId)
-    if (rest.length) {
-      // Only this project leaves the scope; the actor needs member rights here, not in the other projects.
-      if (!mayManageScope(me, a.merchantId, { kind: 'PROJECTS', projectIds: [projectId] })) throw new ServiceError('FORBIDDEN', 'You do not manage access for this project.')
-      notSelf(actor, a)
-      const next = { ...old, scope: { kind: 'PROJECTS' as const, projectIds: rest } }
-      putAccount({ ...a, assignments: a.assignments.map((x) => (x.assignmentId === assignmentId ? next : x)) })
-      auditAccess(actor, 'USER_ACCESS_CHANGED', a.merchantId, { userId, fullName: a.fullName, assignmentId, changes: [{ field: `${a.fullName} access`, from: label(old), to: label(next) }] }, projectId)
-      releaseLostClaims(actor, [userId], 'Access removed')
-    } else {
-      await mockUserAdminService.removeAssignment(userId, assignmentId, actor)
-    }
+    putAccount({ ...a, assignments: a.assignments.filter((x) => x.assignmentId !== assignmentId) })
+    auditAccess(actor, 'USER_ACCESS_REMOVED', a.merchantId, { userId, fullName: a.fullName, assignmentId, changes: [{ field: `${a.fullName} access`, from: label(old), to: 'Removed' }] }, projectId)
+    releaseLostClaims(actor, [userId], 'Access removed')
     return wire(membersOf(actor, p))
   },
 }

@@ -55,7 +55,7 @@ function CreateDialog({ onClose, onSaved }: { onClose: () => void; onSaved: () =
     setErrors({})
     try {
       const m = await merchantAdminService.create(f, actor)
-      toast.success(`${m.name} created`, { description: 'Onboarding: Default project and Draft default flow created; the primary contact is invited as Merchant Owner.' })
+      toast.success(`${m.name} created`, { description: 'Onboarding: Default project and Draft default flow created; the primary contact is invited as Owner.' })
       onSaved()
     } catch (err) {
       setErrors(fieldErrors(err))
@@ -79,7 +79,7 @@ function CreateDialog({ onClose, onSaved }: { onClose: () => void; onSaved: () =
         <form onSubmit={submit} noValidate className="space-y-4">
           <DialogHeader>
             <DialogTitle>Create New Merchant</DialogTitle>
-            <DialogDescription>Starts as Onboarding (sandbox only). Also creates its Default project with a Draft default flow, and invites the primary contact as Merchant Owner.</DialogDescription>
+            <DialogDescription>Starts as Onboarding (sandbox only). Also creates its Default project with a Draft default flow, and invites the primary contact as Owner.</DialogDescription>
           </DialogHeader>
           {field('name', req('Merchant Name'), <Input id="m-name" value={f.name} onChange={set('name')} aria-invalid={!!errors.name} autoFocus />)}
           {field('country', req('Country of incorporation'), (
@@ -242,7 +242,7 @@ function DetailDialog({ row, onClose }: { row: MerchantRow; onClose: () => void 
     ['Country of incorporation', row.countryName],
     ['Primary contact', `${row.primaryContact.fullName} · ${row.primaryContact.email}`],
     ['Contact phone', row.primaryContact.phone ?? '—'],
-    ['Merchant Owner', row.owner ? `${row.owner.fullName} · ${USER_STATUS_LABELS[row.owner.status]}` : '—'],
+    ['Owner', row.owner ? `${row.owner.fullName} · ${USER_STATUS_LABELS[row.owner.status]}` : '—'],
     ['Projects / users / cases', `${row.projects} / ${row.users} / ${row.cases}`],
     ['Created', `${formatMyt(row.createdAt)} MYT · ${row.createdBy}`],
   ]

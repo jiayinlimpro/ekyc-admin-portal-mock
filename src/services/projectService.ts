@@ -14,7 +14,7 @@ import { archiveError, IN_FLIGHT_STATUSES, validateProjectName } from '@/domain/
 import { DEFAULT_CLAIM_TIMEOUT_SEC } from '@/domain/openQuestions'
 import { claimTimeoutError, diffSettings, PROJECT_SETTING_DEFAULTS, validateGeneral, type GeneralSettings } from '@/domain/projectSettings'
 import { defaultVersion } from '@/domain/registryRules'
-import { covers } from '@/domain/roles'
+import { coversProject, grantsOf } from '@/domain/roles'
 import type { Actor, AuditAction, Project, RuleError } from '@/domain/types'
 import { now } from '@/lib/clock'
 import { db } from '@/mocks/mockDb'
@@ -123,7 +123,7 @@ export const mockProjectService: ProjectService = {
           flows: flows.length,
           activeFlows: flows.filter((f) => f.status === 'ACTIVE').length,
           defaultFlowName: flows.find((f) => f.flowId === p.defaultFlowId)?.name ?? p.defaultFlowId,
-          members: s.accounts.filter((a) => a.status !== 'SUSPENDED' && a.merchantId === p.merchantId && a.assignments.some((x) => covers(x.scope, p.projectId))).length,
+          members: s.accounts.filter((a) => a.status !== 'SUSPENDED' && a.merchantId === p.merchantId && coversProject(grantsOf(a.assignments, s.roles), p.projectId)).length, // REQ: DEC-104 — Member alone doesn't count
           inFlightCases: s.verifications.filter((v) => v.projectId === p.projectId && IN_FLIGHT_STATUSES.includes(v.status)).length,
           canRename: canInProject(me, 'renameProjects', p),
           canArchive: canInProject(me, 'archiveProjects', p),

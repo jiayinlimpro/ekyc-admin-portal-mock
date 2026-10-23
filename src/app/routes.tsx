@@ -1,11 +1,11 @@
 import { lazy, type ComponentType } from 'react'
-import { Navigate, type RouteObject } from 'react-router'
+import { type RouteObject } from 'react-router'
 import { AppShell } from '@/components/layout/AppShell'
 import { LoginPage } from '@/pages/LoginPage'
 import { NotFoundPage, RouteErrorPage } from '@/pages/StatusPages'
 import { Guarded } from './Guarded'
 import { NAV_ITEMS } from './nav'
-import { LANDING_PATH } from './tabs'
+import { Landing } from './Landing'
 
 // Route-level code splitting: each screen (and Recharts, for the dashboards) loads when first opened.
 const page = <K extends string>(load: () => Promise<Record<K, ComponentType>>, name: K) => lazy(() => load().then((m) => ({ default: m[name] })))
@@ -37,7 +37,7 @@ export const routes: RouteObject[] = [
     element: <AppShell />,
     errorElement: <RouteErrorPage />,
     children: [
-      { index: true, element: <Navigate to={LANDING_PATH} replace /> },
+      { index: true, element: <Landing /> }, // REQ: DEC-84 / DEC-104
       ...NAV_ITEMS.map((item) => ({ path: item.path.slice(1), element: <Guarded item={item} page={PAGES[item.path]} /> })),
       { path: '*', element: <NotFoundPage /> },
     ],

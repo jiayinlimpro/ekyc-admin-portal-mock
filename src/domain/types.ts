@@ -159,8 +159,6 @@ export type VerificationDetail = Verification & {
   checks: CheckEvaluation[] // face match / liveness: threshold applied, result, retries used / allowed
   newCaseAllowedAt?: string // REJECTED with a cooldown (DEC-26)
   activity: CaseActivity[]
-  /** REQ: DEC-99 — platform staff without "See unmasked ID data" get a masked copy (domain/piiMasking). */
-  masked?: boolean
 }
 
 export interface RiskConfig {
@@ -323,15 +321,15 @@ export interface Flow {
   updatedBy: ClaimHolder | { userId: 'SYSTEM'; fullName: 'SYSTEM' }
 }
 
-// REQ: DEC-70 / DEC-102 — permissions, one per module action (src/domain/permissionMatrix.ts lays them out as on the
-// Roles screen). Merchant-level ones only work in an All projects assignment.
+// REQ: DEC-102 / DEC-104 — permissions, one per module action (src/domain/permissionMatrix.ts lays them out as on the
+// Roles screen). Merchant-wide ones only count from the user's merchant role (given on Users), never from a project role.
 export const MERCHANT_PERMISSIONS = [
   'CREATE_PROJECTS',
   'RENAME_PROJECTS',
   'ARCHIVE_PROJECTS',
   'VIEW_USERS',
   'INVITE_USERS', // and resend the invitation
-  'CHANGE_USER_ACCESS', // add, edit, remove access rows
+  'CHANGE_USER_ROLE', // the user's merchant role (DEC-104)
   'SUSPEND_USERS', // suspend and reactivate
   'VIEW_ROLES',
   'CREATE_ROLES', // and duplicate
@@ -343,9 +341,11 @@ export const MERCHANT_PERMISSIONS = [
   'EXPORT_MERCHANT_REPORTS',
 ] as const
 export const PROJECT_PERMISSIONS = [
-  'VIEW_CASES',
-  'CLAIM_CASES',
-  'DECIDE_CASES',
+  // REQ: DEC-104 — no masking: each step needs the one before.
+  'VIEW_CASE_LIST', // the list: no personal data (DEC-40)
+  'VIEW_CASE_DETAILS', // the case page: name, ID number, images (every open audited, DEC-41)
+  'CLAIM_CASES', // claim and release
+  'DECIDE_CASES', // approve / reject
   'VIEW_FLOWS',
   'CREATE_FLOWS', // and duplicate
   'EDIT_FLOWS',
@@ -363,7 +363,7 @@ export const PROJECT_PERMISSIONS = [
 ] as const
 export type MerchantPermission = (typeof MERCHANT_PERMISSIONS)[number]
 export type ProjectPermission = (typeof PROJECT_PERMISSIONS)[number]
-// REQ: DEC-99 — platform (internal staff) permissions: platform-level, and merchant access (in the merchants given).
+// REQ: DEC-99 / DEC-104 — platform (internal staff) permissions: platform-wide, and merchant data (in every merchant).
 export const PLATFORM_LEVEL_PERMISSIONS = [
   'P_MERCHANTS_VIEW',
   'P_MERCHANTS_CREATE',
@@ -377,23 +377,27 @@ export const PLATFORM_LEVEL_PERMISSIONS = [
   'P_REPORTS_VIEW',
   'P_REPORTS_EXPORT',
 ] as const
-export const MERCHANT_ACCESS_PERMISSIONS = [
-  'P_CASES_VIEW_MASKED',
-  'P_CASES_VIEW_UNMASKED',
-  'P_CASES_DECIDE', // claim, approve, reject
+export const MERCHANT_DATA_PERMISSIONS = [
+  'P_CASES_LIST',
+  'P_CASES_DETAILS',
+  'P_CASES_CLAIM',
+  'P_CASES_DECIDE',
   'P_FLOWS_VIEW',
+  'P_FLOWS_CREATE',
   'P_FLOWS_EDIT',
+  'P_FLOWS_ACTIVATE',
+  'P_FLOWS_LEVEL',
   'P_INTEGRATION_VIEW',
   'P_INTEGRATION_MANAGE',
   'P_AUDIT_VIEW',
 ] as const
-export type PlatformPermission = (typeof PLATFORM_LEVEL_PERMISSIONS)[number] | (typeof MERCHANT_ACCESS_PERMISSIONS)[number]
+export type PlatformPermission = (typeof PLATFORM_LEVEL_PERMISSIONS)[number] | (typeof MERCHANT_DATA_PERMISSIONS)[number]
 
 export type Permission = MerchantPermission | ProjectPermission | PlatformPermission
 /** What a Merchant role may hold (DEC-70). */
 export const MERCHANT_ROLE_PERMISSIONS: readonly Permission[] = [...MERCHANT_PERMISSIONS, ...PROJECT_PERMISSIONS]
 /** What a Platform role may hold (DEC-99). */
-export const PLATFORM_ROLE_PERMISSIONS: readonly Permission[] = [...PLATFORM_LEVEL_PERMISSIONS, ...MERCHANT_ACCESS_PERMISSIONS]
+export const PLATFORM_ROLE_PERMISSIONS: readonly Permission[] = [...PLATFORM_LEVEL_PERMISSIONS, ...MERCHANT_DATA_PERMISSIONS]
 export const PERMISSIONS: readonly Permission[] = [...MERCHANT_ROLE_PERMISSIONS, ...PLATFORM_ROLE_PERMISSIONS]
 
 // REQ: DEC-76
@@ -418,14 +422,11 @@ export interface Role {
 }
 
 /**
- * REQ: DEC-70 / DEC-99 — where a role applies. Merchant roles: every current and future project of the merchant, or the
- * listed ones. Platform roles: every current and future merchant, or the listed ones.
+ * REQ: DEC-104 — where a role applies. A merchant user's **merchant role** (Users): `ALL_PROJECTS`, exactly one. Their
+ * **project roles** (Project › Members): `PROJECTS` with one project each. A platform staff member's role:
+ * `ALL_MERCHANTS` (no scope to choose), exactly one.
  */
-export type AssignmentScope =
-  | { kind: 'ALL_PROJECTS' }
-  | { kind: 'PROJECTS'; projectIds: string[] }
-  | { kind: 'ALL_MERCHANTS' }
-  | { kind: 'MERCHANTS'; merchantIds: string[] }
+export type AssignmentScope = { kind: 'ALL_PROJECTS' } | { kind: 'PROJECTS'; projectIds: string[] } | { kind: 'ALL_MERCHANTS' }
 
 /** One role given to one user with a scope (DEC-74: Role | Scope | Added by | Date). */
 export interface RoleAssignment {

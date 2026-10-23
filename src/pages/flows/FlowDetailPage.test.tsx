@@ -39,7 +39,7 @@ describe('Flow Detail (DEC-18, DEC-19, DEC-50, DEC-51)', () => {
     expect(liveness.getByRole('img').getAttribute('aria-label')).toBe('Reject below 70 · Review 70 to 85 · Approve at 85 and above')
     fireEvent.click(liveness.getByRole('radio', { name: /High/ }))
     expect(liveness.getByRole('img').getAttribute('aria-label')).toBe('Reject below 80 · Review 80 to 92 · Approve at 92 and above')
-    expect(liveness.queryByRole('radio', { name: /Advanced/ })).toBeNull() // Merchant Owner: no Advanced
+    expect(liveness.queryByRole('radio', { name: /Advanced/ })).toBeNull() // Owner: no Advanced
   })
 
   it('Given an Active flow, then Save needs a reason; with one it creates V4-R3 for new sessions (DEC-51)', async () => {

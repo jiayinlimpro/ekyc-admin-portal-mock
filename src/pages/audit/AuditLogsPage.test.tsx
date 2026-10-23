@@ -30,7 +30,7 @@ beforeEach(async () => {
 afterEach(cleanup)
 
 describe('Audit Logs', () => {
-  it('Given the Merchant Owner, then only Atoz entries, with project and actor role and no Merchant column', async () => {
+  it('Given the Owner, then only Atoz entries, with project and actor role and no Merchant column', async () => {
     renderAt('/audit?size=100')
     const r = await rows('Audit entries')
     expect(r.length).toBeGreaterThan(0)

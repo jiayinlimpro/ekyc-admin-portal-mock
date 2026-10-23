@@ -23,7 +23,7 @@ import { Card } from './settingsUi'
 function AddMember({ project, onAdded }: { project: Project; onAdded: () => void }) {
   const actor = useSession((s) => s.actor)
   const candidates = useLoad(() => userAdminService.memberCandidates(project.projectId, actor), [project.projectId, actor.userId])
-  // REQ: DEC-77 — only roles the actor may give in this project (merchant-level roles need All projects).
+  // REQ: DEC-77 / DEC-104 — only roles without merchant-wide permissions that the actor may give in this project.
   const roles = useLoad(() => roleService.assignable(project.merchantId, actor, project.projectId), [project.merchantId, project.projectId, actor.userId])
   const [userId, setUserId] = useState('')
   const [roleId, setRoleId] = useState('')
@@ -146,8 +146,8 @@ export function MembersTab({ project }: { project: Project }) {
                         <li key={r.assignmentId}>
                           <AccessChip label={r.label}>
                             {r.inherited && (
-                              <span className="rounded bg-muted px-1 text-[10px] text-muted-foreground uppercase" title="From an All projects assignment, changed on the user's details">
-                                inherited
+                              <span className="rounded bg-muted px-1 text-[10px] text-muted-foreground uppercase" title="From the user’s merchant role (read-only here; changed on the Users screen)">
+                                inherited · read-only
                               </span>
                             )}
                             {r.removable && (

@@ -59,7 +59,7 @@ describe('AppShell', () => {
     expect(useUi.getState().closedGroups).toEqual([])
   })
 
-  it('Given the Merchant Owner, then the Audit Log is in the menu', async () => {
+  it('Given the Owner, then the Audit Log is in the menu', async () => {
     useSession.getState().switchUser(OWNER)
     renderAt('/')
     await mainNav().findByRole('link', { name: /Audit Logs/ })
@@ -108,6 +108,14 @@ describe('AppShell', () => {
     expect(within(flyout).getAllByRole('menuitem').map((m) => m.textContent)).toEqual(['Users', 'Roles'])
     fireEvent.click(within(flyout).getByRole('menuitem', { name: 'Roles' }))
     await waitFor(() => expect(router.state.location.pathname).toBe('/roles'))
+  })
+
+  it('Given a Billing user opens the portal, then Billing (no Overview for this role, no Overview tab), and no cases or projects (DEC-104)', async () => {
+    useSession.getState().switchUser({ userId: fx('USR-2026-0037'), fullName: 'Muthu A/L Rajan' })
+    const router = renderAt('/')
+    await waitFor(() => expect(router.state.location.pathname).toBe('/billing'))
+    expect(tabs().queryByRole('link', { name: 'Overview' })).toBeNull()
+    for (const hidden of ['Verifications', 'Projects', 'Users']) expect(mainNav().queryByRole('link', { name: hidden })).toBeNull()
   })
 
   it('Given a Reviewer opens the Audit Log URL directly, then "No access" (DEC-72)', async () => {

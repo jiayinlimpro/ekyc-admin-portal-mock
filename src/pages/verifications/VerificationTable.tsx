@@ -98,6 +98,7 @@ export function VerificationTable({
   showMerchant = false,
   sort,
   onSort,
+  canOpen = () => true,
 }: {
   rows: VerificationSummary[]
   currentUserId: string
@@ -110,6 +111,8 @@ export function VerificationTable({
   /** REQ: DEC-100 — the column sort; undefined = the default order. Without `onSort` the headers don't sort. */
   sort?: VerificationSort
   onSort?: (by: VerificationSortKey) => void
+  /** REQ: DEC-104 — whether the Reference ID links to the case page (View details); otherwise plain text. */
+  canOpen?: (row: VerificationSummary) => boolean
 }) {
   const now = useNow(1000) // drives the claim countdowns
   type Cell = [Column, (r: VerificationSummary) => React.ReactNode, boolean?]
@@ -152,9 +155,15 @@ export function VerificationTable({
           {rows.map((r) => (
             <tr key={r.referenceNo} className="group border-t hover:bg-muted">
               <th scope="row" className={cn('px-2 py-2 text-left font-normal', STICKY)}>
-                <Link to={`/verifications/${r.caseId}`} className="font-mono text-xs whitespace-nowrap text-blue-700 underline-offset-2 hover:underline dark:text-blue-400">
-                  {r.referenceNo}
-                </Link>
+                {canOpen(r) ? (
+                  <Link to={`/verifications/${r.caseId}`} className="font-mono text-xs whitespace-nowrap text-blue-700 underline-offset-2 hover:underline dark:text-blue-400">
+                    {r.referenceNo}
+                  </Link>
+                ) : (
+                  <span className="font-mono text-xs whitespace-nowrap" title="Needs View details to open">
+                    {r.referenceNo}
+                  </span>
+                )}
               </th>
               {cells.map(([c, render]) => (
                 <td key={c} className="px-2 py-2">

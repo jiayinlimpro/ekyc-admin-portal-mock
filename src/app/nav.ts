@@ -118,11 +118,11 @@ export const NAV_ITEMS: NavItem[] = [
     group: 'eKYC',
     inMenu: false,
     parent: '/verifications',
-    access: { project: 'viewCases' },
+    access: { project: 'viewCaseDetails' }, // REQ: DEC-104 — View details; View list alone stays on the list
     priority: 'P0',
     built: true,
     notes: [
-      'Opening writes a SENSITIVE_PII_VIEW audit entry; full unmasked PII + client metadata (DEC-41).',
+      'Needs View details (DEC-104). Opening writes a SENSITIVE_PII_VIEW audit entry; full PII + client metadata (DEC-41).',
       'Claim bar: Assign to me / Cancel / countdown. Viewing is never blocked (DEC-25).',
       'Decision only for the claim owner on PENDING_REVIEW: Confirm Manual Pass, or Reject with catalogue reasons; note optional (DEC-30, DEC-31).',
       'Sections per DEC-44: end-user data, ID capture, Selfie (V1), Face match, Liveness, Risk (V4/V5), Rules applied, Activity.',

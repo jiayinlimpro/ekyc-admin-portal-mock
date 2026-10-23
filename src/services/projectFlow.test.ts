@@ -45,12 +45,12 @@ describe('projectService (DEC-92, DEC-93, DEC-96)', () => {
     expect(admin.every((p) => p.roles.join() === 'Super admin')).toBe(true)
   })
 
-  it('Given the Merchant Owner creates a project, then it starts with a Draft default flow on the registry default (MOCK-12), audited', async () => {
+  it('Given the Owner creates a project, then it starts with a Draft default flow on the registry default (MOCK-12), audited', async () => {
     const p = await projectService.create(fx('MER-0001'), { name: 'Branch kiosks' }, OWNER)
     expect(p).toMatchObject({ projectId: expect.stringMatching(/^prj_/), merchantId: fx('MER-0001'), status: 'ACTIVE', isDefault: false, defaultFlowId: expect.stringMatching(/^flw_/), claimTimeoutSec: 1800 })
     const flow = db.state().flows.find((f) => f.flowId === p.defaultFlowId)!
     expect(flow).toMatchObject({ projectId: p.projectId, status: 'DRAFT', workflowVersion: 'V1', revision: 0 })
-    expect(await lastAudit('PROJECT_CREATED')).toMatchObject({ actorRole: 'Merchant Owner', projectId: p.projectId, details: { name: 'Branch kiosks' } })
+    expect(await lastAudit('PROJECT_CREATED')).toMatchObject({ actorRole: 'Owner', projectId: p.projectId, details: { name: 'Branch kiosks' } })
     expect((await projectService.listMine(OWNER)).map((x) => x.projectId)).toContain(p.projectId)
   })
 
@@ -76,8 +76,9 @@ describe('projectService (DEC-92, DEC-93, DEC-96)', () => {
 })
 
 describe('flowService access (DEC-70, DEC-75)', () => {
-  it('Given a Reviewer, then Flows are refused; outside the project they are "not found"', async () => {
-    await expectError(flowService.list(fx('PRJ-0001'), ALI), 'FORBIDDEN')
+  it('Given a Reviewer, then Flows are read-only (DEC-104: Flows View); outside the project they are "not found"', async () => {
+    expect((await flowService.list(fx('PRJ-0001'), ALI)).length).toBeGreaterThan(0)
+    await expectError(flowService.create(fx('PRJ-0001'), { name: 'Not mine', description: '', workflowVersion: 'V3' }, ALI), 'FORBIDDEN')
     await expectError(flowService.list(fx('PRJ-0001'), HAFIZ), 'NOT_FOUND')
     expect((await flowService.list(fx('PRJ-0002'), HAFIZ)).map((f) => f.flowId)).toEqual([fx('FLW-0004')])
   })
@@ -103,7 +104,7 @@ describe('flowService settings and lifecycle (DEC-51 … DEC-53, DEC-94)', () =>
     expect(detail.revisions.map((r) => r.revision)).toEqual([1, 2, 3])
     expect(detail.revisions[2]).toMatchObject({ reason: 'Raise liveness after review', savedBy: { userId: OWNER.userId } })
     expect(await lastAudit('FLOW_SETTING_CHANGED')).toMatchObject({
-      actorRole: 'Merchant Owner',
+      actorRole: 'Owner',
       details: { flowId: fx('FLW-0001'), revision: 3, changes: [{ field: 'checks.LIVENESS.threshold', from: 'Standard (reject < 70, approve ≥ 85)', to: 'High (reject < 80, approve ≥ 92)' }] },
     })
     expect((await verificationService.get(caseIdOf('KYC-260901-900012'), ALI)).configRevision).toBe(1) // DEC-52
@@ -111,7 +112,7 @@ describe('flowService settings and lifecycle (DEC-51 … DEC-53, DEC-94)', () =>
 
   it('Given a Custom role with Flows Edit but not Change verification level, then only the other settings save (DEC-70)', async () => {
     const editor = await roleService.create(fx('MER-0001'), { name: 'Flow editor', permissions: ['EDIT_FLOWS'] }, OWNER)
-    await userAdminService.addAssignment(SITI.userId, { roleId: editor.roleId, scope: { kind: 'PROJECTS', projectIds: [fx('PRJ-0001')] } }, OWNER)
+    await userAdminService.addMember(fx('PRJ-0001'), SITI.userId, editor.roleId, OWNER)
     const { flow } = await flowService.get(fx('FLW-0001'), SITI)
     const base = { name: flow.name, description: flow.description }
     await expectError(flowService.save(fx('FLW-0001'), { ...base, settings: withLiveness(flow.settings, 'HIGH') }, 'Raise liveness after review', SITI), 'FORBIDDEN', /verification level/)

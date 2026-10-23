@@ -1,26 +1,21 @@
-// REQ: DEC-99 — a platform staff member's details: Access table (Role | Merchant access | Added by | Date | Ends) with
-// Add / Edit / Remove, Resend invitation, Suspend / Reactivate. Super admins only.
+// REQ: DEC-99 / DEC-104 — a platform staff member's details: their one platform role (Change role; no merchant scope),
+// Resend invitation, Suspend / Reactivate. Super admins only.
 import { useState } from 'react'
-import { Pencil, Plus, Trash2 } from 'lucide-react'
+import { Pencil } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { errorMessage, useLoad } from '@/hooks/useLoad'
 import { formatMyt } from '@/lib/format'
-import { merchantService } from '@/services/merchantService'
-import { staffService, type StaffAssignmentRow } from '@/services/staffService'
-import type { AssignmentInput } from '@/services/userAdminService'
+import { staffService } from '@/services/staffService'
 import { useSession } from '@/stores/sessionStore'
-import { AssignmentDialog, UserStatusBadge } from './AccessFields'
-
-type Editing = { mode: 'add' } | { mode: 'edit'; row: StaffAssignmentRow }
+import { ChangeRoleDialog, UserStatusBadge } from './AccessFields'
 
 export function StaffDialog({ userId, onClose, onChanged }: { userId: string; onClose: () => void; onChanged: () => void }) {
   const actor = useSession((s) => s.actor)
   const user = useLoad(() => staffService.get(userId, actor), [userId, actor.userId])
   const roles = useLoad(() => staffService.assignableRoles(actor), [actor.userId])
-  const merchants = useLoad(() => merchantService.list(actor), [actor.userId])
-  const [editing, setEditing] = useState<Editing>()
+  const [changing, setChanging] = useState(false)
   const u = user.data
 
   const act = async (fn: () => Promise<unknown>, ok: string) => {
@@ -33,11 +28,10 @@ export function StaffDialog({ userId, onClose, onChanged }: { userId: string; on
       toast.error(errorMessage(e))
     }
   }
-  const save = async (v: AssignmentInput) => {
-    if (!u || !editing) return
-    if (editing.mode === 'add') await staffService.addAssignment(u.userId, v, actor)
-    else await staffService.changeAssignment(u.userId, editing.row.assignmentId, v, actor)
-    toast.success(editing.mode === 'add' ? 'Access added' : 'Access changed')
+  const saveRole = async (roleId: string) => {
+    if (!u) return
+    await staffService.setRole(u.userId, roleId, actor)
+    toast.success('Role changed')
     user.reload()
     onChanged()
   }
@@ -69,56 +63,16 @@ export function StaffDialog({ userId, onClose, onChanged }: { userId: string; on
                 <dd>{u.lastActiveAt ? formatMyt(u.lastActiveAt) : '—'}</dd>
               </div>
             </dl>
-            <section aria-label="Access">
-              <div className="mb-2 flex items-center justify-between gap-2">
-                <h3 className="text-sm font-semibold">Access</h3>
-                <Button size="sm" variant="outline" onClick={() => setEditing({ mode: 'add' })}>
-                  <Plus aria-hidden /> Add access
+            <section aria-label="Staff role" className="rounded-md border p-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <h3 className="text-xs font-medium text-muted-foreground">Staff role</h3>
+                  <p className="text-sm font-medium">{u.roleName ?? '—'}</p>
+                  <p className="text-xs text-muted-foreground">Applies to every merchant.</p>
+                </div>
+                <Button size="sm" variant="outline" onClick={() => setChanging(true)}>
+                  <Pencil aria-hidden /> Change role
                 </Button>
-              </div>
-              <div className="overflow-x-auto rounded-md border">
-                <table className="w-full text-sm">
-                  <thead className="bg-muted/50 text-left text-xs text-muted-foreground">
-                    <tr>
-                      {['Staff role', 'Merchant access', 'Added by', 'Date'].map((h) => (
-                        <th key={h} scope="col" className="px-3 py-2 font-medium">
-                          {h}
-                        </th>
-                      ))}
-                      <th scope="col" className="px-3 py-2">
-                        <span className="sr-only">Actions</span>
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {u.assignments.map((a) => (
-                      <tr key={a.assignmentId} className="border-t">
-                        <th scope="row" className="px-3 py-2 text-left font-medium">{a.roleName}</th>
-                        <td className="px-3 py-2">{a.scopeLabel}</td>
-                        <td className="px-3 py-2">{a.addedBy.fullName}</td>
-                        <td className="px-3 py-2 whitespace-nowrap">{formatMyt(a.addedAt).split(', ')[0]}</td>
-                        <td className="px-2 py-2 text-right whitespace-nowrap">
-                          {a.editable && (
-                            <>
-                              <Button variant="ghost" size="icon-sm" aria-label={`Edit ${a.roleName} · ${a.scopeLabel}`} onClick={() => setEditing({ mode: 'edit', row: a })}>
-                                <Pencil aria-hidden />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="icon-sm"
-                                aria-label={`Remove ${a.roleName} · ${a.scopeLabel}`}
-                                onClick={() => window.confirm(`Remove ${a.roleName} · ${a.scopeLabel} from ${u.fullName}?`) && void act(() => staffService.removeAssignment(u.userId, a.assignmentId, actor), 'Access removed')}
-                              >
-                                <Trash2 aria-hidden />
-                              </Button>
-                            </>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-                {!u.assignments.length && <p className="px-3 py-4 text-sm text-muted-foreground">No access yet. Add access so they can use the portal.</p>}
               </div>
             </section>
           </div>
@@ -143,19 +97,7 @@ export function StaffDialog({ userId, onClose, onChanged }: { userId: string; on
             Close
           </Button>
         </DialogFooter>
-        {editing && u && (
-          <AssignmentDialog
-            title={editing.mode === 'add' ? `Add access for ${u.fullName}` : `Edit ${editing.row.roleName} for ${u.fullName}`}
-            who={u.fullName}
-            staff
-            initial={editing.mode === 'edit' ? { roleId: editing.row.roleId, scope: editing.row.scope } : undefined}
-            roles={roles.data ?? []}
-            projects={[]}
-            merchants={merchants.data ?? []}
-            onSave={save}
-            onClose={() => setEditing(undefined)}
-          />
-        )}
+        {changing && u && <ChangeRoleDialog who={u.fullName} merchant={false} roles={roles.data ?? []} initialRoleId={u.roleId} onSave={saveRole} onClose={() => setChanging(false)} />}
       </DialogContent>
     </Dialog>
   )

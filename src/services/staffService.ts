@@ -1,16 +1,15 @@
-// Platform staff API (mock): internal accounts with platform roles (DEC-99). Super admin only; merchant admins never
-// see them ("not found"). The Users screen lists them next to merchant users, with Type = Platform.
-//   GET    /staff                                  list               → 200 StaffRow[]
-//   GET    /staff/{id}                             get                → 200 StaffDetail | 404
-//   POST   /staff                                  invite             → 201 StaffRow (Pending) | 422
-//   POST   /staff/{id}/invitation                  resendInvitation   → 200 | 422 (not Pending)
-//   POST|PUT|DELETE /staff/{id}/assignments[/{aid}] add / change / remove access
+// Platform staff API (mock): internal accounts with one platform role and no scope (DEC-99, DEC-104). Super admin only;
+// merchant admins never see them ("not found"). The Users screen lists them next to merchant users, with Type = Platform.
+//   GET    /staff                       list               → 200 StaffRow[]
+//   GET    /staff/{id}                  get                → 200 StaffDetail | 404
+//   POST   /staff                       invite             → 201 StaffRow (Pending) | 422
+//   POST   /staff/{id}/invitation       resendInvitation   → 200 | 422 (not Pending)
+//   PUT    /staff/{id}/role             setRole            → 200 StaffDetail | 422
 //   POST   /staff/{id}/suspend | reactivate
 import { canOnPlatform } from '@/domain/access'
 import { STAFF_EMAIL_DOMAIN } from '@/domain/openQuestions'
-import { hasMerchantAccess, scopeLabel, validateAssignment, withImpliedPermissions } from '@/domain/roles'
-import type { AccessChip } from '@/domain/roles'
-import type { Actor, AssignmentScope, AuditAction, Role, RoleAssignment, UserAccount, UserStatus } from '@/domain/types'
+import { validateAssignment, withImpliedPermissions, type AccessChip } from '@/domain/roles'
+import type { Actor, AuditAction, Role, RoleAssignment, UserAccount, UserStatus } from '@/domain/types'
 import { now } from '@/lib/clock'
 import { adoptDraftId, newId } from '@/lib/ids'
 import { db } from '@/mocks/mockDb'
@@ -18,33 +17,22 @@ import { accountOf, nextAssignmentId, requireActive } from './accessGuard'
 import { ServiceError } from './errors'
 import { simulateNetwork, wire } from './network'
 import { validation } from './projectService'
-import { auditAccess, chipsOf, releaseLostClaims, requireNewUser, type AssignmentInput } from './userAdminService'
+import { auditAccess, releaseLostClaims, requireNewUser } from './userAdminService'
 
 export interface StaffRow {
   userId: string
   fullName: string
   email: string
-  access: AccessChip[] // "Support · All merchants", "Finance · Platform-wide"
+  /** REQ: DEC-104 — one platform role, for every merchant (no scope). */
+  access: AccessChip[] // ["Support"]
+  roleId?: string
   status: UserStatus
   createdAt: string
 }
 
-export interface StaffAssignmentRow {
-  assignmentId: string
-  roleId: string
-  roleName: string
-  scope: AssignmentScope
-  scopeLabel: string
-  /** The role has no merchant-access permissions: merchant scope doesn't apply (DEC-99). */
-  platformWide: boolean
-  addedBy: Actor
-  addedAt: string
-  editable: boolean
-}
-
 export interface StaffDetail extends StaffRow {
   lastActiveAt?: string
-  assignments: StaffAssignmentRow[]
+  roleName?: string
   isSelf: false
   canManage: boolean
 }
@@ -55,11 +43,10 @@ export interface StaffService {
   /** Active platform roles, for the Staff role picker. */
   assignableRoles(actor: Actor): Promise<Role[]>
   draftUserId(actor: Actor): Promise<string>
-  invite(input: { userId?: string; fullName: string; email: string; assignment: AssignmentInput }, actor: Actor): Promise<StaffRow>
+  invite(input: { userId?: string; fullName: string; email: string; roleId: string }, actor: Actor): Promise<StaffRow>
   resendInvitation(userId: string, actor: Actor): Promise<void>
-  addAssignment(userId: string, input: AssignmentInput, actor: Actor): Promise<StaffDetail>
-  changeAssignment(userId: string, assignmentId: string, input: AssignmentInput, actor: Actor): Promise<StaffDetail>
-  removeAssignment(userId: string, assignmentId: string, actor: Actor): Promise<StaffDetail>
+  /** REQ: DEC-104 — change the staff member's platform role. */
+  setRole(userId: string, roleId: string, actor: Actor): Promise<StaffDetail>
   suspend(userId: string, actor: Actor): Promise<StaffRow>
   reactivate(userId: string, actor: Actor): Promise<StaffRow>
 }
@@ -69,7 +56,6 @@ function requireSuper(actor: Actor) {
   if (!canOnPlatform(accountOf(actor), 'manageStaff')) throw new ServiceError('NOT_FOUND', 'Not found.')
 }
 
-const merchantName = (id: string) => db.state().merchants.find((m) => m.merchantId === id)?.name ?? id
 const roleOf = (roleId: string) => db.state().roles.find((r) => r.roleId === roleId)
 const by = (actor: Actor): Actor => ({ userId: actor.userId, fullName: actor.fullName })
 
@@ -81,21 +67,16 @@ function loadStaff(userId: string): UserAccount {
 
 const putAccount = (a: UserAccount) => db.setState((st) => ({ accounts: st.accounts.map((x) => (x.userId === a.userId ? a : x)) }))
 
-/** A platform role and a merchant scope; a role with no merchant access is stored as All merchants and shown "Platform-wide". */
-function checkAssignment(input: AssignmentInput): RoleAssignment['scope'] {
-  const role = roleOf(input.roleId)
-  if (!role || role.audience !== 'PLATFORM') throw validation([{ field: 'roleId', message: 'Choose a staff role.' }])
-  const scope: AssignmentScope = hasMerchantAccess(role.permissions) ? input.scope : { kind: 'ALL_MERCHANTS' }
-  const errors = [...validateAssignment(role, scope, [], db.state().merchants.map((m) => m.merchantId))]
+/** REQ: DEC-104 — a platform role, for every merchant. */
+function checkRole(roleId: string): Role {
+  const role = roleOf(roleId)
+  if (!role) throw validation([{ field: 'roleId', message: 'Choose a staff role.' }])
+  const errors = validateAssignment(role, { kind: 'ALL_MERCHANTS' }, [])
   if (errors.length) throw validation(errors)
-  return scope
+  return role
 }
 
-const label = (x: Pick<RoleAssignment, 'roleId' | 'scope'>) => {
-  const r = roleOf(x.roleId)
-  if (!r) return x.roleId
-  return hasMerchantAccess(r.permissions) ? `${r.name} · ${scopeLabel(x.scope, (id) => id, merchantName)}` : `${r.name} · Platform-wide`
-}
+const roleName = (a: UserAccount) => (a.assignments[0] ? (roleOf(a.assignments[0].roleId)?.name ?? a.assignments[0].roleId) : undefined)
 
 // REQ: DEC-42 — staff changes are audited like user changes, with no merchant.
 function audit(actor: Actor, action: AuditAction, details: Record<string, unknown>) {
@@ -103,31 +84,11 @@ function audit(actor: Actor, action: AuditAction, details: Record<string, unknow
 }
 
 function rowOf(a: UserAccount): StaffRow {
-  return { userId: a.userId, fullName: a.fullName, email: a.email, access: chipsOf(a.assignments), status: a.status, createdAt: a.invitedAt }
+  const name = roleName(a)
+  return { userId: a.userId, fullName: a.fullName, email: a.email, access: name ? [{ label: name, archived: false }] : [], roleId: a.assignments[0]?.roleId, status: a.status, createdAt: a.invitedAt }
 }
 
-function detailOf(a: UserAccount): StaffDetail {
-  return {
-    ...rowOf(a),
-    lastActiveAt: a.lastActiveAt,
-    isSelf: false,
-    canManage: true,
-    assignments: a.assignments.map((x) => {
-      const r = roleOf(x.roleId)
-      return {
-        assignmentId: x.assignmentId,
-        roleId: x.roleId,
-        roleName: r?.name ?? x.roleId,
-        scope: x.scope,
-        scopeLabel: r && !hasMerchantAccess(r.permissions) ? 'Platform-wide' : scopeLabel(x.scope, (id) => id, merchantName),
-        platformWide: !!r && !hasMerchantAccess(r.permissions),
-        addedBy: x.addedBy,
-        addedAt: x.addedAt,
-        editable: true,
-      }
-    }),
-  }
-}
+const detailOf = (a: UserAccount): StaffDetail => ({ ...rowOf(a), lastActiveAt: a.lastActiveAt, roleName: roleName(a), isSelf: false, canManage: true })
 
 export const mockStaffService: StaffService = {
   async list(actor) {
@@ -159,21 +120,20 @@ export const mockStaffService: StaffService = {
     requireActive(actor)
     requireSuper(actor)
     const email = requireNewUser(input, 'INTERNAL') // REQ: DEC-99 / OQ-31 — the company staff domain
-    const scope = checkAssignment(input.assignment)
+    const role = checkRole(input.roleId)
     const at = now().toISOString()
     const account: UserAccount = {
       userId: adoptDraftId('usr', input.userId, (id) => db.state().accounts.some((a) => a.userId === id)),
       fullName: input.fullName.trim(),
       email,
       level: 'PLATFORM_STAFF',
-      assignments: [{ assignmentId: nextAssignmentId(), roleId: input.assignment.roleId, scope, addedBy: by(actor), addedAt: at }],
+      assignments: [{ assignmentId: nextAssignmentId(), roleId: role.roleId, scope: { kind: 'ALL_MERCHANTS' }, addedBy: by(actor), addedAt: at }],
       status: 'PENDING',
       invitationId: newId('inv'),
       invitedAt: at,
     }
     db.setState((st) => ({ accounts: [...st.accounts, account] }))
-    const access = label(account.assignments[0])
-    audit(actor, 'USER_INVITED', { userId: account.userId, fullName: account.fullName, email, access, type: 'Platform (internal)', summary: `${account.fullName} invited as ${access}` })
+    audit(actor, 'USER_INVITED', { userId: account.userId, fullName: account.fullName, email, access: role.name, type: 'Platform (internal)', summary: `${account.fullName} invited as ${role.name}` })
     return wire(rowOf(account))
   },
 
@@ -188,45 +148,19 @@ export const mockStaffService: StaffService = {
     audit(actor, 'USER_INVITATION_RESENT', { userId, fullName: a.fullName, email: a.email, invitationId, summary: `Invitation resent to ${a.email}` })
   },
 
-  async addAssignment(userId, input, actor) {
-    await simulateNetwork('add staff access')
+  async setRole(userId, roleId, actor) {
+    await simulateNetwork('change staff role')
     requireActive(actor)
     requireSuper(actor)
     const a = loadStaff(userId)
-    const scope = checkAssignment(input)
-    const assignment: RoleAssignment = { assignmentId: nextAssignmentId(), roleId: input.roleId, scope, addedBy: by(actor), addedAt: now().toISOString() }
-    const updated = { ...a, assignments: [...a.assignments, assignment] }
+    const role = checkRole(roleId)
+    const old = a.assignments[0]
+    if (old?.roleId === roleId) return wire(detailOf(a))
+    const next: RoleAssignment = { assignmentId: old?.assignmentId ?? nextAssignmentId(), roleId, scope: { kind: 'ALL_MERCHANTS' }, addedBy: by(actor), addedAt: now().toISOString() }
+    const updated = { ...a, assignments: [next] }
     putAccount(updated)
-    audit(actor, 'USER_ACCESS_ADDED', { userId, fullName: a.fullName, assignmentId: assignment.assignmentId, summary: `${a.fullName}: ${label(assignment)} added` })
-    return wire(detailOf(updated))
-  },
-
-  async changeAssignment(userId, assignmentId, input, actor) {
-    await simulateNetwork('change staff access')
-    requireActive(actor)
-    requireSuper(actor)
-    const a = loadStaff(userId)
-    const old = a.assignments.find((x) => x.assignmentId === assignmentId)
-    if (!old) throw new ServiceError('NOT_FOUND', `Access ${assignmentId} not found.`)
-    const next: RoleAssignment = { ...old, roleId: input.roleId, scope: checkAssignment(input) }
-    const updated = { ...a, assignments: a.assignments.map((x) => (x.assignmentId === assignmentId ? next : x)) }
-    putAccount(updated)
-    audit(actor, 'USER_ACCESS_CHANGED', { userId, fullName: a.fullName, assignmentId, changes: [{ field: `${a.fullName} access`, from: label(old), to: label(next) }] })
-    releaseLostClaims(actor, [userId], 'Access changed')
-    return wire(detailOf(updated))
-  },
-
-  async removeAssignment(userId, assignmentId, actor) {
-    await simulateNetwork('remove staff access')
-    requireActive(actor)
-    requireSuper(actor)
-    const a = loadStaff(userId)
-    const old = a.assignments.find((x) => x.assignmentId === assignmentId)
-    if (!old) throw new ServiceError('NOT_FOUND', `Access ${assignmentId} not found.`)
-    const updated = { ...a, assignments: a.assignments.filter((x) => x.assignmentId !== assignmentId) }
-    putAccount(updated)
-    audit(actor, 'USER_ACCESS_REMOVED', { userId, fullName: a.fullName, assignmentId, changes: [{ field: `${a.fullName} access`, from: label(old), to: 'Removed' }] })
-    releaseLostClaims(actor, [userId], 'Access removed')
+    audit(actor, 'USER_ACCESS_CHANGED', { userId, fullName: a.fullName, changes: [{ field: `${a.fullName} role`, from: roleName(a) ?? '—', to: role.name }] })
+    releaseLostClaims(actor, [userId], 'Role changed')
     return wire(detailOf(updated))
   },
 

@@ -1,7 +1,7 @@
-// REQ: DEC-74 — [FRS] User Management › Users, with scoped role assignments (DEC-70).
+// REQ: DEC-74 / DEC-104 — [FRS] User Management › Users: one merchant role per user; project roles come from Members.
 import { useState, type FormEvent } from 'react'
 import { useSearchParams } from 'react-router'
-import { Pencil, Plus, RotateCcw, Search, Trash2 } from 'lucide-react'
+import { Pencil, Plus, RotateCcw, Search } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAccess } from '@/app/access'
 import { FormField } from '@/components/common/FormField'
@@ -18,28 +18,22 @@ import { PERMISSION_LABELS, USER_STATUS_LABELS } from '@/lib/labels'
 import { cn } from '@/lib/utils'
 import { merchantService } from '@/services/merchantService'
 import { roleService } from '@/services/roleService'
-import { userAdminService, type AssignmentInput, type AssignmentRow, type UserDetail, type UserRow } from '@/services/userAdminService'
+import { userAdminService, type UserDetail, type UserRow } from '@/services/userAdminService'
 import { useSession } from '@/stores/sessionStore'
-import { AccessChip, AssignmentDialog, AssignmentFields, StaffAccessFields, UserStatusBadge, type MerchantOption, type ProjectOption } from './AccessFields'
+import { DEFAULT_MERCHANT_ROLE_ID } from '@/domain/roles'
+import { AccessChip, AccessPreview, ChangeRoleDialog, MERCHANT_ROLE_HINT, RoleSelect, UserStatusBadge, type MerchantOption } from './AccessFields'
 import { StaffDialog } from './StaffDialog'
 import { staffService } from '@/services/staffService'
 import { STAFF_EMAIL_DOMAIN } from '@/domain/openQuestions'
 
 const PAGE_SIZES = [10, 20, 50] as const
 
-/** Active projects of a merchant, for the scope picker (archived projects take no new members, DEC-77). */
-function useMerchantProjects(merchantId: string | undefined): ProjectOption[] {
-  const { projects } = useAccess()
-  return projects.filter((p) => p.merchantId === merchantId && p.status === 'ACTIVE').map(({ projectId, name }) => ({ projectId, name }))
-}
-
 type AccountKind = 'PLATFORM' | 'MERCHANT'
-const EMPTY_PROJECT_ACCESS: AssignmentInput = { roleId: '', scope: { kind: 'PROJECTS', projectIds: [] } }
-const EMPTY_STAFF_ACCESS: AssignmentInput = { roleId: '', scope: { kind: 'ALL_MERCHANTS' } }
 
 /**
- * REQ: DEC-74 / DEC-99 — New user. Type first (super admins choose; merchant admins see it locked to their merchant),
- * then the generated User ID, then the fields of that Type in the brief's order.
+ * REQ: DEC-74 / DEC-99 / DEC-104 — New user. Type first (super admins choose; merchant admins see it locked to their
+ * merchant), then the generated User ID, then: Platform = name, email, staff role; Merchant = merchant, name, email,
+ * merchant role (Member by default, with the help text).
  */
 function InviteDialog({ merchants, isSuper, ownMerchant, onClose, onSaved }: { merchants: MerchantOption[]; isSuper: boolean; ownMerchant?: MerchantOption; onClose: () => void; onSaved: () => void }) {
   const actor = useSession((s) => s.actor)
@@ -47,28 +41,28 @@ function InviteDialog({ merchants, isSuper, ownMerchant, onClose, onSaved }: { m
   const [merchantId, setMerchantId] = useState(ownMerchant?.merchantId ?? '')
   const [fullName, setFullName] = useState('')
   const [email, setEmail] = useState('')
-  const [assignment, setAssignment] = useState<AssignmentInput>(EMPTY_PROJECT_ACCESS)
+  const [roleId, setRoleId] = useState<string>(DEFAULT_MERCHANT_ROLE_ID)
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [busy, setBusy] = useState(false)
   const platform = kind === 'PLATFORM'
   const roles = useLoad(() => (platform ? staffService.assignableRoles(actor) : merchantId ? roleService.assignable(merchantId, actor) : Promise.resolve([])), [kind, merchantId, actor.userId])
-  const projects = useMerchantProjects(merchantId)
+  const role = roles.data?.find((r) => r.roleId === roleId)
   // REQ: DEC-97 — the User ID is generated when the form opens and shown read-only.
   const draft = useLoad(() => userAdminService.draftUserId(actor), [actor.userId])
 
   const changeKind = (k: AccountKind) => {
     setKind(k)
-    setAssignment(k === 'PLATFORM' ? EMPTY_STAFF_ACCESS : EMPTY_PROJECT_ACCESS)
+    setRoleId(k === 'PLATFORM' ? '' : DEFAULT_MERCHANT_ROLE_ID)
     setErrors({})
   }
   const submit = async (e: FormEvent) => {
     e.preventDefault()
     if (!platform && !merchantId) return setErrors({ merchantId: 'Choose a merchant.' })
-    if (!assignment.roleId) return setErrors({ roleId: platform ? 'Choose a staff role.' : 'Choose a role.' })
+    if (!roleId) return setErrors({ roleId: platform ? 'Choose a staff role.' : 'Choose a role.' })
     setBusy(true)
     setErrors({})
     try {
-      const input = { userId: draft.data, fullName, email, assignment }
+      const input = { userId: draft.data, fullName, email, roleId }
       const u = platform ? await staffService.invite(input, actor) : await userAdminService.invite(merchantId, input, actor)
       toast.success(`${u.fullName} invited`, { description: 'Pending until they accept the invitation.' })
       onSaved()
@@ -94,7 +88,7 @@ function InviteDialog({ merchants, isSuper, ownMerchant, onClose, onSaved }: { m
         <form onSubmit={submit} noValidate className="space-y-4">
           <DialogHeader>
             <DialogTitle>New user</DialogTitle>
-            <DialogDescription>The user is Pending until they accept the emailed invitation. Add more access later on their details.</DialogDescription>
+            <DialogDescription>The user is Pending until they accept the emailed invitation.</DialogDescription>
           </DialogHeader>
           <FormField id="nu-type" label="Type" hint="Can’t be changed after creation.">
             {isSuper ? (
@@ -113,13 +107,13 @@ function InviteDialog({ merchants, isSuper, ownMerchant, onClose, onSaved }: { m
             <>
               {nameField}
               {emailField}
-              <StaffAccessFields idPrefix="nu" roles={roles.data ?? []} merchants={merchants} value={assignment} onChange={setAssignment} errors={errors} />
+              <RoleSelect id="nu-role" label="Staff role" roles={roles.data ?? []} value={roleId} onChange={setRoleId} error={errors.roleId} hint="Applies to every merchant." />
             </>
           ) : (
             <>
-              <FormField id="nu-merchant" label="Merchant" error={errors.merchantId} hint={isSuper ? 'Changing it resets the role and project access.' : undefined}>
+              <FormField id="nu-merchant" label="Merchant" error={errors.merchantId} hint={isSuper ? 'Changing it resets the role.' : undefined}>
                 {isSuper ? (
-                  <NativeSelect id="nu-merchant" value={merchantId} onChange={(e) => { setMerchantId(e.target.value); setAssignment(EMPTY_PROJECT_ACCESS) }}>
+                  <NativeSelect id="nu-merchant" value={merchantId} onChange={(e) => { setMerchantId(e.target.value); setRoleId(DEFAULT_MERCHANT_ROLE_ID) }}>
                     <option value="">Choose a merchant</option>
                     {merchants.map((m) => (
                       <option key={m.merchantId} value={m.merchantId}>
@@ -133,7 +127,12 @@ function InviteDialog({ merchants, isSuper, ownMerchant, onClose, onSaved }: { m
               </FormField>
               {nameField}
               {emailField}
-              {merchantId && <AssignmentFields idPrefix="nu" who={fullName.trim() || 'The user'} roles={roles.data ?? []} projects={projects} value={assignment} onChange={setAssignment} errors={errors} />}
+              {merchantId && (
+                <>
+                  <RoleSelect id="nu-role" label="Role" roles={roles.data ?? []} value={roleId} onChange={setRoleId} error={errors.roleId} hint={MERCHANT_ROLE_HINT} />
+                  {role && <AccessPreview who={fullName.trim() || 'The user'} permissions={role.permissions} where="every project (including new ones)" />}
+                </>
+              )}
             </>
           )}
           {errors.form && (
@@ -155,9 +154,7 @@ function InviteDialog({ merchants, isSuper, ownMerchant, onClose, onSaved }: { m
   )
 }
 
-type Editing = { mode: 'add' } | { mode: 'edit'; row: AssignmentRow }
-
-/** REQ: DEC-74 — "Why can Ali approve this case?": the permissions in one project and the access rows they come from. */
+/** REQ: DEC-74 — "Why can Ali approve this case?": the permissions in one project and the roles they come from. */
 function EffectiveAccess({ user }: { user: UserDetail }) {
   const [projectId, setProjectId] = useState(user.effective.find((e) => e.permissions.length)?.projectId ?? user.effective[0]?.projectId ?? '')
   const shown = user.effective.find((e) => e.projectId === projectId)
@@ -208,9 +205,8 @@ function UserDialog({ userId, onClose, onChanged }: { userId: string; onClose: (
   const actor = useSession((s) => s.actor)
   const user = useLoad(() => userAdminService.get(userId, actor), [userId, actor.userId])
   const u = user.data
-  const roles = useLoad(() => (u ? roleService.assignable(u.merchantId, actor) : Promise.resolve([])), [u?.merchantId, actor.userId])
-  const projects = useMerchantProjects(u?.merchantId)
-  const [editing, setEditing] = useState<Editing>()
+  const roles = useLoad(() => (u?.can.changeRole ? roleService.assignable(u.merchantId, actor) : Promise.resolve([])), [u?.merchantId, u?.can.changeRole, actor.userId])
+  const [changing, setChanging] = useState(false)
 
   const act = async (fn: () => Promise<unknown>, ok: string) => {
     try {
@@ -222,11 +218,10 @@ function UserDialog({ userId, onClose, onChanged }: { userId: string; onClose: (
       toast.error(errorMessage(e))
     }
   }
-  const save = async (v: AssignmentInput) => {
-    if (!u || !editing) return
-    if (editing.mode === 'add') await userAdminService.addAssignment(u.userId, v, actor)
-    else await userAdminService.changeAssignment(u.userId, editing.row.assignmentId, v, actor)
-    toast.success(editing.mode === 'add' ? 'Access added' : 'Access changed')
+  const saveRole = async (roleId: string) => {
+    if (!u) return
+    await userAdminService.setRole(u.userId, roleId, actor)
+    toast.success('Role changed')
     user.reload()
     onChanged()
   }
@@ -259,73 +254,51 @@ function UserDialog({ userId, onClose, onChanged }: { userId: string; onClose: (
                 <dd>{u.lastActiveAt ? formatMyt(u.lastActiveAt) : '—'}</dd>
               </div>
             </dl>
-            <section aria-label="Access">
-              <div className="mb-2 flex items-center justify-between gap-2">
-                <h3 className="text-sm font-semibold">Access</h3>
-                {u.can.changeAccess && (
-                  <Button size="sm" variant="outline" onClick={() => setEditing({ mode: 'add' })}>
-                    <Plus aria-hidden /> Add access
-                  </Button>
+            {/* REQ: DEC-104 — the merchant role (whole merchant), changed here; project roles come from Project › Members. */}
+            <section aria-label="Merchant role" className="rounded-md border p-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <h3 className="text-xs font-medium text-muted-foreground">Merchant role</h3>
+                  <p className="text-sm font-medium">{u.merchantRole?.roleName ?? '—'}</p>
+                  <p className="text-xs text-muted-foreground">Applies to the whole merchant and all its projects.</p>
+                </div>
+                {u.can.changeRole && (
+                  <span title={u.changeRoleBlocked} className="inline-flex">
+                    <Button size="sm" variant="outline" disabled={!!u.changeRoleBlocked} aria-description={u.changeRoleBlocked} onClick={() => setChanging(true)}>
+                      <Pencil aria-hidden /> Change role
+                    </Button>
+                  </span>
                 )}
               </div>
-              {u.isSelf && <p className="mb-2 text-xs text-muted-foreground">You can’t change your own access.</p>}
+              {u.isSelf && <p className="mt-2 text-xs text-muted-foreground">You can’t change your own access.</p>}
+            </section>
+            <section aria-label="Project access">
+              <h3 className="mb-2 text-sm font-semibold">Project access</h3>
               <div className="overflow-x-auto rounded-md border">
                 <table className="w-full text-sm">
                   <thead className="bg-muted/50 text-left text-xs text-muted-foreground">
                     <tr>
-                      {['Role', 'Scope', 'Added by', 'Date'].map((h) => (
+                      {['Project', 'Role', 'Added by', 'Date'].map((h) => (
                         <th key={h} scope="col" className="px-3 py-2 font-medium">
                           {h}
                         </th>
                       ))}
-                      <th scope="col" className="px-3 py-2">
-                        <span className="sr-only">Actions</span>
-                      </th>
                     </tr>
                   </thead>
                   <tbody>
-                    {u.assignments.map((a) => (
-                      <tr key={a.assignmentId} className="border-t">
-                        <th scope="row" className="px-3 py-2 text-left font-medium">{a.roleName}</th>
-                        <td className="px-3 py-2">{a.scope.kind === 'ALL_PROJECTS' ? <span title="Includes projects created later">All projects</span> : a.scopeLabel}</td>
+                    {u.projectRoles.map((a) => (
+                      <tr key={`${a.assignmentId}|${a.projectId}`} className="border-t">
+                        <th scope="row" className="px-3 py-2 text-left font-medium">{a.projectName}</th>
+                        <td className="px-3 py-2">{a.roleName}</td>
                         <td className="px-3 py-2">{a.addedBy.fullName}</td>
                         <td className="px-3 py-2 whitespace-nowrap">{formatMyt(a.addedAt).split(', ')[0]}</td>
-                        <td className="px-2 py-2 text-right whitespace-nowrap">
-                          {a.editable && (
-                            <>
-                              <Button variant="ghost" size="icon-sm" aria-label={`Edit ${a.roleName} · ${a.scopeLabel}`} onClick={() => setEditing({ mode: 'edit', row: a })}>
-                                <Pencil aria-hidden />
-                              </Button>
-                              <span title={a.removeBlocked} className="inline-flex">
-                                <Button
-                                  variant="ghost"
-                                  size="icon-sm"
-                                  disabled={!!a.removeBlocked}
-                                  aria-label={`Remove ${a.roleName} · ${a.scopeLabel}`}
-                                  aria-description={a.removeBlocked}
-                                  onClick={() => window.confirm(`Remove ${a.roleName} · ${a.scopeLabel} from ${u.fullName}? Their open claims there are released.`) && void act(() => userAdminService.removeAssignment(u.userId, a.assignmentId, actor), 'Access removed')}
-                                >
-                                  <Trash2 aria-hidden />
-                                </Button>
-                              </span>
-                            </>
-                          )}
-                        </td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
-                {!u.assignments.length && (
-                  <div className="flex flex-wrap items-center justify-between gap-2 px-3 py-4 text-sm text-muted-foreground">
-                    No access yet. Add access so they can use the portal.
-                    {u.can.changeAccess && (
-                      <Button size="sm" onClick={() => setEditing({ mode: 'add' })}>
-                        <Plus aria-hidden /> Add access
-                      </Button>
-                    )}
-                  </div>
-                )}
+                {!u.projectRoles.length && <p className="px-3 py-4 text-sm text-muted-foreground">No project roles. Add the user in a project’s Members tab.</p>}
               </div>
+              <p className="mt-1 text-xs text-muted-foreground">Managed in Project Settings › Members of each project.</p>
             </section>
             <EffectiveAccess key={u.userId} user={u} />
           </div>
@@ -352,17 +325,7 @@ function UserDialog({ userId, onClose, onChanged }: { userId: string; onClose: (
             Close
           </Button>
         </DialogFooter>
-        {editing && u && (
-          <AssignmentDialog
-            title={editing.mode === 'add' ? `Add access for ${u.fullName}` : `Edit ${editing.row.roleName} for ${u.fullName}`}
-            who={u.fullName}
-            initial={editing.mode === 'edit' ? { roleId: editing.row.roleId, scope: editing.row.scope } : undefined}
-            roles={roles.data ?? []}
-            projects={projects}
-            onSave={save}
-            onClose={() => setEditing(undefined)}
-          />
-        )}
+        {changing && u && <ChangeRoleDialog who={u.fullName} roles={roles.data ?? []} initialRoleId={u.merchantRole?.roleId} onSave={saveRole} onClose={() => setChanging(false)} />}
       </DialogContent>
     </Dialog>
   )
@@ -412,7 +375,7 @@ export function UsersPage() {
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold">Users</h1>
-          <p className="text-sm text-muted-foreground">Access is a role and where it applies: All projects (including new ones) or selected projects.</p>
+          <p className="text-sm text-muted-foreground">Each user has one merchant role (all projects); project roles are added in Project › Members.</p>
         </div>
         <Button onClick={() => setInviting(true)}>
           <Plus aria-hidden /> New user

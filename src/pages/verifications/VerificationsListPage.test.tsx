@@ -125,7 +125,9 @@ describe('Verifications List', () => {
     expect(s08.textContent).toMatch(/Ali Bin AhmadYou/)
     expect(s08.textContent).toMatch(/\d+ min left/)
     expect(s08.textContent).toContain('Pending Review') // claim is not a status
-    expect(within(table()).getAllByRole('row').slice(1)).toHaveLength(2)
+    const mine = within(table()).getAllByRole('row').slice(1)
+    expect(mine.length).toBeGreaterThanOrEqual(2) // S07, S08 and any background claim the seed gave Ali
+    for (const r of mine) expect(r.textContent).toMatch(/Ali Bin AhmadYou/)
   })
 
   it('Given filters with no match, then the empty state offers Reset, which brings rows back', async () => {

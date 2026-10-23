@@ -1,11 +1,16 @@
 import { Link, useLocation, useNavigate } from 'react-router'
 import { X } from 'lucide-react'
+import { useAccess } from '@/app/access'
+import { NAV_ITEMS } from '@/app/nav'
 import { LANDING_TAB } from '@/app/tabs'
 import { cn } from '@/lib/utils'
 import { useTabs } from '@/stores/tabsStore'
 
 export function TabStrip() {
-  const tabs = useTabs((s) => s.tabs)
+  const access = useAccess()
+  // REQ: DEC-104 — the pinned Overview tab only for users who may open Overview.
+  const overview = NAV_ITEMS.find((i) => i.path === LANDING_TAB.key)
+  const tabs = useTabs((s) => s.tabs).filter((t) => t.key !== LANDING_TAB.key || !access.ready || access.allows(overview?.access))
   const close = useTabs((s) => s.close)
   const { pathname } = useLocation()
   const navigate = useNavigate()

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router'
 import { useAccess } from '@/app/access'
+import { canInProject } from '@/domain/access'
 import { Pagination } from '@/components/common/Pagination'
 import { EmptyState, ErrorState } from '@/components/common/States'
 import { Button } from '@/components/ui/button'
@@ -20,7 +21,7 @@ const NO_OPTIONS: FilterOptions = { projects: [], flows: [] }
 // REQ: DEC-40 / DEC-43 / DEC-96 — cases across the projects in the header's view ("All my projects" or one project).
 export function VerificationsListPage() {
   const actor = useSession((s) => s.actor)
-  const { inView } = useAccess()
+  const { inView, account } = useAccess()
   const [sp, setSp] = useSearchParams()
   const key = sp.toString()
   const params = useMemo(() => parseListParams(new URLSearchParams(key)), [key])
@@ -131,6 +132,7 @@ export function VerificationsListPage() {
                 showRisk={options.flows.some((f) => f.runsRisk)}
                 showMerchant={new Set(options.projects.map((p) => p.merchantId)).size > 1}
                 sort={params.sort}
+                canOpen={(r) => !!account && canInProject(account, 'viewCaseDetails', r)}
                 onSort={(by) => go({ ...params, sort: nextSort(params.sort, by), page: 1 })} // applies at once, keeps unsaved filters
               />
             )}
