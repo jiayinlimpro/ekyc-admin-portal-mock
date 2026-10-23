@@ -19,13 +19,13 @@ data** before a UAT run.
 
 | # | As | Do | Expected |
 |---|---|---|---|
-| A1 | Tan Mei Ling (`?as=meiling.tan@atoz.example`) | Users › New user | Role starts as Member with the help text; the preview says no access until added to a project; listed as Pending, Access "Member" |
-| A2 | Tan Mei Ling | New user, role Reviewer | Preview: Reviewer permissions "in every project (including new ones)"; Access "Reviewer · All projects" |
+| A1 | Tan Mei Ling (`?as=meiling.tan@atoz.example`) | Users › New user | Merchant role list: Owner, Admin, Billing, Auditor, Member, User Coordinator (no project roles); Member by default with the help text; listed as Pending, Access "Member" |
+| A2 | Tan Mei Ling | New user, merchant role Auditor | Preview: the case list and audit log "in every project (including new ones)", merchant reports for the whole merchant; Access "Auditor · All projects" |
 | A3 | Tan Mei Ling | Project Settings › Members (Default): remove Ali's Reviewer | Ali's claim on S07 is released (audited); Default leaves his project switcher |
 | A4 | Lim Wei Jie (`?as=weijie.lim@ekyc-platform.example`) | Users › Tan Mei Ling: Change role, or Suspend | Both disabled: at least one active Owner is required |
-| A5 | Hafiz (`?as=hafiz.rahman@atoz.example`) | Project Settings › Members (SME app): add Siti as Reviewer | Siti appears; Tan Mei Ling and Lee Jia Hui are listed inherited · read-only; Owner, Admin, Billing, Auditor and Member are not offered |
+| A5 | Hafiz (`?as=hafiz.rahman@atoz.example`) | Project Settings › Members (SME app): add Siti as Reviewer | Project role list: Project Admin, Reviewer, Developer, Viewer, Release Tester (SME app's roles only); Tan Mei Ling and Lee Jia Hui listed inherited · read-only |
 | A6 | Tan Mei Ling | Users › Ali | Merchant role Member with Change role; Project access lists Reviewer · Default and Viewer · SME app (read-only, managed in Members) |
-| A7 | Tan Mei Ling | Roles › Reviewer; then New role | Reviewer read-only (System Default); in New role, ticking Approve / reject ticks Claim / release, View details and View list; unticking View list clears them |
+| A7 | Tan Mei Ling | Roles; then New role | Merchant roles only (Owner … Member, User Coordinator), System Default read-only; New role shows every module; ticking Approve / reject ticks Claim / release, View details and View list |
 | A8 | Tan Mei Ling | Users › Ali › Effective access, choose SME app | View list, View details, Flows View and reports, each "Comes from" Viewer · SME app |
 | A9 | Muthu (`?as=muthu.rajan@atoz.example`) | Open the portal | Billing role: lands on Billing (no Overview tab); no Verifications, Projects or Users in the menu |
 | A10 | Lim Wei Jie | Platform › Super admins | Lim and Nor Aisyah only (not on Users); Suspend disabled on his own row; New admin starts Pending |
@@ -36,6 +36,10 @@ data** before a UAT run.
 | A15 | Lim Wei Jie | Users › New user, Type = Platform | Name, company email and one Staff role (Platform Admin, Support, Implementation, Finance); no merchant scope; a non-company email is refused |
 | A16 | Daniel Tan (`?as=daniel.tan@ekyc-platform.example`) | Open the portal; open any case; Projects › Flows; Integration | Lands on Verifications (Support has no dashboards); the full case page, no masking, audited; flows and keys read-only; no Users, Roles or Merchants |
 | A17 | Tan Mei Ling | Users; Roles; try `/users?user=<Daniel's ID>` | No platform staff or platform roles anywhere; the staff member is "not found" |
+| A18 | Tan Mei Ling | Project Settings › Roles (SME app); then Default | SME app: Project Admin, Reviewer, Developer, Viewer, Release Tester; Default has Fraud Checker instead. New role shows project modules only (no Users, Roles, Billing) |
+| A19 | Tan Mei Ling | Project Settings › Roles (SME app) › Duplicate from another project › Default › Fraud Checker | "Copy of Fraud Checker" opens with its permissions; saved, it exists in SME app only |
+| A20 | Grace Lim (`?as=grace.lim@atoz.example`) | Verifications, All my projects | Auditor + Viewer in SME app: every Atoz case in the list; Reference IDs link only for SME app cases |
+| A21 | Aaron Teoh (`?as=aaron.teoh@atoz.example`) | Users › New user | User Coordinator: he can invite, but the only merchant role he may give is Member; no Change role or Suspend on other users |
 
 | ID | Reference ID | Project › Flow | Scenario | Expected behaviour |
 |---|---|---|---|---|

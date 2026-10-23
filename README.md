@@ -35,7 +35,7 @@ If `npm` scripts are blocked in PowerShell: `Set-ExecutionPolicy -Scope CurrentU
 **Who you are.** There is no real login. Open `/login` and pick a user, use **Dev → Switch user**, or add
 `?as=siti.yusof@atoz.example` to any link (the user's email).
 
-| User | Access: merchant role (Users) · project roles (Members) | Merchant |
+| User | Merchant role (Users) · project roles (Members) | Merchant |
 |---|---|---|
 | Lim Wei Jie (weijie.lim@ekyc-platform.example) | Super admin: everything in every merchant (DEC-75, DEC-99) | — |
 | Nor Aisyah Binti Hamid (aisyah.hamid@ekyc-platform.example) | Super admin (second one, for the Super admins screen) | — |
@@ -47,17 +47,27 @@ If `npm` scripts are blocked in PowerShell: `Set-ExecutionPolicy -Scope CurrentU
 | Tan Mei Ling (meiling.tan@atoz.example) | Owner | Atoz Software Tech |
 | Lee Jia Hui (jiahui.lee@atoz.example) | Admin (users, roles, projects; every project) | Atoz Software Tech |
 | Muthu A/L Rajan (muthu.rajan@atoz.example) | Billing | Atoz Software Tech |
+| Grace Lim (grace.lim@atoz.example) | Auditor · Viewer in SME app (case list everywhere, case pages in SME app only) | Atoz Software Tech |
+| Aaron Teoh (aaron.teoh@atoz.example) | User Coordinator (Custom merchant role: view and invite users, view roles) | Atoz Software Tech |
 | Ali Bin Ahmad (ali.ahmad@atoz.example) | Member · Reviewer in Default, Viewer in SME app | Atoz Software Tech |
 | Siti Aminah Binti Yusof (siti.yusof@atoz.example) | Member · Reviewer in Default | Atoz Software Tech |
+| Zainab Hassan (zainab.hassan@atoz.example) | Member · Fraud Checker in Default (Custom project role) | Atoz Software Tech |
 | Hafiz Bin Rahman (hafiz.rahman@atoz.example) | Member · Project Admin in SME app | Atoz Software Tech |
 | Nurul Huda Binti Kamaruddin (nurul.huda@atoz.example) | Member · Reviewer in SME app | Atoz Software Tech |
 | Kenneth Ooi (kenneth.ooi@atoz.example) | Member · Developer in SME app (keys, no cases) | Atoz Software Tech |
+| Chong Pei Shan (peishan.chong@atoz.example) | Member · Viewer in Default (Pending) | Atoz Software Tech |
+| Yap Li Wen (liwen.yap@atoz.example) | Member · Reviewer in Default (Suspended) | Atoz Software Tech |
 | Ahmad Faiz Bin Zulkifli (faiz.zulkifli@vantage.example) | Owner | Vantage |
-| Kavitha A/P Subramaniam (kavitha.s@vantage.example) | Auditor (case list, no case pages) · Reviewer in Default | Vantage |
+| Kavitha A/P Subramaniam (kavitha.s@vantage.example) | Auditor · Reviewer in Default | Vantage |
+| Wong Kah Heng (kahheng.wong@tesla.example) | Owner | Tesla |
+| Farah Binti Ismail (farah.ismail@boring.example) | Owner | The Boring Company |
+| Ng Chee Keong (cheekeong.ng@3nova.example) | Owner | 3Nova |
+| Lim Siew Mei (siewmei.lim@3nova.example) | Member · Reviewer in Wallet app and in Pilot 2025 (archived, read-only) | 3Nova |
+| Rajesh A/L Muthu (rajesh.muthu@emptydemo.example) | Owner (merchant still Onboarding) | Empty Demo Merchant |
 
-Access (DEC-104): each merchant user has **one merchant role**, given on Users: it applies to the whole merchant and
-all its projects. **Project roles** are given in Project › Members: that project only. **Member** (the default) gives
-nothing by itself. Platform staff have one platform role, for every merchant. No masking: View list, View details,
+Access (DEC-104): two role tables. **Merchant roles** (Roles screen) are given on Users, one per user, and apply to the
+whole merchant and all its projects. **Project roles** (each project's Settings › Roles) are given in Project › Members
+and apply in that project only. **Member** (the default merchant role) gives nothing by itself. Platform staff have one platform role, for every merchant. No masking: View list, View details,
 Claim / release, Approve / reject; every case page open is audited. The header's project switcher picks one project or
 "All my projects", and the menu follows your permissions there.
 
@@ -87,6 +97,7 @@ Claim / release, Approve / reject; every case page open is audited. The header's
 | Merchants | Super admins and staff with Merchants permissions, per the FRS: registration number, country, contact; Onboarding → Active → Suspended → Terminated with reasons (suspension locks the merchant's users out and stops its API keys); never deleted; a new merchant gets a Default project and owner |
 | Super admins / Workflow Registry | Super admin accounts (super admins only); versions and flows using them (read-only with Registry View) |
 | Users / Roles with Type | Super admins create Platform (internal) roles and staff (one role, every merchant); merchant users get one merchant role (Member by default) |
+| Project Settings › Roles | The project's role table: System Default project roles and its own Custom roles; New role, Duplicate from another project |
 
 Values tagged **OPEN QUESTION** are placeholders, not signed-off requirements.
 
