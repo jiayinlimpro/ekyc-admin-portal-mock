@@ -48,19 +48,22 @@ UAT scenarios: `docs/SCENARIOS.md`.
   `fx('PRJ-0001')` / `stableId`, stable across resets). Never sort by ID, never show user / role / audit IDs. A case is
   addressed by `caseId` (`ver_…`); `referenceNo` is the merchant's Reference ID.
 - Only FACE_MATCH and LIVENESS have thresholds: autoReject/autoPass, chosen as a Low/Standard/High preset, or Advanced
-  (custom, super admin or staff with Calibrate). Never per individual metric; granular metrics are never shown. Risk for V4/V5 only.
+  (custom, super admin or staff with Calibrate). Never per individual metric. Every engine metric is shown on the case page with its fixed threshold (DEC-105).
+  Risk for V4/V5 only; categories EXIF / Noise / Email Validity / OSINT.
 - `>= autoPass` → pass; `< autoReject` → reject; between → review. Below autoPass with retries left → retry, case stays
   PROCESSING. Retries used up → the last attempt decides. V4/V5: APPROVED also requires risk pass, else PENDING_REVIEW.
 - "Retries allowed" = retries after the first submission (default 3), face match and liveness only. ID capture and
   selfie retakes are unlimited and free. Tokens = liveness submissions. Retries keep the same referenceNo.
-- PROCESSING records are read-only. Decisions are final (no reopen, no resubmission). Reject needs a reason from the
-  condition catalogue (DEC-35); the note is optional.
+- PROCESSING records are read-only. Decisions are final (no reopen, no resubmission). Reasons come from the project's
+  decision reasons (DEC-106), not the engine conditions (DEC-35): Reject one or more, Approve exactly one; note optional
+  unless the reason requires it (Other).
 - Claim is NOT a status: `claimedBy` / `claimedAt` / `claimExpiresAt`. One owner, per-project timeout, ends only by
   Release, timeout, decision or removal from the project. No supervisor reassign or force-release. Ownership re-checked
   at save.
 - Any project member can view its cases; only the decision buttons enable/disable. No lock on open.
 - List view (View list): name, ref and the DEC-40 columns only; no client metadata, no duplicate-user info
-  (`VerificationSummary`). Detail (View details): full PII + client metadata; every open writes a SENSITIVE_PII_VIEW audit entry.
+  (`VerificationSummary`). Detail (View details): full PII + client metadata + all telemetry + duplicate-user result
+  (information only); every open writes a SENSITIVE_PII_VIEW audit entry.
 - Every mutation writes an audit entry (DEC-42 event names).
 - Config lives on each flow; saving an active flow needs a reason and creates a revision; applies to new sessions only.
 - No Home page; everyone lands on Overview. Overview, System Intelligence and Billing are for every role, data scoped to

@@ -24,8 +24,7 @@ Each question is a **parameter**, not a fact. The mock uses the default below. I
 | OQ-21 | Project data retention period | Not set; shown as a placeholder | Project Settings › General |
 | OQ-22 | Cooldown after a rejection (DEC-26): how is the "same end user" identified, and does the wait apply to this flow only or the whole project? | Same ID document number (NRIC / passport no.), same flow | Flow `cooldownMin`, `flowRules.ts` |
 | OQ-24 | Does the claim timeout run from claim time or from the last activity? (FRS TBC) | From claim time | `claimRules.ts` |
-| OQ-25 | Risk components shown on Verification Detail (DEC-44: "each component's 0–100 score and reason codes"): which components, and which reason codes? | Overall risk score and level only; the components area is labelled OPEN QUESTION | Verification Detail › Risk |
-| OQ-26 | A case in review only because Risk Assessment did not pass (DEC-13): which reason does a reviewer give to Reject it? The DEC-35 catalogue has no risk condition | Any catalogue condition may be chosen | `conditions.REJECT_REASONS` |
+| OQ-25 | Risk categories are EXIF, Noise, Email Validity and OSINT (DEC-105). Which reason codes can each category return, and does a category have its own pass mark? | Sample reason codes per category; no per-category pass mark (only the overall maximum allowed, OQ-05) | `RISK_REASON_CODES` in `src/domain/openQuestions.ts` |
 | OQ-27 | On a project's Members tab (DEC-77), can a user with Manage project members invite someone new, or only add existing users of the merchant? | Existing users only; new people are invited on the Users screen (Manage users and roles) | `userAdminService.addMember` |
 | OQ-28 | Must the merchant always send a Reference ID when creating a session (DEC-97)? If not, does the platform generate one? | Required; the mock always has one | `Verification.referenceNo` |
 | OQ-29 | How long are a Terminated merchant's cases and audit log kept, and are they then archived or deleted? Keeping them is required for compliance; the PDPA says not longer than needed (DEC-98) | Kept; nothing is deleted | — (backend policy) |
@@ -38,7 +37,8 @@ Each question is a **parameter**, not a fact. The mock uses the default below. I
 | OQ-07 | Are retakes charged per attempt? | Tokens per liveness submission; ID capture and selfie retakes are free (DEC-60) |
 | OQ-08 | Can Platform Admin claim and decide? | Yes, changed 2026-10-21 (DEC-75); was No (DEC-70) |
 | OQ-20 | Can internal staff (Platform Admin) view merchant cases for support? (MS OQ-7) | Yes; every open is audited (DEC-75) |
-| OQ-10 | Decision reason code list | Reject: conditions from DEC-35; approve: no code; note optional (DEC-31) |
+| OQ-10 | Decision reason code list | Changed 2026-10-23: per-project decision reasons, Reject one or more, Approve exactly one (DEC-106); was DEC-35 conditions, no approve code |
+| OQ-26 | Which reason rejects a case in review only for risk (DEC-13)? | "Risk not acceptable after review" (DEC-106) |
 | OQ-15 | Which 3 KPIs does the Overview show? | Total Submissions, Auto-Clear Rate, Active Review Queue ([FRS], DEC-85) |
 | OQ-16 | Should user and merchant changes be audited? | Yes (DEC-42) |
 | OQ-23 | Can Platform Admin use Draft registry versions for test flows? | No; Draft versions cannot be chosen by anyone (DEC-56) |

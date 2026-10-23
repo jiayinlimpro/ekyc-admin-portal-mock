@@ -45,8 +45,9 @@ Rules changed on 2026-10-20 (Projects & Flows restructure) are marked **(changed
 ## Automated evaluation
 - **DEC-10** **(changed)** Only two checks have configurable thresholds: **Face match** and **Liveness**, each with an
   Auto-Reject / Auto-Pass pair. ID capture and Selfie have no configurable thresholds; their quality checks are fixed by the
-  engine. Granular metrics (pitch, yaw, sharpness, brightness, face confidence …) are never shown in the portal. Risk
-  Assessment runs for V4 and V5 only. [MS][FRS][PO 2026-10-19]
+  engine. **(changed 2026-10-23)** Every engine metric (pitch, yaw, sharpness, brightness, face confidence …) is now
+  **shown** on Verification Detail with its fixed threshold (DEC-105), but still never configurable. Risk Assessment runs for
+  V4 and V5 only. [MS][FRS][PO 2026-10-19][PO 2026-10-23]
 - **DEC-11** For face match and liveness: score `>= autoPass` → pass; `< autoReject` → reject band; in between → review band.
 - **DEC-12** When every check has a final result, they combine: any reject → `REJECTED`; otherwise any review →
   `PENDING_REVIEW`; otherwise all pass. *(Precedence is OQ-01 and is configurable.)*
@@ -90,12 +91,14 @@ Rules changed on 2026-10-20 (Projects & Flows restructure) are marked **(changed
 ## Decisions
 - **DEC-30** **(changed)** Approve ("Confirm Manual Pass") and **Reject** are enabled only for the claim holder on a
   `PENDING_REVIEW` case; `lastUpdatedBy` = the reviewer. Everyone else sees the case read-only with the buttons disabled. [MS][FRS]
-- **DEC-31** **(changed)** Reject requires at least one reason from the DEC-35 failure conditions. Approve needs no reason
-  code. The note is optional for both. [MS][PO 2026-10-20]
+- **DEC-31** **(changed again by DEC-106)** Reject requires **one or more decision reasons**; Approve requires **exactly
+  one**. The reasons come from the project's decision reason list (DEC-106), not from the DEC-35 conditions. The note is
+  optional, except for a reason marked "note required" (e.g. Other). [MS][PO 2026-10-20][PO 2026-10-23]
 - **DEC-32** Decisions are final: no reopen, no "Request Resubmission".
 - **DEC-33** `PROCESSING` records are read-only.
 - **DEC-35** Condition catalogue. **(new)** [PO 2026-10-20] Used for the reason banner on Verification Detail
-  (`PENDING_REVIEW` / `REJECTED`), the Top-5 failure reasons charts and the Reject reason list.
+  (`PENDING_REVIEW` / `REJECTED`) and the Top-5 failure reasons charts. They are produced by the engine and fixed; a
+  reviewer's reasons are the separate decision reasons (DEC-106).
 
   | Stage | Condition |
   |---|---|
@@ -112,9 +115,33 @@ Rules changed on 2026-10-20 (Projects & Flows restructure) are marked **(changed
   | Liveness | Liveness face does not match ID face (Retry Allowed) · (Retry Not Allowed) |
   | Liveness | All stages passed — success, not a failure |
 
-  - The **record-only** condition never changes the status, is never shown on the list or detail screens ([MS]: no
-    duplicate-user information) and is not a Reject reason.
+  - The **record-only** condition never changes the status and is never shown on the list ([MS]: no duplicate-user
+    information). **(changed 2026-10-23)** Verification Detail shows the duplicate-user result for information (DEC-105).
+    It is not a decision reason; "Duplicate identity" in DEC-106 is the reviewer's own finding.
   - "(Retry Allowed)" conditions keep the case `PROCESSING`; "(Retry Not Allowed)" conditions are the final reason (DEC-16).
+- **DEC-106** **(new)** Decision reasons [PO 2026-10-23]. What a reviewer picks on Approve or Reject. Separate from the
+  DEC-35 conditions (what the engine found), so reviewer choices can be analysed on their own.
+  - **Per project.** Managed in **Project Settings › Review operations**, card "Decision reasons", with the Project
+    settings · Edit permission (no new permission). Changes are audited as `PROJECT_SETTING_CHANGED`.
+  - **System Default reasons** are the same in every project, with stable codes so reports compare across merchants. They
+    are locked: a project can **turn one off**, never rename or delete it.
+
+    | Outcome | Group | Reason (code) |
+    |---|---|---|
+    | Reject | Document | Type not accepted (`DOC_TYPE_NOT_ACCEPTED`) · Expired (`DOC_EXPIRED`) · Unclear: blur, glare, cropped (`DOC_UNCLEAR`) · Not original: photocopy, screen (`DOC_NOT_ORIGINAL`) · Tampered or forged (`DOC_TAMPERED`) · Data inconsistent, e.g. NRIC vs date of birth (`DOC_DATA_INCONSISTENT`) |
+    | Reject | Face & liveness | Face doesn't match ID (`FACE_MISMATCH`) · Spoof suspected: photo, mask, screen, deepfake (`SPOOF_SUSPECTED`) · Face not clearly visible (`FACE_NOT_VISIBLE`) |
+    | Reject | Identity & eligibility | Details don't match what the customer submitted (`DETAILS_MISMATCH`) · Below minimum age (`UNDERAGE`) · Nationality or residency not accepted (`NATIONALITY_NOT_ACCEPTED`) |
+    | Reject | Fraud & risk | Duplicate identity: same person, different ID (`DUPLICATE_IDENTITY`) · Risk not acceptable after review (`RISK_NOT_ACCEPTABLE`) · Other fraud indicators (`OTHER_FRAUD`) |
+    | Reject | Other | Other (`REJECT_OTHER`, note required) |
+    | Approve | — | Face confirmed by reviewer, e.g. old ID photo (`FACE_CONFIRMED`) · Image quality low but identity confirmed (`QUALITY_LOW_IDENTITY_CONFIRMED`) · Risk signals reviewed and accepted (`RISK_ACCEPTED`) · Existing user is the same person, re-onboarding (`SAME_PERSON_REONBOARDING`) · Other (`APPROVE_OTHER`, note required) |
+
+  - **Custom reasons:** add (outcome Reject or Approve, a Reject group, name, "note required"), rename, turn off or on.
+    Never deleted, because past decisions refer to them. The code is generated (`CUSTOM_…`) and never shown for editing.
+    Names are unique per project and outcome.
+  - **Decision panel:** Reject = one or more active Reject reasons; Approve = exactly one active Approve reason. The note
+    is optional unless a chosen reason requires it. A turned-off reason is not offered; past decisions keep their reasons.
+    Every outcome keeps at least one active reason (the "Other" reasons can't be turned off).
+  - The case stores the reasons chosen (code and name at the time); the decision audit entry records them.
 
 ## Visibility, PII & audit
 - **DEC-40** **(changed)** Verifications List columns: Reference ID, Full Name, Project (when more than one project is in view),
@@ -160,6 +187,46 @@ Rules changed on 2026-10-20 (Projects & Flows restructure) are marked **(changed
   soft rejects) · Selfie (V1 only: image, result) · Face match (result, threshold applied, score, retries used / allowed) ·
   Liveness (result, threshold applied, retries used / allowed, cooldown applied) · Risk (V4/V5: each component's 0–100 score
   and reason codes, overall) · Rules applied (settings snapshot at session start) · Activity timeline. [MS]
+  **(layout and content changed by DEC-105)**
+- **DEC-105** **(new)** Verification Detail layout and content [PO 2026-10-23]. Replaces the section list of DEC-44; the
+  original Axure page and the DEC-44 page are combined ("hybrid").
+  - **Header strip:** Reference ID, status, case ID (copy) · Project › Flow · workflow version and preset (e.g. "V4 ·
+    High") and configuration revision · Created · Source (SDK and OS from the client metadata) · Audit trail link. The
+    claim bar sits directly under it.
+  - **Reason banner** (`PENDING_REVIEW` / `REJECTED`): the DEC-35 condition plus **target vs actual**, e.g. "Auto-Reject
+    < 75 · Auto-Pass ≥ 85 · Actual 83.5".
+  - **Row 1, three columns:** (1) **Evidence**: the document front and the face that was matched (selfie for V1, the
+    liveness face for V3/V4/V5) side by side, with the similarity badge; (2) **Extracted data (OCR)**, titled with the
+    document type (email for V4/V5); (3) **Checks and telemetry** and **Risk**.
+  - **Decision panel:** sticky on the right on wide screens; full width under the content on narrow screens. Buttons
+    "Confirm Manual Pass" and "Reject" (DEC-30); never "Maintain Automated Rejection".
+  - **Below the fold:** Attempts (each attempt's scores, metrics and images), Rules applied, Activity, Client metadata.
+  - **Every number is shown** to everyone who can open the page (View details), per attempt. Each metric shows its value,
+    its threshold, pass / fail, and whether the threshold is **set by the flow** (face match, liveness: DEC-10/19) or
+    **fixed by the engine**. Engine thresholds live in `ENGINE_THRESHOLDS` (`src/domain/telemetry.ts`):
+
+    | Stage | Metric | Engine threshold |
+    |---|---|---|
+    | ID capture | Faces found | exactly 1 |
+    | ID capture | Face confidence (a face was detected) | ≥ 90 |
+    | ID capture | Eyes open · Face covered | open · not covered |
+    | ID capture | Image size | ≥ 320 × 320 px |
+    | ID capture | OCR fields detected | every field the document type needs (DEC-35) |
+    | Selfie (V1) | Face confidence · Eyes open · Face covered | ≥ 90 · open · not covered |
+    | Selfie (V1) | Sharpness · Brightness | > 25 · > 25 |
+    | Selfie (V1) | Yaw · Pitch | within ±30° · within ±30° |
+    | Selfie (V1) | Face size | ≥ 50 px |
+    | Face match | Similarity (ID face vs selfie for V1, vs liveness face for V3/V4/V5) | flow band |
+    | Face match | Matched face confidence | > 90 |
+    | Liveness | Liveness confidence | flow band |
+
+  - "**Face confidence**" (a face was detected) and "**Similarity**" (two faces match) always have different labels and are
+    never placed as if they were the same kind of number.
+  - **Duplicate user:** "New user", or "Existing user found" with the match similarity (≥ 90 = existing). Shown for
+    information only: it never changes a check, the status or the decision buttons, and it stays off the list (DEC-40).
+  - **Risk** (V4/V5): overall level, overall score, maximum allowed (flow), pass / fail, and every category with its 0–100
+    score and reason codes. Categories: **EXIF Score**, **Noise Score**, **Email Validity Score**, **OSINT Score**. The
+    reason codes per category are OQ-25.
 
 ## Configuration
 - **DEC-50** **(changed)** Settings live on each **flow** (Flow Detail). The form shows only what applies to the flow's version:
@@ -605,7 +672,8 @@ These keep the mock runnable. They are not signed-off requirements; change them 
 | DEC-15/16 | Attempt limit → always `PENDING_REVIEW` "Attempt limit reached – [Phase]" | DEC-15, DEC-16 |
 | DEC-18 | Retry KPI counts all user retakes | DEC-18 |
 | DEC-22 | Claim timeout per merchant; ends by Cancel, timeout or decision | DEC-22 |
-| DEC-31 | Reason code and audit comment required for both decisions | DEC-31 |
+| DEC-31 | Reason code and audit comment required for both decisions; then (2026-10-20) Reject reasons = DEC-35 conditions, no Approve reason | DEC-31, DEC-106 |
+| DEC-10 / DEC-35 | Granular metrics and duplicate-user information never shown | Shown on Verification Detail (DEC-105) |
 | DEC-42 | `PII_VIEW`, `CLAIM`, `CLAIM_RELEASE`, `CLAIM_TIMEOUT`, `DECISION`, `OWNERSHIP_CONFLICT`, `CONFIG_*`, `CREDENTIAL_ROTATION` | DEC-42 |
 | DEC-50/51 | One config per merchant, Save Draft / Discard / Deploy | DEC-50, DEC-51 |
 | DEC-60 | Charged once when the user enters the flow | DEC-60 |
