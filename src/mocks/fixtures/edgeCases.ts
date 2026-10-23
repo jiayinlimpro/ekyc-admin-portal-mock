@@ -160,7 +160,7 @@ export function buildEdgeCases(ctx: { now: Date; catalog: Catalog }): {
   const s11 = out.findIndex((v) => v.referenceNo === 'KYC-260901-900011')
   const decidedAt = ago(10)
   const claimed = claimFor(out[s11], ali, 14)
-  const decision = { outcome: 'APPROVE' as const, note: 'Liveness frame and MyKad photo compared side by side; same person.' }
+  const decision = { outcome: 'APPROVE' as const, reasonCodes: ['FACE_CONFIRMED'], note: 'Liveness frame and MyKad photo compared side by side; same person.' }
   out[s11] = applyDecision(claimed, ali, decision, decidedAt)
   audit.push(
     makeAudit({

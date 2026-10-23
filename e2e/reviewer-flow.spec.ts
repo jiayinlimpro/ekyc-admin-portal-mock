@@ -19,6 +19,7 @@ test('reviewer finds an unclaimed pending record, claims it, approves it, and th
 
   const decision = page.getByRole('region', { name: 'Decision' })
   await decision.getByText('Confirm Manual Pass').click()
+  await decision.getByLabel('Face confirmed by reviewer (e.g. old ID photo)').check() // REQ: DEC-106 — Approve needs one reason
   await decision.getByLabel(/Note/).fill('E2E: selfie matches MyKad photo.')
   await decision.getByRole('button', { name: 'Save decision' }).click()
   await page.getByRole('button', { name: 'Confirm Approved' }).click()

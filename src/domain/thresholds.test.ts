@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { CONDITIONS, REJECT_REASONS, VISIBLE_CONDITIONS, checkCondition } from './conditions'
+import { CONDITIONS, VISIBLE_CONDITIONS, checkCondition } from './conditions'
 import { THRESHOLD_PRESETS } from './openQuestions'
 import { bandSegments, describeBands, matchingPreset, resolveThreshold } from './thresholds'
 
@@ -41,15 +41,8 @@ describe('condition catalogue (DEC-35)', () => {
     expect(CONDITIONS.filter((c) => c.recordOnly).map((c) => c.id)).toEqual(['EXISTING_USER'])
   })
 
-  it('Given the existing-user condition, then it is never shown and never a Reject reason (record-only)', () => {
+  it('Given the existing-user condition, then it is not among the reasons a case shows (record-only; DEC-105 shows the result itself)', () => {
     expect(VISIBLE_CONDITIONS.some((c) => c.id === 'EXISTING_USER')).toBe(false)
-    expect(REJECT_REASONS.some((c) => c.id === 'EXISTING_USER')).toBe(false)
-  })
-
-  it('Given the Reject list, then failures only, without "(Retry Allowed)" variants (DEC-31)', () => {
-    expect(REJECT_REASONS.every((c) => c.kind === 'FAILURE' && c.retry !== 'ALLOWED')).toBe(true)
-    expect(REJECT_REASONS.map((c) => c.id)).toContain('NOT_LIVE')
-    expect(REJECT_REASONS.map((c) => c.id)).toContain('PASSPORT_MRZ')
   })
 
   it('Given a check below Auto-Pass, then the condition follows the face match method and whether a retry is allowed', () => {

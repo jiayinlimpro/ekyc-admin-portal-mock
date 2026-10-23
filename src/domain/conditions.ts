@@ -48,12 +48,6 @@ export function conditionById(id: string): Condition | undefined {
 /** Shown to reviewers and in charts: everything except record-only conditions. */
 export const VISIBLE_CONDITIONS: readonly Condition[] = CONDITIONS.filter((c) => !c.recordOnly)
 
-/**
- * REQ: DEC-31 — the Reject reason list: failures that can end a case. Leaves out record-only conditions and the
- * "(Retry Allowed)" variants, which never end a case.
- */
-export const REJECT_REASONS: readonly Condition[] = CONDITIONS.filter((c) => c.kind === 'FAILURE' && !c.recordOnly && c.retry !== 'ALLOWED')
-
 /** The condition for a face match or liveness result below Auto-Pass, with or without retries left. */
 export function checkCondition(check: Check, faceMatchMethod: FaceMatchMethod, retryAllowed: boolean): Condition {
   const id =

@@ -38,7 +38,9 @@ function metric(label: string): string[] {
   return [...row.querySelectorAll('td')].map((td) => td.textContent ?? '')
 }
 
-function fillDecision(outcome: RegExp, reasons: string[], note: string) {
+const FACE_CONFIRMED = 'Face confirmed by reviewer (e.g. old ID photo)'
+
+function fillDecision(outcome: RegExp, reasons: (string | RegExp)[], note: string) {
   fireEvent.click(decision().getByLabelText(outcome))
   for (const r of reasons) fireEvent.click(decision().getByLabelText(r))
   fireEvent.change(decision().getByLabelText(/Note/), { target: { value: note } })
@@ -53,7 +55,7 @@ beforeEach(async () => {
 afterEach(cleanup)
 
 describe('Verification Detail', () => {
-  it('Given S03 unclaimed, when Ali assigns, confirms Manual Pass with reason + comment, then APPROVED by Ali and final', async () => {
+  it('Given S03 unclaimed, when Ali assigns, confirms Manual Pass with an approve reason + note, then APPROVED by Ali and final (DEC-106)', async () => {
     await open(S(3))
     expect(await audit(S(3), ['SENSITIVE_PII_VIEW'])).toEqual(['SENSITIVE_PII_VIEW']) // DEC-41: opening logs the view
     expect(decision().getByRole('status').textContent).toBe('Assign to me to review')
@@ -61,7 +63,8 @@ describe('Verification Detail', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Assign to me' }))
     await screen.findByText('You are reviewing this record.')
 
-    fillDecision(/Confirm Manual Pass/, [], 'Compared selfie with MyKad photo.')
+    fillDecision(/Confirm Manual Pass/, [FACE_CONFIRMED], 'Compared selfie with MyKad photo.')
+    expect(within(await screen.findByRole('list', { name: 'Chosen reasons' })).getByText(FACE_CONFIRMED)).toBeTruthy()
     fireEvent.click(await screen.findByRole('button', { name: 'Confirm Approved' }))
 
     await screen.findByText(/Decision is final — Ali Bin Ahmad\b/)
@@ -76,16 +79,24 @@ describe('Verification Detail', () => {
     expect(decision().getByText('Choose an outcome.')).toBeTruthy()
     fireEvent.click(decision().getByLabelText(/^Reject/))
     expect(decision().getByText('Choose at least one reason.')).toBeTruthy()
+    fireEvent.click(decision().getByLabelText(/Confirm Manual Pass/)) // switching outcome clears the reasons
+    expect(decision().getByText('Choose a reason.')).toBeTruthy()
+    fireEvent.click(decision().getByLabelText(/^Other/))
+    expect(decision().getByText('(required)')).toBeTruthy()
+    fireEvent.click(decision().getByRole('button', { name: 'Save decision' }))
+    expect(decision().getByText(/^Add a note: “Other” needs one\./)).toBeTruthy()
     expect(screen.queryByRole('dialog')).toBeNull()
   })
 
-  it('Given Reject with two catalogue reasons and no note, then REJECTED with those reasons, audited (DEC-31, DEC-35)', async () => {
+  it('Given Reject offers the project’s reasons by group, including its own; two chosen with a note, then REJECTED with them, audited (DEC-106)', async () => {
     await open(S(7))
-    fillDecision(/^Reject/, ['Face not live (Retry Not Allowed)', 'No word detected'], '')
+    fireEvent.click(decision().getByLabelText(/^Reject/))
+    expect(within(decision().getByRole('group', { name: 'Fraud & risk' })).getByLabelText(/^Customer on internal watchlist/)).toBeTruthy() // Atoz Default’s Custom reason
+    fillDecision(/^Reject/, ['Spoof suspected (photo, mask, screen, deepfake)', /^Customer on internal watchlist/], 'Matches a watchlist entry.')
     fireEvent.click(await screen.findByRole('button', { name: 'Confirm Rejected' }))
     await screen.findByText(/Decision is final — Ali Bin Ahmad/)
     expect(await audit(S(7), ['CASE_DECISION_REJECTED'])).toEqual(['CASE_DECISION_REJECTED'])
-    expect(screen.getAllByText(/Face not live \(Retry Not Allowed\); No word detected/).length).toBeGreaterThan(0)
+    expect(screen.getAllByText(/Spoof suspected \(photo, mask, screen, deepfake\); Customer on internal watchlist/).length).toBeGreaterThan(0)
   })
 
   it('Given S09 is claimed by Siti, then Ali can view but the overlay says who holds it and there is no Assign button (S09)', async () => {
@@ -247,7 +258,7 @@ describe('Verification Detail', () => {
     useDevFlags.setState({ uiClaimChecks: false })
     await open(S(8))
     act(() => useDevFlags.getState().advanceTime(minutes(11)))
-    fillDecision(/Confirm Manual Pass/, [], 'Looks fine.')
+    fillDecision(/Confirm Manual Pass/, [FACE_CONFIRMED], 'Looks fine.')
     fireEvent.click(await screen.findByRole('button', { name: 'Confirm Approved' }))
     await screen.findByText('Your claim expired. No changes saved.')
     expect(screen.getAllByText('Pending Review').length).toBeGreaterThan(0)

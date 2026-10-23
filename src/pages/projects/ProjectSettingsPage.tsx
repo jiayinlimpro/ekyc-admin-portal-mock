@@ -22,6 +22,7 @@ import { useSession } from '@/stores/sessionStore'
 import { IntegrationTab } from './IntegrationTab'
 import { MembersTab } from './MembersTab'
 import { ProjectRolesTab } from './ProjectRolesTab'
+import { DecisionReasonsCard } from './DecisionReasonsCard'
 import { Card } from './settingsUi'
 import { PROJECT_SETTINGS_ACTIONS } from '@/app/nav'
 
@@ -101,7 +102,7 @@ function GeneralTab({ project, canEdit, onSaved }: { project: Project; canEdit: 
   )
 }
 
-// REQ: DEC-22 / DEC-53 — auto-release claim timeout per project.
+// REQ: DEC-22 / DEC-53 / DEC-106 — auto-release claim timeout and decision reasons, per project.
 function ReviewTab({ project, canEdit, onSaved }: { project: Project; canEdit: boolean; onSaved: () => void }) {
   const actor = useSession((s) => s.actor)
   // REQ: DEC-53 — entered in whole minutes; sent (and shown in grey) as seconds.
@@ -120,7 +121,8 @@ function ReviewTab({ project, canEdit, onSaved }: { project: Project; canEdit: b
     }
   }
   return (
-    <Card title="Review operations">
+    <div className="space-y-4">
+      <Card title="Review operations">
       <div className="max-w-sm space-y-3">
         <FormField id="r-timeout" label="Auto-release claim timeout (minutes)" error={error} hint={`Claims end by Release, this timeout, a decision, or removal from the project. Reviewers are warned ${DEFAULT_CLAIM_WARNING_MIN} min before expiry.`}>
           <div className="flex items-center gap-3">
@@ -138,7 +140,9 @@ function ReviewTab({ project, canEdit, onSaved }: { project: Project; canEdit: b
           <ReadOnlyNote>Read-only for your role.</ReadOnlyNote>
         )}
       </div>
-    </Card>
+      </Card>
+      <DecisionReasonsCard project={project} canEdit={canEdit} onSaved={onSaved} />
+    </div>
   )
 }
 

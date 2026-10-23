@@ -7,15 +7,19 @@
 //   POST  /projects/{id}/archive      archive  → 200 Project | 403 | 422 VALIDATION
 //   PATCH /projects/{id}/general      updateGeneral    → 200 Project (branding, language)
 //   PATCH /projects/{id}/review-ops   updateClaimTimeout → 200 Project
+//   POST  /projects/{id}/decision-reasons                 addDecisionReason       → 200 Project | 403 | 422 VALIDATION
+//   PATCH /projects/{id}/decision-reasons/{code}          updateDecisionReason    → 200 Project | 403 | 404 | 422
+//   POST  /projects/{id}/decision-reasons/{code}/status   setDecisionReasonActive → 200 Project | 403 | 404 | 422
 import { canInMerchant, canInProject, hasProject, isInternal, roleNamesInProject, type ProjectAction } from '@/domain/access'
 import { makeAudit } from '@/domain/audit'
 import { createFlow } from '@/domain/flowSettings'
 import { archiveError, IN_FLIGHT_STATUSES, validateProjectName } from '@/domain/flowRules'
+import { canTurnOff, customCode, reasonsOf, REJECT_GROUP_LABELS, validateReasonInput, type ReasonInput } from '@/domain/decisionReasons'
 import { DEFAULT_CLAIM_TIMEOUT_SEC } from '@/domain/openQuestions'
 import { claimTimeoutError, diffSettings, PROJECT_SETTING_DEFAULTS, validateGeneral, type GeneralSettings } from '@/domain/projectSettings'
 import { defaultVersion } from '@/domain/registryRules'
 import { coversProject, grantsOf } from '@/domain/roles'
-import type { Actor, AuditAction, Project, RuleError } from '@/domain/types'
+import type { Actor, AuditAction, DecisionReason, Project, ProjectDecisionReasons, RuleError } from '@/domain/types'
 import { now } from '@/lib/clock'
 import { db } from '@/mocks/mockDb'
 import { accountOf, projectById, requireActive, roleIn } from './accessGuard'
@@ -52,6 +56,12 @@ export interface ProjectService {
   /** REQ: DEC-22 / DEC-53 — applies to claims made from now on. */
   /** REQ: DEC-53 — seconds, at least 60 (the screen sends whole minutes × 60). */
   updateClaimTimeout(projectId: string, claimTimeoutSec: number, actor: Actor): Promise<Project>
+  /** REQ: DEC-106 — a Custom decision reason; its code is generated. */
+  addDecisionReason(projectId: string, input: ReasonInput, actor: Actor): Promise<Project>
+  /** REQ: DEC-106 — rename a Custom reason, or change its group or "note required"; the outcome stays. */
+  updateDecisionReason(projectId: string, code: string, input: Omit<ReasonInput, 'outcome'>, actor: Actor): Promise<Project>
+  /** REQ: DEC-106 — turn a reason on or off (System Default ones too); "Other" stays on. */
+  setDecisionReasonActive(projectId: string, code: string, active: boolean, actor: Actor): Promise<Project>
 }
 
 export const validation = (errors: RuleError[]) => new ServiceError('VALIDATION', errors[0].message, errors)
@@ -94,6 +104,22 @@ export function saveSettings(actor: Actor, p: Project, patch: Partial<Project>):
   db.setState((st) => ({ projects: st.projects.map((x) => (x.projectId === p.projectId ? { ...x, ...patch } : x)) }))
   auditProject(actor, 'PROJECT_SETTING_CHANGED', p, { changes })
   return wire(projectById(p.projectId)!)
+}
+
+const reasonLabel = (r: Pick<DecisionReason, 'outcome' | 'group'>) => `${r.outcome === 'REJECT' ? 'Reject' : 'Approve'}${r.group ? ` · ${REJECT_GROUP_LABELS[r.group]}` : ''}`
+
+/** REQ: DEC-106 / DEC-42 — saves the project's decision reasons and audits each change as a project setting. */
+function saveReasons(actor: Actor, p: Project, next: ProjectDecisionReasons, changes: { field: string; from: string; to: string }[]): Project {
+  db.setState((st) => ({ projects: st.projects.map((x) => (x.projectId === p.projectId ? { ...x, decisionReasons: next } : x)) }))
+  auditProject(actor, 'PROJECT_SETTING_CHANGED', p, { changes })
+  return wire(projectById(p.projectId)!)
+}
+
+function editableReasons(actor: Actor, projectId: string): Project {
+  requireActive(actor)
+  const p = loadProject(actor, projectId)
+  requireInProject(actor, 'manageProjectSettings', p, 'change project settings')
+  return p
 }
 
 export const mockProjectService: ProjectService = {
@@ -227,6 +253,58 @@ export const mockProjectService: ProjectService = {
     const error = claimTimeoutError(claimTimeoutSec)
     if (error) throw validation([{ field: 'claimTimeoutSec', message: error }])
     return saveSettings(actor, p, { claimTimeoutSec })
+  },
+
+  async addDecisionReason(projectId, input, actor) {
+    await simulateNetwork('add decision reason')
+    const p = editableReasons(actor, projectId)
+    const all = reasonsOf(p.decisionReasons)
+    const errors = validateReasonInput(input, all)
+    if (errors.length) throw validation(errors)
+    const reason: DecisionReason = {
+      code: customCode(input.name, all),
+      name: input.name.trim(),
+      outcome: input.outcome,
+      group: input.outcome === 'REJECT' ? input.group : undefined,
+      noteRequired: input.noteRequired,
+      system: false,
+      active: true,
+    }
+    return saveReasons(actor, p, { ...p.decisionReasons, custom: [...p.decisionReasons.custom, reason] }, [{ field: 'Decision reason added', from: '—', to: `${reason.name} (${reasonLabel(reason)})` }])
+  },
+
+  async updateDecisionReason(projectId, code, input, actor) {
+    await simulateNetwork('update decision reason')
+    const p = editableReasons(actor, projectId)
+    const r = p.decisionReasons.custom.find((x) => x.code === code)
+    if (!r) {
+      if (reasonsOf(p.decisionReasons).some((x) => x.code === code)) throw validation([{ field: 'name', message: 'System Default reasons can’t be edited; turn it off and add your own instead.' }])
+      throw new ServiceError('NOT_FOUND', `Decision reason ${code} not found.`)
+    }
+    const errors = validateReasonInput({ ...input, outcome: r.outcome }, reasonsOf(p.decisionReasons), code)
+    if (errors.length) throw validation(errors)
+    const next: DecisionReason = { ...r, name: input.name.trim(), group: r.outcome === 'REJECT' ? input.group : undefined, noteRequired: input.noteRequired }
+    const changes = [
+      ...(next.name !== r.name ? [{ field: 'Decision reason name', from: r.name, to: next.name }] : []),
+      ...(next.group !== r.group ? [{ field: `Decision reason “${next.name}” group`, from: reasonLabel(r), to: reasonLabel(next) }] : []),
+      ...(next.noteRequired !== r.noteRequired ? [{ field: `Decision reason “${next.name}” note required`, from: r.noteRequired ? 'Yes' : 'No', to: next.noteRequired ? 'Yes' : 'No' }] : []),
+    ]
+    if (!changes.length) return wire(p)
+    return saveReasons(actor, p, { ...p.decisionReasons, custom: p.decisionReasons.custom.map((x) => (x.code === code ? next : x)) }, changes)
+  },
+
+  async setDecisionReasonActive(projectId, code, active, actor) {
+    await simulateNetwork('turn decision reason on or off')
+    const p = editableReasons(actor, projectId)
+    const r = reasonsOf(p.decisionReasons).find((x) => x.code === code)
+    if (!r) throw new ServiceError('NOT_FOUND', `Decision reason ${code} not found.`)
+    if (!active && !canTurnOff(r)) throw validation([{ field: 'active', message: '“Other” stays on, so every outcome always has a reason.' }])
+    if (r.active === active) return wire(p)
+    const cfg = p.decisionReasons
+    const next: ProjectDecisionReasons = r.system
+      ? { ...cfg, disabledSystemCodes: active ? cfg.disabledSystemCodes.filter((c) => c !== code) : [...cfg.disabledSystemCodes, code] }
+      : { ...cfg, custom: cfg.custom.map((x) => (x.code === code ? { ...x, active } : x)) }
+    return saveReasons(actor, p, next, [{ field: `Decision reason “${r.name}” (${reasonLabel(r)})`, from: r.active ? 'On' : 'Off', to: active ? 'On' : 'Off' }])
   },
 }
 

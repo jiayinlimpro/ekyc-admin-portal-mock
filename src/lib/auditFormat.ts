@@ -22,7 +22,7 @@ export function summarizeAudit(e: AuditEntry): string {
     case 'CASE_DECISION_APPROVED':
     case 'CASE_DECISION_REJECTED': {
       const outcome = d.outcome === 'APPROVE' ? 'Approved' : d.outcome === 'REJECT' ? 'Rejected' : String(d.outcome)
-      const reasons = str(d.reasons) // REJECT only (DEC-31)
+      const reasons = str(d.reasons) // decision reason names (DEC-106)
       return `${str(d.fromStatus) ?? '?'} → ${outcome}${reasons ? ` · ${reasons}` : ''}${str(d.note) ? ` · “${str(d.note)}”` : ''}`
     }
     case 'CASE_DECISION_BLOCKED':

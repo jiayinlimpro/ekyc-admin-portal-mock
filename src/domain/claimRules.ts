@@ -1,6 +1,8 @@
 // Claim lifecycle and decision rules. Pure functions: every rule takes `now` explicitly.
-import { REJECT_REASONS } from './conditions'
-import type { Actor, Decision, Verification } from './types'
+import { decisionError, reasonRefs, SYSTEM_DECISION_REASONS } from './decisionReasons'
+import type { Actor, Decision, DecisionReason, Verification } from './types'
+
+export { NOTE_MAX } from './decisionReasons'
 
 export type ClaimErrorCode =
   | 'FORBIDDEN'
@@ -87,24 +89,17 @@ export function decisionOverlayState(v: Verification, actor: Pick<Actor, 'userId
   return { enabled: true, showCancel: true }
 }
 
-export const NOTE_MAX = 500
-
-// REQ: DEC-31 — Reject needs at least one reason from the condition catalogue; Approve none; the note is optional.
-export function validateDecision(d: Decision): RuleResult<Decision> {
-  if ((d.note?.length ?? 0) > NOTE_MAX) return fail('VALIDATION', `The note can be at most ${NOTE_MAX} characters.`)
-  if (d.outcome === 'REJECT') {
-    if (!d.reasonIds.length) return fail('VALIDATION', 'Choose at least one reason for the rejection.')
-    if (d.reasonIds.some((id) => !REJECT_REASONS.some((r) => r.id === id))) return fail('VALIDATION', 'Unknown rejection reason.')
-  }
-  return { ok: true, value: d }
+// REQ: DEC-31 / DEC-106 — checked against the reasons of the case's project (their active state included).
+export function validateDecision(d: Decision, reasons: readonly DecisionReason[]): RuleResult<Decision> {
+  const error = decisionError(d, reasons)
+  return error ? fail('VALIDATION', error) : { ok: true, value: d }
 }
 
-export const MANUAL_PASS_REASON = 'Confirmed manual pass by reviewer'
-
-/** The case's reason after a manual decision: the chosen conditions for a Reject (DEC-35). */
-export function decisionReason(d: Decision): string {
-  if (d.outcome === 'APPROVE') return MANUAL_PASS_REASON
-  return d.reasonIds.map((id) => REJECT_REASONS.find((r) => r.id === id)?.label ?? id).join('; ')
+/** The case's reason after a manual decision: the names of the chosen decision reasons (DEC-106). */
+export function decisionReason(d: Decision, reasons: readonly DecisionReason[] = SYSTEM_DECISION_REASONS): string {
+  return reasonRefs(d.reasonCodes, reasons)
+    .map((r) => r.name)
+    .join('; ')
 }
 
 // REQ: DEC-24 — re-checked against the record as it is at save time.
@@ -122,12 +117,13 @@ export function checkOwnershipAtSave(v: Verification, actor: Actor, now: Date): 
 }
 
 // REQ: DEC-30 / DEC-03 — a decision changes status, so lastUpdatedBy/At change; the claim ends.
-export function applyDecision(v: Verification, actor: Pick<Actor, 'userId' | 'fullName'>, d: Decision, now: Date): Verification {
+export function applyDecision(v: Verification, actor: Pick<Actor, 'userId' | 'fullName'>, d: Decision, now: Date, reasons: readonly DecisionReason[] = SYSTEM_DECISION_REASONS): Verification {
   return {
     ...v,
     ...CLEARED_CLAIM,
     status: d.outcome === 'APPROVE' ? 'APPROVED' : 'REJECTED',
-    statusReason: decisionReason(d),
+    statusReason: decisionReason(d, reasons),
+    decidedReasons: reasonRefs(d.reasonCodes, reasons), // REQ: DEC-106 — names as they were at the time
     statusDetail: undefined, // the automated detail no longer explains the status
     lastUpdatedBy: { kind: 'USER', userId: actor.userId, fullName: actor.fullName },
     lastUpdatedAt: now.toISOString(),

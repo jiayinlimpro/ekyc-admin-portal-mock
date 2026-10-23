@@ -167,6 +167,7 @@ export interface Verification {
   submissions: Partial<Record<Check, number[]>> // scores per check, in submission order
   idCaptureSoftRejects: number // ID capture retakes: unlimited, free, not counted as retries (DEC-18)
   statusDetail?: string // e.g. "Auto-Reject < 70 · Auto-Pass ≥ 85 · Actual 78"
+  decidedReasons?: DecisionReasonRef[] // REQ: DEC-106 — set by a manual decision
 }
 
 // REQ: DEC-40 — list rows carry no PII beyond name/ref, no client metadata and no duplicate-user information.
@@ -210,6 +211,7 @@ export type VerificationDetail = Verification & {
   checks: CheckEvaluation[] // face match / liveness: threshold applied, result, retries used / allowed
   newCaseAllowedAt?: string // REJECTED with a cooldown (DEC-26)
   activity: CaseActivity[]
+  reasonOptions: DecisionReason[] // REQ: DEC-106 — the project's active decision reasons, for the decision panel
 }
 
 export interface RiskConfig {
@@ -234,8 +236,40 @@ export interface Merchant {
 }
 
 // REQ: DEC-30 / DEC-31 — "Confirm Manual Pass" needs no reason code; "Reject" needs one or more DEC-35 failure conditions
-// (ids from conditions.REJECT_REASONS). The note is optional for both.
-export type Decision = { outcome: 'APPROVE'; note?: string } | { outcome: 'REJECT'; reasonIds: string[]; note?: string }
+// (codes from the project's decision reasons, DEC-106): Reject one or more, Approve exactly one. The note is optional
+// unless a chosen reason requires it.
+export type DecisionOutcome = 'APPROVE' | 'REJECT'
+export interface Decision {
+  outcome: DecisionOutcome
+  reasonCodes: string[]
+  note?: string
+}
+
+// REQ: DEC-106 — what a reviewer picks; separate from the engine's conditions (DEC-35).
+export const REJECT_REASON_GROUPS = ['DOCUMENT', 'FACE_LIVENESS', 'IDENTITY', 'FRAUD_RISK', 'OTHER'] as const
+export type RejectReasonGroup = (typeof REJECT_REASON_GROUPS)[number]
+
+export interface DecisionReason {
+  code: string // stable: System Default codes are shared by every project; Custom ones are generated (CUSTOM_…)
+  name: string
+  outcome: DecisionOutcome
+  group?: RejectReasonGroup // Reject reasons only
+  noteRequired: boolean
+  system: boolean // System Default: locked, can only be turned off
+  active: boolean
+}
+
+/** Stored per project: which System Default reasons are off, and the project's own reasons. */
+export interface ProjectDecisionReasons {
+  disabledSystemCodes: string[]
+  custom: DecisionReason[] // never deleted (past decisions refer to them)
+}
+
+/** The reasons a decision was saved with, as named at the time. */
+export interface DecisionReasonRef {
+  code: string
+  name: string
+}
 
 // REQ: DEC-42 — event names, grouped as in DECISIONS.md.
 export const AUDIT_ACTION_GROUPS = {
@@ -302,6 +336,7 @@ export interface Project {
   redirectUrls: string[]
   allowedOrigins: string[]
   ipAllowlist: string[] // IPv4 or CIDR
+  decisionReasons: ProjectDecisionReasons // REQ: DEC-106 — Project Settings › Review operations
 }
 
 /** REQ: DEC-54 — an API key of one project. The secret is shown once, when created or rotated; only a hint is kept. */

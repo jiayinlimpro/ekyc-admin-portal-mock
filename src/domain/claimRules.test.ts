@@ -13,6 +13,7 @@ import {
   validateDecision,
 } from './claimRules'
 import type { Verification } from './types'
+import { SYSTEM_DECISION_REASONS } from './decisionReasons'
 
 const cfg = { claimWarningMin: 5 }
 const ctx = { mayClaim: true, claimTimeoutSec: 30 * 60 }
@@ -146,28 +147,43 @@ describe('save-time ownership check (DEC-24)', () => {
   })
 })
 
-describe('decisions (DEC-03, DEC-30, DEC-31)', () => {
-  it('Given Approve with no reason and no note, then valid: Approve needs no reason code and the note is optional', () => {
-    expect(validateDecision({ outcome: 'APPROVE' }).ok).toBe(true)
+describe('decisions (DEC-03, DEC-30, DEC-31, DEC-106)', () => {
+  const reasons = SYSTEM_DECISION_REASONS
+  it('Given Approve, then exactly one Approve reason; the note is optional', () => {
+    expect(validateDecision({ outcome: 'APPROVE', reasonCodes: [] }, reasons)).toMatchObject({ ok: false, message: 'Choose a reason for the approval.' })
+    expect(validateDecision({ outcome: 'APPROVE', reasonCodes: ['FACE_CONFIRMED', 'RISK_ACCEPTED'] }, reasons)).toMatchObject({ ok: false, message: 'Choose one reason for the approval.' })
+    expect(validateDecision({ outcome: 'APPROVE', reasonCodes: ['FACE_CONFIRMED'] }, reasons).ok).toBe(true)
   })
 
-  it('Given Reject without a reason, or with one outside the catalogue, then VALIDATION', () => {
-    expect(validateDecision({ outcome: 'REJECT', reasonIds: [] })).toMatchObject({ ok: false, message: 'Choose at least one reason for the rejection.' })
-    expect(validateDecision({ outcome: 'REJECT', reasonIds: ['NOT_LIVE_RETRY'] })).toMatchObject({ ok: false, message: 'Unknown rejection reason.' }) // never ends a case
-    expect(validateDecision({ outcome: 'REJECT', reasonIds: ['EXISTING_USER'] }).ok).toBe(false) // record-only
-    expect(validateDecision({ outcome: 'REJECT', reasonIds: ['NOT_LIVE', 'PASSPORT_MRZ'] }).ok).toBe(true)
+  it('Given Reject without a reason, or with an engine condition or an Approve reason, then VALIDATION', () => {
+    expect(validateDecision({ outcome: 'REJECT', reasonCodes: [] }, reasons)).toMatchObject({ ok: false, message: 'Choose at least one reason for the rejection.' })
+    expect(validateDecision({ outcome: 'REJECT', reasonCodes: ['NOT_LIVE'] }, reasons)).toMatchObject({ ok: false, message: 'Unknown reason.' }) // DEC-35 conditions are not decision reasons
+    expect(validateDecision({ outcome: 'REJECT', reasonCodes: ['FACE_CONFIRMED'] }, reasons).ok).toBe(false)
+    expect(validateDecision({ outcome: 'REJECT', reasonCodes: ['SPOOF_SUSPECTED', 'DOC_TAMPERED'] }, reasons).ok).toBe(true)
+  })
+
+  it('Given "Other" without a note, then VALIDATION; with a note, valid', () => {
+    expect(validateDecision({ outcome: 'REJECT', reasonCodes: ['REJECT_OTHER'] }, reasons)).toMatchObject({ ok: false, message: 'Add a note: “Other” needs one.' })
+    expect(validateDecision({ outcome: 'APPROVE', reasonCodes: ['APPROVE_OTHER'], note: '  ' }, reasons).ok).toBe(false)
+    expect(validateDecision({ outcome: 'APPROVE', reasonCodes: ['APPROVE_OTHER'], note: 'Verified by video call' }, reasons).ok).toBe(true)
+  })
+
+  it('Given a reason turned off in the project, then VALIDATION', () => {
+    const off = reasons.map((r) => (r.code === 'UNDERAGE' ? { ...r, active: false } : r))
+    expect(validateDecision({ outcome: 'REJECT', reasonCodes: ['UNDERAGE'] }, off)).toMatchObject({ ok: false, message: '“Below minimum age” is turned off in this project.' })
   })
 
   it('Given a note over 500 characters, then VALIDATION', () => {
-    expect(validateDecision({ outcome: 'APPROVE', note: 'x'.repeat(501) }).ok).toBe(false)
+    expect(validateDecision({ outcome: 'APPROVE', reasonCodes: ['FACE_CONFIRMED'], note: 'x'.repeat(501) }, reasons).ok).toBe(false)
   })
 
-  it('When Ali approves, then APPROVED, lastUpdatedBy = Ali, lastUpdatedAt = now, claim cleared', () => {
+  it('When Ali approves, then APPROVED with the reason, lastUpdatedBy = Ali, lastUpdatedAt = now, claim cleared', () => {
     const later = at(minutes(5))
-    const v = applyDecision(claimedBy(ALI, 10, { statusDetail: 'Auto-Reject < 70 · Auto-Pass ≥ 85 · Actual 78' }), ALI, { outcome: 'APPROVE' }, later)
+    const v = applyDecision(claimedBy(ALI, 10, { statusDetail: 'Auto-Reject < 70 · Auto-Pass ≥ 85 · Actual 78' }), ALI, { outcome: 'APPROVE', reasonCodes: ['FACE_CONFIRMED'] }, later)
     expect(v).toMatchObject({
       status: 'APPROVED',
-      statusReason: 'Confirmed manual pass by reviewer',
+      statusReason: 'Face confirmed by reviewer (e.g. old ID photo)',
+      decidedReasons: [{ code: 'FACE_CONFIRMED', name: 'Face confirmed by reviewer (e.g. old ID photo)' }],
       statusDetail: undefined,
       lastUpdatedBy: { kind: 'USER', userId: ALI.userId, fullName: ALI.fullName },
       lastUpdatedAt: later.toISOString(),
@@ -176,8 +192,8 @@ describe('decisions (DEC-03, DEC-30, DEC-31)', () => {
     })
   })
 
-  it('When Ali rejects, then REJECTED with the chosen conditions as the reason (DEC-35)', () => {
-    const v = applyDecision(claimedBy(ALI, 10), ALI, { outcome: 'REJECT', reasonIds: ['NOT_LIVE', 'PASSPORT_MRZ'] }, NOW)
-    expect(v).toMatchObject({ status: 'REJECTED', statusReason: 'Face not live (Retry Not Allowed); Unable to detect the 2 lines MRZ field in passport image' })
+  it('When Ali rejects, then REJECTED with the chosen reasons as the reason (DEC-106)', () => {
+    const v = applyDecision(claimedBy(ALI, 10), ALI, { outcome: 'REJECT', reasonCodes: ['SPOOF_SUSPECTED', 'DOC_TAMPERED'] }, NOW)
+    expect(v).toMatchObject({ status: 'REJECTED', statusReason: 'Spoof suspected (photo, mask, screen, deepfake); Document tampered or forged' })
   })
 })

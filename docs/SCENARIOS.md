@@ -41,6 +41,8 @@ data** before a UAT run.
 | A20 | Grace Lim (`?as=grace.lim@atoz.example`) | Verifications, All my projects | Auditor + Viewer in SME app: every Atoz case in the list; Reference IDs link only for SME app cases |
 | A22 | Rizal Hakim (`?as=rizal.hakim@ekyc-platform.example`) | Users (filter Vantage); Roles; Project Settings › Members of Vantage Default | Platform Admin: manages Vantage's users, merchant roles, project roles and members; Daniel (Support) has none of these |
 | A21 | Aaron Teoh (`?as=aaron.teoh@atoz.example`) | Users › New user | User Coordinator: he can invite, giving only Member or his own User Coordinator role (nothing he doesn't hold, DEC-74); no Change role or Suspend on other users |
+| A23 | Tan Mei Ling, project Default | Project Settings › Review operations › Decision reasons | System Default reasons have no Edit and only a switch; "Other" is always on; Atoz's own "Customer on internal watchlist" (Reject, note required) and "Identity confirmed by video call" (Approve) can be edited. Turn off "Below minimum age" → it is no longer offered on S10; audited as a project setting (DEC-106) |
+| A24 | Ali Bin Ahmad (`?as=ali.ahmad@atoz.example`) | S10: Assign to me, then Decision | Reject: reasons by group, one or more; Confirm Manual Pass: exactly one reason; choosing "Other" makes the note required. On Vantage cases (Kavitha) "Nationality or residency not accepted" is not offered (turned off there) (DEC-106) |
 
 | ID | Reference ID | Project › Flow | Scenario | Expected behaviour |
 |---|---|---|---|---|

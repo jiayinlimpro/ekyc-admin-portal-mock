@@ -3,9 +3,9 @@ import { CheckCircle2, XCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Textarea } from '@/components/ui/textarea'
-import { decisionOverlayState, NOTE_MAX, validateDecision, type OverlayState } from '@/domain/claimRules'
-import { REJECT_REASONS } from '@/domain/conditions'
-import type { Actor, Decision, VerificationDetail } from '@/domain/types'
+import { decisionOverlayState, NOTE_MAX, type OverlayState } from '@/domain/claimRules'
+import { decisionError, REJECT_GROUP_LABELS } from '@/domain/decisionReasons'
+import { REJECT_REASON_GROUPS, type Actor, type Decision, type DecisionReason, type VerificationDetail } from '@/domain/types'
 import { cn } from '@/lib/utils'
 
 type Outcome = Decision['outcome']
@@ -16,8 +16,16 @@ const OUTCOMES: { value: Outcome; label: string; result: string; icon: typeof Ch
   { value: 'REJECT', label: 'Reject', result: 'Rejected', icon: XCircle },
 ]
 
-/** Reject reasons grouped by stage, in catalogue order (DEC-35). */
-const REASON_GROUPS = [...new Set(REJECT_REASONS.map((r) => r.stage))].map((stage) => ({ stage, reasons: REJECT_REASONS.filter((r) => r.stage === stage) }))
+/** REQ: DEC-106 — the project's active Reject reasons, by group (Document, Face & liveness, …). */
+const rejectGroups = (options: readonly DecisionReason[]) =>
+  REJECT_REASON_GROUPS.map((g) => ({ label: REJECT_GROUP_LABELS[g], reasons: options.filter((r) => r.outcome === 'REJECT' && r.group === g) })).filter((g) => g.reasons.length)
+
+const ReasonName = ({ r }: { r: DecisionReason }) => (
+  <span>
+    {r.name}
+    {r.noteRequired && <span className="text-xs text-muted-foreground"> · note required</span>}
+  </span>
+)
 
 /** With dev "Skip UI claim checks" on, the form opens whenever the record is reviewable, so the save hits the service check. */
 function overlayState(v: VerificationDetail, actor: Actor, now: Date, uiClaimChecks: boolean, mayDecide: boolean): OverlayState & { devBypass?: boolean } {
@@ -26,7 +34,8 @@ function overlayState(v: VerificationDetail, actor: Actor, now: Date, uiClaimChe
   return { enabled: true, devBypass: true, showClaim: s.showClaim }
 }
 
-// REQ: DEC-30 / DEC-31 / DEC-32 — only the active claim owner on PENDING_REVIEW; Reject needs a reason; note optional; final.
+// REQ: DEC-30 / DEC-31 / DEC-32 / DEC-106 — only the active claim owner on PENDING_REVIEW; Reject one or more reasons,
+// Approve exactly one; the note is optional unless a chosen reason needs it; final.
 export function DecisionOverlay({
   v,
   actor,
@@ -48,16 +57,22 @@ export function DecisionOverlay({
   const state = overlayState(v, actor, now, uiClaimChecks, mayDecide)
   // Kept when the overlay disables (e.g. claim expired mid-typing, OQ-13), so nothing typed is lost.
   const [outcome, setOutcome] = useState<Outcome>()
-  const [reasonIds, setReasonIds] = useState<string[]>([])
+  const [reasonCodes, setReasonCodes] = useState<string[]>([])
   const [note, setNote] = useState('')
   const [confirming, setConfirming] = useState(false)
   const [touched, setTouched] = useState(false)
 
   const trimmed = note.trim() || undefined
-  const decision: Decision | undefined = outcome === 'APPROVE' ? { outcome, note: trimmed } : outcome === 'REJECT' ? { outcome, reasonIds, note: trimmed } : undefined
-  const invalid = !decision || !validateDecision(decision).ok
+  const decision: Decision | undefined = outcome ? { outcome, reasonCodes, note: trimmed } : undefined
+  const error = decision ? decisionError(decision, v.reasonOptions) : 'Choose an outcome.'
   const chosen = OUTCOMES.find((o) => o.value === outcome)
-  const toggleReason = (id: string) => setReasonIds((ids) => (ids.includes(id) ? ids.filter((x) => x !== id) : [...ids, id]))
+  const chosenReasons = reasonCodes.map((c) => v.reasonOptions.find((r) => r.code === c)!).filter(Boolean)
+  const noteRequired = chosenReasons.some((r) => r.noteRequired)
+  const toggleReason = (code: string) => setReasonCodes((cs) => (cs.includes(code) ? cs.filter((x) => x !== code) : [...cs, code]))
+  const pickOutcome = (o: Outcome) => {
+    if (o !== outcome) setReasonCodes([]) // reasons belong to one outcome
+    setOutcome(o)
+  }
 
   const confirm = async () => {
     if (!decision) return
@@ -65,7 +80,7 @@ export function DecisionOverlay({
     setConfirming(false)
     if (ok) {
       setOutcome(undefined)
-      setReasonIds([])
+      setReasonCodes([])
       setNote('')
       setTouched(false)
     }
@@ -84,7 +99,7 @@ export function DecisionOverlay({
         onSubmit={(e) => {
           e.preventDefault()
           setTouched(true)
-          if (!invalid) setConfirming(true)
+          if (!error) setConfirming(true)
         }}
       >
         {!state.enabled && (
@@ -111,7 +126,7 @@ export function DecisionOverlay({
                     on && (o.value === 'APPROVE' ? 'border-green-500 bg-green-50 dark:bg-green-500/10' : 'border-red-500 bg-red-50 dark:bg-red-500/10'),
                   )}
                 >
-                  <input type="radio" name="outcome" value={o.value} checked={on} onChange={() => setOutcome(o.value)} className="sr-only" />
+                  <input type="radio" name="outcome" value={o.value} checked={on} onChange={() => pickOutcome(o.value)} className="sr-only" />
                   <Icon className={cn('size-4', o.value === 'APPROVE' ? 'text-green-600' : 'text-red-600')} aria-hidden />
                   <span className="flex-1">
                     <span className="block font-medium">{o.label}</span>
@@ -125,27 +140,45 @@ export function DecisionOverlay({
           {outcome === 'REJECT' && (
             <fieldset aria-describedby="d-reasons-hint">
               <legend className="mb-1 text-xs font-medium text-muted-foreground">Reasons for rejection</legend>
-              <div className="max-h-56 space-y-2 overflow-y-auto rounded-md border p-2">
-                {REASON_GROUPS.map((g) => (
-                  <div key={g.stage} role="group" aria-label={g.stage}>
-                    <div className="text-[11px] font-medium tracking-wide text-muted-foreground uppercase">{g.stage}</div>
+              <div className="max-h-64 space-y-2 overflow-y-auto rounded-md border p-2">
+                {rejectGroups(v.reasonOptions).map((g) => (
+                  <div key={g.label} role="group" aria-label={g.label}>
+                    <div className="text-[11px] font-medium tracking-wide text-muted-foreground uppercase">{g.label}</div>
                     {g.reasons.map((r) => (
-                      <label key={r.id} className="flex items-start gap-2 py-0.5 text-sm">
-                        <input type="checkbox" className="mt-1" checked={reasonIds.includes(r.id)} onChange={() => toggleReason(r.id)} />
-                        <span>{r.label}</span>
+                      <label key={r.code} className="flex items-start gap-2 py-0.5 text-sm">
+                        <input type="checkbox" className="mt-1" checked={reasonCodes.includes(r.code)} onChange={() => toggleReason(r.code)} />
+                        <ReasonName r={r} />
                       </label>
                     ))}
                   </div>
                 ))}
               </div>
-              <p id="d-reasons-hint" className={cn('mt-1 text-xs', touched && !reasonIds.length ? 'text-destructive' : 'text-muted-foreground')}>
-                {touched && !reasonIds.length ? 'Choose at least one reason.' : `${reasonIds.length} selected · from the condition catalogue (DEC-35)`}
+              <p id="d-reasons-hint" className={cn('mt-1 text-xs', touched && !reasonCodes.length ? 'text-destructive' : 'text-muted-foreground')}>
+                {touched && !reasonCodes.length ? 'Choose at least one reason.' : `${reasonCodes.length} selected · one or more`}
+              </p>
+            </fieldset>
+          )}
+          {outcome === 'APPROVE' && (
+            <fieldset aria-describedby="d-reasons-hint">
+              <legend className="mb-1 text-xs font-medium text-muted-foreground">Reason for approval</legend>
+              <div role="radiogroup" aria-label="Reason for approval" className="space-y-1 rounded-md border p-2">
+                {v.reasonOptions
+                  .filter((r) => r.outcome === 'APPROVE')
+                  .map((r) => (
+                    <label key={r.code} className="flex items-start gap-2 py-0.5 text-sm">
+                      <input type="radio" name="approve-reason" className="mt-1" checked={reasonCodes[0] === r.code} onChange={() => setReasonCodes([r.code])} />
+                      <ReasonName r={r} />
+                    </label>
+                  ))}
+              </div>
+              <p id="d-reasons-hint" className={cn('mt-1 text-xs', touched && !reasonCodes.length ? 'text-destructive' : 'text-muted-foreground')}>
+                {touched && !reasonCodes.length ? 'Choose a reason.' : 'One reason: why the flagged case is acceptable'}
               </p>
             </fieldset>
           )}
           <div>
             <label htmlFor="d-note" className="mb-1 block text-xs font-medium text-muted-foreground">
-              Note <span className="font-normal">(optional)</span>
+              Note <span className="font-normal">{noteRequired ? '(required)' : '(optional)'}</span>
             </label>
             <Textarea
               id="d-note"
@@ -154,10 +187,11 @@ export function DecisionOverlay({
               rows={3}
               onChange={(e) => setNote(e.target.value)}
               aria-describedby="d-note-hint"
+              aria-invalid={touched && noteRequired && !trimmed ? true : undefined}
               placeholder="What did you check?"
             />
-            <p id="d-note-hint" className="mt-1 text-xs text-muted-foreground">
-              Saved to the audit log. {note.length}/{NOTE_MAX}
+            <p id="d-note-hint" className={cn('mt-1 text-xs', touched && noteRequired && !trimmed ? 'text-destructive' : 'text-muted-foreground')}>
+              {touched && noteRequired && !trimmed ? `Add a note: “${chosenReasons.find((r) => r.noteRequired)!.name}” needs one.` : 'Saved to the audit log.'} {note.length}/{NOTE_MAX}
             </p>
           </div>
           <Button type="submit" className="w-full">
@@ -175,6 +209,13 @@ export function DecisionOverlay({
             <DialogDescription>
               {v.referenceNo} will be set to <strong>{chosen?.result}</strong> with you as Last Updated By. Decisions are final and cannot be reopened.
             </DialogDescription>
+            {chosenReasons.length > 0 && (
+              <ul className="list-disc space-y-0.5 pl-5 text-sm" aria-label="Chosen reasons">
+                {chosenReasons.map((r) => (
+                  <li key={r.code}>{r.name}</li>
+                ))}
+              </ul>
+            )}
           </DialogHeader>
           <DialogFooter>
             <Button variant="outline" disabled={busy} onClick={() => setConfirming(false)}>

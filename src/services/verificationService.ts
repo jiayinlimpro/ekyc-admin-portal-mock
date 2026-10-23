@@ -8,6 +8,7 @@
 // REQ: DEC-97 — cases are addressed by their case ID (ver_…); the Reference ID is the merchant's and only searched.
 import { makeAudit } from '@/domain/audit'
 import { applyDecision, checkOwnershipAtSave, decisionReason, claim as claimRule, isClaimActive, release as releaseRule, validateDecision } from '@/domain/claimRules'
+import { activeReasons, reasonsOf } from '@/domain/decisionReasons'
 import { evaluateCase } from '@/domain/checkRules'
 import { newCaseAllowedAt, revisionLabel } from '@/domain/flowRules'
 import { hasRisk } from '@/domain/registryRules'
@@ -152,6 +153,7 @@ function toDetail(v: Verification): VerificationDetail {
     checks: ev.checks,
     newCaseAllowedAt: v.status === 'REJECTED' ? newCaseAllowedAt(v.lastUpdatedAt, settings.cooldownMin)?.toISOString() : undefined,
     activity: activityOf(v),
+    reasonOptions: activeReasons(projectById(v.projectId)!.decisionReasons), // REQ: DEC-106
   })
 }
 
@@ -271,26 +273,28 @@ export const mockVerificationService: VerificationService = {
     return toDetail(updated)
   },
 
-  // REQ: DEC-24 / DEC-30 / DEC-31
+  // REQ: DEC-24 / DEC-30 / DEC-31 / DEC-106
   async decide(caseId, actor, d) {
     await simulateNetwork('save decision')
     requireActive(actor)
-    const valid = validateDecision(d)
-    if (!valid.ok) throw new ServiceError(valid.code, valid.message)
     const at = now()
     // Re-read at save time. Check ownership BEFORE sweeping, so an expired claim of the actor's own is recognised.
     const v = load(caseId, actor)
     if (!mayInProject(actor, 'decideCase', v.projectId)) throw new ServiceError('FORBIDDEN', 'You do not have review permission for this project.')
+    // REQ: DEC-106 — the reasons of the case's project, as they are now (a reason turned off meanwhile is refused).
+    const reasons = reasonsOf(projectById(v.projectId)!.decisionReasons)
+    const valid = validateDecision(d, reasons)
+    if (!valid.ok) throw new ServiceError(valid.code, valid.message)
     const owner = checkOwnershipAtSave(v, actor, at)
     if (!owner.ok) {
       sweepExpiredClaims(at) // writes CASE_CLAIM_EXPIRED first if the claim just expired
       audit(actor, 'CASE_DECISION_BLOCKED', v, at, { attempted: d.outcome, reason: owner.message })
       throw new ServiceError(owner.code, owner.message)
     }
-    const updated = db.updateVerification(caseId, (x) => applyDecision(x, actor, d, at))
+    const updated = db.updateVerification(caseId, (x) => applyDecision(x, actor, d, at, reasons))
     audit(actor, d.outcome === 'APPROVE' ? 'CASE_DECISION_APPROVED' : 'CASE_DECISION_REJECTED', updated, at, {
       ...d,
-      reasons: d.outcome === 'REJECT' ? decisionReason(d) : undefined,
+      reasons: decisionReason(d, reasons),
       fromStatus: v.status,
       toStatus: updated.status,
       fromReason: v.statusReason,

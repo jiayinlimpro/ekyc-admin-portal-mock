@@ -34,6 +34,7 @@ const project = (overrides: Partial<Project> = {}): Project => ({
   redirectUrls: [],
   allowedOrigins: [],
   ipAllowlist: [],
+  decisionReasons: { disabledSystemCodes: [], custom: [] },
   ...overrides,
 })
 

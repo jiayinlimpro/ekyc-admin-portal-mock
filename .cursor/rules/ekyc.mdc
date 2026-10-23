@@ -74,7 +74,7 @@ UAT scenarios: `docs/SCENARIOS.md`.
 ## Layout
 ```
 src/domain/     types, openQuestions, roles (permissions, assignments, grant rules), access (actions → permissions),
-                checkRules (status), claimRules, conditions,
+                checkRules (status), claimRules, conditions (engine), decisionReasons (reviewer), telemetry,
                 thresholds, flowSettings, flowRules, flowImpact (what-if), registryRules, projectSettings, dashboards, audit
 src/mocks/      malaysia.ts, builders.ts, seed.ts, mockDb.ts, fixtures/ (catalog: registry/projects/flows, merchants,
                 users: accounts, edgeCases: S01–S20)

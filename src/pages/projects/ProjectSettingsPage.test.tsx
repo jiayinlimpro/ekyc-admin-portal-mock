@@ -90,6 +90,35 @@ describe('Project Settings (DEC-54, DEC-96)', () => {
     await waitFor(() => expect(db.state().projects.find((x) => x.projectId === fx('PRJ-0001'))!.claimTimeoutSec).toBe(1200))
   })
 
+  it('Given Decision reasons, then System Default reasons only turn off, "Other" stays on, and a Custom reason can be added and edited (DEC-106)', async () => {
+    useSession.getState().selectProject(fx('PRJ-0001'))
+    renderAt('/project-settings?tab=review')
+    const p = await panel()
+    const reject = within(p.getByRole('table', { name: 'Reject reasons' }))
+    const row = (t: typeof reject, name: string) => within(t.getByRole('rowheader', { name }).closest('tr')!)
+    expect(row(reject, 'Customer on internal watchlist').getByText('Custom')).toBeTruthy()
+    expect(row(reject, 'Below minimum age').queryByRole('button', { name: /Edit/ })).toBeNull() // System Default: locked
+    expect((row(reject, 'Other').getByRole('switch') as HTMLButtonElement).disabled).toBe(true)
+    expect(row(reject, 'Other').getByText('Always on')).toBeTruthy()
+
+    fireEvent.click(row(reject, 'Below minimum age').getByRole('switch'))
+    await waitFor(() => expect(db.state().projects.find((x) => x.projectId === fx('PRJ-0001'))!.decisionReasons.disabledSystemCodes).toEqual(['UNDERAGE']))
+
+    fireEvent.click(p.getByRole('button', { name: /New reason/ }))
+    const dialog = within(await screen.findByRole('dialog'))
+    fireEvent.click(dialog.getByLabelText('Approve'))
+    fireEvent.change(dialog.getByLabelText('Name'), { target: { value: 'Branch staff met the customer' } })
+    fireEvent.click(dialog.getByRole('button', { name: 'Add reason' }))
+    const approve = within((await panel()).getByRole('table', { name: 'Approve reasons' }))
+    expect(await approve.findByRole('rowheader', { name: 'Branch staff met the customer' })).toBeTruthy()
+
+    fireEvent.click(approve.getByRole('button', { name: 'Edit Identity confirmed by video call' }))
+    const edit = within(await screen.findByRole('dialog'))
+    fireEvent.change(edit.getByLabelText('Name'), { target: { value: 'Branch staff met the customer' } })
+    fireEvent.click(edit.getByRole('button', { name: 'Save' }))
+    expect(await edit.findByText('An Approve reason with this name already exists.')).toBeTruthy()
+  })
+
   it('Given Routing, then the default flow and the passport rule are shown read-only (DEC-95)', async () => {
     useSession.getState().selectProject(fx('PRJ-0001'))
     renderAt('/project-settings?tab=routing')

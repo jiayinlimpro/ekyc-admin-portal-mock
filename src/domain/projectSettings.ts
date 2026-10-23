@@ -5,12 +5,13 @@ export const LANGUAGES = { en: 'English', ms: 'Bahasa Melayu' } as const
 export type Language = keyof typeof LANGUAGES
 
 /** A new project inherits branding and language from the merchant (blank) and has no URLs or allowlist yet. */
-export const PROJECT_SETTING_DEFAULTS: Pick<Project, 'branding' | 'language' | 'redirectUrls' | 'allowedOrigins' | 'ipAllowlist'> = {
+export const PROJECT_SETTING_DEFAULTS: Pick<Project, 'branding' | 'language' | 'redirectUrls' | 'allowedOrigins' | 'ipAllowlist' | 'decisionReasons'> = {
   branding: {},
   language: undefined,
   redirectUrls: [],
   allowedOrigins: [],
   ipAllowlist: [],
+  decisionReasons: { disabledSystemCodes: [], custom: [] }, // REQ: DEC-106 — every System Default reason on
 }
 
 export type GeneralSettings = Pick<Project, 'branding' | 'language'>

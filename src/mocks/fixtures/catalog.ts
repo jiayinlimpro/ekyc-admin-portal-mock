@@ -75,9 +75,18 @@ const PROJECTS: ProjectSpec[] = [
     projectId: fx('PRJ-0001'), merchantId: fx('MER-0001'), name: 'Default', status: 'ACTIVE', isDefault: true, defaultFlowId: fx('FLW-0001'), claimTimeoutSec: 1800, createdDaysAgo: 400, createdBy: 'SYSTEM',
     branding: { primaryColor: '#1D4ED8' }, language: 'en',
     redirectUrls: ['https://app.atoz.example/kyc/done'], allowedOrigins: ['https://app.atoz.example'], ipAllowlist: ['203.0.113.0/24'],
+    // REQ: DEC-106 — the project's own reasons (codes generated when added).
+    decisionReasons: {
+      disabledSystemCodes: [],
+      custom: [
+        { code: 'CUSTOM_CUSTOMER_ON_INTERNAL_WATCHLIST', name: 'Customer on internal watchlist', outcome: 'REJECT', group: 'FRAUD_RISK', noteRequired: true, system: false, active: true },
+        { code: 'CUSTOM_CONFIRMED_BY_VIDEO_CALL', name: 'Identity confirmed by video call', outcome: 'APPROVE', noteRequired: false, system: false, active: true },
+      ],
+    },
   },
   { projectId: fx('PRJ-0002'), merchantId: fx('MER-0001'), name: 'SME app', status: 'ACTIVE', isDefault: false, defaultFlowId: fx('FLW-0004'), claimTimeoutSec: 2700, createdDaysAgo: 60, createdBy: 'Tan Mei Ling' },
-  { projectId: fx('PRJ-0003'), merchantId: fx('MER-0002'), name: 'Default', status: 'ACTIVE', isDefault: true, defaultFlowId: fx('FLW-0005'), claimTimeoutSec: 1800, createdDaysAgo: 400, createdBy: 'SYSTEM' },
+  // Vantage onboards every nationality, so that System Default reason is off (DEC-106).
+  { projectId: fx('PRJ-0003'), merchantId: fx('MER-0002'), name: 'Default', status: 'ACTIVE', isDefault: true, defaultFlowId: fx('FLW-0005'), claimTimeoutSec: 1800, createdDaysAgo: 400, createdBy: 'SYSTEM', decisionReasons: { disabledSystemCodes: ['NATIONALITY_NOT_ACCEPTED'], custom: [] } },
   { projectId: fx('PRJ-0004'), merchantId: fx('MER-0003'), name: 'Default', status: 'ACTIVE', isDefault: true, defaultFlowId: fx('FLW-0006'), claimTimeoutSec: 1800, createdDaysAgo: 300, createdBy: 'SYSTEM' },
   { projectId: fx('PRJ-0005'), merchantId: fx('MER-0004'), name: 'Default', status: 'ACTIVE', isDefault: true, defaultFlowId: fx('FLW-0007'), claimTimeoutSec: 1200, createdDaysAgo: 300, createdBy: 'SYSTEM' },
   { projectId: fx('PRJ-0006'), merchantId: fx('MER-0005'), name: 'Default', status: 'ACTIVE', isDefault: true, defaultFlowId: fx('FLW-0009'), claimTimeoutSec: 1800, createdDaysAgo: 250, createdBy: 'SYSTEM' },

@@ -5,7 +5,6 @@ import { grantsOf } from '@/domain/roles'
 import { makeAudit } from '@/domain/audit'
 import { RISK_NOT_PASSED } from '@/domain/checkRules'
 import { applyDecision } from '@/domain/claimRules'
-import { CONDITIONS, REJECT_REASONS } from '@/domain/conditions'
 import { resolveThreshold, type Thresholds } from '@/domain/thresholds'
 import type { Actor, AuditEntry, Check, Decision, Flow, ProjectApiKey, ProjectWebhook, FlowRevision, Merchant, Project, RegistryEntry, Role, UserAccount, Verification } from '@/domain/types'
 import { buildCase, refNo } from './builders'
@@ -19,7 +18,7 @@ import { fx, stableId } from '@/lib/ids'
 export const SEED = 2026
 export const BACKGROUND_COUNT = 300
 /** Bump when the shape of MockDbState changes: persisted demo data is then re-seeded. */
-export const DB_VERSION = 19
+export const DB_VERSION = 20
 
 export interface MockDbState {
   dbVersion: number
@@ -103,14 +102,13 @@ function riskScore(f: Faker): number {
   return f.number.int({ min: band[0], max: band[1] })
 }
 
-// REQ: DEC-31 — a reviewer rejecting keeps the condition that sent the case to review; risk-only cases have no matching
-// condition in the catalogue (OQ-26), so one is picked.
+// REQ: DEC-31 / DEC-106 — the reviewer's reason follows what sent the case to review (a System Default reason).
 function decisionFor(f: Faker, reason: string | undefined): Decision {
   const approve = f.number.float({ min: 0, max: 1 }) < (reason === RISK_NOT_PASSED ? 0.5 : 0.6)
   const withNote = f.number.float({ min: 0, max: 1 }) < 0.5
-  if (approve) return { outcome: 'APPROVE', note: withNote ? 'Checked document and liveness manually; consistent.' : undefined }
-  const matching = CONDITIONS.find((c) => c.label === reason && REJECT_REASONS.includes(c))
-  return { outcome: 'REJECT', reasonIds: [(matching ?? f.helpers.arrayElement(REJECT_REASONS)).id], note: withNote ? 'Inconsistencies found during manual review.' : undefined }
+  const [pass, fail] = reason === RISK_NOT_PASSED ? ['RISK_ACCEPTED', 'RISK_NOT_ACCEPTABLE'] : reason?.startsWith('Face not live') ? ['QUALITY_LOW_IDENTITY_CONFIRMED', 'SPOOF_SUSPECTED'] : ['FACE_CONFIRMED', 'FACE_MISMATCH']
+  if (approve) return { outcome: 'APPROVE', reasonCodes: [pass], note: withNote ? 'Checked document and liveness manually; consistent.' : undefined }
+  return { outcome: 'REJECT', reasonCodes: [fail], note: withNote ? 'Inconsistencies found during manual review.' : undefined }
 }
 
 /** The seeded production key of a project (one per project). */
