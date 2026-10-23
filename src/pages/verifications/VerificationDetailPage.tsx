@@ -6,19 +6,21 @@ import { NativeSelect } from '@/components/common/NativeSelect'
 import { StatusBadge } from '@/components/common/StatusBadge'
 import { EmptyState, ErrorState } from '@/components/common/States'
 import { Button } from '@/components/ui/button'
-import { ActivitySection, CheckSection, IdCaptureSection, RiskSection, RulesAppliedSection, SelfieSection } from '@/components/verification/CaseSections'
+import { ActivitySection, ChecksSection, EvidenceSection, RiskSection, RulesAppliedSection } from '@/components/verification/CaseSections'
+import { AttemptsSection, TelemetrySection } from '@/components/verification/TelemetrySections'
 import { ClaimBar } from '@/components/verification/ClaimBar'
 import { DecisionOverlay } from '@/components/verification/DecisionOverlay'
 import { ClientMetadataCard, PiiSection } from '@/components/verification/PiiSection'
 import { formatUpdatedBy } from '@/domain/audit'
 import { isClaimActive } from '@/domain/claimRules'
 import { canInProject, type ProjectAction } from '@/domain/access'
+import { RISK_NOT_PASSED } from '@/domain/checkRules'
 import { DEFAULT_CLAIM_WARNING_MIN } from '@/domain/openQuestions'
 import type { Actor, Decision, VerificationDetail } from '@/domain/types'
 import { useAccess } from '@/app/access'
 import { useNow } from '@/hooks/useNow'
 import { formatMyt } from '@/lib/format'
-import { DOCUMENT_TYPE_LABELS } from '@/lib/labels'
+import { DOCUMENT_TYPE_LABELS, RISK_LABELS } from '@/lib/labels'
 import { isServiceError } from '@/services/errors'
 import { onVerificationsChanged } from '@/services/liveUpdates'
 import { userService, type UserSummary } from '@/services/userService'
@@ -32,9 +34,13 @@ type Loaded = { key: string; detail?: VerificationDetail; error?: { message: str
 
 const message = (e: unknown) => (isServiceError(e) ? e.message : 'Unexpected error.')
 
+// REQ: DEC-105 — the condition plus target vs actual (the flow band and the score, or the risk maximum and the level).
 function ReasonBanner({ v }: { v: VerificationDetail }) {
   if (!v.statusReason || (v.status !== 'PENDING_REVIEW' && v.status !== 'REJECTED')) return null
   const rejected = v.status === 'REJECTED'
+  const max = v.rulesApplied.risk?.maxAllowedLevel
+  const detail =
+    v.statusReason === RISK_NOT_PASSED && max && v.riskLevel ? `Maximum allowed ${RISK_LABELS[max]} · Actual ${RISK_LABELS[v.riskLevel]} (${v.riskScore} / 100)` : v.statusDetail
   return (
     <div
       className={
@@ -46,6 +52,8 @@ function ReasonBanner({ v }: { v: VerificationDetail }) {
       <AlertTriangle className="size-4 shrink-0" aria-hidden />
       <span>
         <strong>Reason:</strong> {v.statusReason}
+        {detail && <span className="ml-2 font-mono text-xs tabular-nums">{detail}</span>}
+        {v.newCaseAllowedAt && <span className="block text-xs">New case allowed from {formatMyt(v.newCaseAllowedAt)} MYT (cooldown)</span>}
       </span>
     </div>
   )
@@ -157,7 +165,7 @@ export function VerificationDetailPage() {
 
   if (loaded.key !== key || !me.ready) {
     return (
-      <div className="mx-auto max-w-[1400px] space-y-4" aria-busy>
+      <div className="mx-auto max-w-[1600px] space-y-4" aria-busy>
         <div className="h-8 w-80 animate-pulse rounded bg-muted" />
         <div className="h-12 animate-pulse rounded-lg bg-muted" />
         <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_340px]">
@@ -183,7 +191,7 @@ export function VerificationDetailPage() {
   const may = (action: ProjectAction) => !!me.account && canInProject(me.account, action, v)
 
   return (
-    <div className="mx-auto max-w-[1400px] space-y-4">
+    <div className="mx-auto max-w-[1600px] space-y-4">
       <Link to="/verifications" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
         <ArrowLeft className="size-4" aria-hidden /> Verifications
       </Link>
@@ -195,10 +203,13 @@ export function VerificationDetailPage() {
           {/* REQ: DEC-97 — the case ID, for support tickets and webhooks; the Reference ID above is the merchant's. */}
           <CopyId label="Case ID" value={v.caseId} />
         </div>
-        {/* REQ: DEC-44 — header: project, flow, workflow version, configuration revision, created, last updated. */}
+        {/* REQ: DEC-105 — header strip: project › flow, version and revision, created, source, last updated, audit. */}
         <p className="text-sm text-muted-foreground">
           <span className="text-foreground">{v.projectName}</span> › <span className="text-foreground">{v.flowName}</span> · {v.workflowVersion} · Rules applied{' '}
-          <span className="font-mono text-foreground">{v.revisionLabel}</span> · {DOCUMENT_TYPE_LABELS[v.documentType]}
+          <span className="font-mono text-foreground">{v.revisionLabel}</span> · {DOCUMENT_TYPE_LABELS[v.documentType]} · Source{' '}
+          <span className="text-foreground">
+            {v.clientMetadata.sdk} · {v.clientMetadata.os}
+          </span>
         </p>
         <p className="text-sm text-muted-foreground">
           Created {formatMyt(v.createdAt)} MYT · Last updated by <span className="text-foreground">{formatUpdatedBy(v.lastUpdatedBy)}</span> · {formatMyt(v.lastUpdatedAt)} MYT
@@ -226,16 +237,23 @@ export function VerificationDetailPage() {
       <ReasonBanner v={v} />
 
       <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_340px]">
-        <div className="min-w-0 space-y-4">
-          <PiiSection v={v} />
-          <IdCaptureSection v={v} />
-          <SelfieSection v={v} />
-          <CheckSection v={v} check="FACE_MATCH" />
-          <CheckSection v={v} check="LIVENESS" />
-          <RiskSection v={v} />
-          <RulesAppliedSection v={v} />
+        {/* REQ: DEC-105 — row 1: evidence | extracted data | checks and risk (columns follow the space available). */}
+        <div className="@container min-w-0 space-y-4">
+          <div className="grid items-start gap-4 @2xl:grid-cols-2 @4xl:grid-cols-3">
+            <EvidenceSection v={v} />
+            <PiiSection v={v} />
+            <div className="space-y-4 @2xl:col-span-2 @4xl:col-span-1">
+              <ChecksSection v={v} />
+              <RiskSection v={v} />
+            </div>
+          </div>
+          <TelemetrySection v={v} />
+          <AttemptsSection v={v} />
+          <div className="grid items-start gap-4 @2xl:grid-cols-2">
+            <RulesAppliedSection v={v} />
+            <ClientMetadataCard v={v} />
+          </div>
           <ActivitySection v={v} />
-          <ClientMetadataCard v={v} />
         </div>
         <aside className="space-y-3 lg:sticky lg:top-0">
           <DecisionOverlay

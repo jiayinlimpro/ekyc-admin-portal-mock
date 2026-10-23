@@ -65,9 +65,12 @@ export function buildCase(spec: CaseSpec): Verification {
       ? [{ attemptId: stableId('att', `${spec.referenceNo}:1`), attemptNo: 1, phase: 'DOCUMENT', startedAt: at(0), outcome: spec.abandoned ?? 'ABORTED', isUserRetake: false, phaseScores: {} }]
       : Array.from({ length: rounds }, (_, i) => {
           const scores: Attempt['phaseScores'] = {}
+          // REQ: DEC-105 — a score only on the attempt that submitted it. V1 runs face match before liveness, so its face
+          // match submissions open the session and its liveness submissions close it.
           for (const c of flow.checks) {
-            const s = spec.submissions[c]
-            if (s?.length) scores[c] = s[Math.min(i, s.length - 1)]
+            const s = spec.submissions[c] ?? []
+            const j = c === 'LIVENESS' ? i - (rounds - s.length) : i
+            if (j >= 0 && j < s.length) scores[c] = s[j]
           }
           const final = i === rounds - 1 && ev.status !== 'PROCESSING'
           return {
@@ -78,8 +81,12 @@ export function buildCase(spec: CaseSpec): Verification {
             outcome: final ? 'COMPLETED' : 'FAILED_RETAKE',
             isUserRetake: i > 0,
             phaseScores: scores,
-            faceImage: { fileId: stableId('file', `${spec.referenceNo}:face:${i + 1}`), url: spec.entry.faceMatchMethod === 'ID_VS_SELFIE' ? '/mock/selfie.svg' : '/mock/liveness.svg' },
-            telemetry: attemptTelemetry(rand, spec.entry.faceMatchMethod === 'ID_VS_SELFIE', scores.FACE_MATCH),
+            ...(scores.FACE_MATCH === undefined
+              ? {}
+              : {
+                  faceImage: { fileId: stableId('file', `${spec.referenceNo}:face:${i + 1}`), url: spec.entry.faceMatchMethod === 'ID_VS_SELFIE' ? '/mock/selfie.svg' : '/mock/liveness.svg' },
+                  telemetry: attemptTelemetry(rand, spec.entry.faceMatchMethod === 'ID_VS_SELFIE', scores.FACE_MATCH),
+                }),
           }
         })
 

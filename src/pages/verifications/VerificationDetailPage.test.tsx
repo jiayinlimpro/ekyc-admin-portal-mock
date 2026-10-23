@@ -26,6 +26,17 @@ async function audit(ref: string, actions: AuditAction[]) {
 }
 
 const decision = () => within(screen.getByRole('region', { name: 'Decision' }))
+const region = (name: string | RegExp) => within(screen.getByRole('region', { name }))
+/** Cells of one table column, by header text. */
+function column(table: HTMLElement, header: string): string[] {
+  const i = within(table).getAllByRole('columnheader').findIndex((h) => h.textContent === header)
+  return within(table).getAllByRole('row').slice(1).map((r) => (r.children[i] as HTMLElement).textContent ?? '')
+}
+/** Telemetry row (metric label) → [value, threshold, result, set by]. */
+function metric(label: string): string[] {
+  const row = within(screen.getByRole('table', { name: 'Telemetry' })).getByRole('rowheader', { name: label }).closest('tr')!
+  return [...row.querySelectorAll('td')].map((td) => td.textContent ?? '')
+}
 
 function fillDecision(outcome: RegExp, reasons: string[], note: string) {
   fireEvent.click(decision().getByLabelText(outcome))
@@ -111,42 +122,82 @@ describe('Verification Detail', () => {
     expect(screen.getByText(/Decision is final — Ali Bin Ahmad\b/)).toBeTruthy()
   })
 
-  it('Given S06, then the reason banner shows the final liveness condition and Liveness shows 4 scores, 3 of 3 retries (DEC-16, DEC-35, DEC-44)', async () => {
+  it('Given S06, then the banner shows the liveness condition with target vs actual, and Attempts the 4 scores, 3 of 3 retries (DEC-16, DEC-105)', async () => {
     await open(S(6))
     expect(screen.getAllByText('Face not live (Retry Not Allowed)').length).toBeGreaterThan(0)
-    const liveness = within(screen.getByRole('region', { name: 'Liveness' }))
-    expect(within(liveness.getByRole('list', { name: 'Scores in submission order' })).getAllByRole('listitem').map((li) => li.textContent)).toEqual(['52.3', '58.9', '61', '74.5'])
-    expect(liveness.getByText('3 of 3 allowed')).toBeTruthy()
-    expect(liveness.getByText('Standard · reject < 70 · approve ≥ 85')).toBeTruthy()
-    expect(liveness.getByText('Review band')).toBeTruthy()
+    expect(screen.getByText('Auto-Reject < 70 · Auto-Pass ≥ 85 · Actual 74.5')).toBeTruthy()
+    expect(column(screen.getByRole('table', { name: 'Attempts' }), 'Liveness confidence')).toEqual(['52.3', '58.9', '61.0', '74.5'])
+    const checks = region('Checks')
+    expect(checks.getByText('Standard · Auto-Reject < 70 · Auto-Pass ≥ 85 · 3 of 3 retries used')).toBeTruthy()
+    expect(checks.getByText('Review band')).toBeTruthy()
   })
 
-  it('Given the header, then project, flow, version, rules applied revision and created are shown (DEC-44)', async () => {
+  it('Given the header strip, then project › flow, version, rules applied revision, source and created (DEC-105)', async () => {
     await open(S(12))
     expect(screen.getByText('Malaysian onboarding')).toBeTruthy()
-    expect(within(screen.getByRole('region', { name: 'Rules applied' })).getByText('V4-R1')).toBeTruthy()
+    expect(region('Rules applied').getByText('V4-R1')).toBeTruthy()
     expect(screen.getByText(/^Created /)).toBeTruthy()
+    expect(screen.getByText(/^ekyc-(android|ios|web)-sdk [\d.]+ · \w+/)).toBeTruthy() // Source: SDK · OS from the client metadata
   })
 
-  it('Given S18 rejected under a 120-min cooldown, then Liveness shows "New case allowed from" (DEC-26)', async () => {
+  it('Given S18 rejected under a 120-min cooldown, then the banner says when a new case is allowed (DEC-26)', async () => {
     await open(S(18))
-    const liveness = within(screen.getByRole('region', { name: 'Liveness' }))
-    expect(liveness.getByText('120 min after a rejection')).toBeTruthy()
-    expect(liveness.getByText('New case allowed from')).toBeTruthy()
+    expect(region('Rules applied').getByText('120 min after a rejection')).toBeTruthy()
+    expect(screen.getByText(/^New case allowed from .* MYT \(cooldown\)$/)).toBeTruthy()
   })
 
-  it('Given V4 S02, then a Risk section with HIGH and the components as an open question; given V1 S01, then no Risk section but a Selfie section', async () => {
+  it('Given V4 S02, then risk HIGH with every category score and its reason codes, and the banner shows maximum vs actual (DEC-105)', async () => {
     await open(S(2))
-    const risk = within(screen.getByRole('region', { name: 'Risk Assessment' }))
+    const risk = region('Risk Assessment')
     expect(risk.getByText('High')).toBeTruthy()
+    const categories = risk.getByRole('table', { name: 'Risk categories' })
+    expect(column(categories, 'Score')).toEqual(['35', '82', '64', '20'])
+    expect(within(categories).getAllByRole('rowheader').map((h) => h.textContent)).toEqual(['EXIF Score', 'Noise Score', 'Email Validity Score', 'OSINT Score'])
+    expect(within(categories).getByText('NOISE_SCREEN_PATTERN')).toBeTruthy()
+    expect(within(categories).getByText('Disposable email domain')).toBeTruthy()
     expect(risk.getByText('Open question OQ-25')).toBeTruthy()
     expect(screen.getByText('Risk Assessment not passed')).toBeTruthy()
-    expect(screen.queryByRole('region', { name: 'Selfie' })).toBeNull() // V4 has no selfie phase
-    cleanup()
+    expect(screen.getByText('Maximum allowed Medium · Actual High (82 / 100)')).toBeTruthy()
+    expect(region('Checks').queryByText('Selfie')).toBeNull() // V4 has no selfie phase
+  })
+
+  it('Given V1 S01, then no Risk section, a Selfie check, and every selfie metric with its engine threshold (DEC-105)', async () => {
     useSession.getState().switchUser(OTHER_MERCHANT_REVIEWER) // Vantage reviewer
     await open(S(1))
     expect(screen.queryByRole('region', { name: 'Risk Assessment' })).toBeNull()
-    expect(screen.getByRole('region', { name: 'Selfie' })).toBeTruthy()
+    expect(region('Checks').getByText('Selfie')).toBeTruthy()
+    for (const [label, threshold] of [['Sharpness', '> 25'], ['Brightness', '> 25'], ['Yaw', 'within ±30°'], ['Pitch', 'within ±30°'], ['Face size', '≥ 50 px']]) {
+      expect(metric(label).slice(1), label).toEqual([threshold, 'Pass', 'Engine'])
+    }
+    expect(metric('Similarity (ID vs selfie)')[3]).toBe('Flow')
+  })
+
+  it('Given S03, then the faces side by side with the similarity, and face confidence kept apart from similarity (DEC-105)', async () => {
+    await open(S(3))
+    const evidence = region('Evidence')
+    expect(evidence.getByRole('img', { name: /^MyKad front/ })).toBeTruthy()
+    expect(evidence.getByRole('img', { name: /^Liveness frame, attempt 4/ })).toBeTruthy()
+    expect(evidence.getByText('Similarity 88.5')).toBeTruthy()
+    expect(metric('Similarity (ID vs liveness face)')).toEqual(['88.5', 'Auto-Reject < 85 · Auto-Pass ≥ 95', 'Review band', 'Flow'])
+    expect(metric('Matched face confidence').slice(1)).toEqual(['> 90', 'Pass', 'Engine'])
+    expect(within(screen.getByRole('table', { name: 'Telemetry' })).getAllByRole('rowheader', { name: 'Face confidence' })).toHaveLength(1) // ID capture's
+    expect(metric('Image size')[1]).toBe('≥ 320 × 320 px')
+  })
+
+  it('Given S05 stopped at ID capture, then the failing ID checks say why (DEC-105)', async () => {
+    await open(S(5))
+    expect(region('Checks').getByText('Fail: Image size, OCR fields detected')).toBeTruthy()
+    expect(metric('Image size')).toEqual(['300 × 240 px', '≥ 320 × 320 px', 'Fail', 'Engine'])
+    expect(metric('OCR fields detected')[0]).toBe('3 / 4 (missing: Address)')
+  })
+
+  it('Given S21, then "Existing user found" is shown for information, and the case can still be claimed and decided as usual (DEC-105)', async () => {
+    await open(S(21))
+    const checks = region('Checks')
+    expect(checks.getByText('Existing user found (similarity 97.6, ≥ 90)')).toBeTruthy()
+    expect(checks.getByText('Information only: never changes the result')).toBeTruthy()
+    expect(metric('Face search').slice(2)).toEqual(['Information only', 'Engine'])
+    expect(screen.getByRole('button', { name: 'Assign to me' })).toBeTruthy()
   })
 
   it('Given S11, then the Activity timeline shows the claim and the approval', async () => {
@@ -157,18 +208,18 @@ describe('Verification Detail', () => {
     expect(activity.getByText('Case approved')).toBeTruthy()
   })
 
-  it('Given S20 Driving License, then IC, licence class and validity in End-user data (S20, DEC-50)', async () => {
+  it('Given S20 Driving License, then IC, licence class and validity in Extracted data (S20, DEC-50)', async () => {
     useSession.getState().switchUser(OTHER_MERCHANT_REVIEWER)
     await open(S(20))
-    const data = within(screen.getByRole('region', { name: 'End-user data' }))
+    const data = region('Extracted data · Driving License')
     for (const label of ['IC', 'Licence class', 'Valid until']) expect(data.getByText(label)).toBeTruthy()
-    expect(screen.getByRole('region', { name: 'ID capture · Driving License' })).toBeTruthy()
+    expect(metric('OCR fields detected')[0]).toBe('6 / 6')
     expect(data.queryByText('Email')).toBeNull() // V1 has no email input
   })
 
-  it('Given a V4 case, then End-user data includes the email (DEC-44)', async () => {
+  it('Given a V4 case, then Extracted data includes the email (DEC-44)', async () => {
     await open(S(3))
-    expect(within(screen.getByRole('region', { name: 'End-user data' })).getByText(/@mail\.example$/)).toBeTruthy()
+    expect(region('Extracted data · MyKad').getByText(/@mail\.example$/)).toBeTruthy()
   })
 
   it('Given S15 passport, then passport fields and no NRIC (S15)', async () => {

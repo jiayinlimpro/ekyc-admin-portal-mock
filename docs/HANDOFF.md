@@ -23,7 +23,7 @@ What the mock gives engineering, and what the real backend must do that a mock c
 | Area | Endpoint (draft) | Notes |
 |---|---|---|
 | Verifications | `GET /verifications?…` | Returns summaries only: no NRIC, passport, address or client metadata (DEC-40). `sort` = `referenceNo` / `status` / `riskLevel` / `lastUpdatedAt` + `asc` / `desc`; omitted = Last updated, oldest first (DEC-100) |
-| | `GET /verifications/{caseId}` | Full PII + client metadata; the **server** writes `SENSITIVE_PII_VIEW` for every open (DEC-41) |
+| | `GET /verifications/{caseId}` | Full PII + client metadata, `idCapture`, per-attempt `telemetry` and `faceImage`, `duplicateUser` (information only), `riskCategories` (DEC-105); the **server** writes `SENSITIVE_PII_VIEW` for every open (DEC-41). Engine thresholds: `ENGINE_THRESHOLDS` in `domain/telemetry.ts` |
 | | `POST /verifications/{caseId}/claim` | 409 `ALREADY_CLAIMED` / `NOT_CLAIMABLE`; claim is not a status (DEC-20) |
 | | `DELETE /verifications/{caseId}/claim` | Owner only; 409 `NOT_CLAIM_OWNER`; no supervisor release (DEC-23) |
 | | `POST /verifications/{caseId}/decision` | Re-checks ownership at save; 409 `OWNERSHIP_CONFLICT`, audited `CASE_DECISION_BLOCKED` (DEC-24); 422 for a Reject without a catalogue reason (DEC-31); Approve needs no reason; the note is optional |
@@ -49,6 +49,7 @@ server-side**. The tests (Given/When/Then names) are a shared spec; port or mirr
 - `roles.ts`: System Default roles, grants from assignments, scope / grant / last-owner rules.
 - `access.ts`: each action's permission; `canInProject`, `canInMerchant` (merchant role only), `hasProject` (a role that gives nothing, like Member, opens no project).
 - `checkRules.ts`: per-check thresholds, retries, the last attempt decides (DEC-15, DEC-16), V4 risk gate.
+- `telemetry.ts`: engine thresholds and the metric rows shown on the case page (DEC-105); the duplicate-user result is never an input to `checkRules`.
 - `claimRules.ts`: claim, cancel, expiry, overlay enablement, save-time ownership check, decisions (DEC-31).
 - `flowSettings.ts`, `flowRules.ts`, `thresholds.ts`: presets / Advanced, validation, revisions, lifecycle, cooldown.
 - `registryRules.ts`, `projectSettings.ts`, `conditions.ts`: registry lifecycle, settings validation, reason catalogue.

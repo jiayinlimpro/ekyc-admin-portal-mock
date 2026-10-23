@@ -88,7 +88,7 @@ Claim / release, Approve / reject; every case page open is audited. The header's
 |---|---|
 | Overview / System Intelligence / Billing | Every role, data scoped; by project, flow and version; retry KPIs and drop-off; tokens per liveness submission |
 | Verifications | Pending Review in your projects, oldest first; project / flow / claim-state filters; no PII beyond name |
-| Verification detail | Claim bar, Reject with catalogue reasons, rules applied (revision), checks with retries, activity timeline |
+| Verification detail | Hybrid layout (DEC-105): header strip, claim bar, reason with target vs actual; evidence side by side, extracted data, checks (duplicate user for information), risk categories; every engine metric with its threshold; attempts, rules applied (revision), activity, client metadata; sticky decision panel |
 | Projects / Project Settings | Create, rename, archive; branding, API keys (shown once), webhook, claim timeout, read-only routing |
 | Flows / Flow Detail | Low / Standard / High with a 0–100 band bar, Advanced thresholds (super admin, staff with Calibrate), retries 1–5, what-if, revisions; read-only for Flows View |
 | Users / Roles | FRS lists with `Role · Scope` chips; invite (Pending, resend); Access table with Add / Edit / Remove and a plain-language preview; Effective access with "Comes from"; suspend; permission matrix (module × View × actions, a module box ticks the row; DEC-102), System Default roles locked, Duplicate, "Affects N users in M projects" |

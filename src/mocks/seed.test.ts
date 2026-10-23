@@ -178,6 +178,16 @@ describe('telemetry, duplicate user and risk categories (DEC-105)', () => {
     }
   })
 
+  it('Given an attempt, then it shows only the scores it submitted: V1 face match first, liveness last', () => {
+    for (const v of db.verifications) {
+      for (const c of ['FACE_MATCH', 'LIVENESS'] as const) {
+        expect(v.attempts.flatMap((a) => (a.phaseScores[c] === undefined ? [] : [a.phaseScores[c]])), `${v.referenceNo} ${c}`).toEqual(v.submissions[c] ?? [])
+      }
+    }
+    const s20 = byRef('KYC-260901-900020').attempts.map((a) => a.phaseScores)
+    expect(s20).toEqual([{ FACE_MATCH: 80.1 }, { FACE_MATCH: 84.0 }, { FACE_MATCH: 86.2 }, { FACE_MATCH: 88.0, LIVENESS: 96.2 }])
+  })
+
   it('Given the duplicate-user result, then "existing" means similarity ≥ 90, and some seeded cases have one', () => {
     const checked = db.verifications.filter((v) => v.duplicateUser)
     for (const v of checked) expect(v.duplicateUser!.existingUser).toBe(v.duplicateUser!.similarity! >= ENGINE_THRESHOLDS.duplicateSimilarityMin)

@@ -1,7 +1,7 @@
 // REQ: DEC-105 — every engine metric is shown on Verification Detail with its threshold, its result and who sets the
 // threshold. Only face match and liveness thresholds come from the flow (DEC-10); the rest are fixed by the engine.
 import type { Thresholds } from './thresholds'
-import type { DocumentType, DuplicateUserCheck, IdCaptureTelemetry, SelfieTelemetry } from './types'
+import type { Attempt, DocumentType, DuplicateUserCheck, IdCaptureTelemetry, SelfieTelemetry } from './types'
 
 /** Fixed by the engine (DEC-105). Not configurable by anyone. */
 export const ENGINE_THRESHOLDS = {
@@ -96,3 +96,6 @@ export function duplicateUserText(d: DuplicateUserCheck | undefined): string {
   if (d.existingUser) return `Existing user found (similarity ${n1(d.similarity ?? 0)}, ≥ ${T.duplicateSimilarityMin})`
   return d.similarity === undefined ? 'New user' : `New user (best match ${n1(d.similarity)}, below ${T.duplicateSimilarityMin})`
 }
+
+/** The last attempt with a face image: the evidence shown next to the document. */
+export const lastFaceAttempt = (c: { attempts: readonly Attempt[] }): Attempt | undefined => c.attempts.findLast((a) => a.faceImage)

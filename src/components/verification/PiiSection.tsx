@@ -4,8 +4,8 @@ import { formatDate } from '@/lib/format'
 import { DOCUMENT_TYPE_LABELS } from '@/lib/labels'
 import { Fields, Section } from './Section'
 
-// REQ: DEC-41 / DEC-44 — end-user data: full unmasked PII on the detail page only; opening it wrote a
-// SENSITIVE_PII_VIEW audit entry. Document images are in the ID capture and Selfie sections.
+// REQ: DEC-41 / DEC-105 — extracted data: full unmasked PII on the detail page only; opening it wrote a
+// SENSITIVE_PII_VIEW audit entry. The images are in Evidence and Attempts.
 export function PiiSection({ v }: { v: VerificationDetail }) {
   const p = v.pii
   const passport = v.documentType === 'PASSPORT'
@@ -39,8 +39,8 @@ export function PiiSection({ v }: { v: VerificationDetail }) {
       ]
   return (
     <Section
-      title="End-user data"
-      id="sec-end-user-data"
+      title={`Extracted data · ${DOCUMENT_TYPE_LABELS[v.documentType]}`}
+      id="sec-extracted-data"
       aside={
         <span className="flex items-center gap-1 text-xs text-muted-foreground">
           <Eye className="size-3.5" aria-hidden />
@@ -48,7 +48,7 @@ export function PiiSection({ v }: { v: VerificationDetail }) {
         </span>
       }
     >
-      <p className="mb-3 text-xs text-muted-foreground">From the {DOCUMENT_TYPE_LABELS[v.documentType]} (OCR)</p>
+      <p className="mb-3 text-xs text-muted-foreground">Read from the document (OCR){p.email ? '; email entered by the user' : ''}</p>
       <Fields items={p.email ? [...fields, ['Email', p.email]] : fields} />
     </Section>
   )
