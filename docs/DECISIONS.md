@@ -214,7 +214,7 @@ Rules changed on 2026-10-20 (Projects & Flows restructure) are marked **(changed
   Billing column is "Verification Status". [FRS][PO 2026-10-20]
 
 ## Roles and access
-- **DEC-70** **(changed again)** Users and roles follow the [FRS] User Management method, extended with **scoped role
+- **DEC-70** **(changed again; scopes and the role list superseded by DEC-104)** Users and roles follow the [FRS] User Management method, extended with **scoped role
   assignments** ("Option C") [PO 2026-10-20]:
   - A **role** is defined once per merchant from permission checkboxes; it says *what* a user may do. An **assignment**
     gives a user a role with a **scope**, *where*: **All projects** (every current and future project; labelled in the UI)
@@ -244,7 +244,7 @@ Rules changed on 2026-10-20 (Projects & Flows restructure) are marked **(changed
   - **Platform Admin** (internal; now called **Super admin**, DEC-99) is not a merchant role. **(changed)** It holds **every permission in every merchant**
     (cases, claim and approve / reject, API keys and webhook included), plus Workflow Registry, Merchants, Admins and
     Advanced thresholds (DEC-19) (DEC-75). [PO 2026-10-21]
-- **DEC-102** **(new)** Permissions are a **matrix of modules × View × actions** [PO 2026-10-22]. Each permission is a
+- **DEC-102** **(new; groups, Verifications and roles updated by DEC-104)** Permissions are a **matrix of modules × View × actions** [PO 2026-10-22]. Each permission is a
   module's View or one of its actions; the Roles form shows one row per module with a View column and an Actions column,
   and a checkbox at the module name that ticks the whole row (partly ticked shows "mixed"; unticking clears the row).
   Ticking an action ticks the module's View, locked while needed. The groups stay: Merchant role = **Merchant-level**
@@ -289,7 +289,7 @@ Rules changed on 2026-10-20 (Projects & Flows restructure) are marked **(changed
   projects" for more than one), current project name always visible, menu filtered by the user's permissions in the
   selected project, user menu (name, email, roles in the current project, log out). A user with no assignments can sign in
   but sees "You don't have access to any project yet". [MS][PO 2026-10-20]
-- **DEC-74** **(changed again)** **Users** screen ([FRS] User Management › Users): flat list with Full Name, Email,
+- **DEC-74** **(changed again; the Access table and scopes superseded by DEC-104)** **Users** screen ([FRS] User Management › Users): flat list with Full Name, Email,
   Merchant (Platform Admin only), **Access** (assignment summary, e.g. "Reviewer (Retail), Viewer (SME)"), Status, Created
   At; sorted by Created At, newest first; 10 / 20 / 50 per page; "No Records Found". Create: full name, work email,
   merchant (Platform Admin only) and the first assignment; the user starts **Pending** and gets an invitation (Resend while
@@ -332,7 +332,7 @@ Rules changed on 2026-10-20 (Projects & Flows restructure) are marked **(changed
     has an Actions menu (Edit, Duplicate, Activate / Deactivate). Deactivating a role that is assigned, or any System
     Default role (shared by every merchant), is shown disabled with the reason (DEC-78). An inactive role grants nothing
     and can't be given. [PO 2026-10-22]
-- **DEC-77** **(new)** Project Settings › **Members** tab: everyone with access to the project and their role, including
+- **DEC-77** **(new; role picker per DEC-104)** Project Settings › **Members** tab: everyone with access to the project and their role, including
   users with All projects access (marked "inherited"). Adding a member creates an assignment scoped to that project. An
   archived project keeps its assignments read-only and leaves the switcher. [PO 2026-10-20] Adding from this tab fixes the
   project (shown, not changeable) and lists only roles the actor may give; inherited rows link to the user's details when
@@ -374,7 +374,7 @@ Rules changed on 2026-10-20 (Projects & Flows restructure) are marked **(changed
   - Not added for now: registered address, TIN / SST, billing email, compliance contact (OQ-30).
 
 ## Internal (platform) staff
-- **DEC-99** **(new)** Three account types [PO 2026-10-22]:
+- **DEC-99** **(new; merchant scope, masking and the platform roles superseded by DEC-104)** Three account types [PO 2026-10-22]:
 
   | Type | Belongs to | Managed in | Access |
   |---|---|---|---|
@@ -424,6 +424,56 @@ Rules changed on 2026-10-20 (Projects & Flows restructure) are marked **(changed
   - **Guardrails:** platform roles only for platform staff; merchant roles only for users of the same merchant. Merchant
     admins can't create, list or open platform roles or staff; a direct URL is "not found". Super admins and the
     Super admins screen stay as they are. Platform staff never manage users or roles.
+
+- **DEC-104** **(new; replaces the access parts of DEC-70, DEC-74, DEC-77, DEC-99 and DEC-102)** Roles and users,
+  the agreed model [PO 2026-10-23]:
+  - **Account types.** **Super admin**: 2–3 people (break-glass), no merchant, fixed full access, outside the role system,
+    managed in Platform › Super admins; manages staff, platform roles and super admins. **Platform staff**: internal, no
+    merchant, **one platform role and no scope**: it applies to every merchant. **Merchant user**: exactly one merchant;
+    one merchant role on New / Edit user, plus project access in **Project › Members**.
+  - **Role Type** (Platform (internal) / Merchant) is the first field of the role and user forms; only super admins choose
+    it, merchant admins see "Merchant · <their merchant>"; it never changes. Platform roles only for platform staff,
+    merchant roles only for that merchant's users. There is no "Project" type: project roles are Merchant roles. System
+    Default roles are locked and can be duplicated; merchants create Custom roles.
+  - **Where a merchant role is given decides where it applies.** On **Users** (create / edit user): the whole merchant:
+    its merchant-wide permissions, and its project-level permissions in **all projects**, including future ones. On
+    **Project › Members**: **that project only**. A user's access in a project is the union of the two (no deny).
+    - **Member** is a System Default role with no permissions and the default on New user: such a user gets access only
+      through Project › Members. Help text on New user: "Project permissions in this role apply to all projects. To limit
+      access to some projects, choose Member and add the user in each project."
+    - The Members role picker lists only roles **without** merchant-wide permissions. Members also lists the users who
+      reach the project through their merchant role, marked **inherited (read-only)**.
+  - **Personal data: no masking.** Verifications permissions: **View list** (the list; no personal data, DEC-40) →
+    **View details** (the case page with name, ID number and images) → **Claim / release** → **Approve / reject**; each
+    needs the one before. The API enforces the same rules. Oversight is the audit log: every open of a case page is logged
+    (`SENSITIVE_PII_VIEW`: who, which case, when).
+  - **Permission layout** (Roles form, both Types): module rows, columns Module | View | Actions, "—" where none.
+    Groups: Merchant Type = **Merchant-wide** and **Project-level**; Platform Type = **Platform-wide** and **Merchant data**.
+    The same action has the same wording in both Types. Ticking an action ticks what it needs; unticking a permission
+    (View included) clears what depends on it. Managing staff, platform roles and super admins is not a permission.
+  - **System Default roles** (OQ-09):
+
+    | Type | Role | Usually given on | Access |
+    |---|---|---|---|
+    | Platform | Platform Admin | Users | Every platform-wide permission; all merchant data and actions |
+    | Platform | Support | Users | Merchant data: View list, View details; Flows View; API keys and webhook View; Audit log View. No decisions, no changes |
+    | Platform | Implementation | Users | Merchants View, Create; Workflow Registry; Verification levels; Merchant data: Flows (all), API keys and webhook (all) |
+    | Platform | Finance | Users | Platform billing; Usage reports |
+    | Merchant | Owner | Users | Everything; at least one active Owner required (DEC-74) |
+    | Merchant | Admin | Users | Users, Roles, Projects, Merchant reports; every project-level permission (in all projects) |
+    | Merchant | Billing | Users | Billing and contract |
+    | Merchant | Auditor | Users | Merchant reports; Audit log and Verifications View list in all projects; no case pages |
+    | Merchant | Member | Users | Nothing (default) |
+    | Merchant | Project Admin | Project › Members | Project settings, Flows (all), API keys and webhook, Members, all case actions, Project reports, Audit log |
+    | Merchant | Reviewer | Project › Members | Verifications View list, View details, Claim / release, Approve / reject; Flows View; Project reports |
+    | Merchant | Developer | Project › Members | API keys and webhook; Flows View; no case access |
+    | Merchant | Viewer | Project › Members | Verifications View list, View details; Flows View; Project reports |
+
+  - **Identity and forms** (unchanged): cuid2 IDs; User and Role IDs generated, read-only, shown in forms and detail
+    panels, never in lists. Platform users use the company email domain (OQ-31); merchant users can't.
+  - **Superseded:** scopes on a role assignment (Selected projects / flows on New user; DEC-70, DEC-74); merchant scope for
+    platform staff (DEC-99); flow-level access; "Project access" on New user; the masked case view (DEC-99); the platform
+    roles Platform Operations, Verification Specialist and Workflow Engineer; Merchant Owner (now **Owner**).
 
 ## Identifiers
 - **DEC-97** **(new)** Identifiers [PO 2026-10-21]:

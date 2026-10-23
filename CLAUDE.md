@@ -26,16 +26,16 @@ UAT scenarios: `docs/SCENARIOS.md`.
   EXPIRED, CLAIMED, IN_REVIEW.
 - Manual vs automated = `lastUpdatedBy` (SYSTEM or user fullName + userId). It changes ONLY when status changes
   (never on claim, release or view).
-- Merchant → Project → Flow → Case. Each setting lives at exactly one level (DEC-91). Access = [FRS] Users + Roles with
-  scoped assignments (DEC-70): a role (permission matrix, module × View × actions, DEC-102) is given to a user for All
-  projects (incl. future ones) or Selected projects; permissions are the union, no deny. Merchant-level permissions only
-  via All projects. System Default roles (locked): Merchant Owner, Project Admin, Reviewer, Viewer. Every page checks
-  access to the project; a case outside the user's projects is "not found".
-- Three account types (DEC-99): **Super admin** (was Platform Admin; everything; outside the role system; Platform ›
-  Super admins), **Platform staff** (no merchant; platform roles given for All merchants incl. future or Selected
-  merchants), **Merchant user**. Roles and users have a Type (Platform / Merchant), set by super admins and never
-  changed; merchant admins never see platform roles or staff. No access end dates. Staff without "See unmasked
-  ID data" get a masked case view (`domain/piiMasking`). Staff email domain: OQ-31.
+- Merchant → Project → Flow → Case. Each setting lives at exactly one level (DEC-91). Access (DEC-104): roles are a
+  permission matrix (module × View × actions). A merchant user has **one merchant role** (set on Users; applies
+  merchant-wide and in all projects) plus project roles from **Project › Members** (that project only; roles without
+  merchant-wide permissions). Union, no deny. **Member** = no permissions (default). Every page checks access to the
+  project; a case outside the user's projects is "not found".
+- Three account types (DEC-99, DEC-104): **Super admin** (everything; outside the role system; Platform › Super admins),
+  **Platform staff** (no merchant; one platform role, no scope: applies to every merchant), **Merchant user**. Roles and
+  users have a Type (Platform / Merchant), set by super admins and never changed; merchant admins never see platform
+  roles or staff. No access end dates. **No masking**: Verifications = View list → View details → Claim / release →
+  Approve / reject; every case page open is audited. Staff email domain: OQ-31.
 - IDs (DEC-97): every stored record gets a prefixed cuid2-shaped ID from `src/lib/ids.ts` (`newId`; seeded records
   `fx('PRJ-0001')` / `stableId`, stable across resets). Never sort by ID, never show user / role / audit IDs. A case is
   addressed by `caseId` (`ver_…`); `referenceNo` is the merchant's Reference ID.
@@ -51,8 +51,8 @@ UAT scenarios: `docs/SCENARIOS.md`.
   Release, timeout, decision or removal from the project. No supervisor reassign or force-release. Ownership re-checked
   at save.
 - Any project member can view its cases; only the decision buttons enable/disable. No lock on open.
-- List view: name, ref and the DEC-40 columns only; no client metadata, no duplicate-user info (`VerificationSummary`).
-  Detail: full unmasked PII + client metadata; every open writes a SENSITIVE_PII_VIEW audit entry.
+- List view (View list): name, ref and the DEC-40 columns only; no client metadata, no duplicate-user info
+  (`VerificationSummary`). Detail (View details): full PII + client metadata; every open writes a SENSITIVE_PII_VIEW audit entry.
 - Every mutation writes an audit entry (DEC-42 event names).
 - Config lives on each flow; saving an active flow needs a reason and creates a revision; applies to new sessions only.
 - No Home page; everyone lands on Overview. Overview, System Intelligence and Billing are for every role, data scoped to
