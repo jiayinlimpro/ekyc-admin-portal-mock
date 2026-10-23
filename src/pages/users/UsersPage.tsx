@@ -129,7 +129,7 @@ function InviteDialog({ merchants, isSuper, ownMerchant, onClose, onSaved }: { m
               {emailField}
               {merchantId && (
                 <>
-                  <RoleSelect id="nu-role" label="Role" roles={roles.data ?? []} value={roleId} onChange={setRoleId} error={errors.roleId} hint={MERCHANT_ROLE_HINT} />
+                  <RoleSelect id="nu-role" label="Merchant role" roles={roles.data ?? []} value={roleId} onChange={setRoleId} error={errors.roleId} hint={MERCHANT_ROLE_HINT} />
                   {role && <AccessPreview who={fullName.trim() || 'The user'} permissions={role.permissions} where="every project (including new ones)" />}
                 </>
               )}

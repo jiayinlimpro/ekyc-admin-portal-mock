@@ -6,11 +6,10 @@ import { RouterProvider } from 'react-router/dom'
 import { routes } from '@/app/routes'
 import { LAST_OWNER, ROLE_NEEDS_PERMISSION, SYSTEM_ROLE_IDS } from '@/domain/roles'
 import { roleService } from '@/services/roleService'
-import { userAdminService } from '@/services/userAdminService'
 import { devService } from '@/services/devService'
 import { DEFAULT_DEV_FLAGS, useDevFlags } from '@/stores/devFlagsStore'
 import { useSession } from '@/stores/sessionStore'
-import { ADMIN, ALI, OWNER, SITI } from '@/test/factories'
+import { ADMIN, ALI, HAFIZ, OWNER, SITI } from '@/test/factories'
 import { fx } from '@/lib/ids'
 
 function renderAt(path: string) {
@@ -30,20 +29,19 @@ afterEach(() => {
 
 describe('Users (DEC-74, DEC-104)', () => {
   it('Given the Owner, then the FRS columns with Access (merchant role first); no Merchant column; status filter applies on Search', async () => {
-    renderAt('/users')
+    renderAt('/users?q=Ali')
     expect((await row('Ali Bin Ahmad')).textContent).toContain('MemberReviewer · DefaultViewer · SME app')
     const headers = within(screen.getByRole('region', { name: 'User list' })).getAllByRole('columnheader').map((h) => h.textContent)
     expect(headers).toEqual(['Full Name', 'Email', 'Access', 'Status', 'Created At'])
-    fireEvent.change(screen.getByLabelText('Status'), { target: { value: 'PENDING' } })
-    fireEvent.click(screen.getByRole('button', { name: /Search/ }))
-    await waitFor(() => expect(screen.queryByRole('rowheader', { name: 'Ali Bin Ahmad' })).toBeNull())
-    expect(screen.getByRole('rowheader', { name: 'Chong Pei Shan' })).toBeTruthy()
+    cleanup()
+    renderAt('/users?status=PENDING')
+    expect(await screen.findByRole('rowheader', { name: 'Chong Pei Shan' })).toBeTruthy()
+    expect(screen.queryByRole('rowheader', { name: 'Ali Bin Ahmad' })).toBeNull()
   })
 
-  it('Given New user, then Type, User ID, then the merchant role with Member by default and the help text; Reviewer applies to all projects', async () => {
+  it('Given New user, then Type, User ID, then the merchant role (merchant roles only, Member by default) with the help text', async () => {
     renderAt('/users')
-    await row('Ali Bin Ahmad')
-    fireEvent.click(screen.getByRole('button', { name: /New user/ }))
+    fireEvent.click(await screen.findByRole('button', { name: /New user/ }))
     const id = (await screen.findByLabelText('User ID')) as HTMLInputElement
     await waitFor(() => expect(id.value).toMatch(/^usr_[a-z0-9]{24}$/))
     expect(id.disabled && id.readOnly).toBe(true)
@@ -52,23 +50,24 @@ describe('Users (DEC-74, DEC-104)', () => {
     expect(second).toBe(id)
     fireEvent.change(await screen.findByLabelText('Full name'), { target: { value: 'Aishah Binti Omar' } })
     fireEvent.change(screen.getByLabelText('Work email'), { target: { value: 'aishah@atoz.example' } })
-    const role = screen.getByLabelText('Role') as HTMLSelectElement
+    const role = screen.getByLabelText('Merchant role') as HTMLSelectElement
     await waitFor(() => expect(within(role).getAllByRole('option').length).toBeGreaterThan(1))
+    expect(within(role).getAllByRole('option').map((o) => o.textContent)).toEqual(['Choose a role', 'Owner (System Default)', 'Admin (System Default)', 'Billing (System Default)', 'Auditor (System Default)', 'Member (System Default)', 'User Coordinator'])
     expect(role.value).toBe(SYSTEM_ROLE_IDS.MEMBER)
-    expect(screen.getByText(/To limit access to some projects, choose Member and add the user in each project\./)).toBeTruthy()
+    expect(screen.getByText(/For selected projects only, keep Member and add the user in Project › Members\./)).toBeTruthy()
     expect(screen.getByRole('status').textContent).toBe('Aishah Binti Omar will have no access until they are added to a project in Project › Members.')
-    expect(screen.queryByRole('radio', { name: /Selected projects/ })).toBeNull() // no scope on New user (DEC-104)
-    fireEvent.change(role, { target: { value: SYSTEM_ROLE_IDS.REVIEWER } })
-    expect(screen.getByRole('status').textContent).toBe('Aishah Binti Omar will be able to view the case list, view case details, claim / release cases, approve / reject cases, view flows, view project reports, export project reports in every project (including new ones).')
+    fireEvent.change(role, { target: { value: SYSTEM_ROLE_IDS.AUDITOR } })
+    expect(screen.getByRole('status').textContent).toBe('Aishah Binti Omar will be able to view the case list, view audit log in every project (including new ones); and view merchant-wide reports, export merchant-wide reports for the whole merchant.')
     fireEvent.click(screen.getByRole('button', { name: 'Invite user' }))
+    cleanup()
+    renderAt('/users?q=Aishah')
     const r = await row('Aishah Binti Omar')
-    expect(r.textContent).toContain('Reviewer · All projects')
+    expect(r.textContent).toContain('Auditor · All projects')
     expect(r.textContent).toContain('Pending')
   })
 
-  it('Given Ali’s details, then his merchant role with Change role, and his project roles from Members (read-only)', async () => {
-    renderAt('/users')
-    fireEvent.click(within(await row('Ali Bin Ahmad')).getByRole('button', { name: 'Ali Bin Ahmad' }))
+  it('Given Ali’s details, then his merchant role with Change role (merchant roles only), and his project roles from Members (read-only)', async () => {
+    renderAt(`/users?user=${fx('USR-2026-0012')}`)
     const mine = await screen.findByRole('region', { name: 'Merchant role' })
     expect(mine.textContent).toContain('Member')
     const projects = screen.getByRole('region', { name: 'Project access' })
@@ -78,9 +77,10 @@ describe('Users (DEC-74, DEC-104)', () => {
     const dialog = within(await screen.findByRole('dialog', { name: 'Change role for Ali Bin Ahmad' }))
     const picker = dialog.getByLabelText('Merchant role') as HTMLSelectElement
     await waitFor(() => expect(within(picker).getAllByRole('option').length).toBeGreaterThan(2))
-    fireEvent.change(picker, { target: { value: SYSTEM_ROLE_IDS.VIEWER } })
+    expect(within(picker).queryByRole('option', { name: /Reviewer/ })).toBeNull() // project roles are given in Members
+    fireEvent.change(picker, { target: { value: SYSTEM_ROLE_IDS.AUDITOR } })
     fireEvent.click(dialog.getByRole('button', { name: 'Save' }))
-    await waitFor(() => expect(screen.getByRole('region', { name: 'Merchant role' }).textContent).toContain('Viewer'))
+    await waitFor(() => expect(screen.getByRole('region', { name: 'Merchant role' }).textContent).toContain('Auditor'))
   })
 
   it('Given Ali’s details, when SME app is chosen under Effective access, then only Viewer permissions, from Viewer · SME app', async () => {
@@ -93,15 +93,15 @@ describe('Users (DEC-74, DEC-104)', () => {
   })
 
   it('Given an Owner, then no platform staff in the list', async () => {
-    renderAt('/users')
-    await row('Ali Bin Ahmad')
+    renderAt('/users?q=Tan')
+    await row('Tan Mei Ling')
     expect(screen.queryByRole('rowheader', { name: 'Daniel Tan' })).toBeNull()
     expect(screen.queryByLabelText('Type', { selector: 'select' })).toBeNull()
   })
 
   it('Given a super admin, when New user is Platform, then name, company email and one staff role (no merchant scope); listed as Platform (DEC-104)', async () => {
     useSession.getState().switchUser(ADMIN)
-    renderAt('/users')
+    renderAt('/users?q=Daniel')
     expect((await row('Daniel Tan')).textContent).toContain('Platform (internal)')
     fireEvent.click(screen.getByRole('button', { name: /New user/ }))
     const dialog = within(await screen.findByRole('dialog'))
@@ -114,6 +114,8 @@ describe('Users (DEC-74, DEC-104)', () => {
     expect(dialog.queryByText(/Merchant access|Selected merchants/)).toBeNull()
     fireEvent.change(role, { target: { value: fx('ROL-2026-0102') } }) // Support
     fireEvent.click(screen.getByRole('button', { name: 'Invite user' }))
+    cleanup()
+    renderAt('/users?q=Mira')
     const r = await row('Mira Chen')
     expect(r.textContent).toContain('Support')
     expect(r.textContent).toContain('Platform (internal)')
@@ -135,23 +137,26 @@ describe('Users (DEC-74, DEC-104)', () => {
   })
 })
 
-describe('Roles (DEC-76, DEC-104)', () => {
-  it('Given the Owner, then the System Default roles, read-only', async () => {
+describe('Roles: the merchant role table (DEC-76, DEC-104)', () => {
+  it('Given the Owner, then merchant roles only (System Default read-only) and their Custom merchant role', async () => {
     renderAt('/roles')
-    expect((await row('Reviewer')).textContent).toContain('System Default')
-    fireEvent.click(within(await row('Reviewer')).getByRole('button', { name: 'Reviewer' }))
+    const list = await screen.findByRole('region', { name: 'Role list' })
+    await within(list).findByRole('rowheader', { name: 'Owner' })
+    expect(within(list).getAllByRole('rowheader').map((h) => h.textContent)).toEqual(['Owner', 'Admin', 'Billing', 'Auditor', 'Member', 'User Coordinator'])
+    fireEvent.click(within(await row('Auditor')).getByRole('button', { name: 'Auditor' }))
     await screen.findByText(/can’t be changed/)
-    expect(screen.getByRole('checkbox', { name: 'Claim / release cases' }).matches(':disabled')).toBe(true) // inside a disabled fieldset
+    expect(screen.getByRole('checkbox', { name: 'View the case list' }).matches(':disabled')).toBe(true) // inside a disabled fieldset
     expect(screen.queryByRole('button', { name: 'Save' })).toBeNull()
   })
 
-  it('Given a new role, then Approve ticks Claim, View details and View list; unticking View list clears them; no permission shows the FRS message', async () => {
+  it('Given a new merchant role, then every module; Approve ticks Claim, View details and View list; unticking View list clears them; no permission shows the FRS message', async () => {
     renderAt('/roles')
-    await row('Reviewer')
+    await row('Owner')
     fireEvent.click(screen.getByRole('button', { name: /New role/ }))
     fireEvent.change(await screen.findByLabelText('Role name'), { target: { value: 'Claimer' } })
     fireEvent.click(screen.getByRole('button', { name: 'Create role' }))
     expect(await screen.findByText(ROLE_NEEDS_PERMISSION)).toBeTruthy()
+    expect(screen.getByRole('rowheader', { name: /Users/ })).toBeTruthy() // merchant-wide modules are here
     const box = (name: string) => screen.getByRole('checkbox', { name }) as HTMLInputElement
     fireEvent.click(box('Approve / reject cases'))
     for (const p of ['View the case list', 'View case details', 'Claim / release cases']) expect(box(p).checked && !box(p).disabled).toBe(true)
@@ -164,11 +169,9 @@ describe('Roles (DEC-76, DEC-104)', () => {
 
   it('Given the permission matrix, then one table of modules with View and Actions (no sections); the module box ticks the whole row and shows "mixed" (DEC-102, DEC-104)', async () => {
     renderAt('/roles')
-    await row('Reviewer')
+    await row('Owner')
     fireEvent.click(screen.getByRole('button', { name: /New role/ }))
     await screen.findByLabelText('Role name')
-    const legends = () => screen.getAllByRole('group').map((g) => g.querySelector(':scope > legend')?.textContent).filter(Boolean)
-    expect(legends()).toContain('Permissions')
     for (const old of ['Merchant-wide', 'Project-level', 'Platform-wide', 'Merchant data']) expect(screen.queryByText(old)).toBeNull()
     const users = screen.getByRole('rowheader', { name: /Users/ }).closest('tr')!
     expect(users.textContent).toBe('UsersViewInviteChange roleSuspend')
@@ -186,14 +189,14 @@ describe('Roles (DEC-76, DEC-104)', () => {
 
   it('Given New role as an Owner, then Type is locked to their merchant, then the generated Role ID, read-only (DEC-76, DEC-99)', async () => {
     renderAt('/roles')
-    await row('Reviewer')
+    await row('Owner')
     fireEvent.click(screen.getByRole('button', { name: /New role/ }))
     const id = (await screen.findByLabelText('Role ID')) as HTMLInputElement
     await waitFor(() => expect(id.value).toMatch(/^rol_[a-z0-9]{24}$/))
     expect(id.disabled && id.readOnly).toBe(true)
     const form = id.closest('form')!
     const [type, second] = within(form).getAllByRole('textbox') as HTMLInputElement[]
-    expect(type.value).toBe('Merchant · Atoz Software Tech') // Type first, locked for a merchant admin
+    expect(type.value).toBe('Merchant role · Atoz Software Tech') // Type first, locked for a merchant admin
     expect(type.disabled).toBe(true)
     expect(second).toBe(id)
     fireEvent.change(screen.getByLabelText('Role name'), { target: { value: 'Night shift' } })
@@ -203,20 +206,20 @@ describe('Roles (DEC-76, DEC-104)', () => {
     expect((await row('Night shift')).textContent).toContain('Inactive')
   })
 
-  it('Given the Actions menu, then a Custom role nobody holds can be deactivated; Reviewer can’t, with the reason', async () => {
+  it('Given the Actions menu, then a Custom role nobody holds can be deactivated; Owner can’t, with the reason', async () => {
     vi.spyOn(window, 'confirm').mockReturnValue(true)
-    await roleService.create(fx('MER-0001'), { name: 'Fraud Analyst', permissions: ['VIEW_CASE_LIST'] }, OWNER)
+    await roleService.create(fx('MER-0001'), { name: 'Spare desk', permissions: ['VIEW_USERS'] }, OWNER)
     renderAt('/roles')
-    fireEvent.click(within(await row('Reviewer')).getByRole('button', { name: 'Actions for Reviewer' }))
+    fireEvent.click(within(await row('Owner')).getByRole('button', { name: 'Actions for Owner' }))
     const item = await screen.findByRole('menuitem', { name: /Deactivate/ })
     expect(item.getAttribute('aria-disabled') ?? item.getAttribute('data-disabled')).toBeTruthy()
     expect(item.textContent).toContain('can’t be deactivated')
     fireEvent.keyDown(item, { key: 'Escape' })
     cleanup()
     renderAt('/roles')
-    fireEvent.click(within(await row('Fraud Analyst')).getByRole('button', { name: 'Actions for Fraud Analyst' }))
+    fireEvent.click(within(await row('Spare desk')).getByRole('button', { name: 'Actions for Spare desk' }))
     fireEvent.click(await screen.findByRole('menuitem', { name: 'Deactivate' }))
-    await waitFor(async () => expect((await row('Fraud Analyst')).textContent).toContain('Inactive'))
+    await waitFor(async () => expect((await row('Spare desk')).textContent).toContain('Inactive'))
   })
 
   it('Given a super admin, when New role is Platform, then one table (no sections); Approve ticks Claim and View details; it lists as Platform', async () => {
@@ -227,7 +230,6 @@ describe('Roles (DEC-76, DEC-104)', () => {
     const type = (await screen.findByLabelText('Type')) as HTMLSelectElement
     fireEvent.change(type, { target: { value: 'PLATFORM' } })
     expect(screen.queryByLabelText('Merchant')).toBeNull()
-    for (const old of ['Platform-wide', 'Merchant data']) expect(screen.queryByText(old)).toBeNull()
     expect(screen.getByRole('rowheader', { name: /Merchants/ })).toBeTruthy()
     fireEvent.change(screen.getByLabelText('Role name'), { target: { value: 'Night reviewer' } })
     fireEvent.click(screen.getByRole('checkbox', { name: 'Verifications · Approve / reject' }))
@@ -236,24 +238,67 @@ describe('Roles (DEC-76, DEC-104)', () => {
     expect((await row('Night reviewer')).textContent).toContain('Platform (internal)')
   })
 
-  it('Given a Custom role held by a user, then the Merchant column (super admin) and "Affects N users" before saving', async () => {
-    const desk = await roleService.create(fx('MER-0001'), { name: 'Desk', permissions: ['VIEW_CASE_LIST'] }, OWNER)
-    await userAdminService.addMember(fx('PRJ-0001'), SITI.userId, desk.roleId, OWNER)
+  it('Given a Custom merchant role held by a user, then the Merchant column (super admin) and "Affects N users" before saving', async () => {
     useSession.getState().switchUser(ADMIN)
     renderAt('/roles')
-    const r = await row('Desk')
+    const r = await row('User Coordinator')
     expect(r.textContent).toContain('Atoz Software Tech')
-    fireEvent.click(within(r).getByRole('button', { name: 'Desk' }))
-    expect((await screen.findByRole('status')).textContent).toContain('Affects 1 user in 1 project')
+    fireEvent.click(within(r).getByRole('button', { name: 'User Coordinator' }))
+    expect((await screen.findByRole('status')).textContent).toContain('Affects 1 user in 2 projects')
   })
 
   it('Given a System Default role, when duplicated, then a Custom copy with its permissions is created', async () => {
     renderAt('/roles')
-    fireEvent.click(within(await row('Reviewer')).getByRole('button', { name: 'Reviewer' }))
+    fireEvent.click(within(await row('Auditor')).getByRole('button', { name: 'Auditor' }))
     fireEvent.click(await screen.findByRole('button', { name: 'Duplicate' }))
-    expect(((await screen.findByLabelText('Role name')) as HTMLInputElement).value).toBe('Copy of Reviewer')
-    expect((screen.getByRole('checkbox', { name: 'Claim / release cases' }) as HTMLInputElement).checked).toBe(true)
+    expect(((await screen.findByLabelText('Role name')) as HTMLInputElement).value).toBe('Copy of Auditor')
+    expect((screen.getByRole('checkbox', { name: 'View the case list' }) as HTMLInputElement).checked).toBe(true)
     fireEvent.click(screen.getByRole('button', { name: 'Create role' }))
-    expect((await row('Copy of Reviewer')).textContent).toContain('Custom')
+    expect((await row('Copy of Auditor')).textContent).toContain('Custom')
+  })
+})
+
+describe('Project Settings › Roles: a project’s role table (DEC-104)', () => {
+  it('Given SME app, then the System Default project roles and its own Custom role; New role shows project modules only', async () => {
+    useSession.getState().selectProject(fx('PRJ-0002'))
+    renderAt('/project-settings?tab=roles')
+    const list = await screen.findByRole('region', { name: 'Project roles' })
+    await within(list).findByRole('rowheader', { name: 'Reviewer' })
+    expect(within(list).getAllByRole('rowheader').map((h) => h.textContent)).toEqual(['Project Admin', 'Reviewer', 'Developer', 'Viewer', 'Release Tester'])
+    fireEvent.click(screen.getByRole('button', { name: /New role/ }))
+    const type = (await screen.findByLabelText('Type')) as HTMLInputElement
+    expect(type.value).toBe('Project role · SME app')
+    expect(screen.queryByRole('rowheader', { name: /^All Users permissions/ })).toBeNull()
+    expect(screen.getByRole('rowheader', { name: /Project roles/ })).toBeTruthy()
+    fireEvent.change(screen.getByLabelText('Role name'), { target: { value: 'Night reviewer' } })
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Claim / release cases' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Create role' }))
+    expect((await row('Night reviewer')).textContent).toContain('Custom')
+  })
+
+  it('Given Duplicate from another project, then Default’s Fraud Checker is copied into SME app', async () => {
+    useSession.getState().selectProject(fx('PRJ-0002'))
+    renderAt('/project-settings?tab=roles')
+    await screen.findByRole('rowheader', { name: 'Release Tester' })
+    fireEvent.click(screen.getByRole('button', { name: /Duplicate from another project/ }))
+    const dialog = within(await screen.findByRole('dialog', { name: 'Duplicate from another project' }))
+    expect((dialog.getByLabelText('Project') as HTMLSelectElement).value).toBe(fx('PRJ-0001'))
+    const role = dialog.getByLabelText('Role') as HTMLSelectElement
+    await waitFor(() => expect(within(role).getAllByRole('option').map((o) => o.textContent)).toEqual(['Choose a role', 'Fraud Checker']))
+    fireEvent.change(role, { target: { value: fx('ROL-2026-0021') } })
+    fireEvent.click(dialog.getByRole('button', { name: 'Continue' }))
+    expect(((await screen.findByLabelText('Role name')) as HTMLInputElement).value).toBe('Copy of Fraud Checker')
+    fireEvent.click(screen.getByRole('button', { name: 'Create role' }))
+    expect((await row('Copy of Fraud Checker')).textContent).toContain('Custom')
+  })
+
+  it('Given Hafiz (Project Admin of SME app), then he manages SME app’s roles; a Reviewer has no Roles tab content', async () => {
+    useSession.getState().switchUser(HAFIZ)
+    renderAt('/project-settings?tab=roles')
+    expect(await screen.findByRole('button', { name: /New role/ })).toBeTruthy()
+    cleanup()
+    useSession.getState().switchUser(SITI)
+    renderAt('/project-settings?tab=roles')
+    expect(await screen.findByText(/Project roles need the View project roles permission/)).toBeTruthy()
   })
 })

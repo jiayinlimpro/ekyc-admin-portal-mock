@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { GRANT_TOO_POWERFUL, LAST_OWNER, MERCHANT_LEVEL_SCOPE, NOTHING_IN_PROJECT, ROLE_IN_USE, ROLE_NEEDS_PERMISSION, SYSTEM_ROLE_IDS } from '@/domain/roles'
+import { GRANT_TOO_POWERFUL, LAST_OWNER, MERCHANT_LEVEL_SCOPE, OTHER_PROJECT_ROLE, PROJECT_ROLE_ON_USERS, ROLE_IN_USE, ROLE_NEEDS_PERMISSION, SYSTEM_ROLE_IDS } from '@/domain/roles'
 import type { AuditAction } from '@/domain/types'
 import { db } from '@/mocks/mockDb'
 import { ADMIN, ALI, HAFIZ, NOW, OWNER, SITI } from '@/test/factories'
@@ -17,7 +17,8 @@ beforeEach(async () => {
   await devService.resetDemoData()
 })
 
-const { OWNER: OWNER_ROLE, ADMIN: ADMIN_ROLE, MEMBER, REVIEWER, VIEWER } = SYSTEM_ROLE_IDS
+const { OWNER: OWNER_ROLE, ADMIN: ADMIN_ROLE, AUDITOR, MEMBER, REVIEWER, VIEWER } = SYSTEM_ROLE_IDS
+const FRAUD_CHECKER = fx('ROL-2026-0021') // Custom project role of Default
 const account = (userId: string) => db.state().accounts.find((a) => a.userId === userId)!
 const caseOf = (ref: string) => db.state().verifications.find((v) => v.referenceNo === ref)!
 const lastAudit = async (action: AuditAction) => (await auditService.list({ actions: [action] }, ADMIN)).items[0]
@@ -51,10 +52,22 @@ describe('userAdminService: the Users screen (DEC-74, DEC-104)', () => {
     await expect(users.invite(fx('MER-0001'), { fullName: 'Aishah Again', email: 'aishah@atoz.example' }, OWNER)).rejects.toMatchObject({ code: 'VALIDATION', message: 'A user with this email already exists' })
   })
 
-  it('Given a Reviewer role on New user, then it applies in all projects (DEC-104)', async () => {
-    const row = await users.invite(fx('MER-0001'), { fullName: 'Wide Reviewer', email: 'wide@atoz.example', roleId: REVIEWER }, OWNER)
-    expect(row.access.map((c) => c.label)).toEqual(['Reviewer · All projects'])
-    for (const p of [fx('PRJ-0001'), fx('PRJ-0002')]) expect(mayInProject({ userId: row.userId }, 'claimCase', p)).toBe(true)
+  it('Given New user, then merchant roles only: a project role is refused; Auditor applies in all projects (DEC-104)', async () => {
+    await expect(users.invite(fx('MER-0001'), { fullName: 'Wide Reviewer', email: 'wide@atoz.example', roleId: REVIEWER }, OWNER)).rejects.toMatchObject({ message: PROJECT_ROLE_ON_USERS })
+    const row = await users.invite(fx('MER-0001'), { fullName: 'New Auditor', email: 'auditor@atoz.example', roleId: AUDITOR }, OWNER)
+    expect(row.access.map((c) => c.label)).toEqual(['Auditor · All projects'])
+    for (const p of [fx('PRJ-0001'), fx('PRJ-0002')]) {
+      expect(mayInProject({ userId: row.userId }, 'viewCases', p)).toBe(true)
+      expect(mayInProject({ userId: row.userId }, 'viewCaseDetails', p)).toBe(false)
+    }
+  })
+
+  it('Given Grace (Auditor + Viewer in SME app), then the case list everywhere and case pages in SME app only (DEC-104)', async () => {
+    const grace = { userId: fx('USR-2026-0021') }
+    expect(mayInProject(grace, 'viewCases', fx('PRJ-0001'))).toBe(true)
+    expect(mayInProject(grace, 'viewCaseDetails', fx('PRJ-0001'))).toBe(false)
+    expect(mayInProject(grace, 'viewCaseDetails', fx('PRJ-0002'))).toBe(true)
+    expect((await users.get(grace.userId, OWNER)).access.map((c) => c.label)).toEqual(['Auditor · All projects', 'Viewer · SME app'])
   })
 
   it('Given the form’s drafted User ID, then the new user keeps it; a used one is never reused (DEC-97)', async () => {
@@ -120,16 +133,17 @@ describe('userAdminService: the Users screen (DEC-74, DEC-104)', () => {
   it('Given a user desk merchant role, then its holder gives only roles they hold merchant-wide (DEC-74)', async () => {
     const desk = await roleService.create(fx('MER-0001'), { name: 'User desk', permissions: [...USER_DESK] }, OWNER)
     await users.setRole(SITI.userId, desk.roleId, OWNER)
-    // Siti reviews in Default only (a project role), so she can't give Reviewer for the whole merchant.
-    await expect(users.invite(fx('MER-0001'), { fullName: 'New Reviewer', email: 'r1@atoz.example', roleId: REVIEWER }, SITI)).rejects.toMatchObject({ code: 'FORBIDDEN', message: GRANT_TOO_POWERFUL })
+    // Siti reviews in Default only (a project role), so she can't give the Auditor's case list for the whole merchant.
+    await expect(users.invite(fx('MER-0001'), { fullName: 'New Auditor', email: 'r1@atoz.example', roleId: AUDITOR }, SITI)).rejects.toMatchObject({ code: 'FORBIDDEN', message: GRANT_TOO_POWERFUL })
     expect((await users.invite(fx('MER-0001'), { fullName: 'New Member', email: 'm1@atoz.example' }, SITI)).access[0].label).toBe('Member')
     expect((await roleService.assignable(fx('MER-0001'), SITI)).map((r) => r.name)).toEqual(['Member', 'User desk'])
   })
 
-  it('Given the role pickers, then New user / Change role offer every role the actor may give; Members offers project roles only', async () => {
-    expect((await roleService.assignable(fx('MER-0001'), OWNER)).map((r) => r.name)).toEqual(['Owner', 'Admin', 'Billing', 'Auditor', 'Member', 'Project Admin', 'Reviewer', 'Developer', 'Viewer'])
-    expect((await roleService.assignable(fx('MER-0001'), HAFIZ, fx('PRJ-0002'))).map((r) => r.name)).toEqual(['Project Admin', 'Reviewer', 'Developer', 'Viewer'])
-    await expect(roleService.assignable(fx('MER-0001'), HAFIZ, fx('PRJ-0001'))).resolves.toEqual([])
+  it('Given the role pickers, then New user / Change role offer merchant roles; Members offers that project’s roles (DEC-104)', async () => {
+    expect((await roleService.assignable(fx('MER-0001'), OWNER)).map((r) => r.name)).toEqual(['Owner', 'Admin', 'Billing', 'Auditor', 'Member', 'User Coordinator'])
+    expect((await roleService.assignable(fx('MER-0001'), HAFIZ, fx('PRJ-0002'))).map((r) => r.name)).toEqual(['Project Admin', 'Reviewer', 'Developer', 'Viewer', 'Release Tester'])
+    expect((await roleService.assignable(fx('MER-0001'), OWNER, fx('PRJ-0001'))).map((r) => r.name)).toEqual(['Project Admin', 'Reviewer', 'Developer', 'Viewer', 'Fraud Checker'])
+    await expect(roleService.assignable(fx('MER-0001'), HAFIZ, fx('PRJ-0001'))).rejects.toMatchObject({ code: 'NOT_FOUND' })
   })
 
   it('Given a user from another merchant, then "not found"', async () => {
@@ -168,13 +182,14 @@ describe('userAdminService: a project’s Members tab (DEC-77, DEC-104)', () => 
     expect(rows.some((r) => r.userId === fx('USR-2026-0037'))).toBe(false) // Billing: merchant-wide only
   })
 
-  it('Given Hafiz (Project Admin of SME app), then he adds Siti there; not in Default, not as Owner, not as Member', async () => {
+  it('Given Hafiz (Project Admin of SME app), then he adds Siti there; not in Default, not a merchant role, not another project’s role', async () => {
     expect((await users.addMember(fx('PRJ-0002'), SITI.userId, REVIEWER, HAFIZ)).find((r) => r.userId === SITI.userId)!.roles[0].roleName).toBe('Reviewer')
     expect(mayInProject(SITI, 'claimCase', fx('PRJ-0002'))).toBe(true)
     expect(await lastAudit('USER_ACCESS_ADDED')).toMatchObject({ projectId: fx('PRJ-0002'), actorRole: 'Project Admin' })
     await expect(users.listMembers(fx('PRJ-0001'), HAFIZ)).rejects.toMatchObject({ code: 'NOT_FOUND' })
     await expect(users.addMember(fx('PRJ-0002'), fx('USR-2026-0035'), OWNER_ROLE, HAFIZ)).rejects.toMatchObject({ message: MERCHANT_LEVEL_SCOPE })
-    await expect(users.addMember(fx('PRJ-0002'), fx('USR-2026-0035'), MEMBER, HAFIZ)).rejects.toMatchObject({ message: NOTHING_IN_PROJECT })
+    await expect(users.addMember(fx('PRJ-0002'), fx('USR-2026-0035'), MEMBER, HAFIZ)).rejects.toMatchObject({ message: MERCHANT_LEVEL_SCOPE })
+    await expect(users.addMember(fx('PRJ-0002'), fx('USR-2026-0035'), FRAUD_CHECKER, HAFIZ)).rejects.toMatchObject({ message: OTHER_PROJECT_ROLE })
   })
 
   it('Given a merchant role, then it can’t be removed in Members (it is changed on Users)', async () => {
@@ -188,14 +203,29 @@ describe('userAdminService: a project’s Members tab (DEC-77, DEC-104)', () => 
 })
 
 describe('roleService: the Roles screen (DEC-76, DEC-104)', () => {
-  it('Given the Owner, then the System Default roles first and only their merchant’s Custom roles, with user counts', async () => {
+  it('Given the Owner, then the merchant role table: System Default merchant roles first, then their Custom merchant roles, with user counts', async () => {
     const rows = await roleService.list(OWNER)
-    expect(rows.map((r) => r.name)).toEqual(['Owner', 'Admin', 'Billing', 'Auditor', 'Member', 'Project Admin', 'Reviewer', 'Developer', 'Viewer'])
+    expect(rows.map((r) => r.name)).toEqual(['Owner', 'Admin', 'Billing', 'Auditor', 'Member', 'User Coordinator'])
+    expect(rows.find((r) => r.name === 'Member')!.users).toBe(8) // Ali, Hafiz, Siti, Nurul, Chong, Yap, Kenneth, Zainab
     await roleService.create(fx('MER-0001'), { name: 'Night shift', permissions: ['VIEW_CASE_LIST'] }, OWNER)
-    expect((await roleService.list(OWNER)).at(-1)).toMatchObject({ name: 'Night shift', type: 'CUSTOM', users: 0 }) // Custom roles after the defaults
-    expect(rows.find((r) => r.name === 'Reviewer')!.users).toBe(4) // Ali, Siti, Nurul, Yap (suspended still holds it)
-    expect(rows.find((r) => r.name === 'Reviewer')!.projects).toBe(2) // Default and SME app
-    expect(rows.find((r) => r.name === 'Member')!.users).toBe(7)
+    expect((await roleService.list(OWNER)).at(-1)).toMatchObject({ name: 'Night shift', type: 'CUSTOM', level: 'MERCHANT', users: 0 })
+  })
+
+  it('Given a project, then its own role table: the System Default project roles and its Custom ones, with holders in that project', async () => {
+    const def = await roleService.listProjectRoles(fx('PRJ-0001'), OWNER)
+    expect(def.map((r) => r.name)).toEqual(['Project Admin', 'Reviewer', 'Developer', 'Viewer', 'Fraud Checker'])
+    expect(def.find((r) => r.name === 'Reviewer')!.users).toBe(3) // Ali, Siti, Yap in Default
+    expect((await roleService.listProjectRoles(fx('PRJ-0002'), OWNER)).map((r) => r.name)).toEqual(['Project Admin', 'Reviewer', 'Developer', 'Viewer', 'Release Tester'])
+    await expect(roleService.listProjectRoles(fx('PRJ-0001'), ALI)).rejects.toMatchObject({ code: 'FORBIDDEN' }) // Reviewer: no Project roles View
+  })
+
+  it('Given Hafiz (Project Admin of SME app), then he creates a project role there, not in Default, and not with merchant-wide permissions', async () => {
+    const r = await roleService.create(fx('MER-0001'), { name: 'Night reviewer', permissions: ['CLAIM_CASES'], projectId: fx('PRJ-0002') }, HAFIZ)
+    expect(r).toMatchObject({ level: 'PROJECT', projectId: fx('PRJ-0002'), permissions: ['VIEW_CASE_LIST', 'VIEW_CASE_DETAILS', 'CLAIM_CASES'] })
+    expect(await lastAudit('ROLE_CREATED')).toMatchObject({ projectId: fx('PRJ-0002'), actorRole: 'Project Admin' })
+    await expect(roleService.create(fx('MER-0001'), { name: 'Elsewhere', permissions: ['VIEW_CASE_LIST'], projectId: fx('PRJ-0001') }, HAFIZ)).rejects.toMatchObject({ code: 'NOT_FOUND' })
+    await expect(roleService.create(fx('MER-0001'), { name: 'Billing desk', permissions: ['VIEW_BILLING'], projectId: fx('PRJ-0002') }, HAFIZ)).rejects.toMatchObject({ code: 'VALIDATION' })
+    await expect(roleService.create(fx('MER-0001'), { name: 'Merchant role', permissions: ['VIEW_CASE_LIST'] }, HAFIZ)).rejects.toMatchObject({ code: 'FORBIDDEN' })
   })
 
   it('Given a new role, then at least one permission; Approve ticks Claim, View details and View list; audited', async () => {
@@ -228,7 +258,7 @@ describe('roleService: the Roles screen (DEC-76, DEC-104)', () => {
   })
 
   it('Given a Custom role given to Siti in SME app loses View audit log, then she loses it at once; while held it can’t be deactivated', async () => {
-    const id = (await roleService.create(fx('MER-0001'), { name: 'Fraud Analyst', permissions: ['VIEW_CASE_DETAILS', 'VIEW_AUDIT_LOG'] }, OWNER)).roleId
+    const id = (await roleService.create(fx('MER-0001'), { name: 'Fraud Analyst', permissions: ['VIEW_CASE_DETAILS', 'VIEW_AUDIT_LOG'], projectId: fx('PRJ-0002') }, OWNER)).roleId
     await users.addMember(fx('PRJ-0002'), SITI.userId, id, OWNER)
     expect(mayInProject(SITI, 'viewAudit', fx('PRJ-0002'))).toBe(true)
     await roleService.update(id, { name: 'Fraud Analyst', permissions: ['VIEW_CASE_LIST', 'VIEW_CASE_DETAILS'] }, OWNER)
@@ -237,8 +267,8 @@ describe('roleService: the Roles screen (DEC-76, DEC-104)', () => {
     await expect(roleService.setStatus(id, 'INACTIVE', OWNER)).rejects.toMatchObject({ message: ROLE_IN_USE })
   })
 
-  it('Given a Custom role given in Project › Members, then a merchant-wide permission can’t be added', async () => {
-    const r = await roleService.create(fx('MER-0001'), { name: 'Desk', permissions: ['VIEW_CASE_LIST'] }, OWNER)
+  it('Given a Custom project role, then a merchant-wide permission can’t be added', async () => {
+    const r = await roleService.create(fx('MER-0001'), { name: 'Desk', permissions: ['VIEW_CASE_LIST'], projectId: fx('PRJ-0001') }, OWNER)
     await users.addMember(fx('PRJ-0001'), SITI.userId, r.roleId, OWNER)
     await expect(roleService.update(r.roleId, { name: 'Desk', permissions: ['VIEW_CASE_LIST', 'MANAGE_BILLING'] }, OWNER)).rejects.toMatchObject({ code: 'VALIDATION' })
   })

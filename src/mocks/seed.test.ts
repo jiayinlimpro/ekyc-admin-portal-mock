@@ -280,17 +280,27 @@ describe('accounts (DEC-70, DEC-74)', () => {
     expect(new Set(ids).size).toBe(ids.length)
   })
 
-  it('Given every merchant with users, then an Owner or a Project Admin can manage it', () => {
-    const managers = [SYSTEM_ROLE_IDS.OWNER, SYSTEM_ROLE_IDS.PROJECT_ADMIN] as string[]
+  it('Given every merchant, then its primary contact is an active Owner (DEC-74, DEC-92)', () => {
     for (const m of db.merchants) {
-      expect(db.accounts.some((a) => a.merchantId === m.merchantId && a.assignments.some((x) => managers.includes(x.roleId))), m.merchantId).toBe(true)
+      const contact = db.accounts.find((a) => a.email === m.primaryContact.email)!
+      expect(contact.assignments.some((x) => x.roleId === SYSTEM_ROLE_IDS.OWNER && x.scope.kind === 'ALL_PROJECTS'), m.name).toBe(true)
     }
   })
 
-  it('covers every System Default merchant role (and no Custom role), different roles per project, and Pending and Suspended users', () => {
+  it('Given every merchant user, then exactly one merchant role, and project roles only from the project role table (DEC-104)', () => {
+    const roleOf = (id: string) => db.roles.find((r) => r.roleId === id)!
+    for (const a of db.accounts.filter((x) => x.level === 'MERCHANT_USER')) {
+      const merchantRoles = a.assignments.filter((x) => x.scope.kind === 'ALL_PROJECTS')
+      expect(merchantRoles.map((x) => roleOf(x.roleId).level), a.fullName).toEqual(['MERCHANT'])
+      for (const x of a.assignments.filter((y) => y.scope.kind === 'PROJECTS')) expect(roleOf(x.roleId).level, a.fullName).toBe('PROJECT')
+    }
+  })
+
+  it('covers every role but Release Tester (kept unheld to show Deactivate), different roles per project, and Pending and Suspended users', () => {
     const held = new Set(db.accounts.flatMap((a) => a.assignments.map((x) => x.roleId)))
-    for (const r of db.roles.filter((x) => x.audience === 'MERCHANT')) expect(held.has(r.roleId), r.name).toBe(true)
-    expect(db.roles.every((r) => r.type === 'SYSTEM_DEFAULT')).toBe(true) // only the decided roles (DEC-104)
+    for (const r of db.roles.filter((x) => x.audience === 'MERCHANT' && x.name !== 'Release Tester')) expect(held.has(r.roleId), r.name).toBe(true)
+    expect(held.has(db.roles.find((x) => x.name === 'Release Tester')!.roleId)).toBe(false)
+    expect(db.roles.filter((r) => r.type === 'CUSTOM').map((r) => `${r.name}:${r.level}`)).toEqual(['User Coordinator:MERCHANT', 'Fraud Checker:PROJECT', 'Release Tester:PROJECT'])
     expect(roleNamesInProject(accessOf(account(fx('USR-2026-0012'))), project(fx('PRJ-0001')))).toEqual(['Reviewer'])
     expect(roleNamesInProject(accessOf(account(fx('USR-2026-0012'))), project(fx('PRJ-0002')))).toEqual(['Viewer'])
     expect(db.accounts.map((a) => a.status)).toEqual(expect.arrayContaining(['PENDING', 'SUSPENDED']))

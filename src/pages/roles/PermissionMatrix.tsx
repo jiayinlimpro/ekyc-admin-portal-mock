@@ -3,7 +3,7 @@
 // ticks what it needs; unticking one (View included) clears what depends on it.
 import { dependentsOf, modulePermissions, modulesFor, type PermissionModule } from '@/domain/permissionMatrix'
 import { withImpliedPermissions } from '@/domain/roles'
-import type { Permission, RoleAudience } from '@/domain/types'
+import type { Permission, RoleAudience, RoleLevel } from '@/domain/types'
 import { PERMISSION_LABELS } from '@/lib/labels'
 
 /** Unticking clears the permission and everything that needs it (DEC-104). */
@@ -53,7 +53,7 @@ function ModuleRow({ m, value, onChange }: { m: PermissionModule; value: Permiss
   )
 }
 
-export function PermissionMatrix({ audience, value, onChange, disabled }: { audience: RoleAudience; value: Permission[]; onChange: (v: Permission[]) => void; disabled: boolean }) {
+export function PermissionMatrix({ audience, level = 'MERCHANT', value, onChange, disabled }: { audience: RoleAudience; level?: RoleLevel; value: Permission[]; onChange: (v: Permission[]) => void; disabled: boolean }) {
   return (
     <fieldset className="rounded-md border p-3" disabled={disabled}>
       <legend className="px-1 text-sm font-medium">Permissions</legend>
@@ -71,7 +71,7 @@ export function PermissionMatrix({ audience, value, onChange, disabled }: { audi
           </tr>
         </thead>
         <tbody>
-          {modulesFor(audience).map((m) => (
+          {modulesFor(audience, level).map((m) => (
             <ModuleRow key={m.module} m={m} value={value} onChange={onChange} />
           ))}
         </tbody>
@@ -79,7 +79,9 @@ export function PermissionMatrix({ audience, value, onChange, disabled }: { audi
       <p className="mt-2 text-xs text-muted-foreground">
         {audience === 'PLATFORM'
           ? 'A platform role applies to every merchant. Managing staff, platform roles and super admins is for super admins only, not a permission.'
-          : 'A role with Projects, Users, Roles, Billing and contract or Merchant reports permissions can only be given on Users, not in Project › Members.'}
+          : level === 'PROJECT'
+            ? 'A project role applies only in its project. Merchant-wide modules (Projects, Users, Roles, Billing, Merchant reports) are in merchant roles.'
+            : 'A merchant role applies to the whole merchant and all its projects.'}
       </p>
     </fieldset>
   )

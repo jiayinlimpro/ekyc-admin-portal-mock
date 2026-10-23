@@ -11,6 +11,8 @@ import {
   holdersOf,
   lastOwnerError,
   MERCHANT_LEVEL_SCOPE,
+  OTHER_PROJECT_ROLE,
+  PROJECT_ROLE_ON_USERS,
   permissionsIn,
   ROLE_IN_USE,
   ROLE_NEEDS_PERMISSION,
@@ -93,10 +95,17 @@ describe('roles: permissions from scoped assignments (DEC-70)', () => {
 describe('roles: giving access (DEC-74, DEC-77, DEC-104)', () => {
   const open = [fx('PRJ-0001'), fx('PRJ-0002')]
 
-  it('Given a role with merchant-wide permissions, then only on Users (whole merchant), never in Project › Members', () => {
+  it('Given two role tables, then merchant roles only on Users and project roles only in Project › Members (DEC-104)', () => {
     expect(validateAssignment(role(MERCHANT_OWNER), only(fx('PRJ-0001')), open)).toEqual([{ field: 'roleId', message: MERCHANT_LEVEL_SCOPE }])
     expect(validateAssignment(role(MERCHANT_OWNER), ALL, open)).toEqual([])
-    expect(validateAssignment(role(SYSTEM_ROLE_IDS.ADMIN), only(fx('PRJ-0001')), open)[0].message).toBe(MERCHANT_LEVEL_SCOPE)
+    expect(validateAssignment(role(SYSTEM_ROLE_IDS.MEMBER), only(fx('PRJ-0001')), open)[0].message).toBe(MERCHANT_LEVEL_SCOPE)
+    expect(validateAssignment(role(REVIEWER), ALL, open)).toEqual([{ field: 'roleId', message: PROJECT_ROLE_ON_USERS }])
+  })
+
+  it('Given a Custom project role, then only in its own project', () => {
+    const custom = { ...role(REVIEWER), roleId: fx('ROL-2026-0100'), type: 'CUSTOM' as const, projectId: fx('PRJ-0001') }
+    expect(validateAssignment(custom, only(fx('PRJ-0001')), open)).toEqual([])
+    expect(validateAssignment(custom, only(fx('PRJ-0002')), open)).toEqual([{ field: 'roleId', message: OTHER_PROJECT_ROLE }])
   })
 
   it('Given a project role, then exactly one open project', () => {
@@ -147,15 +156,15 @@ describe('roles: the Roles screen (DEC-76)', () => {
 
   it('Given a System Default role, then it cannot be edited or deactivated', () => {
     const owner = role(MERCHANT_OWNER)
-    expect(validateRole({ name: 'Boss', permissions: ['VIEW_CASE_LIST'] }, others, { ...owner, heldForSelectedProjects: false })).toHaveLength(1)
+    expect(validateRole({ name: 'Boss', permissions: ['VIEW_CASE_LIST'] }, others, owner)).toHaveLength(1)
     expect(validateRoleStatus(owner, 'INACTIVE', 0)).toHaveLength(1)
   })
 
-  it('Given a Custom role given in Project › Members, when a merchant-wide permission is added, then it is refused', () => {
-    const custom = { roleId: fx('ROL-2026-0100'), type: 'CUSTOM' as const, heldForSelectedProjects: true }
+  it('Given a project role, then project permissions only; a merchant role may hold both (DEC-104)', () => {
     const perms: Permission[] = ['VIEW_CASE_LIST', 'MANAGE_BILLING']
-    expect(validateRole({ name: 'Ops', permissions: perms }, others, custom)[0].field).toBe('permissions')
-    expect(validateRole({ name: 'Ops', permissions: perms }, others, { ...custom, heldForSelectedProjects: false })).toEqual([])
+    expect(validateRole({ name: 'Ops', permissions: perms, audience: 'MERCHANT', level: 'PROJECT' }, others)).toEqual([{ field: 'permissions', message: 'Project roles hold project permissions only.' }])
+    expect(validateRole({ name: 'Ops', permissions: perms, audience: 'MERCHANT', level: 'MERCHANT' }, others)).toEqual([])
+    expect(validateRole({ name: 'Floor', permissions: ['VIEW_CASE_LIST', 'VIEW_PROJECT_ROLES'], audience: 'MERCHANT', level: 'PROJECT' }, others)).toEqual([])
   })
 
   it('Given a Custom role still assigned, when it is deactivated, then the FRS message is shown', () => {

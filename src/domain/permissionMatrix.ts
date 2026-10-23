@@ -1,7 +1,7 @@
 // REQ: DEC-102 / DEC-104 — the permission matrix: every permission is a module's View or one of its actions. The Roles
 // screen shows one table per role Type: rows (module) × View × Actions, no sections (where a role applies is decided by
 // where it is given, DEC-104). Ticking a permission ticks what it needs; unticking one clears what depends on it.
-import type { Permission, RoleAudience } from './types'
+import type { Permission, RoleAudience, RoleLevel } from './types'
 
 export interface PermissionModule {
   module: string
@@ -18,16 +18,8 @@ const a = (permission: Permission, label: string) => ({ permission, label })
 const CASES = ['View details', 'Claim / release', 'Approve / reject'] as const
 const FLOWS = ['Create', 'Edit', 'Activate / retire', 'Change verification level'] as const
 
-/** REQ: DEC-104 — the modules of a Merchant role, in the order of the Roles form. */
-const MERCHANT_MODULES: readonly PermissionModule[] = [
-  // Everyone sees the projects they work in, so Projects has no View.
-  { module: 'Projects', actions: [a('CREATE_PROJECTS', 'Create'), a('RENAME_PROJECTS', 'Rename'), a('ARCHIVE_PROJECTS', 'Archive')] },
-  // Users are never deleted, only suspended (DEC-74).
-  { module: 'Users', view: 'VIEW_USERS', actions: [a('INVITE_USERS', 'Invite'), a('CHANGE_USER_ROLE', 'Change role'), a('SUSPEND_USERS', 'Suspend')] },
-  // Roles are never deleted, only deactivated (DEC-76).
-  { module: 'Roles', view: 'VIEW_ROLES', actions: [a('CREATE_ROLES', 'Create'), a('EDIT_ROLES', 'Edit'), a('CHANGE_ROLE_STATUS', 'Deactivate')] },
-  { module: 'Billing and contract', view: 'VIEW_BILLING', actions: [a('MANAGE_BILLING', 'Manage')] },
-  { module: 'Merchant reports', view: 'VIEW_MERCHANT_REPORTS', actions: [a('EXPORT_MERCHANT_REPORTS', 'Export')] },
+/** REQ: DEC-104 — the project modules: all a project role may hold. */
+const PROJECT_MODULES: readonly PermissionModule[] = [
   {
     module: 'Verifications',
     view: 'VIEW_CASE_LIST',
@@ -42,8 +34,23 @@ const MERCHANT_MODULES: readonly PermissionModule[] = [
   { module: 'Project settings', view: 'VIEW_PROJECT_SETTINGS', actions: [a('MANAGE_PROJECT_SETTINGS', 'Edit')] },
   { module: 'API keys and webhook', view: 'VIEW_INTEGRATION', actions: [a('MANAGE_INTEGRATION', 'Manage')] },
   { module: 'Members', view: 'VIEW_MEMBERS', actions: [a('MANAGE_MEMBERS', 'Add / remove')] },
+  // REQ: DEC-104 — the project's own role table.
+  { module: 'Project roles', view: 'VIEW_PROJECT_ROLES', actions: [a('CREATE_PROJECT_ROLES', 'Create'), a('EDIT_PROJECT_ROLES', 'Edit'), a('CHANGE_PROJECT_ROLE_STATUS', 'Deactivate')] },
   { module: 'Project reports', view: 'VIEW_PROJECT_REPORTS', actions: [a('EXPORT_PROJECT_REPORTS', 'Export')] },
   { module: 'Audit log', view: 'VIEW_AUDIT_LOG', actions: [] },
+]
+
+/** REQ: DEC-104 — a merchant role: the merchant-wide modules, plus the project modules (they apply in all projects). */
+const MERCHANT_MODULES: readonly PermissionModule[] = [
+  // Everyone sees the projects they work in, so Projects has no View.
+  { module: 'Projects', actions: [a('CREATE_PROJECTS', 'Create'), a('RENAME_PROJECTS', 'Rename'), a('ARCHIVE_PROJECTS', 'Archive')] },
+  // Users are never deleted, only suspended (DEC-74).
+  { module: 'Users', view: 'VIEW_USERS', actions: [a('INVITE_USERS', 'Invite'), a('CHANGE_USER_ROLE', 'Change role'), a('SUSPEND_USERS', 'Suspend')] },
+  // Roles are never deleted, only deactivated (DEC-76).
+  { module: 'Roles', view: 'VIEW_ROLES', actions: [a('CREATE_ROLES', 'Create'), a('EDIT_ROLES', 'Edit'), a('CHANGE_ROLE_STATUS', 'Deactivate')] },
+  { module: 'Billing and contract', view: 'VIEW_BILLING', actions: [a('MANAGE_BILLING', 'Manage')] },
+  { module: 'Merchant reports', view: 'VIEW_MERCHANT_REPORTS', actions: [a('EXPORT_MERCHANT_REPORTS', 'Export')] },
+  ...PROJECT_MODULES,
 ]
 
 /** REQ: DEC-104 — the modules of a Platform role (staff have one role and no scope: every module applies everywhere). */
@@ -68,8 +75,9 @@ const PLATFORM_MODULES: readonly PermissionModule[] = [
   { module: 'Audit log', view: 'P_AUDIT_VIEW', actions: [] },
 ]
 
-/** The rows of the Roles form for a role of this Type. */
-export const modulesFor = (audience: RoleAudience): readonly PermissionModule[] => (audience === 'PLATFORM' ? PLATFORM_MODULES : MERCHANT_MODULES)
+/** The rows of the role form: platform roles, merchant roles (every module) or project roles (project modules). */
+export const modulesFor = (audience: RoleAudience, level: RoleLevel = 'MERCHANT'): readonly PermissionModule[] =>
+  audience === 'PLATFORM' ? PLATFORM_MODULES : level === 'PROJECT' ? PROJECT_MODULES : MERCHANT_MODULES
 
 /** Every permission of a module: its View and its actions (the module checkbox ticks them all). */
 export const modulePermissions = (m: PermissionModule): Permission[] => [...(m.view ? [m.view] : []), ...m.actions.map((x) => x.permission)]

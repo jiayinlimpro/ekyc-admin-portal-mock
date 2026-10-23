@@ -40,6 +40,11 @@ export const PROJECT_ACTIONS = [
   // Project-level.
   'viewMembers', // Members tab of a project (DEC-77)
   'manageMembers',
+  // REQ: DEC-104 — the project's own role table (Project Settings › Roles).
+  'viewProjectRoles',
+  'createProjectRoles',
+  'editProjectRoles',
+  'changeProjectRoleStatus',
   'viewIntegration', // Integration tab, read-only
   'manageIntegration', // API keys, webhook, redirect URLs, IP allowlist
   'viewProjectSettings', // General and Review operations, read-only
@@ -83,6 +88,10 @@ const NEEDS: Record<ProjectAction, readonly Permission[]> = {
   viewMerchantReports: ['VIEW_MERCHANT_REPORTS'],
   viewMembers: ['VIEW_MEMBERS', 'MANAGE_MEMBERS'],
   manageMembers: ['MANAGE_MEMBERS'],
+  viewProjectRoles: ['VIEW_PROJECT_ROLES', 'CREATE_PROJECT_ROLES', 'EDIT_PROJECT_ROLES', 'CHANGE_PROJECT_ROLE_STATUS'],
+  createProjectRoles: ['CREATE_PROJECT_ROLES'],
+  editProjectRoles: ['EDIT_PROJECT_ROLES'],
+  changeProjectRoleStatus: ['CHANGE_PROJECT_ROLE_STATUS'],
   viewIntegration: ['VIEW_INTEGRATION', 'MANAGE_INTEGRATION'],
   manageIntegration: ['MANAGE_INTEGRATION'],
   viewProjectSettings: SETTINGS,

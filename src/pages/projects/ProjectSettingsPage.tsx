@@ -21,6 +21,7 @@ import { projectService, type MyProject } from '@/services/projectService'
 import { useSession } from '@/stores/sessionStore'
 import { IntegrationTab } from './IntegrationTab'
 import { MembersTab } from './MembersTab'
+import { ProjectRolesTab } from './ProjectRolesTab'
 import { Card } from './settingsUi'
 import { PROJECT_SETTINGS_ACTIONS } from '@/app/nav'
 
@@ -30,6 +31,7 @@ const TABS = [
   { value: 'review', label: 'Review operations' },
   { value: 'routing', label: 'Routing' },
   { value: 'members', label: 'Members' },
+  { value: 'roles', label: 'Roles' }, // REQ: DEC-104 — this project's role table
 ] as const
 type Tab = (typeof TABS)[number]['value']
 
@@ -229,6 +231,7 @@ function Settings({ selected }: { selected: MyProject }) {
             ))}
           {tab === 'routing' && (may('viewRouting') ? <RoutingTab project={p} /> : <ReadOnlyNote>Routing is shown to users who may view flows or project settings.</ReadOnlyNote>)}
           {tab === 'members' && (may('viewMembers') ? <MembersTab project={p} /> : <ReadOnlyNote>Members need the View project members permission (DEC-77, DEC-102).</ReadOnlyNote>)}
+          {tab === 'roles' && (may('viewProjectRoles') ? <ProjectRolesTab key={p.projectId} project={p} /> : <ReadOnlyNote>Project roles need the View project roles permission (DEC-104).</ReadOnlyNote>)}
         </div>
       )}
     </div>

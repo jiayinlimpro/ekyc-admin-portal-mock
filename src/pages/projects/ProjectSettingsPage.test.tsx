@@ -112,7 +112,7 @@ describe('Project Settings › Members (DEC-77)', () => {
     const user = p.getByLabelText('User')
     await waitFor(() => expect(within(user).getAllByRole('option').length).toBeGreaterThan(1))
     fireEvent.change(user, { target: { value: fx('USR-2026-0031') } })
-    const role = p.getByLabelText('Role')
+    const role = p.getByLabelText('Project role')
     await waitFor(() => expect(within(role).getAllByRole('option').map((o) => o.textContent)).not.toContain('Owner'))
     fireEvent.change(role, { target: { value: fx('ROL-2026-0003') } })
     fireEvent.click(p.getByRole('button', { name: /Add member/ }))

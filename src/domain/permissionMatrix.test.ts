@@ -3,7 +3,7 @@ import { MERCHANT_ROLE_PERMISSIONS, PLATFORM_ROLE_PERMISSIONS } from './types'
 import { dependentsOf, modulePermissions, modulesFor } from './permissionMatrix'
 import { PLATFORM_DEFAULT_ROLES, SYSTEM_DEFAULT_ROLES, withImpliedPermissions } from './roles'
 
-const rows = (audience: 'MERCHANT' | 'PLATFORM') => modulesFor(audience).map((m) => [m.module, m.viewLabel ?? (m.view ? 'View' : '—'), m.actions.map((x) => x.label).join(', ') || '—'])
+const rows = (audience: 'MERCHANT' | 'PLATFORM', level: 'MERCHANT' | 'PROJECT' = 'MERCHANT') => modulesFor(audience, level).map((m) => [m.module, m.viewLabel ?? (m.view ? 'View' : '—'), m.actions.map((x) => x.label).join(', ') || '—'])
 
 describe('permission matrix (DEC-102, DEC-104)', () => {
   it('Given each role Type, then one list of modules holding every permission of that Type exactly once (no sections)', () => {
@@ -26,9 +26,14 @@ describe('permission matrix (DEC-102, DEC-104)', () => {
       ['Project settings', 'View', 'Edit'],
       ['API keys and webhook', 'View', 'Manage'],
       ['Members', 'View', 'Add / remove'],
+      ['Project roles', 'View', 'Create, Edit, Deactivate'],
       ['Project reports', 'View', 'Export'],
       ['Audit log', 'View', '—'],
     ])
+  })
+
+  it('Given a project role, then the project modules only (DEC-104)', () => {
+    expect(rows('MERCHANT', 'PROJECT').map((r) => r[0])).toEqual(['Verifications', 'Flows', 'Project settings', 'API keys and webhook', 'Members', 'Project roles', 'Project reports', 'Audit log'])
   })
 
   it('Given a Platform role, then platform modules and the merchant data modules, with the same wording as merchant roles', () => {

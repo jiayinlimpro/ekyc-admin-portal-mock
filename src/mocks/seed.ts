@@ -19,7 +19,7 @@ import { fx, stableId } from '@/lib/ids'
 export const SEED = 2026
 export const BACKGROUND_COUNT = 300
 /** Bump when the shape of MockDbState changes: persisted demo data is then re-seeded. */
-export const DB_VERSION = 17
+export const DB_VERSION = 18
 
 export interface MockDbState {
   dbVersion: number

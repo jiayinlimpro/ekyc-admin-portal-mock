@@ -137,4 +137,4 @@ export function ChangeRoleDialog({
 }
 
 /** REQ: DEC-104 — the help text wherever a merchant role is given on Users. */
-export const MERCHANT_ROLE_HINT = 'Project permissions in this role apply to all projects. To limit access to some projects, choose Member and add the user in each project.'
+export const MERCHANT_ROLE_HINT = 'This role applies to the whole merchant and all its projects. For selected projects only, keep Member and add the user in Project › Members.'

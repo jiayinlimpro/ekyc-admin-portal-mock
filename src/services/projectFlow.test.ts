@@ -111,7 +111,7 @@ describe('flowService settings and lifecycle (DEC-51 … DEC-53, DEC-94)', () =>
   })
 
   it('Given a Custom role with Flows Edit but not Change verification level, then only the other settings save (DEC-70)', async () => {
-    const editor = await roleService.create(fx('MER-0001'), { name: 'Flow editor', permissions: ['EDIT_FLOWS'] }, OWNER)
+    const editor = await roleService.create(fx('MER-0001'), { name: 'Flow editor', permissions: ['EDIT_FLOWS'], projectId: fx('PRJ-0001') }, OWNER)
     await userAdminService.addMember(fx('PRJ-0001'), SITI.userId, editor.roleId, OWNER)
     const { flow } = await flowService.get(fx('FLW-0001'), SITI)
     const base = { name: flow.name, description: flow.description }

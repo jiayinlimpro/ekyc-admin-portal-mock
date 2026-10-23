@@ -29,8 +29,8 @@ import type { AccessRule } from './access'
 // REQ: DEC-103 — User Management = who may do what (Users, Roles); Governance = the record of what they did (Audit Logs).
 // Project Settings and Flows are opened from a project on the Projects screen, not from the menu.
 // REQ: DEC-99 — screens whose parts need different permissions open for any of them; each part checks its own.
-export const PROJECT_SETTINGS_ACTIONS = ['viewProjectSettings', 'viewIntegration', 'viewMembers', 'viewRouting'] as const
-export const PROJECTS_ACTIONS = ['createProjects', 'renameProjects', 'archiveProjects', 'viewProjectSettings', 'viewFlows', 'viewIntegration', 'viewMembers'] as const
+export const PROJECT_SETTINGS_ACTIONS = ['viewProjectSettings', 'viewIntegration', 'viewMembers', 'viewProjectRoles', 'viewRouting'] as const
+export const PROJECTS_ACTIONS = ['createProjects', 'renameProjects', 'archiveProjects', 'viewProjectSettings', 'viewFlows', 'viewIntegration', 'viewMembers', 'viewProjectRoles'] as const
 
 export const NAV_GROUPS = ['Dashboards', 'eKYC', 'User Management', 'Governance', 'Platform'] as const
 export type NavGroup = (typeof NAV_GROUPS)[number]
@@ -151,7 +151,7 @@ export const NAV_ITEMS: NavItem[] = [
     access: { project: PROJECT_SETTINGS_ACTIONS },
     priority: 'P1',
     built: true,
-    notes: ['Tabs: General · Integration (API keys, webhook, redirect URLs, origins, IP allowlist) · Review operations (claim timeout) · Routing (read-only) (DEC-54).'],
+    notes: ['Tabs: General · Integration (API keys, webhook, redirect URLs, origins, IP allowlist) · Review operations (claim timeout) · Routing (read-only) · Members · Roles (project roles, DEC-104) (DEC-54).'],
   },
   {
     path: '/flows',

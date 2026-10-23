@@ -9,6 +9,7 @@ import {
   PLATFORM_ROLE_PERMISSIONS,
   PROJECT_PERMISSIONS,
   type RoleAudience,
+  type RoleLevel,
   type AssignmentScope,
   type Grant,
   type Permission,
@@ -36,20 +37,22 @@ const PROJECT_ALL: Permission[] = [...PROJECT_PERMISSIONS]
 const REPORTS: Permission[] = ['VIEW_PROJECT_REPORTS', 'EXPORT_PROJECT_REPORTS']
 
 // Usually given on Users (whole merchant), then those usually given in Project › Members.
-export const SYSTEM_DEFAULT_ROLES: readonly Pick<Role, 'roleId' | 'name' | 'permissions'>[] = [
-  { roleId: SYSTEM_ROLE_IDS.OWNER, name: 'Owner', permissions: [...MERCHANT_ROLE_PERMISSIONS] },
+// REQ: DEC-104 — merchant roles (Users) first, then project roles (Project › Members, in every project).
+export const SYSTEM_DEFAULT_ROLES: readonly Pick<Role, 'roleId' | 'name' | 'permissions' | 'level'>[] = [
+  { roleId: SYSTEM_ROLE_IDS.OWNER, name: 'Owner', level: 'MERCHANT', permissions: [...MERCHANT_ROLE_PERMISSIONS] },
   {
     roleId: SYSTEM_ROLE_IDS.ADMIN,
     name: 'Admin',
+    level: 'MERCHANT',
     permissions: [...MERCHANT_PERMISSIONS.filter((p) => p !== 'VIEW_BILLING' && p !== 'MANAGE_BILLING'), ...PROJECT_ALL],
   },
-  { roleId: SYSTEM_ROLE_IDS.BILLING, name: 'Billing', permissions: ['VIEW_BILLING', 'MANAGE_BILLING'] },
-  { roleId: SYSTEM_ROLE_IDS.AUDITOR, name: 'Auditor', permissions: ['VIEW_MERCHANT_REPORTS', 'EXPORT_MERCHANT_REPORTS', 'VIEW_CASE_LIST', 'VIEW_AUDIT_LOG'] },
-  { roleId: SYSTEM_ROLE_IDS.MEMBER, name: 'Member', permissions: [] }, // the default on New user: access only through Members
-  { roleId: SYSTEM_ROLE_IDS.PROJECT_ADMIN, name: 'Project Admin', permissions: [...PROJECT_ALL] },
-  { roleId: SYSTEM_ROLE_IDS.REVIEWER, name: 'Reviewer', permissions: ['VIEW_CASE_LIST', 'VIEW_CASE_DETAILS', 'CLAIM_CASES', 'DECIDE_CASES', 'VIEW_FLOWS', ...REPORTS] },
-  { roleId: SYSTEM_ROLE_IDS.DEVELOPER, name: 'Developer', permissions: ['VIEW_FLOWS', 'VIEW_INTEGRATION', 'MANAGE_INTEGRATION'] },
-  { roleId: SYSTEM_ROLE_IDS.VIEWER, name: 'Viewer', permissions: ['VIEW_CASE_LIST', 'VIEW_CASE_DETAILS', 'VIEW_FLOWS', ...REPORTS] },
+  { roleId: SYSTEM_ROLE_IDS.BILLING, name: 'Billing', level: 'MERCHANT', permissions: ['VIEW_BILLING', 'MANAGE_BILLING'] },
+  { roleId: SYSTEM_ROLE_IDS.AUDITOR, name: 'Auditor', level: 'MERCHANT', permissions: ['VIEW_MERCHANT_REPORTS', 'EXPORT_MERCHANT_REPORTS', 'VIEW_CASE_LIST', 'VIEW_AUDIT_LOG'] },
+  { roleId: SYSTEM_ROLE_IDS.MEMBER, name: 'Member', level: 'MERCHANT', permissions: [] }, // the default on New user: access only through Members
+  { roleId: SYSTEM_ROLE_IDS.PROJECT_ADMIN, name: 'Project Admin', level: 'PROJECT', permissions: [...PROJECT_ALL] },
+  { roleId: SYSTEM_ROLE_IDS.REVIEWER, name: 'Reviewer', level: 'PROJECT', permissions: ['VIEW_CASE_LIST', 'VIEW_CASE_DETAILS', 'CLAIM_CASES', 'DECIDE_CASES', 'VIEW_FLOWS', ...REPORTS] },
+  { roleId: SYSTEM_ROLE_IDS.DEVELOPER, name: 'Developer', level: 'PROJECT', permissions: ['VIEW_FLOWS', 'VIEW_INTEGRATION', 'MANAGE_INTEGRATION'] },
+  { roleId: SYSTEM_ROLE_IDS.VIEWER, name: 'Viewer', level: 'PROJECT', permissions: ['VIEW_CASE_LIST', 'VIEW_CASE_DETAILS', 'VIEW_FLOWS', ...REPORTS] },
 ]
 
 /** REQ: DEC-104 — the merchant role a New user starts with. */
@@ -89,8 +92,9 @@ export const PLATFORM_DEFAULT_ROLES: readonly Pick<Role, 'roleId' | 'name' | 'pe
   { roleId: PLATFORM_ROLE_IDS.FINANCE, name: 'Finance', permissions: ['P_BILLING_VIEW', 'P_BILLING_MANAGE', 'P_REPORTS_VIEW', 'P_REPORTS_EXPORT'] },
 ]
 
-/** REQ: DEC-99 — the permissions a role of each Type may hold. */
-export const permissionsFor = (audience: RoleAudience): readonly Permission[] => (audience === 'PLATFORM' ? PLATFORM_ROLE_PERMISSIONS : MERCHANT_ROLE_PERMISSIONS)
+/** REQ: DEC-99 / DEC-104 — the permissions a role may hold: platform; merchant role (every module); project role (project modules). */
+export const permissionsFor = (audience: RoleAudience, level: RoleLevel = 'MERCHANT'): readonly Permission[] =>
+  audience === 'PLATFORM' ? PLATFORM_ROLE_PERMISSIONS : level === 'PROJECT' ? PROJECT_PERMISSIONS : MERCHANT_ROLE_PERMISSIONS
 
 const PLATFORM_LEVEL: ReadonlySet<Permission> = new Set(PLATFORM_LEVEL_PERMISSIONS)
 const MERCHANT_DATA: ReadonlySet<Permission> = new Set(MERCHANT_DATA_PERMISSIONS)
@@ -224,23 +228,25 @@ export function canGrant(granter: 'SUPER_ADMIN' | readonly Grant[], permissions:
 }
 
 export const GRANT_TOO_POWERFUL = 'You can only give access you have yourself.'
-export const MERCHANT_LEVEL_SCOPE = 'This role has merchant-wide permissions, so it can only be given on Users, not in a project.'
+export const MERCHANT_LEVEL_SCOPE = 'Merchant roles are given on Users, not in Project › Members.'
+export const PROJECT_ROLE_ON_USERS = 'Project roles are given in Project › Members, not on Users.'
+export const OTHER_PROJECT_ROLE = 'This role belongs to another project.'
 
-export const NOTHING_IN_PROJECT = 'This role gives no access in a project. Choose a project role.'
 export const WRONG_ROLE_TYPE = 'Platform roles are for platform staff; merchant roles are for that merchant’s users.'
 
 /**
  * REQ: DEC-104 — rules for giving a role. Platform roles: platform staff only, for every merchant (`ALL_MERCHANTS`).
- * Merchant roles: on Users for the whole merchant (`ALL_PROJECTS`, any merchant role), or in Project › Members for one
- * project (a role without merchant-wide permissions). `openProjectIds`: the merchant's non-archived projects.
+ * Merchant roles: on Users only, for the whole merchant (`ALL_PROJECTS`). Project roles: in Project › Members only, for
+ * one open project (a Custom project role only in its own project). `openProjectIds`: the merchant's non-archived projects.
  */
-export function validateAssignment(role: Pick<Role, 'permissions' | 'status' | 'audience'>, scope: AssignmentScope, openProjectIds: readonly string[]): RuleError[] {
+export function validateAssignment(role: Pick<Role, 'status' | 'audience' | 'level' | 'projectId'>, scope: AssignmentScope, openProjectIds: readonly string[]): RuleError[] {
   if (role.status !== 'ACTIVE') return [{ field: 'roleId', message: 'This role is inactive.' }]
   if ((role.audience === 'PLATFORM') !== (scope.kind === 'ALL_MERCHANTS')) return [{ field: 'roleId', message: WRONG_ROLE_TYPE }]
-  if (scope.kind !== 'PROJECTS') return []
-  if (isMerchantLevel(role.permissions)) return [{ field: 'roleId', message: MERCHANT_LEVEL_SCOPE }]
-  if (!role.permissions.length) return [{ field: 'roleId', message: NOTHING_IN_PROJECT }]
+  if (scope.kind === 'ALL_MERCHANTS') return []
+  if (scope.kind === 'ALL_PROJECTS') return role.level === 'PROJECT' ? [{ field: 'roleId', message: PROJECT_ROLE_ON_USERS }] : []
+  if (role.level !== 'PROJECT') return [{ field: 'roleId', message: MERCHANT_LEVEL_SCOPE }]
   if (scope.projectIds.length !== 1) return [{ field: 'scope', message: 'A project role is for one project.' }]
+  if (role.projectId && role.projectId !== scope.projectIds[0]) return [{ field: 'roleId', message: OTHER_PROJECT_ROLE }]
   if (!openProjectIds.includes(scope.projectIds[0])) return [{ field: 'scope', message: 'Archived projects keep their members but take no new ones.' }]
   return []
 }
@@ -249,13 +255,13 @@ export const ROLE_NEEDS_PERMISSION = 'Roles require at least one action permissi
 export const ROLE_IN_USE = 'Operation rejected. This role is currently assigned to active records inside the system.'
 
 /**
- * REQ: DEC-76 — create or edit a Custom role. `others`: the roles the merchant sees (System Default + its own);
- * `heldForSelectedProjects`: whether the role is given as a project role (Project › Members) to anyone.
+ * REQ: DEC-76 / DEC-104 — create or edit a Custom role. `others`: the roles of the same table (merchant roles of the
+ * merchant, or the project roles of the project); names are unique within it.
  */
 export function validateRole(
-  input: { name: string; permissions: readonly Permission[]; audience?: RoleAudience },
+  input: { name: string; permissions: readonly Permission[]; audience?: RoleAudience; level?: RoleLevel },
   others: readonly Pick<Role, 'roleId' | 'name'>[],
-  current?: Pick<Role, 'roleId' | 'type'> & { heldForSelectedProjects: boolean },
+  current?: Pick<Role, 'roleId' | 'type'>,
 ): RuleError[] {
   if (current?.type === 'SYSTEM_DEFAULT') return [{ field: 'name', message: 'System Default roles can’t be changed.' }]
   const errors: RuleError[] = []
@@ -265,11 +271,8 @@ export function validateRole(
     errors.push({ field: 'name', message: 'A role with this name already exists.' })
   }
   if (!input.permissions.length) errors.push({ field: 'permissions', message: ROLE_NEEDS_PERMISSION })
-  else if (input.audience && input.permissions.some((p) => !permissionsFor(input.audience!).includes(p))) {
-    errors.push({ field: 'permissions', message: 'These permissions don’t belong to this role type.' })
-  }
-  else if (current?.heldForSelectedProjects && isMerchantLevel(input.permissions)) {
-    errors.push({ field: 'permissions', message: 'This role is given in Project › Members, so it can’t include merchant-wide permissions.' })
+  else if (input.audience && input.permissions.some((p) => !permissionsFor(input.audience!, input.level).includes(p))) {
+    errors.push({ field: 'permissions', message: input.level === 'PROJECT' ? 'Project roles hold project permissions only.' : 'These permissions don’t belong to this role type.' })
   }
   return errors
 }

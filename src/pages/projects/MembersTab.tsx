@@ -23,7 +23,7 @@ import { Card } from './settingsUi'
 function AddMember({ project, onAdded }: { project: Project; onAdded: () => void }) {
   const actor = useSession((s) => s.actor)
   const candidates = useLoad(() => userAdminService.memberCandidates(project.projectId, actor), [project.projectId, actor.userId])
-  // REQ: DEC-77 / DEC-104 — only roles without merchant-wide permissions that the actor may give in this project.
+  // REQ: DEC-77 / DEC-104 — this project's roles (Project Settings › Roles) that the actor may give here.
   const roles = useLoad(() => roleService.assignable(project.merchantId, actor, project.projectId), [project.merchantId, project.projectId, actor.userId])
   const [userId, setUserId] = useState('')
   const [roleId, setRoleId] = useState('')
@@ -64,7 +64,7 @@ function AddMember({ project, onAdded }: { project: Project; onAdded: () => void
           ))}
         </NativeSelect>
       </FormField>
-      <FormField id="mb-role" label="Role" className="w-48">
+      <FormField id="mb-role" label="Project role" className="w-48">
         <NativeSelect id="mb-role" value={roleId} onChange={(e) => setRoleId(e.target.value)}>
           <option value="">Choose a role</option>
           {(roles.data ?? []).map((r) => (
