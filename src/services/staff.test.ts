@@ -72,6 +72,28 @@ describe('platform staff: one role, every merchant (DEC-99, DEC-104)', () => {
   })
 })
 
+describe('platform staff: merchant users, roles, projects and members, as their role allows (DEC-104)', () => {
+  const KAVITHA = fx('USR-2026-0044')
+  it('Given Platform Admin, then Vantage’s users: invite with a merchant role, change a role; Support may not', async () => {
+    expect((await users.list(RIZAL, fx('MER-0002'))).map((r) => r.fullName)).toEqual(expect.arrayContaining(['Kavitha A/P Subramaniam']))
+    const row = await users.invite(fx('MER-0002'), { fullName: 'Vantage Billing', email: 'billing@vantage.example', roleId: SYSTEM_ROLE_IDS.BILLING }, RIZAL)
+    expect(row.access.map((c) => c.label)).toEqual(['Billing · All projects'])
+    expect((await users.setRole(KAVITHA, SYSTEM_ROLE_IDS.MEMBER, RIZAL)).merchantRole?.roleName).toBe('Member')
+    expect(await lastAudit('USER_ACCESS_CHANGED')).toMatchObject({ actorRole: 'Platform Admin', merchantId: fx('MER-0002') })
+    await expect(users.list(DANIEL)).rejects.toMatchObject({ code: 'FORBIDDEN' })
+  })
+
+  it('Given Platform Admin, then a merchant role and a project role at Vantage, and a member added in its Default project', async () => {
+    const merchantRole = await roleService.create(fx('MER-0002'), { name: 'Vantage desk', permissions: ['VIEW_USERS'] }, RIZAL)
+    expect(merchantRole).toMatchObject({ level: 'MERCHANT', merchantId: fx('MER-0002') })
+    const projectRole = await roleService.create(fx('MER-0002'), { name: 'Night reviewer', permissions: ['CLAIM_CASES'], projectId: fx('PRJ-0003') }, RIZAL)
+    expect(projectRole).toMatchObject({ level: 'PROJECT', projectId: fx('PRJ-0003') })
+    const members = await users.addMember(fx('PRJ-0003'), fx('USR-2026-0045'), projectRole.roleId, RIZAL)
+    expect(members.find((m) => m.userId === fx('USR-2026-0045'))!.roles.map((r) => r.roleName)).toContain('Night reviewer')
+    await expect(roleService.create(fx('MER-0002'), { name: 'Nope', permissions: ['VIEW_USERS'] }, DANIEL)).rejects.toMatchObject({ code: 'FORBIDDEN' })
+  })
+})
+
 describe('platform staff: managed only by super admins (DEC-99)', () => {
   it('Given a super admin, then staff are listed with their one role; to an Owner they don’t exist', async () => {
     const rows = await staff.list(ADMIN)

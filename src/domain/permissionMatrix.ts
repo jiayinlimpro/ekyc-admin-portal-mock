@@ -53,13 +53,20 @@ const MERCHANT_MODULES: readonly PermissionModule[] = [
   ...PROJECT_MODULES,
 ]
 
-/** REQ: DEC-104 — the modules of a Platform role (staff have one role and no scope: every module applies everywhere). */
+/**
+ * REQ: DEC-104 — a platform role: the platform-wide modules, then every merchant module with the same wording, applying
+ * in every merchant (staff have one role and no scope). Billing and contract is covered by Platform billing, and
+ * Merchant / Project reports by Usage reports.
+ */
 const PLATFORM_MODULES: readonly PermissionModule[] = [
   { module: 'Merchants', view: 'P_MERCHANTS_VIEW', actions: [a('P_MERCHANTS_CREATE', 'Create / edit'), a('P_MERCHANTS_SUSPEND', 'Change status')] },
   { module: 'Workflow Registry', view: 'P_REGISTRY_VIEW', actions: [a('P_REGISTRY_MANAGE', 'Manage')] },
   { module: 'Verification levels', view: 'P_LEVELS_VIEW', actions: [a('P_LEVELS_CALIBRATE', 'Calibrate')] },
   { module: 'Platform billing', view: 'P_BILLING_VIEW', actions: [a('P_BILLING_MANAGE', 'Manage')] },
   { module: 'Usage reports', view: 'P_REPORTS_VIEW', actions: [a('P_REPORTS_EXPORT', 'Export')] },
+  { module: 'Projects', actions: [a('P_PROJECTS_CREATE', 'Create'), a('P_PROJECTS_RENAME', 'Rename'), a('P_PROJECTS_ARCHIVE', 'Archive')] },
+  { module: 'Users', view: 'P_USERS_VIEW', actions: [a('P_USERS_INVITE', 'Invite'), a('P_USERS_CHANGE_ROLE', 'Change role'), a('P_USERS_SUSPEND', 'Suspend')] },
+  { module: 'Roles', view: 'P_ROLES_VIEW', actions: [a('P_ROLES_CREATE', 'Create'), a('P_ROLES_EDIT', 'Edit'), a('P_ROLES_STATUS', 'Deactivate')] },
   {
     module: 'Verifications',
     view: 'P_CASES_LIST',
@@ -71,7 +78,10 @@ const PLATFORM_MODULES: readonly PermissionModule[] = [
     view: 'P_FLOWS_VIEW',
     actions: [a('P_FLOWS_CREATE', FLOWS[0]), a('P_FLOWS_EDIT', FLOWS[1]), a('P_FLOWS_ACTIVATE', FLOWS[2]), a('P_FLOWS_LEVEL', FLOWS[3])],
   },
+  { module: 'Project settings', view: 'P_SETTINGS_VIEW', actions: [a('P_SETTINGS_EDIT', 'Edit')] },
   { module: 'API keys and webhook', view: 'P_INTEGRATION_VIEW', actions: [a('P_INTEGRATION_MANAGE', 'Manage')] },
+  { module: 'Members', view: 'P_MEMBERS_VIEW', actions: [a('P_MEMBERS_MANAGE', 'Add / remove')] },
+  { module: 'Project roles', view: 'P_PROJECT_ROLES_VIEW', actions: [a('P_PROJECT_ROLES_CREATE', 'Create'), a('P_PROJECT_ROLES_EDIT', 'Edit'), a('P_PROJECT_ROLES_STATUS', 'Deactivate')] },
   { module: 'Audit log', view: 'P_AUDIT_VIEW', actions: [] },
 ]
 

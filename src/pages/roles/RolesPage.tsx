@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { Plus } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAccess } from '@/app/access'
+import { isInternal } from '@/domain/access'
 import { ErrorState } from '@/components/common/States'
 import { Button } from '@/components/ui/button'
 import { errorMessage, useLoad } from '@/hooks/useLoad'
@@ -16,6 +17,8 @@ export function RolesPage() {
   const actor = useSession((s) => s.actor)
   const { account, allows } = useAccess()
   const isAdmin = account?.level === 'SUPER_ADMIN'
+  // REQ: DEC-104 — super admins and staff with Roles permissions work across merchants; only super admins choose Platform.
+  const internal = !!account && isInternal(account)
   // REQ: DEC-102 / DEC-78 — hide what the user's permissions never allow.
   const can = { create: allows({ project: 'createRoles' }), edit: allows({ project: 'editRoles' }), changeStatus: allows({ project: 'changeRoleStatus' }) }
   const rows = useLoad(() => roleService.list(actor), [actor.userId])
@@ -54,7 +57,7 @@ export function RolesPage() {
         rows={rows.data ?? []}
         loading={rows.loading}
         can={can}
-        showTypeAndMerchant={isAdmin}
+        showTypeAndMerchant={internal}
         onOpen={(row) => setEditing({ mode: 'edit', row })}
         onDuplicate={(from) => setEditing({ mode: 'create', from })}
         onToggle={(r) => void toggle(r)}
@@ -65,8 +68,8 @@ export function RolesPage() {
           editing={editing}
           onDuplicate={(from) => setEditing({ mode: 'create', from })}
           can={can}
-          merchants={isAdmin ? (merchants.data ?? []) : []}
-          defaultMerchantId={isAdmin ? undefined : account?.merchantId}
+          merchants={internal ? (merchants.data ?? []) : []}
+          defaultMerchantId={internal ? undefined : account?.merchantId}
           isSuper={isAdmin}
           ownMerchantName={(merchants.data ?? []).find((m) => m.merchantId === account?.merchantId)?.name}
           onClose={() => setEditing(undefined)}

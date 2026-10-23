@@ -20,6 +20,7 @@ import { merchantService } from '@/services/merchantService'
 import { roleService } from '@/services/roleService'
 import { userAdminService, type UserDetail, type UserRow } from '@/services/userAdminService'
 import { useSession } from '@/stores/sessionStore'
+import { isInternal } from '@/domain/access'
 import { DEFAULT_MERCHANT_ROLE_ID } from '@/domain/roles'
 import { AccessChip, AccessPreview, ChangeRoleDialog, MERCHANT_ROLE_HINT, RoleSelect, UserStatusBadge, type MerchantOption } from './AccessFields'
 import { StaffDialog } from './StaffDialog'
@@ -35,7 +36,7 @@ type AccountKind = 'PLATFORM' | 'MERCHANT'
  * merchant), then the generated User ID, then: Platform = name, email, staff role; Merchant = merchant, name, email,
  * merchant role (Member by default, with the help text).
  */
-function InviteDialog({ merchants, isSuper, ownMerchant, onClose, onSaved }: { merchants: MerchantOption[]; isSuper: boolean; ownMerchant?: MerchantOption; onClose: () => void; onSaved: () => void }) {
+function InviteDialog({ merchants, isSuper, internal, ownMerchant, onClose, onSaved }: { merchants: MerchantOption[]; isSuper: boolean; /** REQ: DEC-104 — super admins and staff pick the merchant. */ internal: boolean; ownMerchant?: MerchantOption; onClose: () => void; onSaved: () => void }) {
   const actor = useSession((s) => s.actor)
   const [kind, setKind] = useState<AccountKind>('MERCHANT')
   const [merchantId, setMerchantId] = useState(ownMerchant?.merchantId ?? '')
@@ -97,7 +98,7 @@ function InviteDialog({ merchants, isSuper, ownMerchant, onClose, onSaved }: { m
                 <option value="MERCHANT">Merchant</option>
               </NativeSelect>
             ) : (
-              <Input id="nu-type" value={`Merchant · ${ownMerchant?.name ?? ''}`} readOnly disabled />
+              <Input id="nu-type" value={internal ? 'Merchant' : `Merchant · ${ownMerchant?.name ?? ''}`} readOnly disabled />
             )}
           </FormField>
           <FormField id="nu-id" label="User ID" hint="Generated; it can’t be changed.">
@@ -111,8 +112,8 @@ function InviteDialog({ merchants, isSuper, ownMerchant, onClose, onSaved }: { m
             </>
           ) : (
             <>
-              <FormField id="nu-merchant" label="Merchant" error={errors.merchantId} hint={isSuper ? 'Changing it resets the role.' : undefined}>
-                {isSuper ? (
+              <FormField id="nu-merchant" label="Merchant" error={errors.merchantId} hint={internal ? 'Changing it resets the role.' : undefined}>
+                {internal ? (
                   <NativeSelect id="nu-merchant" value={merchantId} onChange={(e) => { setMerchantId(e.target.value); setRoleId(DEFAULT_MERCHANT_ROLE_ID) }}>
                     <option value="">Choose a merchant</option>
                     {merchants.map((m) => (
@@ -344,6 +345,8 @@ export function UsersPage() {
   const actor = useSession((s) => s.actor)
   const { account } = useAccess()
   const isAdmin = account?.level === 'SUPER_ADMIN'
+  // REQ: DEC-104 — super admins and staff with Users permissions work across merchants; only super admins see staff.
+  const internal = !!account && isInternal(account)
   const [sp, setSp] = useSearchParams()
   const applied: Filters = { q: sp.get('q') ?? '', status: (sp.get('status') ?? '') as Filters['status'], merchantId: sp.get('merchantId') ?? '', type: (sp.get('type') ?? '') as Filters['type'] }
   const [form, setForm] = useState<Filters>(applied)
@@ -367,7 +370,7 @@ export function UsersPage() {
   }
   const filtered = (rows.data ?? []).filter((r) => matches(r, applied))
   const shown = filtered.slice((page - 1) * pageSize, page * pageSize)
-  const headers = ['Full Name', 'Email', ...(isAdmin ? ['Type', 'Merchant'] : []), 'Access', 'Status', 'Created At']
+  const headers = ['Full Name', 'Email', ...(isAdmin ? ['Type'] : []), ...(internal ? ['Merchant'] : []), 'Access', 'Status', 'Created At']
 
   if (rows.error && !rows.data) return <ErrorState message={rows.error} onRetry={rows.reload} />
   return (
@@ -411,7 +414,7 @@ export function UsersPage() {
             </NativeSelect>
           </FormField>
         )}
-        {isAdmin && (
+        {internal && (
           <FormField id="uf-merchant" label="Merchant" className="w-48">
             <NativeSelect id="uf-merchant" value={form.merchantId} onChange={(e) => setForm({ ...form, merchantId: e.target.value })}>
               <option value="">All</option>
@@ -453,7 +456,7 @@ export function UsersPage() {
                 </th>
                 <td className="px-3 py-2">{r.email}</td>
                 {isAdmin && <td className="px-3 py-2 whitespace-nowrap">{r.type === 'PLATFORM' ? 'Platform (internal)' : 'Merchant'}</td>}
-                {isAdmin && <td className="px-3 py-2 whitespace-nowrap">{r.merchantName}</td>}
+                {internal && <td className="px-3 py-2 whitespace-nowrap">{r.merchantName}</td>}
                 <td className="px-3 py-2">
                   {r.access.length ? (
                     <span className="flex flex-wrap gap-1">
@@ -480,7 +483,8 @@ export function UsersPage() {
         <InviteDialog
           merchants={merchants.data ?? []}
           isSuper={isAdmin}
-          ownMerchant={isAdmin || !account?.merchantId ? undefined : { merchantId: account.merchantId, name: (merchants.data ?? []).find((m) => m.merchantId === account.merchantId)?.name ?? '' }}
+          internal={internal}
+          ownMerchant={internal || !account?.merchantId ? undefined : { merchantId: account.merchantId, name: (merchants.data ?? []).find((m) => m.merchantId === account.merchantId)?.name ?? '' }}
           onClose={() => setInviting(false)}
           onSaved={() => {
             setInviting(false)

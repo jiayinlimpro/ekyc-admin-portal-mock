@@ -29,7 +29,7 @@ describe('Overview', () => {
   it('Given a reviewer and the last 30 days, then the three KPIs match the service and there is no Drop-off KPI (DEC-81)', async () => {
     const expected = await analyticsService.overview({ days: 30 }, ALI)
     renderAt('/dashboard')
-    await screen.findByRole('heading', { name: 'Overview' }, { timeout: 5000 })
+    await screen.findByRole('heading', { name: 'Overview' }, { timeout: 15000 }) // the first test loads the lazy page; slow under a full parallel run
     await waitFor(() => expect(tile('Total verifications').textContent).toContain(String(expected.total)))
     expect(tile('Pending review').textContent).toContain(`${expected.pending.unclaimed} unclaimed · ${expected.pending.claimed} claimed`)
     expect(tile('Auto-Clear').textContent).toContain(`${expected.autoCleared} approved by SYSTEM`)

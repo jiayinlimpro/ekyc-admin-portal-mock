@@ -8,7 +8,7 @@
 //   POST /merchants/{id}/roles                create            → 201 Role | 403 | 422 (with projectId: a project role)
 //   PUT  /roles/{id}                          update            → 200 Role | 403 | 422
 //   POST /roles/{id}/status                   setStatus         → 200 Role | 422 (still assigned)
-import { canInMerchant, canInProject, canOnPlatform, hasProject } from '@/domain/access'
+import { canInMerchant, canInProject, canOnPlatform, hasProject, isInternal } from '@/domain/access'
 import { canGrant, GRANT_TOO_POWERFUL, holdersOf, PLATFORM_DEFAULT_ROLES, SYSTEM_DEFAULT_ROLES, validateRole, validateRoleStatus, withImpliedPermissions } from '@/domain/roles'
 import type { Actor, AssignmentScope, Permission, Project, Role, RoleAudience, RoleStatus } from '@/domain/types'
 import { now } from '@/lib/clock'
@@ -98,7 +98,7 @@ function loadProject(me: AccountAccess, projectId: string): Project {
 /** A role the actor may change, with the permission its table needs (System Default roles: validateRole refuses). */
 function loadRole(me: AccountAccess, roleId: string, change: 'edit' | 'status'): Role {
   const r = db.state().roles.find((x) => x.roleId === roleId)
-  if (!r || (r.merchantId && me.level !== 'SUPER_ADMIN' && r.merchantId !== me.merchantId)) throw new ServiceError('NOT_FOUND', `Role ${roleId} not found.`)
+  if (!r || (r.merchantId && !isInternal(me) && r.merchantId !== me.merchantId)) throw new ServiceError('NOT_FOUND', `Role ${roleId} not found.`)
   // REQ: DEC-99 — platform roles exist only for super admins.
   if (r.audience === 'PLATFORM') {
     if (!canOnPlatform(me, 'manageStaff')) throw new ServiceError('NOT_FOUND', `Role ${roleId} not found.`)
@@ -111,7 +111,8 @@ function loadRole(me: AccountAccess, roleId: string, change: 'edit' | 'status'):
 }
 
 const putRole = (r: Role) => db.setState((st) => ({ roles: st.roles.map((x) => (x.roleId === r.roleId ? r : x)) }))
-const granter = (me: AccountAccess) => (me.level === 'SUPER_ADMIN' ? ('SUPER_ADMIN' as const) : me.grants)
+// REQ: DEC-104 — staff hold platform permissions, so like super admins they aren't limited by "give only what you hold".
+const granter = (me: AccountAccess) => (isInternal(me) ? ('SUPER_ADMIN' as const) : me.grants)
 
 /** Users and projects a role affects, among `people` (optionally within one project). */
 function rowOf(r: Role, people: ReturnType<typeof accountsIn>, onlyProject?: string): RoleRow {
@@ -177,10 +178,10 @@ export const mockRoleService: RoleService = {
   async list(actor, merchantId) {
     await simulateNetwork('list roles')
     const me = accountOf(actor)
-    const scope = me.level === 'SUPER_ADMIN' ? merchantId : me.merchantId!
-    if (me.level !== 'SUPER_ADMIN') requireRoles(me, scope!)
-    // REQ: DEC-104 — merchant roles only; project roles live in each project's settings.
-    const roles = scope ? merchantRolesOf(scope) : db.state().roles.filter((r) => r.audience === 'PLATFORM' || r.level === 'MERCHANT')
+    const scope = isInternal(me) ? merchantId : me.merchantId!
+    if (me.level !== 'SUPER_ADMIN') requireRoles(me, scope ?? '')
+    // REQ: DEC-104 — merchant roles only; project roles live in each project's settings. Platform roles for super admins.
+    const roles = scope ? merchantRolesOf(scope) : db.state().roles.filter((r) => (r.audience === 'PLATFORM' && canOnPlatform(me, 'manageStaff')) || r.level === 'MERCHANT')
     const people = accountsIn(scope)
     return wire(roles.map((r) => rowOf(r, people)).sort(byOrder))
   },
@@ -211,7 +212,7 @@ export const mockRoleService: RoleService = {
   async draftRoleId(actor) {
     await simulateNetwork('draft role id')
     const me = accountOf(actor)
-    const may = me.level === 'SUPER_ADMIN' || canInMerchant(me, 'createRoles', me.merchantId!) || db.state().projects.some((p) => p.merchantId === me.merchantId && canInProject(me, 'createProjectRoles', p))
+    const may = me.level === 'SUPER_ADMIN' || canInMerchant(me, 'createRoles', me.merchantId ?? '') || db.state().projects.some((p) => (isInternal(me) || p.merchantId === me.merchantId) && canInProject(me, 'createProjectRoles', p))
     if (!may) throw new ServiceError('FORBIDDEN', 'You do not have permission to create roles.')
     return newId('rol')
   },
@@ -220,7 +221,7 @@ export const mockRoleService: RoleService = {
     await simulateNetwork('create role')
     const me = requireActive(actor)
     if (input.audience === 'PLATFORM') return wire(createPlatformRole(me, input, actor))
-    if (!merchantId || !db.state().merchants.some((m) => m.merchantId === merchantId) || (me.level !== 'SUPER_ADMIN' && me.merchantId !== merchantId)) throw new ServiceError('NOT_FOUND', `Merchant ${merchantId} not found.`)
+    if (!merchantId || !db.state().merchants.some((m) => m.merchantId === merchantId) || (!isInternal(me) && me.merchantId !== merchantId)) throw new ServiceError('NOT_FOUND', `Merchant ${merchantId} not found.`)
     if (input.projectId) return wire(createProjectRole(me, merchantId, input, actor))
     requireRoles(me, merchantId, 'createRoles')
     const permissions = withImpliedPermissions(input.permissions)

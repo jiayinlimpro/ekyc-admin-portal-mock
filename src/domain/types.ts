@@ -382,7 +382,19 @@ export const PLATFORM_LEVEL_PERMISSIONS = [
   'P_REPORTS_VIEW',
   'P_REPORTS_EXPORT',
 ] as const
+// REQ: DEC-104 — every merchant module, in every merchant (same order as the merchant role table).
 export const MERCHANT_DATA_PERMISSIONS = [
+  'P_PROJECTS_CREATE',
+  'P_PROJECTS_RENAME',
+  'P_PROJECTS_ARCHIVE',
+  'P_USERS_VIEW',
+  'P_USERS_INVITE',
+  'P_USERS_CHANGE_ROLE',
+  'P_USERS_SUSPEND',
+  'P_ROLES_VIEW',
+  'P_ROLES_CREATE',
+  'P_ROLES_EDIT',
+  'P_ROLES_STATUS',
   'P_CASES_LIST',
   'P_CASES_DETAILS',
   'P_CASES_CLAIM',
@@ -392,8 +404,16 @@ export const MERCHANT_DATA_PERMISSIONS = [
   'P_FLOWS_EDIT',
   'P_FLOWS_ACTIVATE',
   'P_FLOWS_LEVEL',
+  'P_SETTINGS_VIEW',
+  'P_SETTINGS_EDIT',
   'P_INTEGRATION_VIEW',
   'P_INTEGRATION_MANAGE',
+  'P_MEMBERS_VIEW',
+  'P_MEMBERS_MANAGE',
+  'P_PROJECT_ROLES_VIEW',
+  'P_PROJECT_ROLES_CREATE',
+  'P_PROJECT_ROLES_EDIT',
+  'P_PROJECT_ROLES_STATUS',
   'P_AUDIT_VIEW',
 ] as const
 export type PlatformPermission = (typeof PLATFORM_LEVEL_PERMISSIONS)[number] | (typeof MERCHANT_DATA_PERMISSIONS)[number]

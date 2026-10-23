@@ -36,10 +36,17 @@ describe('permission matrix (DEC-102, DEC-104)', () => {
     expect(rows('MERCHANT', 'PROJECT').map((r) => r[0])).toEqual(['Verifications', 'Flows', 'Project settings', 'API keys and webhook', 'Members', 'Project roles', 'Project reports', 'Audit log'])
   })
 
-  it('Given a Platform role, then platform modules and the merchant data modules, with the same wording as merchant roles', () => {
-    expect(rows('PLATFORM').map((r) => r[0])).toEqual(['Merchants', 'Workflow Registry', 'Verification levels', 'Platform billing', 'Usage reports', 'Verifications', 'Flows', 'API keys and webhook', 'Audit log'])
+  it('Given a Platform role, then more rows than a merchant role: the platform modules plus every merchant module, same wording (DEC-104)', () => {
+    const platform = rows('PLATFORM').map((r) => r[0])
+    expect(platform).toEqual(['Merchants', 'Workflow Registry', 'Verification levels', 'Platform billing', 'Usage reports', 'Projects', 'Users', 'Roles', 'Verifications', 'Flows', 'Project settings', 'API keys and webhook', 'Members', 'Project roles', 'Audit log'])
+    expect(platform.length).toBeGreaterThan(rows('MERCHANT').length)
+    // Every merchant module is there, except the two the platform rows already cover for every merchant.
+    const covered = { 'Billing and contract': 'Platform billing', 'Merchant reports': 'Usage reports', 'Project reports': 'Usage reports' } as Record<string, string>
     const merchant = new Map(rows('MERCHANT').map((r) => [r[0], r.slice(1)]))
-    for (const m of ['Verifications', 'Flows', 'API keys and webhook', 'Audit log']) expect(rows('PLATFORM').find((r) => r[0] === m)!.slice(1), m).toEqual(merchant.get(m))
+    for (const [m, rest] of merchant) {
+      if (covered[m]) expect(platform, m).toContain(covered[m])
+      else expect(rows('PLATFORM').find((r) => r[0] === m)?.slice(1), m).toEqual(rest)
+    }
   })
 
   it('Given Verifications, then each step needs the one before: Approve → Claim → View details → View list', () => {

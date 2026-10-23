@@ -9,10 +9,10 @@
 //   GET    /projects/{id}/members                   listMembers        → 200 MemberRow[]
 //   POST   /projects/{id}/members                   addMember          → 200 MemberRow[]
 //   DELETE /projects/{id}/members/{uid}/{aid}       removeMember       → 200 MemberRow[]
-import { canInMerchant, canInProject } from '@/domain/access'
+import { canInMerchant, canInProject, hasProject, isInternal } from '@/domain/access'
 import { makeAudit } from '@/domain/audit'
 import { CLEARED_CLAIM, isClaimActive } from '@/domain/claimRules'
-import { allArchived, canGrant, chipLabel, covers, coversProject, DEFAULT_MERCHANT_ROLE_ID, effectivePermissions, isStaffEmail, GRANT_TOO_POWERFUL, grantsOf, lastOwnerError, SYSTEM_ROLE_IDS, validateAssignment, type AccessChip } from '@/domain/roles'
+import { allArchived, canGrant, chipLabel, covers, DEFAULT_MERCHANT_ROLE_ID, effectivePermissions, isStaffEmail, GRANT_TOO_POWERFUL, grantsOf, lastOwnerError, SYSTEM_ROLE_IDS, validateAssignment, type AccessChip } from '@/domain/roles'
 import { MERCHANT_PERMISSIONS, type Actor, type AssignmentScope, type AuditAction, type Permission, type Project, type Role, type RoleAssignment, type RuleError, type UserAccount, type UserStatus } from '@/domain/types'
 import { now } from '@/lib/clock'
 import { db } from '@/mocks/mockDb'
@@ -163,7 +163,8 @@ function requireUsersScreen(me: AccountAccess, merchantId: string, action: keyof
 /** A merchant user the actor may see, or "not found". Super admins and staff are internal and not listed here (DEC-70). */
 function loadUser(me: AccountAccess, userId: string): UserAccount & { merchantId: string } {
   const a = db.state().accounts.find((x) => x.userId === userId)
-  if (!a || !a.merchantId || (me.level !== 'SUPER_ADMIN' && a.merchantId !== me.merchantId)) throw new ServiceError('NOT_FOUND', `User ${userId} not found.`)
+  // REQ: DEC-104 — internal accounts (super admins, staff with the permission) work in every merchant.
+  if (!a || !a.merchantId || (!isInternal(me) && a.merchantId !== me.merchantId)) throw new ServiceError('NOT_FOUND', `User ${userId} not found.`)
   return a as UserAccount & { merchantId: string }
 }
 
@@ -172,7 +173,8 @@ function notSelf(actor: Actor, a: UserAccount) {
 }
 
 const openProjectIds = (merchantId: string) => db.state().projects.filter((p) => p.merchantId === merchantId && p.status === 'ACTIVE').map((p) => p.projectId)
-const granter = (me: AccountAccess) => (me.level === 'SUPER_ADMIN' ? ('SUPER_ADMIN' as const) : me.grants)
+// REQ: DEC-104 — staff hold platform permissions, so like super admins they aren't limited by "give only what you hold".
+const granter = (me: AccountAccess) => (isInternal(me) ? ('SUPER_ADMIN' as const) : me.grants)
 
 /** REQ: DEC-104 — a merchant role of this merchant, given for the whole merchant; nobody gives more than they hold (DEC-74). */
 function checkMerchantRole(me: AccountAccess, merchantId: string, roleId: string): Role {
@@ -310,7 +312,7 @@ function membersOf(actor: Actor, p: Project): MemberRow[] {
 function membersProject(actor: Actor, projectId: string, action: 'viewMembers' | 'manageMembers' = 'manageMembers'): Project {
   const me = accountOf(actor)
   const p = projectOf(projectId)
-  if (!p || (me.level !== 'SUPER_ADMIN' && me.merchantId !== p.merchantId) || (me.level !== 'SUPER_ADMIN' && !coversProject(me.grants, projectId))) {
+  if (!p || !hasProject(me, p)) {
     throw new ServiceError('NOT_FOUND', `Project ${projectId} not found.`)
   }
   if (!canInProject(me, action, p)) throw new ServiceError('FORBIDDEN', `You do not have permission to ${action === 'viewMembers' ? 'view' : 'manage'} members in this project.`)
@@ -321,8 +323,8 @@ export const mockUserAdminService: UserAdminService = {
   async list(actor, merchantId) {
     await simulateNetwork('list users')
     const me = accountOf(actor)
-    const merchants = me.level === 'SUPER_ADMIN' ? db.state().merchants.map((m) => m.merchantId).filter((id) => !merchantId || id === merchantId) : [me.merchantId!]
-    if (me.level !== 'SUPER_ADMIN') requireUsersScreen(me, me.merchantId!)
+    const merchants = isInternal(me) ? db.state().merchants.map((m) => m.merchantId).filter((id) => !merchantId || id === merchantId) : [me.merchantId!]
+    if (me.level !== 'SUPER_ADMIN') requireUsersScreen(me, me.merchantId ?? '')
     return wire(
       db
         .state()
@@ -343,14 +345,14 @@ export const mockUserAdminService: UserAdminService = {
   async draftUserId(actor) {
     await simulateNetwork('draft user id')
     const me = accountOf(actor)
-    if (me.level !== 'SUPER_ADMIN') requireUsersScreen(me, me.merchantId!, 'inviteUsers')
+    if (me.level !== 'SUPER_ADMIN') requireUsersScreen(me, me.merchantId ?? '', 'inviteUsers')
     return newId('usr')
   },
 
   async invite(merchantId, input, actor) {
     await simulateNetwork('invite user')
     const me = requireActive(actor)
-    if (!db.state().merchants.some((m) => m.merchantId === merchantId) || (me.level !== 'SUPER_ADMIN' && me.merchantId !== merchantId)) throw new ServiceError('NOT_FOUND', `Merchant ${merchantId} not found.`)
+    if (!db.state().merchants.some((m) => m.merchantId === merchantId) || (!isInternal(me) && me.merchantId !== merchantId)) throw new ServiceError('NOT_FOUND', `Merchant ${merchantId} not found.`)
     requireUsersScreen(me, merchantId, 'inviteUsers')
     const email = requireNewUser(input, 'MERCHANT')
     // REQ: DEC-104 — the merchant role, Member by default (access then comes from Project › Members).

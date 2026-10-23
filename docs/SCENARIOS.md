@@ -32,13 +32,14 @@ data** before a UAT run.
 | A11 | Lim Wei Jie | Merchants › Add Merchant: Malaysia, registration no `1312525-A` | "Malaysian registration numbers have 12 digits"; with `202101012345` it is created as Onboarding, with its Default project and a Pending Owner |
 | A12 | Lim Wei Jie | Merchants › Tesla › ⋮ › Change status › Suspended, with a reason | Tesla shows Suspended; Wong Kah Heng can no longer be picked in Switch user; its API keys show "Stopped"; the audit log has the reason |
 | A13 | Tan Mei Ling | Roles › New role (save it); then ⋮ on Reviewer and on the new role | The dialog opens with a generated Role ID (read-only), one Permissions table (no sections) and a Status field; Reviewer's Deactivate is disabled with the reason; the new role (nobody holds it) can be deactivated and activated again |
-| A14 | Lim Wei Jie | Roles › New role, Type = Platform (internal) | No Merchant field; one Permissions table (no sections), same wording as merchant roles |
+| A14 | Lim Wei Jie | Roles › New role, Type = Platform (internal) | No Merchant field; one Permissions table of 15 rows: the platform modules plus every merchant module (Projects, Users, Roles … Project roles) with the same wording |
 | A15 | Lim Wei Jie | Users › New user, Type = Platform | Name, company email and one Staff role (Platform Admin, Support, Implementation, Finance); no merchant scope; a non-company email is refused |
 | A16 | Daniel Tan (`?as=daniel.tan@ekyc-platform.example`) | Open the portal; open any case; Projects › Flows; Integration | Lands on Verifications (Support has no dashboards); the full case page, no masking, audited; flows and keys read-only; no Users, Roles or Merchants |
 | A17 | Tan Mei Ling | Users; Roles; try `/users?user=<Daniel's ID>` | No platform staff or platform roles anywhere; the staff member is "not found" |
 | A18 | Tan Mei Ling | Project Settings › Roles (SME app); then Default | SME app: Project Admin, Reviewer, Developer, Viewer, Release Tester; Default has Fraud Checker instead. New role shows project modules only (no Users, Roles, Billing) |
 | A19 | Tan Mei Ling | Project Settings › Roles (SME app) › Duplicate from another project › Default › Fraud Checker | "Copy of Fraud Checker" opens with its permissions; saved, it exists in SME app only |
 | A20 | Grace Lim (`?as=grace.lim@atoz.example`) | Verifications, All my projects | Auditor + Viewer in SME app: every Atoz case in the list; Reference IDs link only for SME app cases |
+| A22 | Rizal Hakim (`?as=rizal.hakim@ekyc-platform.example`) | Users (filter Vantage); Roles; Project Settings › Members of Vantage Default | Platform Admin: manages Vantage's users, merchant roles, project roles and members; Daniel (Support) has none of these |
 | A21 | Aaron Teoh (`?as=aaron.teoh@atoz.example`) | Users › New user | User Coordinator: he can invite, giving only Member or his own User Coordinator role (nothing he doesn't hold, DEC-74); no Change role or Suspend on other users |
 
 | ID | Reference ID | Project › Flow | Scenario | Expected behaviour |

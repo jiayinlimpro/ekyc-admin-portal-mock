@@ -253,9 +253,17 @@ describe('access: platform staff, one role and no scope (DEC-99, DEC-104)', () =
     for (const a of ['viewCaseDetails', 'decideCase', 'activateFlows', 'manageIntegration', 'viewAudit'] as const) expect(can(PLATFORM_ADMIN, a, OTHER_MERCHANT), a).toBe(true)
   })
 
-  it('Given any staff, then never Users, Roles, Super admins or merchant settings', () => {
-    for (const s of [SUPPORT, IMPLEMENTATION, FINANCE, PLATFORM_ADMIN]) {
+  it('Given Platform Admin, then merchants’ users, roles, projects, members and project roles in every merchant (DEC-104)', () => {
+    for (const a of ['viewUsers', 'inviteUsers', 'changeUserRole', 'suspendUsers', 'createRoles', 'editRoles', 'createProjects', 'archiveProjects', 'manageMembers', 'createProjectRoles', 'manageProjectSettings', 'manageBilling'] as const) {
+      expect(canInMerchant(PLATFORM_ADMIN, a, fx('MER-0002')), a).toBe(true)
+    }
+  })
+
+  it('Given Support, Implementation or Finance, then no Users, Roles or merchant settings; nobody on staff manages staff or super admins', () => {
+    for (const s of [SUPPORT, IMPLEMENTATION, FINANCE]) {
       for (const a of ['changeUserRole', 'manageMembers', 'createProjects', 'manageProjectSettings'] as const) expect(can(s, a)).toBe(false)
+    }
+    for (const s of [SUPPORT, IMPLEMENTATION, FINANCE, PLATFORM_ADMIN]) {
       expect(canOnPlatform(s, 'manageStaff')).toBe(false)
       expect(canOnPlatform(s, 'manageAdmins')).toBe(false)
     }

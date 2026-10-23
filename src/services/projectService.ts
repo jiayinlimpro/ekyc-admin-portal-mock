@@ -7,7 +7,7 @@
 //   POST  /projects/{id}/archive      archive  → 200 Project | 403 | 422 VALIDATION
 //   PATCH /projects/{id}/general      updateGeneral    → 200 Project (branding, language)
 //   PATCH /projects/{id}/review-ops   updateClaimTimeout → 200 Project
-import { canInMerchant, canInProject, hasProject, roleNamesInProject, type ProjectAction } from '@/domain/access'
+import { canInMerchant, canInProject, hasProject, isInternal, roleNamesInProject, type ProjectAction } from '@/domain/access'
 import { makeAudit } from '@/domain/audit'
 import { createFlow } from '@/domain/flowSettings'
 import { archiveError, IN_FLIGHT_STATUSES, validateProjectName } from '@/domain/flowRules'
@@ -149,7 +149,7 @@ export const mockProjectService: ProjectService = {
     await simulateNetwork('create project')
     const me = requireActive(actor)
     const s = db.state()
-    if (!s.merchants.some((m) => m.merchantId === merchantId) || (me.level !== 'SUPER_ADMIN' && me.merchantId !== merchantId)) {
+    if (!s.merchants.some((m) => m.merchantId === merchantId) || (!isInternal(me) && me.merchantId !== merchantId)) {
       throw new ServiceError('NOT_FOUND', `Merchant ${merchantId} not found.`)
     }
     if (!canInMerchant(me, 'createProjects', merchantId)) throw new ServiceError('FORBIDDEN', 'You do not have permission to create projects.')

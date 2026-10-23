@@ -128,6 +128,30 @@ const STAFF_NEEDS: Partial<Record<ProjectAction, { platform?: readonly Permissio
   viewIntegration: { merchant: ['P_INTEGRATION_VIEW', 'P_INTEGRATION_MANAGE'] },
   manageIntegration: { merchant: ['P_INTEGRATION_MANAGE'] },
   viewAudit: { merchant: ['P_AUDIT_VIEW'] },
+  // REQ: DEC-104 — every merchant module, in every merchant.
+  createProjects: { merchant: ['P_PROJECTS_CREATE'] },
+  renameProjects: { merchant: ['P_PROJECTS_RENAME'] },
+  archiveProjects: { merchant: ['P_PROJECTS_ARCHIVE'] },
+  viewUsers: { merchant: ['P_USERS_VIEW', 'P_USERS_INVITE', 'P_USERS_CHANGE_ROLE', 'P_USERS_SUSPEND'] },
+  inviteUsers: { merchant: ['P_USERS_INVITE'] },
+  changeUserRole: { merchant: ['P_USERS_CHANGE_ROLE'] },
+  suspendUsers: { merchant: ['P_USERS_SUSPEND'] },
+  viewRoles: { merchant: ['P_ROLES_VIEW', 'P_ROLES_CREATE', 'P_ROLES_EDIT', 'P_ROLES_STATUS'] },
+  createRoles: { merchant: ['P_ROLES_CREATE'] },
+  editRoles: { merchant: ['P_ROLES_EDIT'] },
+  changeRoleStatus: { merchant: ['P_ROLES_STATUS'] },
+  viewProjectSettings: { merchant: ['P_SETTINGS_VIEW', 'P_SETTINGS_EDIT'] },
+  manageProjectSettings: { merchant: ['P_SETTINGS_EDIT'] },
+  viewRouting: { merchant: ['P_SETTINGS_VIEW', 'P_SETTINGS_EDIT', 'P_FLOWS_VIEW', 'P_FLOWS_CREATE', 'P_FLOWS_EDIT', 'P_FLOWS_ACTIVATE', 'P_FLOWS_LEVEL'] },
+  viewMembers: { merchant: ['P_MEMBERS_VIEW', 'P_MEMBERS_MANAGE'] },
+  manageMembers: { merchant: ['P_MEMBERS_MANAGE'] },
+  viewProjectRoles: { merchant: ['P_PROJECT_ROLES_VIEW', 'P_PROJECT_ROLES_CREATE', 'P_PROJECT_ROLES_EDIT', 'P_PROJECT_ROLES_STATUS'] },
+  createProjectRoles: { merchant: ['P_PROJECT_ROLES_CREATE'] },
+  editProjectRoles: { merchant: ['P_PROJECT_ROLES_EDIT'] },
+  changeProjectRoleStatus: { merchant: ['P_PROJECT_ROLES_STATUS'] },
+  // Billing and contract, and merchant reports, through the platform-wide rows.
+  manageBilling: { platform: ['P_BILLING_MANAGE'] },
+  viewMerchantReports: { platform: ['P_REPORTS_VIEW'] },
 }
 
 const STAFF_PLATFORM_NEEDS: Partial<Record<PlatformAction, readonly Permission[]>> = {
@@ -178,11 +202,11 @@ export function canInProject(user: UserAccess, action: ProjectAction, project: W
 
 /**
  * Merchant-wide actions (create a project, manage users and roles, merchant-level audit entries): Super admin, platform
- * staff for the audit log of merchants they cover, or a user holding the permission through an All projects assignment.
+ * staff whose role allows it (every merchant, DEC-104), or a merchant user through their merchant role.
  */
 export function canInMerchant(user: UserAccess, action: ProjectAction, merchantId: string): boolean {
   if (user.level === 'SUPER_ADMIN') return true
-  if (user.level === 'PLATFORM_STAFF') return action === 'viewAudit' && staffCan(user, 'viewAudit')
+  if (user.level === 'PLATFORM_STAFF') return staffCan(user, action) // REQ: DEC-104 — every merchant, as their role allows
   return user.merchantId === merchantId && any(merchantWidePermissions(user.grants), NEEDS[action])
 }
 
