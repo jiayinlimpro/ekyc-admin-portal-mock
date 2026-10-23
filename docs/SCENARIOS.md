@@ -39,7 +39,7 @@ data** before a UAT run.
 | A18 | Tan Mei Ling | Project Settings › Roles (SME app); then Default | SME app: Project Admin, Reviewer, Developer, Viewer, Release Tester; Default has Fraud Checker instead. New role shows project modules only (no Users, Roles, Billing) |
 | A19 | Tan Mei Ling | Project Settings › Roles (SME app) › Duplicate from another project › Default › Fraud Checker | "Copy of Fraud Checker" opens with its permissions; saved, it exists in SME app only |
 | A20 | Grace Lim (`?as=grace.lim@atoz.example`) | Verifications, All my projects | Auditor + Viewer in SME app: every Atoz case in the list; Reference IDs link only for SME app cases |
-| A21 | Aaron Teoh (`?as=aaron.teoh@atoz.example`) | Users › New user | User Coordinator: he can invite, but the only merchant role he may give is Member; no Change role or Suspend on other users |
+| A21 | Aaron Teoh (`?as=aaron.teoh@atoz.example`) | Users › New user | User Coordinator: he can invite, giving only Member or his own User Coordinator role (nothing he doesn't hold, DEC-74); no Change role or Suspend on other users |
 
 | ID | Reference ID | Project › Flow | Scenario | Expected behaviour |
 |---|---|---|---|---|
