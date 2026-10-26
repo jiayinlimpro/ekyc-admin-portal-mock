@@ -11,8 +11,6 @@ Each question is a **parameter**, not a fact. The mock uses the default below. I
 | OQ-02 | Low / Standard / High preset values (reject below / approve at or above) | Face match: Low 80/90, Standard 85/95, High 90/97 · Liveness: Low 60/80, Standard 70/85, High 80/92 | `THRESHOLD_PRESETS` |
 | OQ-03 | Range for "Retries allowed" (default 3) | 1–5 | `RETRY_LIMITS` |
 | OQ-04 | Default auto-release claim timeout and warning time (MS OQ-4) | 30 min timeout, warning 5 min before expiry | Project `claimTimeoutSec` (seconds; entered in minutes, DEC-53) / `POLICY.claimWarningMin` |
-| OQ-05 | Is V4 Risk configured by a maximum allowed level (mock) or by scores? Can risk auto-reject? V5: per-component thresholds or only the final action? (MS OQ-6) | V4: max allowed level `MEDIUM`, risk never auto-rejects. V5 risk form not built | Flow `risk` |
-| OQ-06 | Risk score → level bands, and risk weighting | score < 40 LOW, < 70 MEDIUM, else HIGH; weighting not modelled | `POLICY.riskBands` |
 | OQ-09 | Final role names, System Default roles and the permission list (MS OQ-3; the FRS "User Access Matrix" spreadsheet). Also: are separate read and edit permissions needed (e.g. see users without changing them)? | System Default: Merchant Owner, Project Admin, Reviewer, Viewer; permissions as in DEC-70, one per area (no read-only variants) | `src/domain/roles.ts` |
 | OQ-11 | Does a claim end when the reviewer logs out or closes the tab? | No: only Release, timeout, decision or removal from the project | `claimRules.ts` |
 | OQ-12 | Can a reviewer re-claim straight after their own claim times out? | Yes | `claimRules.ts` |
@@ -24,12 +22,13 @@ Each question is a **parameter**, not a fact. The mock uses the default below. I
 | OQ-21 | Project data retention period | Not set; shown as a placeholder | Project Settings › General |
 | OQ-22 | Cooldown after a rejection (DEC-26): how is the "same end user" identified, and does the wait apply to this flow only or the whole project? | Same ID document number (NRIC / passport no.), same flow | Flow `cooldownMin`, `flowRules.ts` |
 | OQ-24 | Does the claim timeout run from claim time or from the last activity? (FRS TBC) | From claim time | `claimRules.ts` |
-| OQ-25 | How do the four risk categories (EXIF, Noise, Email Validity, OSINT; DEC-105) combine into the overall risk score and level? What ELA and wavelet peak values pass? Is there a pass mark per category? | The overall score is the engine's; category scores are shown with how they were made up; noise values have no pass mark | Verification Detail › Risk; `src/domain/riskSignals.ts` |
+| OQ-25 | How does the engine compute and normalise each risk category to 0–100 (EXIF tag points, ELA and wavelet values, email points, OSINT social score 0–10)? (DEC-107) | The engine returns the four 0–100 scores; the portal shows them as given | `Verification.riskScores` |
 | OQ-27 | On a project's Members tab (DEC-77), can a user with Manage project members invite someone new, or only add existing users of the merchant? | Existing users only; new people are invited on the Users screen (Manage users and roles) | `userAdminService.addMember` |
 | OQ-28 | Must the merchant always send a Reference ID when creating a session (DEC-97)? If not, does the platform generate one? | Required; the mock always has one | `Verification.referenceNo` |
 | OQ-29 | How long are a Terminated merchant's cases and audit log kept, and are they then archived or deleted? Keeping them is required for compliance; the PDPA says not longer than needed (DEC-98) | Kept; nothing is deleted | — (backend policy) |
 | OQ-30 | Are invoices issued from this portal? If so, merchants also need registered address, TIN, SST number and a billing email (MyInvois) (DEC-98) | No; only the FRS fields | `Merchant` |
 | OQ-33 | EXIF edge cases: (a) the modern-maker list has no Samsung, Xiaomi, Huawei or Realme, so their photos get 0 for the maker; (b) a missing Megapixels value; (c) a missing DateTimeOriginal or FileModifyDate | (a) 0 points as listed; (b) 0 points; (c) counts as "differ" (−4) | `exifScore` in `src/domain/riskSignals.ts` |
+| OQ-34 | Default minimum per risk category: V4's fixed minimums and V5's starting values (DEC-107) | 50 for each category | `DEFAULT_RISK_MINIMUMS` in `src/domain/openQuestions.ts` |
 | OQ-32 | The engine sets FacePixelSizeThreshold = 50, but its Selfie Quality Check doesn't apply it. Should a selfie face smaller than 50 px fail? | Not checked; shown as information | `selfieMetrics` in `src/domain/telemetry.ts` |
 | OQ-31 | The company staff email domain (DEC-99): platform staff and super admins must use it; merchant users may not | `ekyc-platform.example` | `STAFF_EMAIL_DOMAIN` in `src/domain/openQuestions.ts` |
 
@@ -39,6 +38,8 @@ Each question is a **parameter**, not a fact. The mock uses the default below. I
 | OQ-07 | Are retakes charged per attempt? | Tokens per liveness submission; ID capture and selfie retakes are free (DEC-60) |
 | OQ-08 | Can Platform Admin claim and decide? | Yes, changed 2026-10-21 (DEC-75); was No (DEC-70) |
 | OQ-20 | Can internal staff (Platform Admin) view merchant cases for support? (MS OQ-7) | Yes; every open is audited (DEC-75) |
+| OQ-05 | V4 risk by level or by scores? V5 per component? Can risk reject? | Four category scores with a minimum each; V4 fixed, V5 per flow; risk never rejects (DEC-107) |
+| OQ-06 | Risk score → level bands | No levels any more: Clear / Flagged (DEC-107) |
 | OQ-10 | Decision reason code list | Changed 2026-10-23: per-project decision reasons, Reject one or more, Approve exactly one (DEC-106); was DEC-35 conditions, no approve code |
 | OQ-26 | Which reason rejects a case in review only for risk (DEC-13)? | "Risk not acceptable after review" (DEC-106) |
 | OQ-15 | Which 3 KPIs does the Overview show? | Total Submissions, Auto-Clear Rate, Active Review Queue ([FRS], DEC-85) |

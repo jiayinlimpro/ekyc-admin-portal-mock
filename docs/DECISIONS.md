@@ -43,34 +43,60 @@ Rules changed on 2026-10-20 (Projects & Flows restructure) are marked **(changed
   fields. **(changed)** [MS]
 
 ## Automated evaluation
-- **DEC-10** **(changed)** Only two checks have configurable thresholds: **Face match** and **Liveness**, each with an
-  Auto-Reject / Auto-Pass pair. ID capture and Selfie have no configurable thresholds; their quality checks are fixed by the
+- **DEC-10** **(changed)** Only two checks have configurable thresholds: **Similarity** and **Liveness**, each with an
+  Auto-Reject / Auto-Pass pair. **(renamed 2026-10-26)** The configurable band is the **similarity** of the face with the
+  ID (it was labelled "Face match"); **Face match** is the engine's fixed confidence that a face is clearly detected (not
+  liveness), never configurable [PO 2026-10-26]. The internal code stays `FACE_MATCH`. ID capture and Selfie have no configurable thresholds; their quality checks are fixed by the
   engine. **(changed 2026-10-23)** Every engine metric (pitch, yaw, sharpness, brightness, face confidence …) is now
   **shown** on Verification Detail with its fixed threshold (DEC-105), but still never configurable. Risk Assessment runs for
   V4 and V5 only. [MS][FRS][PO 2026-10-19][PO 2026-10-23]
-- **DEC-11** For face match and liveness: score `>= autoPass` → pass; `< autoReject` → reject band; in between → review band.
+- **DEC-11** For similarity and liveness: score `>= autoPass` → pass; `< autoReject` → reject band; in between → review band.
 - **DEC-12** When every check has a final result, they combine: any reject → `REJECTED`; otherwise any review →
   `PENDING_REVIEW`; otherwise all pass. *(Precedence is OQ-01 and is configurable.)*
-- **DEC-13** **(changed)** V4 and V5: all checks passing is not enough; Risk Assessment must also pass, otherwise
-  `PENDING_REVIEW` with reason "Risk Assessment not passed". V5's per-component risk thresholds are OQ-05.
+- **DEC-13** **(changed)** V4 and V5: all checks passing is not enough; Risk Assessment must also be Clear, otherwise
+  `PENDING_REVIEW` with reason "Risk Assessment not passed". The risk model is DEC-107.
+- **DEC-107** **(new)** Risk Assessment, V4 and V5 [PO 2026-10-26]. Replaces the risk levels (Low / Medium / High), the
+  "maximum allowed risk level" and the overall risk score.
+  - The engine returns **four category scores, each 0–100, higher = more genuine**: EXIF, Noise, Email Validity, OSINT.
+    How each is computed and normalised (EXIF tag points, ELA and wavelet values, email points, OSINT social score 0–10)
+    is not final (OQ-25); the portal shows only the four scores, no breakdown and no reason codes.
+  - **Risk result:** **Clear** when every category is at or above its minimum, otherwise **Flagged**. These words are used
+    instead of pass / fail so they are never confused with the case statuses. One minimum per category.
+  - **V4:** the minimums are fixed by the platform; the merchant sees them read-only. **V5:** the flow sets one minimum per
+    category (0–100) in Flow Detail, with the same rules as the thresholds (Change verification level and retries; saving
+    an active flow needs a reason and creates a revision). The registry entry says which versions allow it ("Risk minimums
+    set per flow"). Default minimums: 50 each (OQ-34).
+  - Final status:
+
+    | Biometric result | Risk result | Final status |
+    |---|---|---|
+    | Approve | Clear | `APPROVED` |
+    | Approve | Flagged | `PENDING_REVIEW` |
+    | Pending review | Any | `PENDING_REVIEW` |
+    | Reject | Any | `REJECTED` (from biometrics, not risk) |
+
+  - Risk never rejects. A Flagged case goes to review with the reason "Risk Assessment not passed" and the categories below
+    their minimum, e.g. "OSINT 22 < 30".
+  - Verifications List: a **Risk** column and filter with Clear / Flagged (DEC-40, DEC-43, DEC-100). System Intelligence
+    counts Clear vs Flagged.
 - **DEC-14** A system approval is `APPROVED` with `lastUpdatedBy = SYSTEM` ("Auto-Clear").
 - **DEC-19** Threshold presets. **(new)** [PO 2026-10-20]
-  - Each of face match and liveness offers **Low**, **Standard** and **High** presets. Low = lenient (more automatic
+  - Each of similarity and liveness offers **Low**, **Standard** and **High** presets. Low = lenient (more automatic
     approvals); High = strict. Preset values are OQ-02.
   - **Advanced** = custom Auto-Reject / Auto-Pass numbers, set by **Platform Admin only**. A merchant sees a read-only
     "Advanced (set by platform)" chip with the numbers and may switch back to a preset, but cannot edit the numbers.
   - A 0–100 band bar shows the Reject / Review / Approve bands and updates when a preset or custom values are chosen.
 
 ## Retries
-- **DEC-15** **(changed)** A face match or liveness result below Auto-Pass, with retries left, sends the user to retry; the case
+- **DEC-15** **(changed)** A similarity or liveness result below Auto-Pass, with retries left, sends the user to retry; the case
   stays `PROCESSING`. An incomplete, aborted or timed-out run also stays `PROCESSING`. [PO 2026-10-20]
 - **DEC-16** **(changed)** When retries run out, the **last attempt** decides: below Auto-Reject → `REJECTED`; review band →
   `PENDING_REVIEW`. The reason is the matching condition from DEC-35 (e.g. "Liveness face does not match ID face (Retry Not
   Allowed)"). [PO 2026-10-20]
 - **DEC-17** Retries keep the same case (case ID and Reference ID); each retry is appended to `attempts[]`, never a new record.
-- **DEC-18** **(changed)** "**Retries allowed**" is set per check (face match, liveness) per flow: the number of retries after
+- **DEC-18** **(changed)** "**Retries allowed**" is set per check (similarity, liveness) per flow: the number of retries after
   the first submission. Default 3 = up to 4 submissions. Range is OQ-03. ID capture and Selfie retakes are **unlimited, not
-  counted and free**. The retry KPIs (First-Attempt Pass Rate, Average Retries) count face match and liveness retries only.
+  counted and free**. The retry KPIs (First-Attempt Pass Rate, Average Retries) count similarity and liveness retries only.
   [PO 2026-10-20][FRS]
 - **DEC-26** **(new)** Cooldown (per flow, minutes, default 0): after a case is `REJECTED`, the **same end user** cannot start
   a new case until the cooldown ends. 0 = no wait. How "same end user" is identified, and whether the wait covers only this
@@ -145,7 +171,7 @@ Rules changed on 2026-10-20 (Projects & Flows restructure) are marked **(changed
 
 ## Visibility, PII & audit
 - **DEC-40** **(changed)** Verifications List columns: Reference ID, Full Name, Project (when more than one project is in view),
-  Flow, Workflow version, Document type, Status, Risk level (only when a flow in view runs risk), Claimed by (or "Unclaimed"),
+  Flow, Workflow version, Document type, Status, Risk (Clear / Flagged; only when a flow in view runs risk, DEC-107), Claimed by (or "Unclaimed"),
   Claim expires, Created, Last updated. No other PII, no client metadata, no duplicate-user information. Enforced by the
   `VerificationSummary` type. [MS][FRS][PO 2026-10-20]
   - Layout, same information [PO 2026-10-21]: the list must fit a desktop screen without scrolling sideways, so related
@@ -167,14 +193,14 @@ Rules changed on 2026-10-20 (Projects & Flows restructure) are marked **(changed
   - Merchants (Platform Admin only): `MERCHANT_CREATED`, `MERCHANT_UPDATED`, `MERCHANT_STATUS_CHANGED`
   [MS][FRS]
 - **DEC-43** **(new)** Verifications List filters: project, flow, workflow version, status, claim state (unclaimed / mine /
-  others), risk level, date range; search by Reference ID and Full Name. Default view: `PENDING_REVIEW` cases in the user's
+  others), risk (Clear / Flagged), date range; search by Reference ID and Full Name. Default view: `PENDING_REVIEW` cases in the user's
   projects, oldest first. [MS][FRS]
 - **DEC-100** **(new)** Verifications List sorting is on the column names, not in the filters [PO 2026-10-22]. Sortable
-  columns, per the FRS: Reference ID, Status, Risk Level, Last updated (never Full Name or Merchant). Each click on a
+  columns, per the FRS: Reference ID, Status, Risk, Last updated (never Full Name or Merchant). Each click on a
   column: ascending → descending → back to the default order (Last updated, oldest first, DEC-43; this replaces the FRS
   default "updatedAt descending" for the review queue). The column shows its state with a small icon (and `aria-sort`).
-  Status sorts in lifecycle order (Processing, Pending Review, Approved, Rejected); risk Low → High, cases without a risk
-  level last either way; ties by Last updated, then Reference ID. A sort applies at once and is kept in the URL
+  Status sorts in lifecycle order (Processing, Pending Review, Approved, Rejected); risk Clear → Flagged, cases without a risk
+  result last either way; ties by Last updated, then Reference ID. A sort applies at once and is kept in the URL
   (`sort=status.asc`); it does not reset the filters. [FRS][PO 2026-10-22]
 - **DEC-101** **(new)** The Created filter is one date-range field, not "Created from" and "Created to" [PO 2026-10-22].
   It reads "08 Oct 2026 – 17 Oct 2026" (MYT) and opens a calendar of two months (one on a phone): the first click picks the
@@ -191,7 +217,7 @@ Rules changed on 2026-10-20 (Projects & Flows restructure) are marked **(changed
 - **DEC-105** **(new)** Verification Detail layout and content [PO 2026-10-23]. Replaces the section list of DEC-44; the
   original Axure page and the DEC-44 page are combined ("hybrid").
   - **Header strip:** Reference ID, status, case ID (copy) · Project › Flow · workflow version and preset (e.g. "V4 ·
-    High") and configuration revision · Created · Source (the SDK) · Audit trail link. **Client metadata** (SDK, OS,
+    High") and configuration revision · Created · Audit trail link (the SDK is in the client metadata box, not repeated here). **Client metadata** (SDK, OS,
     device, IP address, location) sits in a compact box at the top right of the header [PO 2026-10-26]; on narrow screens
     it moves under the title. The claim bar sits directly under the header.
   - **Reason banner** (`PENDING_REVIEW` / `REJECTED`): the DEC-35 condition plus **target vs actual**, e.g. "Auto-Reject
@@ -201,15 +227,16 @@ Rules changed on 2026-10-20 (Projects & Flows restructure) are marked **(changed
     document type (email for V4/V5); (3) **Checks and telemetry** and **Risk**.
   - **Decision panel:** sticky on the right on wide screens; full width under the content on narrow screens. Buttons
     "Confirm Manual Pass" and "Reject" (DEC-30); never "Maintain Automated Rejection".
-  - **Below the fold:** Attempts (each attempt's scores, metrics and images), Rules applied, Activity.
+  - **Below the fold:** Attempts (each attempt's scores, metrics and images), Rules applied. **No Activity section**
+    [PO 2026-10-26]: the case's history is in the Audit Log (Audit trail link).
   - **Every number is shown** to everyone who can open the page (View details), per attempt. Each metric shows its value,
-    its threshold, pass / fail, and whether the threshold is **set by the flow** (face match, liveness: DEC-10/19) or
-    **fixed by the engine**. Engine thresholds live in `ENGINE_THRESHOLDS` (`src/domain/telemetry.ts`):
+    its threshold and pass / fail. No "Set by" column [PO 2026-10-26]: the flow-set similarity and liveness bands read
+    "Auto-Reject … · Auto-Pass …"; every other threshold is fixed by the engine. Engine thresholds live in `ENGINE_THRESHOLDS` (`src/domain/telemetry.ts`):
 
     | Stage | Metric | Engine threshold |
     |---|---|---|
     | ID capture | Faces found | exactly 1 |
-    | ID capture | Face match: a real face on the ID (FaceMatchThreshold) | ≥ 90 |
+    | ID capture | Face match: a face is clearly detected on the ID (FaceMatchThreshold) | ≥ 90 |
     | ID capture | Eyes open · Face covered | open · not covered |
     | ID capture | Image size | ≥ 320 × 320 px |
     | ID capture | OCR fields detected | every field the document type needs (DEC-35) |
@@ -217,33 +244,20 @@ Rules changed on 2026-10-20 (Projects & Flows restructure) are marked **(changed
     | Selfie (V1) | Sharpness · Brightness | > 25 · > 25 |
     | Selfie (V1) | Yaw · Pitch | within ±30° · within ±30° |
     | Selfie (V1) | Face size | information only: 50 px is configured but not checked (OQ-32) |
-    | Face comparison | Similarity: the selfie (V1) or liveness face (V3/V4/V5) compared with the ID face | flow band |
-    | Face comparison | Face match: the compared face is a real face (FaceMatchThreshold) | > 90 |
+    | Similarity and face match | Similarity: the selfie (V1) or liveness face (V3/V4/V5) compared with the ID face | flow band |
+    | Similarity and face match | Face match: a face is clearly detected in the compared image (FaceMatchThreshold) | > 90 |
     | Liveness | Liveness confidence | flow band |
 
-  - **Similarity** (the face compared with the ID face) and **Face match** (confidence that it is a real face) are two
-    different numbers, named as in the engine workflow, and never shown as one [PO 2026-10-26]. The flow-set "face match"
-    band of DEC-10/19 applies to the similarity.
+  - **Similarity** (the face compared with the ID face) and **Face match** (confidence that a face is clearly detected;
+    not liveness) are two different numbers, named as in the engine workflow, and never shown as one [PO 2026-10-26]. The
+    flow-set band of DEC-10/19 is the similarity.
   - **V1 order** (engine workflow): ID → selfie quality check → face comparison → existing-user search → liveness. A selfie
     that fails its check ends the run ("Invalid selfie"): no similarity, no face match. The user retakes it for free
     (DEC-18); rejected selfies are shown under Attempts as "Not run".
   - The **existing-user search** runs only after the face comparison passes (or lands in the review band).
   - **Duplicate user:** "New user", or "Existing user found" with the match similarity (≥ 90 = existing). Shown for
     information only: it never changes a check, the status or the decision buttons, and it stays off the list (DEC-40).
-  - **Risk** (V4/V5): overall level, overall score, maximum allowed (flow) and pass / fail, then **one score per category**,
-    each with what made it up (no reason codes) [PO 2026-10-26]. Category scores run the other way from the overall score:
-    higher is more genuine. Scoring (`src/domain/riskSignals.ts`):
-    - **EXIF Score** (ID image metadata): +1 per strong tag (Aperture, ApertureValue, BrightnessValue, ExposureCompensation,
-      LightValue, ShutterSpeedValue, SubSecTimeOriginal, SubSecTimeDigitized, ISO); +0.5 per moderate tag (Make, Model,
-      DateTimeOriginal, FileModifyDate, OffsetTimeOriginal); phone maker +5 modern / −2 obsolete (GSMArena lists);
-      megapixels +2 if ≥ 4, else −2; FileModifyDate vs DateTimeOriginal +2 if under 60 s apart, else −4; −30 if
-      ClaimGeneratorInfoName is "ChatGPT". Maximum 20.5.
-    - **Noise Score**: Error Level Analysis value (quality 89, scale 151; flags AI-generated images) and wavelet peak value
-      (sym4, level 6, percentiles 92–100; flags edited images). Pass marks are OQ-25.
-    - **Email Validity Score**: base 50; MX record +15; A record +15; disposable domain −50; domain under 30 days old −10;
-      five consonants in a row before "@" −5. Maximum 80.
-    - **OSINT Score**: accounts registered with the email and its username, scored 0–10 by an LLM together with the other
-      checks and the personal details (name, age, gender, nationality).
+  - **Risk** (V4/V5): the result (Clear / Flagged) and the four category scores against their minimums (DEC-107).
 
 ## Configuration
 - **DEC-50** **(changed)** Settings live on each **flow** (Flow Detail). The form shows only what applies to the flow's version:
@@ -251,11 +265,11 @@ Rules changed on 2026-10-20 (Projects & Flows restructure) are marked **(changed
   | Section | V1 | V3 | V4 | V5 |
   |---|---|---|---|---|
   | General: name, description, workflow version (locked once active) | ✓ | ✓ | ✓ | ✓ |
-  | Thresholds: face match, liveness (DEC-19) | ✓ | ✓ | ✓ | ✓ |
-  | Retries allowed: face match, liveness (DEC-18) · cooldown (DEC-26) | ✓ | ✓ | ✓ | ✓ |
+  | Thresholds: similarity, liveness (DEC-19) | ✓ | ✓ | ✓ | ✓ |
+  | Retries allowed: similarity, liveness (DEC-18) · cooldown (DEC-26) | ✓ | ✓ | ✓ | ✓ |
   | Accepted documents (MyKad, Passport, Driving License) | ✓ | ✓ | ✓ | ✓ |
   | Session expiry | ✓ | ✓ | ✓ | ✓ |
-  | Risk thresholds and resulting action | | | ✓ | OQ-05 |
+  | Risk minimums per category (DEC-107) | | | read-only (fixed) | ✓ |
   | Requirements: "Email required at session creation" | | | ✓ | ✓ |
   | Developer info: flow ID, sample create-session request | ✓ | ✓ | ✓ | ✓ |
   | History: who, when, old and new value | ✓ | ✓ | ✓ | ✓ |
@@ -314,7 +328,7 @@ Rules changed on 2026-10-20 (Projects & Flows restructure) are marked **(changed
     | View merchant-wide reports | Manage project settings (branding, auto-release timeout) |
     | | Manage API keys and webhook |
     | | Manage flows (create, activate, retire, set default) |
-    | | Change verification level and retries (thresholds, retries allowed, risk level) |
+    | | Change verification level and retries (thresholds, retries allowed, risk minimums) |
     | | Manage project members |
     | | View project reports (Overview, System Intelligence, Billing for those projects) |
     | | View audit log |
@@ -648,7 +662,7 @@ These keep the mock runnable. They are not signed-off requirements; change them 
 
 - **MOCK-01** **(changed)** Attempt counting: each `Attempt` records the check where it stopped and its scores. Retries for a
   check = submissions for that check after the first. ID capture and selfie retakes are not recorded as attempts.
-- **MOCK-02** Risk gate: V4 risk passes when `riskLevel <= risk.maxAllowedLevel`. Risk never auto-rejects. *(See OQ-05.)*
+- **MOCK-02** Risk gate: Clear when every category score ≥ its minimum (DEC-107). Risk never auto-rejects.
 - **MOCK-03** Claim expiry is lazy: every service call sweeps expired claims and writes one `CASE_CLAIM_EXPIRED` per expired claim.
 - **MOCK-04** Time is read from an injectable clock (`src/lib/clock.ts`) with a dev "time warp" offset, so expiry can be demoed
   without waiting.
@@ -691,6 +705,8 @@ These keep the mock runnable. They are not signed-off requirements; change them 
 | DEC-22 | Claim timeout per merchant; ends by Cancel, timeout or decision | DEC-22 |
 | DEC-31 | Reason code and audit comment required for both decisions; then (2026-10-20) Reject reasons = DEC-35 conditions, no Approve reason | DEC-31, DEC-106 |
 | DEC-10 / DEC-35 | Granular metrics and duplicate-user information never shown | Shown on Verification Detail (DEC-105) |
+| DEC-13 / MOCK-02 / OQ-05 / OQ-06 | Risk level Low / Medium / High from a 0–100 score; V4 "maximum allowed level" per flow | Four category scores, Clear / Flagged, minimums fixed (V4) or per flow (V5) (DEC-107) |
+| DEC-44 / DEC-105 | Activity timeline on the case page | Removed; history in the Audit Log |
 | DEC-42 | `PII_VIEW`, `CLAIM`, `CLAIM_RELEASE`, `CLAIM_TIMEOUT`, `DECISION`, `OWNERSHIP_CONFLICT`, `CONFIG_*`, `CREDENTIAL_ROTATION` | DEC-42 |
 | DEC-50/51 | One config per merchant, Save Draft / Discard / Deploy | DEC-50, DEC-51 |
 | DEC-60 | Charged once when the user enters the flow | DEC-60 |
