@@ -160,16 +160,20 @@ describe('Verification Detail', () => {
     expect(screen.getByText(/^New case allowed from .* MYT \(cooldown\)$/)).toBeTruthy()
   })
 
-  it('Given V4 S02, then risk HIGH with every category score and its reason codes, and the banner shows maximum vs actual (DEC-105)', async () => {
+  it('Given V4 S02, then risk HIGH with one score per category and how each was made up, and the banner shows maximum vs actual (DEC-105)', async () => {
     await open(S(2))
     const risk = region('Risk Assessment')
     expect(risk.getByText('High')).toBeTruthy()
-    const categories = risk.getByRole('table', { name: 'Risk categories' })
-    expect(column(categories, 'Score')).toEqual(['35', '82', '64', '20'])
-    expect(within(categories).getAllByRole('rowheader').map((h) => h.textContent)).toEqual(['EXIF Score', 'Noise Score', 'Email Validity Score', 'OSINT Score'])
-    expect(within(categories).getByText('NOISE_SCREEN_PATTERN')).toBeTruthy()
-    expect(within(categories).getByText('Disposable email domain')).toBeTruthy()
+    expect(risk.getByText('7 / 20.5')).toBeTruthy() // EXIF
+    expect(risk.getByText('20 / 80')).toBeTruthy() // Email validity
+    expect(risk.getByText('1 / 10')).toBeTruthy() // OSINT
     expect(risk.getByText('Open question OQ-25')).toBeTruthy()
+    const signals = region('Risk signals')
+    const exif = within(signals.getByRole('table', { name: 'EXIF breakdown' }))
+    expect(exif.getByRole('rowheader', { name: 'Taken vs modified' }).closest('tr')!.textContent).toBe('Taken vs modified5,400 s apart−4')
+    const email = within(signals.getByRole('table', { name: 'Email validity breakdown' }))
+    expect(email.getByRole('rowheader', { name: 'Disposable domain' }).closest('tr')!.textContent).toBe('Disposable domainYes−50')
+    expect(signals.getByText(/quality 89, scale 151/)).toBeTruthy()
     expect(screen.getByText('Risk Assessment not passed')).toBeTruthy()
     expect(screen.getByText('Maximum allowed Medium · Actual High (82 / 100)')).toBeTruthy()
     expect(region('Checks').queryByText('Selfie')).toBeNull() // V4 has no selfie phase

@@ -29,7 +29,7 @@ export type WorkflowVersion = (typeof WORKFLOW_VERSIONS)[number]
 export const RISK_LEVELS = ['LOW', 'MEDIUM', 'HIGH'] as const
 export type RiskLevel = (typeof RISK_LEVELS)[number]
 
-// REQ: DEC-105 — the risk engine's categories, each scored 0–100 (higher = riskier) with reason codes (OQ-25).
+// REQ: DEC-105 — the risk engine's four categories, each with its own scale (domain/riskSignals.ts); no reason codes.
 export const RISK_CATEGORIES = ['EXIF', 'NOISE', 'EMAIL_VALIDITY', 'OSINT'] as const
 export type RiskCategory = (typeof RISK_CATEGORIES)[number]
 export const RISK_CATEGORY_LABELS: Record<RiskCategory, string> = { EXIF: 'EXIF Score', NOISE: 'Noise Score', EMAIL_VALIDITY: 'Email Validity Score', OSINT: 'OSINT Score' }
@@ -97,10 +97,40 @@ export interface DuplicateUserCheck {
   similarity?: number // best match found; absent when no face was searched against yet
 }
 
-export interface RiskCategoryScore {
-  category: RiskCategory
-  score: number // 0–100, higher = riskier
-  reasonCodes: string[] // OQ-25: `RISK_REASON_CODES`
+/** What the EXIF analysis read from the ID image. Scored by `exifScore`. */
+export interface ExifSignals {
+  tagsPresent: string[] // of EXIF_STRONG_TAGS and EXIF_MODERATE_TAGS
+  make?: string // the EXIF Make (phone maker)
+  megapixels?: number
+  modifyDiffSec?: number // FileModifyDate − DateTimeOriginal; absent when either is missing
+  claimGenerator?: string // ClaimGeneratorInfoName (AI generation watermark), e.g. "ChatGPT"
+}
+
+/** Image noise analysis: Error Level Analysis (AI-generated images) and wavelet peak values (edited images). */
+export interface NoiseSignals {
+  elaScore: number
+  waveletPeak: number
+}
+
+/** Email validity checks. The gibberish check reads the email itself. Scored by `emailScore`. */
+export interface EmailSignals {
+  mxRecord: boolean
+  aRecord: boolean
+  disposable: boolean
+  domainAgeDays?: number
+}
+
+/** OSINT social presence: accounts found for the email and username, scored 0–10 by an LLM. */
+export interface OsintSignals {
+  accountsFound: number
+  socialScore: number // 0–10
+}
+
+export interface RiskSignals {
+  exif: ExifSignals
+  noise: NoiseSignals
+  email?: EmailSignals // when the session has an email (V4/V5)
+  osint: OsintSignals
 }
 
 /** An uploaded image (ID document, selfie, liveness frame). `url` is a sample image in the mock. */
@@ -152,7 +182,7 @@ export interface Verification {
   attempts: Attempt[]
   riskLevel?: RiskLevel // V4 only
   riskScore?: number // V4 only
-  riskCategories?: RiskCategoryScore[] // REQ: DEC-105 — V4/V5, when risk ran
+  riskSignals?: RiskSignals // REQ: DEC-105 — V4/V5, when risk ran: the four categories
   idCapture?: IdCaptureTelemetry // REQ: DEC-105 — absent when no ID image was submitted
   duplicateUser?: DuplicateUserCheck // REQ: DEC-105 — absent until a face was searched; never in VerificationSummary (DEC-40)
   documentType: DocumentType

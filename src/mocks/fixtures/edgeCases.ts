@@ -3,7 +3,7 @@
 import { Faker, en } from '@faker-js/faker'
 import { makeAudit } from '@/domain/audit'
 import { applyDecision } from '@/domain/claimRules'
-import type { Actor, AuditEntry, Check, DocumentType, IdCaptureTelemetry, RiskCategoryScore, SelfieTelemetry, UpdatedBy, Verification, VerificationStatus } from '@/domain/types'
+import type { Actor, AuditEntry, Check, DocumentType, IdCaptureTelemetry, RiskSignals, SelfieTelemetry, UpdatedBy, Verification, VerificationStatus } from '@/domain/types'
 import { buildCase } from '../builders'
 import { clientMetadata, fakeIp, person } from '../malaysia'
 import type { Catalog } from './catalog'
@@ -67,7 +67,7 @@ export function buildEdgeCases(ctx: { now: Date; catalog: Catalog }): {
     flowId: string,
     startMin: number,
     submissions: Partial<Record<Check, number[]>>,
-    opts: { riskScore?: number; documentType?: DocumentType; stepMin?: number; idCapture?: Partial<IdCaptureTelemetry>; duplicateSimilarity?: number; riskCategories?: RiskCategoryScore[]; stoppedAtSelfie?: Partial<SelfieTelemetry> } = {},
+    opts: { riskScore?: number; documentType?: DocumentType; stepMin?: number; idCapture?: Partial<IdCaptureTelemetry>; duplicateSimilarity?: number; riskSignals?: RiskSignals; stoppedAtSelfie?: Partial<SelfieTelemetry> } = {},
   ): Verification => {
     const flow = catalog.flows.find((x) => x.flowId === flowId)!
     const p = person(f, now, opts.documentType ?? 'MYKAD')
@@ -84,7 +84,7 @@ export function buildEdgeCases(ctx: { now: Date; catalog: Catalog }): {
       riskScore: opts.riskScore ?? 20,
       idCapture: opts.idCapture,
       duplicateSimilarity: opts.duplicateSimilarity ?? 20 + seq, // REQ: DEC-105 — new users, except S21
-      riskCategories: opts.riskCategories,
+      riskSignals: opts.riskSignals,
       stoppedAtSelfie: opts.stoppedAtSelfie,
     })
   }
@@ -119,12 +119,13 @@ export function buildEdgeCases(ctx: { now: Date; catalog: Catalog }): {
     make(1, fx('FLW-0005'), 95, { FACE_MATCH: [95.5], LIVENESS: [97.4] }),
     make(2, fx('FLW-0001'), 90, { FACE_MATCH: [96.1], LIVENESS: [97.4] }, {
       riskScore: 82,
-      riskCategories: [
-        { category: 'EXIF', score: 35, reasonCodes: [] },
-        { category: 'NOISE', score: 82, reasonCodes: ['NOISE_SCREEN_PATTERN', 'NOISE_RECOMPRESSED'] },
-        { category: 'EMAIL_VALIDITY', score: 64, reasonCodes: ['EMAIL_DISPOSABLE'] },
-        { category: 'OSINT', score: 20, reasonCodes: [] },
-      ],
+      // A photo re-saved by an editor, a disposable new email domain and almost no social presence.
+      riskSignals: {
+        exif: { tagsPresent: ['ISO', 'ApertureValue', 'Make', 'Model', 'DateTimeOriginal', 'FileModifyDate'], make: 'Apple', megapixels: 12.2, modifyDiffSec: 5_400 },
+        noise: { elaScore: 38.6, waveletPeak: 0.84 },
+        email: { mxRecord: true, aRecord: true, disposable: true, domainAgeDays: 12 },
+        osint: { accountsFound: 0, socialScore: 1 },
+      },
     }),
     make(3, fx('FLW-0001'), 88, { FACE_MATCH: [80.4, 82.1, 84.0, 88.5], LIVENESS: passes(4) }, { riskScore: 15 }),
     make(4, fx('FLW-0001'), 86, { FACE_MATCH: passes(4), LIVENESS: [45.0, 52.4, 48.9, 50.2] }),

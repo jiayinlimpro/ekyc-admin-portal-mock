@@ -1,10 +1,10 @@
 // Shared builders for seeded and hand-written records. Status is always computed by checkRules.evaluateCase, never random.
 import { evaluateCase, type FlowContext } from '@/domain/checkRules'
-import { POLICY, RISK_REASON_CODES, riskLevelFromScore } from '@/domain/openQuestions'
+import { riskLevelFromScore } from '@/domain/openQuestions'
+import { EXIF_MODERATE_TAGS, EXIF_STRONG_TAGS } from '@/domain/riskSignals'
 import { hasRisk } from '@/domain/registryRules'
 import { ENGINE_THRESHOLDS, idCaptureMetrics, OCR_FIELDS } from '@/domain/telemetry'
 import {
-  RISK_CATEGORIES,
   type Attempt,
   type AttemptTelemetry,
   type Check,
@@ -14,7 +14,7 @@ import {
   type FlowRevision,
   type IdCaptureTelemetry,
   type RegistryEntry,
-  type RiskCategoryScore,
+  type RiskSignals,
   type SelfieTelemetry,
   type Verification,
   type WorkflowVersion,
@@ -43,7 +43,7 @@ export interface CaseSpec {
   /** DEC-105 overrides; otherwise generated from the Reference No (stable). */
   idCapture?: Partial<IdCaptureTelemetry>
   duplicateSimilarity?: number
-  riskCategories?: RiskCategoryScore[]
+  riskSignals?: RiskSignals
   /** V1 with no submission: the selfie the engine rejected when the user stopped (no similarity was run). */
   stoppedAtSelfie?: Partial<SelfieTelemetry>
 }
@@ -129,7 +129,7 @@ export function buildCase(spec: CaseSpec): Verification {
     attempts,
     riskLevel,
     riskScore: riskRan ? spec.riskScore : undefined,
-    riskCategories: riskRan ? (spec.riskCategories ?? riskCategories(rand, spec.riskScore!)) : undefined,
+    riskSignals: riskRan ? (spec.riskSignals ?? riskSignals(rand, spec.riskScore!, spec.metadata, !!email)) : undefined,
     idCapture: idCap,
     // REQ: DEC-105 — the existing-user search runs only after the face comparison passes ("Existing User Seeking" follows
     // "Match Validation"); in the review band the case goes on, so it is searched too.
@@ -219,15 +219,36 @@ function duplicateUser(similarity: number) {
   return { existingUser: similarity >= T.duplicateSimilarityMin, similarity }
 }
 
-// OQ-25 (mock): one category drives the overall score; the others are at or below it.
-function riskCategories(r: () => number, overall: number): RiskCategoryScore[] {
-  const driver = Math.floor(r() * RISK_CATEGORIES.length)
-  return RISK_CATEGORIES.map((category, i) => {
-    const score = i === driver ? overall : Math.round(r() * overall)
-    const codes = RISK_REASON_CODES[category]
-    const reasonCodes = score < POLICY.riskBands.mediumFrom ? [] : codes.slice(0, score >= POLICY.riskBands.highFrom ? 2 : 1).map((c) => c.code)
-    return { category, score, reasonCodes }
-  })
+/** The EXIF Make a device would write; desktop webcams write none. */
+function makeOf(device: string): string | undefined {
+  if (/^iphone/i.test(device)) return 'Apple'
+  const brand = device.split(' ')[0]
+  return /chrome|safari|firefox|edge/i.test(device) ? undefined : brand
+}
+
+// REQ: DEC-105 (mock) — the engine's raw signals, weaker as the overall risk rises. How the engine turns them into the
+// overall score is OQ-25, so the overall score stays the given one.
+function riskSignals(r: () => number, overall: number, m: ClientMetadata, hasEmail: boolean): RiskSignals {
+  const g = 1 - overall / 100 // how genuine the session looks
+  const pick = <T,>(xs: readonly T[], n: number) => xs.filter(() => r() < n / xs.length)
+  const make = makeOf(m.device)
+  const phone = !!make
+  const strong = pick(EXIF_STRONG_TAGS, phone ? 2 + 7 * g : 1)
+  const moderate = [...(make ? ['Make', 'Model'] : []), ...pick(['DateTimeOriginal', 'FileModifyDate', 'OffsetTimeOriginal'], phone ? 1 + 2 * g : 1)]
+  const tagsPresent = [...strong, ...EXIF_MODERATE_TAGS.filter((t) => moderate.includes(t))]
+  const dated = tagsPresent.includes('DateTimeOriginal') && tagsPresent.includes('FileModifyDate')
+  return {
+    exif: {
+      tagsPresent,
+      make,
+      megapixels: phone ? between(r, 8, 50) : between(r, 0.9, 2.1),
+      modifyDiffSec: dated ? (r() < g ? Math.round(between(r, 0, 20)) : Math.round(between(r, 300, 86_400))) : undefined,
+      claimGenerator: overall >= 85 && r() < 0.3 ? 'ChatGPT' : undefined,
+    },
+    noise: { elaScore: between(r, 2 + 30 * (1 - g), 6 + 40 * (1 - g)), waveletPeak: between(r, 0.1 + 0.5 * (1 - g), 0.3 + 0.6 * (1 - g)) },
+    email: hasEmail ? { mxRecord: r() < 0.6 + 0.4 * g, aRecord: r() < 0.7 + 0.3 * g, disposable: r() < 0.4 * (1 - g), domainAgeDays: r() < 0.3 * (1 - g) ? Math.round(between(r, 2, 29)) : Math.round(between(r, 400, 9000)) } : undefined,
+    osint: { accountsFound: Math.round(between(r, 6 * g, 2 + 10 * g)), socialScore: Math.max(0, Math.min(10, Math.round(between(r, 10 * g - 3, 10 * g + 1)))) },
+  }
 }
 
 function emailFor(fullName: string, referenceNo: string): string {

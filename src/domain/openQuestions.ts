@@ -1,6 +1,6 @@
 // Every value in this file is an OPEN QUESTION (docs/OPEN_QUESTIONS.md), not a signed-off requirement.
 // The UI must label anything read from here "OPEN QUESTION".
-import type { Check, RiskCategory, RiskLevel, ThresholdPreset } from './types'
+import type { Check, RiskLevel, ThresholdPreset } from './types'
 
 export type PhaseCombination = 'REJECT_WINS' | 'REVIEW_WINS'
 
@@ -39,34 +39,6 @@ export function riskLevelFromScore(score: number, bands = POLICY.riskBands): Ris
   if (score >= bands.highFrom) return 'HIGH'
   if (score >= bands.mediumFrom) return 'MEDIUM'
   return 'LOW'
-}
-
-/**
- * OQ-25: reason codes each risk category can return (DEC-105). Sample codes until the risk engine's list is confirmed.
- * Mock: a category shows codes from the medium band (`POLICY.riskBands.mediumFrom`) up, and the overall score is the
- * highest category score.
- */
-export const RISK_REASON_CODES: Record<RiskCategory, readonly { code: string; label: string }[]> = {
-  EXIF: [
-    { code: 'EXIF_MISSING', label: 'Image has no camera metadata' },
-    { code: 'EXIF_EDITING_SOFTWARE', label: 'Image saved by editing software' },
-    { code: 'EXIF_DATE_MISMATCH', label: 'Capture time differs from the session time' },
-  ],
-  NOISE: [
-    { code: 'NOISE_INCONSISTENT', label: 'Noise differs between image regions (possible splicing)' },
-    { code: 'NOISE_SCREEN_PATTERN', label: 'Screen pattern detected (photo of a screen)' },
-    { code: 'NOISE_RECOMPRESSED', label: 'Image compressed more than once' },
-  ],
-  EMAIL_VALIDITY: [
-    { code: 'EMAIL_DISPOSABLE', label: 'Disposable email domain' },
-    { code: 'EMAIL_NO_MAILBOX', label: 'Domain has no mail server' },
-    { code: 'EMAIL_RECENTLY_CREATED', label: 'Email address first seen recently' },
-  ],
-  OSINT: [
-    { code: 'OSINT_NO_FOOTPRINT', label: 'No public footprint for the email' },
-    { code: 'OSINT_DATA_BREACH', label: 'Email found in data breaches' },
-    { code: 'OSINT_NAME_MISMATCH', label: 'Public profiles show a different name' },
-  ],
 }
 
 /** OQ-14: mock token price (RM per liveness submission, DEC-60). */

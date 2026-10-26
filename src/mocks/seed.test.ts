@@ -4,7 +4,7 @@ import { evaluateCase } from '@/domain/checkRules'
 import { isClaimActive } from '@/domain/claimRules'
 import { inCooldown, revisionLabel, validateProjectName } from '@/domain/flowRules'
 import { validateFlow } from '@/domain/flowSettings'
-import { RISK_REASON_CODES } from '@/domain/openQuestions'
+import { emailScore, exifScore } from '@/domain/riskSignals'
 import { hasRisk, validateRegistryInput } from '@/domain/registryRules'
 import { ENGINE_THRESHOLDS, idCaptureMetrics, selfiePasses } from '@/domain/telemetry'
 import { grantsOf, SYSTEM_ROLE_IDS } from '@/domain/roles'
@@ -215,15 +215,28 @@ describe('telemetry, duplicate user and risk categories (DEC-105)', () => {
     expect(checked.some((v) => v.duplicateUser!.existingUser)).toBe(true)
   })
 
-  it('Given risk ran, then the four categories, the highest equal to the overall score, with known reason codes', () => {
+  it('Given risk ran, then the four categories: EXIF, noise, email (V4/V5 have an email) and an OSINT score of 0–10', () => {
     const withRisk = db.verifications.filter((v) => v.riskScore !== undefined)
     expect(withRisk.length).toBeGreaterThan(0)
     for (const v of withRisk) {
-      expect(v.riskCategories!.map((c) => c.category)).toEqual(['EXIF', 'NOISE', 'EMAIL_VALIDITY', 'OSINT'])
-      expect(Math.max(...v.riskCategories!.map((c) => c.score)), v.referenceNo).toBe(v.riskScore)
-      for (const c of v.riskCategories!) for (const code of c.reasonCodes) expect(RISK_REASON_CODES[c.category].map((x) => x.code)).toContain(code)
+      const s = v.riskSignals!
+      expect(s.email, v.referenceNo).toBeDefined()
+      expect(s.osint.socialScore).toBeGreaterThanOrEqual(0)
+      expect(s.osint.socialScore).toBeLessThanOrEqual(10)
+      expect(Number.isFinite(exifScore(s.exif).score)).toBe(true)
     }
-    expect(db.verifications.filter((v) => v.riskScore === undefined).every((v) => v.riskCategories === undefined)).toBe(true)
+    expect(db.verifications.filter((v) => v.riskScore === undefined).every((v) => v.riskSignals === undefined)).toBe(true)
+    // Low-risk sessions look more genuine than high-risk ones, on average.
+    const avg = (xs: number[]) => xs.reduce((a, b) => a + b, 0) / xs.length
+    const exifOf = (level: string) => avg(withRisk.filter((v) => v.riskLevel === level).map((v) => exifScore(v.riskSignals!.exif).score))
+    expect(exifOf('LOW')).toBeGreaterThan(exifOf('HIGH'))
+  })
+
+  it('S02 (risk HIGH): an edited photo, a disposable new email domain and no social presence', () => {
+    const v = byRef('KYC-260901-900002')
+    expect(exifScore(v.riskSignals!.exif).score).toBe(7)
+    expect(emailScore(v.pii.email!, v.riskSignals!.email!).score).toBe(20)
+    expect(v.riskSignals!.osint).toEqual({ accountsFound: 0, socialScore: 1 })
   })
 
   it('S05 shows why the user stopped at ID capture; S21 found an existing user but is in review only for its face match', () => {

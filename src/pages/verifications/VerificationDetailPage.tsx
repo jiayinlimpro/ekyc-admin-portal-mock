@@ -6,7 +6,7 @@ import { NativeSelect } from '@/components/common/NativeSelect'
 import { StatusBadge } from '@/components/common/StatusBadge'
 import { EmptyState, ErrorState } from '@/components/common/States'
 import { Button } from '@/components/ui/button'
-import { ActivitySection, ChecksSection, EvidenceSection, RiskSection, RulesAppliedSection } from '@/components/verification/CaseSections'
+import { ActivitySection, ChecksSection, EvidenceSection, RiskSection, RiskSignalsSection, RulesAppliedSection } from '@/components/verification/CaseSections'
 import { AttemptsSection, TelemetrySection } from '@/components/verification/TelemetrySections'
 import { ClaimBar } from '@/components/verification/ClaimBar'
 import { DecisionOverlay } from '@/components/verification/DecisionOverlay'
@@ -249,6 +249,7 @@ export function VerificationDetailPage() {
             </div>
           </div>
           <TelemetrySection v={v} />
+          <RiskSignalsSection v={v} />
           <AttemptsSection v={v} />
           <div className="grid items-start gap-4 @2xl:grid-cols-2">
             <RulesAppliedSection v={v} />

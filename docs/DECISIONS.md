@@ -230,9 +230,20 @@ Rules changed on 2026-10-20 (Projects & Flows restructure) are marked **(changed
   - The **existing-user search** runs only after the face comparison passes (or lands in the review band).
   - **Duplicate user:** "New user", or "Existing user found" with the match similarity (≥ 90 = existing). Shown for
     information only: it never changes a check, the status or the decision buttons, and it stays off the list (DEC-40).
-  - **Risk** (V4/V5): overall level, overall score, maximum allowed (flow), pass / fail, and every category with its 0–100
-    score and reason codes. Categories: **EXIF Score**, **Noise Score**, **Email Validity Score**, **OSINT Score**. The
-    reason codes per category are OQ-25.
+  - **Risk** (V4/V5): overall level, overall score, maximum allowed (flow) and pass / fail, then **one score per category**,
+    each with what made it up (no reason codes) [PO 2026-10-26]. Category scores run the other way from the overall score:
+    higher is more genuine. Scoring (`src/domain/riskSignals.ts`):
+    - **EXIF Score** (ID image metadata): +1 per strong tag (Aperture, ApertureValue, BrightnessValue, ExposureCompensation,
+      LightValue, ShutterSpeedValue, SubSecTimeOriginal, SubSecTimeDigitized, ISO); +0.5 per moderate tag (Make, Model,
+      DateTimeOriginal, FileModifyDate, OffsetTimeOriginal); phone maker +5 modern / −2 obsolete (GSMArena lists);
+      megapixels +2 if ≥ 4, else −2; FileModifyDate vs DateTimeOriginal +2 if under 60 s apart, else −4; −30 if
+      ClaimGeneratorInfoName is "ChatGPT". Maximum 20.5.
+    - **Noise Score**: Error Level Analysis value (quality 89, scale 151; flags AI-generated images) and wavelet peak value
+      (sym4, level 6, percentiles 92–100; flags edited images). Pass marks are OQ-25.
+    - **Email Validity Score**: base 50; MX record +15; A record +15; disposable domain −50; domain under 30 days old −10;
+      five consonants in a row before "@" −5. Maximum 80.
+    - **OSINT Score**: accounts registered with the email and its username, scored 0–10 by an LLM together with the other
+      checks and the personal details (name, age, gender, nationality).
 
 ## Configuration
 - **DEC-50** **(changed)** Settings live on each **flow** (Flow Detail). The form shows only what applies to the flow's version:
