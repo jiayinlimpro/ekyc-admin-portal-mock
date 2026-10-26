@@ -196,7 +196,8 @@ export function VerificationDetailPage() {
         <ArrowLeft className="size-4" aria-hidden /> Verifications
       </Link>
 
-      <header className="space-y-1">
+      <header className="flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
+        <div className="min-w-0 flex-[1_1_28rem] space-y-1">
         <div className="flex flex-wrap items-center gap-3">
           <h1 className="font-mono text-2xl font-semibold">{v.referenceNo}</h1>
           <StatusBadge status={v.status} className="text-sm" />
@@ -206,10 +207,7 @@ export function VerificationDetailPage() {
         {/* REQ: DEC-105 — header strip: project › flow, version and revision, created, source, last updated, audit. */}
         <p className="text-sm text-muted-foreground">
           <span className="text-foreground">{v.projectName}</span> › <span className="text-foreground">{v.flowName}</span> · {v.workflowVersion} · Rules applied{' '}
-          <span className="font-mono text-foreground">{v.revisionLabel}</span> · {DOCUMENT_TYPE_LABELS[v.documentType]} · Source{' '}
-          <span className="text-foreground">
-            {v.clientMetadata.sdk} · {v.clientMetadata.os}
-          </span>
+          <span className="font-mono text-foreground">{v.revisionLabel}</span> · {DOCUMENT_TYPE_LABELS[v.documentType]} · Source <span className="text-foreground">{v.clientMetadata.sdk}</span>
         </p>
         <p className="text-sm text-muted-foreground">
           Created {formatMyt(v.createdAt)} MYT · Last updated by <span className="text-foreground">{formatUpdatedBy(v.lastUpdatedBy)}</span> · {formatMyt(v.lastUpdatedAt)} MYT
@@ -222,6 +220,9 @@ export function VerificationDetailPage() {
             </>
           )}
         </p>
+        </div>
+        {/* REQ: DEC-105 — client metadata in the header's free space, top right (below the title on narrow screens). */}
+        <ClientMetadataCard v={v} />
       </header>
 
       <ClaimBar
@@ -251,9 +252,8 @@ export function VerificationDetailPage() {
           <AttemptsSection v={v} />
           <div className="grid items-start gap-4 @2xl:grid-cols-2">
             <RulesAppliedSection v={v} />
-            <ClientMetadataCard v={v} />
+            <ActivitySection v={v} />
           </div>
-          <ActivitySection v={v} />
         </div>
         <aside className="space-y-3 lg:sticky lg:top-0">
           <DecisionOverlay

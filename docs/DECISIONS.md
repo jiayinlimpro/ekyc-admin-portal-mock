@@ -191,8 +191,9 @@ Rules changed on 2026-10-20 (Projects & Flows restructure) are marked **(changed
 - **DEC-105** **(new)** Verification Detail layout and content [PO 2026-10-23]. Replaces the section list of DEC-44; the
   original Axure page and the DEC-44 page are combined ("hybrid").
   - **Header strip:** Reference ID, status, case ID (copy) · Project › Flow · workflow version and preset (e.g. "V4 ·
-    High") and configuration revision · Created · Source (SDK and OS from the client metadata) · Audit trail link. The
-    claim bar sits directly under it.
+    High") and configuration revision · Created · Source (the SDK) · Audit trail link. **Client metadata** (SDK, OS,
+    device, IP address, location) sits in a compact box at the top right of the header [PO 2026-10-26]; on narrow screens
+    it moves under the title. The claim bar sits directly under the header.
   - **Reason banner** (`PENDING_REVIEW` / `REJECTED`): the DEC-35 condition plus **target vs actual**, e.g. "Auto-Reject
     < 75 · Auto-Pass ≥ 85 · Actual 83.5".
   - **Row 1, three columns:** (1) **Evidence**: the document front and the face that was matched (selfie for V1, the
@@ -200,7 +201,7 @@ Rules changed on 2026-10-20 (Projects & Flows restructure) are marked **(changed
     document type (email for V4/V5); (3) **Checks and telemetry** and **Risk**.
   - **Decision panel:** sticky on the right on wide screens; full width under the content on narrow screens. Buttons
     "Confirm Manual Pass" and "Reject" (DEC-30); never "Maintain Automated Rejection".
-  - **Below the fold:** Attempts (each attempt's scores, metrics and images), Rules applied, Activity, Client metadata.
+  - **Below the fold:** Attempts (each attempt's scores, metrics and images), Rules applied, Activity.
   - **Every number is shown** to everyone who can open the page (View details), per attempt. Each metric shows its value,
     its threshold, pass / fail, and whether the threshold is **set by the flow** (face match, liveness: DEC-10/19) or
     **fixed by the engine**. Engine thresholds live in `ENGINE_THRESHOLDS` (`src/domain/telemetry.ts`):

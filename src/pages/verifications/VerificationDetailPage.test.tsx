@@ -148,7 +148,10 @@ describe('Verification Detail', () => {
     expect(screen.getByText('Malaysian onboarding')).toBeTruthy()
     expect(region('Rules applied').getByText('V4-R1')).toBeTruthy()
     expect(screen.getByText(/^Created /)).toBeTruthy()
-    expect(screen.getByText(/^ekyc-(android|ios|web)-sdk [\d.]+ · \w+/)).toBeTruthy() // Source: SDK · OS from the client metadata
+    const meta = within(screen.getByRole('region', { name: 'Client metadata' })) // top right of the header (DEC-105)
+    for (const label of ['SDK', 'OS', 'Device', 'IP address', 'Location']) expect(meta.getByText(label)).toBeTruthy()
+    const os = meta.getByText('OS').nextElementSibling!.textContent!
+    expect(screen.getByText(/· Source/).textContent).not.toContain(os) // the OS is only in the metadata box
   })
 
   it('Given S18 rejected under a 120-min cooldown, then the banner says when a new case is allowed (DEC-26)', async () => {
