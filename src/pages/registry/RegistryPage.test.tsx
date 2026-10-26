@@ -30,7 +30,7 @@ describe('Workflow Registry (DEC-56 … DEC-58)', () => {
     renderAt('/registry')
     const v1 = await row('V1')
     expect(v1.textContent).toContain('Default for new merchants')
-    expect((await row('V5')).textContent).toContain('Draft')
+    expect((await row('V5')).textContent).toContain('Active') // DEC-107: V5 lets flows set the risk minimums
     fireEvent.click(within(await row('V3')).getByRole('button', { name: /^V3 ·/ }))
     const list = within(await screen.findByRole('list', { name: 'Flows using V3' }))
     expect(list.getByText(/Atoz Software Tech › SME app ›/)).toBeTruthy()

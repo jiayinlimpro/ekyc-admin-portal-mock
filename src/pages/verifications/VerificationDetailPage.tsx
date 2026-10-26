@@ -6,7 +6,7 @@ import { NativeSelect } from '@/components/common/NativeSelect'
 import { StatusBadge } from '@/components/common/StatusBadge'
 import { EmptyState, ErrorState } from '@/components/common/States'
 import { Button } from '@/components/ui/button'
-import { ChecksSection, EvidenceSection, RiskSection, RiskSignalsSection, RulesAppliedSection } from '@/components/verification/CaseSections'
+import { ChecksSection, EvidenceSection, RiskSection, RulesAppliedSection } from '@/components/verification/CaseSections'
 import { AttemptsSection, TelemetrySection } from '@/components/verification/TelemetrySections'
 import { ClaimBar } from '@/components/verification/ClaimBar'
 import { DecisionOverlay } from '@/components/verification/DecisionOverlay'
@@ -14,13 +14,12 @@ import { ClientMetadataCard, PiiSection } from '@/components/verification/PiiSec
 import { formatUpdatedBy } from '@/domain/audit'
 import { isClaimActive } from '@/domain/claimRules'
 import { canInProject, type ProjectAction } from '@/domain/access'
-import { RISK_NOT_PASSED } from '@/domain/checkRules'
 import { DEFAULT_CLAIM_WARNING_MIN } from '@/domain/openQuestions'
 import type { Actor, Decision, VerificationDetail } from '@/domain/types'
 import { useAccess } from '@/app/access'
 import { useNow } from '@/hooks/useNow'
 import { formatMyt } from '@/lib/format'
-import { DOCUMENT_TYPE_LABELS, RISK_LABELS } from '@/lib/labels'
+import { DOCUMENT_TYPE_LABELS } from '@/lib/labels'
 import { isServiceError } from '@/services/errors'
 import { onVerificationsChanged } from '@/services/liveUpdates'
 import { userService, type UserSummary } from '@/services/userService'
@@ -34,13 +33,11 @@ type Loaded = { key: string; detail?: VerificationDetail; error?: { message: str
 
 const message = (e: unknown) => (isServiceError(e) ? e.message : 'Unexpected error.')
 
-// REQ: DEC-105 — the condition plus target vs actual (the flow band and the score, or the risk maximum and the level).
+// REQ: DEC-105 / DEC-107 — the condition plus target vs actual (the flow band and the score, or the risk minimums missed).
 function ReasonBanner({ v }: { v: VerificationDetail }) {
   if (!v.statusReason || (v.status !== 'PENDING_REVIEW' && v.status !== 'REJECTED')) return null
   const rejected = v.status === 'REJECTED'
-  const max = v.rulesApplied.risk?.maxAllowedLevel
-  const detail =
-    v.statusReason === RISK_NOT_PASSED && max && v.riskLevel ? `Maximum allowed ${RISK_LABELS[max]} · Actual ${RISK_LABELS[v.riskLevel]} (${v.riskScore} / 100)` : v.statusDetail
+  const detail = v.statusDetail // e.g. "Auto-Reject < 85 · Auto-Pass ≥ 95 · Actual 88.5", or "OSINT Score 22 < 30" (DEC-107)
   return (
     <div
       className={
@@ -249,7 +246,6 @@ export function VerificationDetailPage() {
             </div>
           </div>
           <TelemetrySection v={v} />
-          <RiskSignalsSection v={v} />
           <AttemptsSection v={v} />
           <RulesAppliedSection v={v} />
         </div>

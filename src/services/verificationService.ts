@@ -12,7 +12,7 @@ import { activeReasons, reasonsOf } from '@/domain/decisionReasons'
 import { evaluateCase } from '@/domain/checkRules'
 import { newCaseAllowedAt, revisionLabel } from '@/domain/flowRules'
 import { hasRisk } from '@/domain/registryRules'
-import { RISK_LEVELS, VERIFICATION_STATUSES, type Actor, type Decision, type Flow, type Paged, type Project, type RiskLevel, type Verification, type VerificationDetail, type VerificationStatus, type VerificationSummary } from '@/domain/types'
+import { RISK_RESULTS, VERIFICATION_STATUSES, type Actor, type Decision, type Flow, type Paged, type Project, type RiskResult, type Verification, type VerificationDetail, type VerificationStatus, type VerificationSummary } from '@/domain/types'
 import { now } from '@/lib/clock'
 import { db } from '@/mocks/mockDb'
 import { mayInProject, projectById, projectIdsWhere, requireActive, roleIn } from './accessGuard'
@@ -22,7 +22,7 @@ import { ServiceError } from './errors'
 import { clientIpFor, simulateNetwork, wire } from './network'
 
 /** REQ: DEC-100 — the columns the FRS lets the list sort on (never Full Name or Merchant). */
-export const VERIFICATION_SORT_KEYS = ['referenceNo', 'status', 'riskLevel', 'lastUpdatedAt'] as const
+export const VERIFICATION_SORT_KEYS = ['referenceNo', 'status', 'riskResult', 'lastUpdatedAt'] as const
 export type VerificationSortKey = (typeof VERIFICATION_SORT_KEYS)[number]
 export interface VerificationSort {
   by: VerificationSortKey
@@ -41,7 +41,7 @@ export interface VerificationQuery {
   claim?: 'UNCLAIMED' | 'MINE' | 'OTHERS' // active claims only
   createdFrom?: string // ISO, inclusive
   createdTo?: string // ISO, inclusive
-  riskLevels?: RiskLevel[]
+  riskResults?: RiskResult[] // REQ: DEC-107 — Clear / Flagged
   lastUpdatedBy?: 'SYSTEM' | 'MANUAL'
   /** A column sort (DEC-100). Omitted = the default: Last updated, oldest first (the case waiting longest, DEC-43). */
   sort?: VerificationSort
@@ -49,9 +49,9 @@ export interface VerificationQuery {
   pageSize?: number
 }
 
-// REQ: DEC-100 — status in lifecycle order, risk Low → High; a case without a risk level is last either way.
+// REQ: DEC-100 / DEC-107 — status in lifecycle order, risk Clear → Flagged; a case without a risk result is last either way.
 const STATUS_ORDER = (s: VerificationStatus) => VERIFICATION_STATUSES.indexOf(s)
-const RISK_ORDER = (r?: RiskLevel) => (r ? RISK_LEVELS.indexOf(r) : undefined)
+const RISK_ORDER = (r?: RiskResult) => (r ? RISK_RESULTS.indexOf(r) : undefined)
 
 /** REQ: DEC-43 / DEC-100 — the chosen column, then the default order (Last updated oldest first, then Reference No.). */
 function compareBy(sort?: VerificationSort) {
@@ -59,8 +59,8 @@ function compareBy(sort?: VerificationSort) {
   if (!sort) return byDefault
   const sign = sort.dir === 'asc' ? 1 : -1
   return (a: Verification, b: Verification) => {
-    if (sort.by === 'riskLevel') {
-      const [x, y] = [RISK_ORDER(a.riskLevel), RISK_ORDER(b.riskLevel)]
+    if (sort.by === 'riskResult') {
+      const [x, y] = [RISK_ORDER(a.riskResult), RISK_ORDER(b.riskResult)]
       if (x === undefined || y === undefined) return (x === undefined ? 1 : 0) - (y === undefined ? 1 : 0) || byDefault(a, b)
       return sign * (x - y) || byDefault(a, b)
     }
@@ -103,7 +103,7 @@ function toSummary(v: Verification, at: Date): VerificationSummary {
     documentType: v.documentType,
     workflowVersion: v.workflowVersion,
     status: v.status,
-    riskLevel: v.riskLevel,
+    riskResult: v.riskResult,
     claimedBy: active ? v.claimedBy : undefined,
     claimExpiresAt: active ? v.claimExpiresAt : undefined,
     lastUpdatedBy: v.lastUpdatedBy,
@@ -120,7 +120,7 @@ function toDetail(v: Verification): VerificationDetail {
   const settings = rev?.settings ?? flow.settings
   const entry = s.registry.find((e) => e.code === v.workflowVersion)!
   const runsRisk = hasRisk(entry)
-  const ev = evaluateCase({ submissions: v.submissions, riskLevel: v.riskLevel }, { checks: entry.configurableChecks, faceMatchMethod: entry.faceMatchMethod, hasRisk: runsRisk, settings })
+  const ev = evaluateCase({ submissions: v.submissions, riskScores: v.riskScores }, { checks: entry.configurableChecks, faceMatchMethod: entry.faceMatchMethod, hasRisk: runsRisk, settings })
   return wire({
     ...v,
     merchantName: merchantName(v.merchantId),
@@ -128,7 +128,7 @@ function toDetail(v: Verification): VerificationDetail {
     flowName: flow.name,
     revisionLabel: revisionLabel({ workflowVersion: v.workflowVersion, revision: v.configRevision }) ?? `${v.workflowVersion}-R${v.configRevision}`,
     rulesApplied: settings,
-    steps: { phases: entry.phases, faceMatchMethod: entry.faceMatchMethod, runsRisk },
+    steps: { phases: entry.phases, faceMatchMethod: entry.faceMatchMethod, runsRisk, riskMinimumsPerFlow: entry.riskMinimumsPerFlow },
     checks: ev.checks,
     newCaseAllowedAt: v.status === 'REJECTED' ? newCaseAllowedAt(v.lastUpdatedAt, settings.cooldownMin)?.toISOString() : undefined,
     reasonOptions: activeReasons(projectById(v.projectId)!.decisionReasons), // REQ: DEC-106
@@ -169,7 +169,7 @@ export const mockVerificationService: VerificationService = {
         if (q.workflowVersion && v.workflowVersion !== q.workflowVersion) return false
         if (!includes(v.referenceNo, q.referenceNo) || !includes(v.pii.fullName, q.fullName)) return false
         if (q.statuses?.length && !q.statuses.includes(v.status)) return false
-        if (q.riskLevels?.length && (!v.riskLevel || !q.riskLevels.includes(v.riskLevel))) return false
+        if (q.riskResults?.length && (!v.riskResult || !q.riskResults.includes(v.riskResult))) return false
         if (q.lastUpdatedBy === 'SYSTEM' && v.lastUpdatedBy.kind !== 'SYSTEM') return false
         if (q.lastUpdatedBy === 'MANUAL' && v.lastUpdatedBy.kind !== 'USER') return false
         if (q.claim) {

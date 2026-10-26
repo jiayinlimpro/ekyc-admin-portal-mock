@@ -4,10 +4,9 @@ import { Info } from 'lucide-react'
 import { OpenQuestionTag } from '@/components/common/OpenQuestionTag'
 import { RiskBadge } from '@/components/common/RiskBadge'
 import type { CheckEvaluation, CheckState } from '@/domain/checkRules'
-import { EMAIL_MAX, EMAIL_POINTS, emailScore, EXIF_MAX, exifScore, NOISE_PARAMS, OSINT_MAX, type ScoreLine } from '@/domain/riskSignals'
 import { bandText, duplicateUserText, idCaptureMetrics, lastFaceAttempt, selfieMetrics } from '@/domain/telemetry'
 import { PRESET_LABELS } from '@/domain/thresholds'
-import { RISK_CATEGORY_LABELS, RISK_LEVELS, type Check, type ThresholdChoice, type VerificationDetail } from '@/domain/types'
+import { RISK_CATEGORIES, RISK_CATEGORY_LABELS, type Check, type ThresholdChoice, type VerificationDetail } from '@/domain/types'
 import { DOCUMENT_TYPE_LABELS } from '@/lib/labels'
 import { cn } from '@/lib/utils'
 import { Fields, Section } from './Section'
@@ -137,124 +136,44 @@ export function ChecksSection({ v }: { v: VerificationDetail }) {
   )
 }
 
-/** REQ: DEC-13 / DEC-105 — V4/V5: overall level and score, maximum allowed, and one score per category (details in Risk signals). */
+/** REQ: DEC-107 — V4/V5: Clear / Flagged, and each category's 0–100 score against its minimum (higher = more genuine). */
 export function RiskSection({ v }: { v: VerificationDetail }) {
   if (!v.steps.runsRisk) return null
-  const max = v.rulesApplied.risk?.maxAllowedLevel
-  const passes = v.riskLevel && max ? RISK_LEVELS.indexOf(v.riskLevel) <= RISK_LEVELS.indexOf(max) : undefined
-  const s = v.riskSignals
+  const minimums = v.rulesApplied.risk?.minimums
   return (
-    <Section title="Risk Assessment">
-      {v.riskLevel === undefined ? (
+    <Section title="Risk Assessment" aside={v.riskResult && <RiskBadge result={v.riskResult} />}>
+      {!v.riskScores || !minimums ? (
         <p className="text-sm text-muted-foreground">Not run yet: risk runs once onboarding completes without a reject.</p>
       ) : (
-        <div className="space-y-3">
-          <Fields
-            items={[
-              ['Overall', <span key="o" className="flex items-center gap-2"><RiskBadge level={v.riskLevel} /><span className="tabular-nums">{v.riskScore} / 100</span></span>],
-              ['Maximum allowed', max ? <RiskBadge key="m" level={max} /> : '—'],
-              ['Result', passes ? <span key="r" className={PASS_TONE}>Pass</span> : <span key="r" className="font-medium text-amber-700 dark:text-amber-300">Not passed · sent to review</span>],
-            ]}
-          />
-          {s && (
-            <Fields
-              items={[
-                [RISK_CATEGORY_LABELS.EXIF, <span key="e" className="tabular-nums">{exifScore(s.exif).score} / {EXIF_MAX}</span>],
-                [RISK_CATEGORY_LABELS.NOISE, <span key="n" className="tabular-nums">ELA {s.noise.elaScore.toFixed(1)} · Wavelet peak {s.noise.waveletPeak.toFixed(2)}</span>],
-                [RISK_CATEGORY_LABELS.EMAIL_VALIDITY, s.email && v.pii.email ? <span key="m" className="tabular-nums">{emailScore(v.pii.email, s.email).score} / {EMAIL_MAX}</span> : '—'],
-                [RISK_CATEGORY_LABELS.OSINT, <span key="o" className="tabular-nums">{s.osint.socialScore} / {OSINT_MAX}</span>],
-              ]}
-            />
-          )}
+        <div className="space-y-2">
+          <table className="w-full text-sm" aria-label="Risk categories">
+            <thead>
+              <tr className="border-b text-left text-xs text-muted-foreground">
+                <th className="py-1 pr-2 font-medium">Category</th>
+                <th className="py-1 pr-2 text-right font-medium">Score</th>
+                <th className="py-1 pr-2 text-right font-medium">Minimum</th>
+                <th className="py-1 font-medium">Result</th>
+              </tr>
+            </thead>
+            <tbody>
+              {RISK_CATEGORIES.map((c) => {
+                const below = v.riskScores![c] < minimums[c]
+                return (
+                  <tr key={c} className="border-b last:border-0">
+                    <th scope="row" className="py-1.5 pr-2 text-left font-normal whitespace-nowrap">{RISK_CATEGORY_LABELS[c]}</th>
+                    <td className="py-1.5 pr-2 text-right tabular-nums">{v.riskScores![c]}</td>
+                    <td className="py-1.5 pr-2 text-right text-muted-foreground tabular-nums">{minimums[c]}</td>
+                    <td className="py-1.5">{below ? <span className="font-medium text-amber-700 dark:text-amber-300">Below minimum</span> : <span className={PASS_TONE}>OK</span>}</td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
           <p className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
-            Overall: higher is riskier. Categories: higher is more genuine. How they combine <OpenQuestionTag id="OQ-25" />
+            Scores 0–100, higher is more genuine. Minimums {v.steps.riskMinimumsPerFlow ? 'set by this flow' : 'fixed by the platform'}. How scores are computed <OpenQuestionTag id="OQ-25" />
           </p>
         </div>
       )}
-    </Section>
-  )
-}
-
-function ScoreTable({ label, lines, base }: { label: string; lines: ScoreLine[]; base?: number }) {
-  const pts = (n: number) => (n > 0 ? `+${n}` : n === 0 ? '0' : `−${Math.abs(n)}`)
-  return (
-    <table className="w-full text-sm" aria-label={label}>
-      <tbody>
-        {base !== undefined && (
-          <tr className="border-b">
-            <th scope="row" className="py-1 pr-2 text-left font-normal">Base</th>
-            <td className="py-1 pr-2" />
-            <td className="py-1 text-right tabular-nums">{base}</td>
-          </tr>
-        )}
-        {lines.map((l) => (
-          <tr key={l.label} className="border-b last:border-0">
-            <th scope="row" className="py-1 pr-2 text-left font-normal">{l.label}</th>
-            <td className="py-1 pr-2 text-muted-foreground">{l.value}</td>
-            <td className={cn('py-1 text-right tabular-nums', l.points < 0 && 'text-red-700 dark:text-red-400')}>{pts(l.points)}</td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
-  )
-}
-
-function Category({ title, score, note, children }: { title: string; score?: string; note: string; children: React.ReactNode }) {
-  return (
-    <div className="rounded-md border p-3" role="group" aria-label={title}>
-      <div className="mb-1 flex items-baseline justify-between gap-2">
-        <h3 className="text-sm font-semibold">{title}</h3>
-        {score && <span className="font-semibold tabular-nums">{score}</span>}
-      </div>
-      <p className="mb-2 text-xs text-muted-foreground">{note}</p>
-      {children}
-    </div>
-  )
-}
-
-/** REQ: DEC-105 — how each category score was made up, as the risk engine scores it. */
-export function RiskSignalsSection({ v }: { v: VerificationDetail }) {
-  const s = v.riskSignals
-  if (!s) return null
-  const exif = exifScore(s.exif)
-  const email = s.email && v.pii.email ? emailScore(v.pii.email, s.email) : undefined
-  const n = NOISE_PARAMS
-  return (
-    <Section title="Risk signals" aside={<span className="text-xs text-muted-foreground">Category scores: higher is more genuine</span>}>
-      <div className="grid gap-3 @3xl:grid-cols-2">
-        <Category title={RISK_CATEGORY_LABELS.EXIF} score={`${exif.score} / ${EXIF_MAX}`} note="Camera metadata of the ID image. An AI generator watermark (ChatGPT) costs 30.">
-          <ScoreTable label="EXIF breakdown" lines={exif.lines} />
-        </Category>
-        <Category title={RISK_CATEGORY_LABELS.NOISE} note="Error Level Analysis flags AI-generated images; wavelet peaks flag edited ones.">
-          <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-sm">
-            <dt className="text-muted-foreground">ELA value</dt>
-            <dd className="tabular-nums">
-              {s.noise.elaScore.toFixed(1)} <span className="text-xs text-muted-foreground">(quality {n.ela.quality}, scale {n.ela.scale})</span>
-            </dd>
-            <dt className="text-muted-foreground">Wavelet peak</dt>
-            <dd className="tabular-nums">
-              {s.noise.waveletPeak.toFixed(2)}{' '}
-              <span className="text-xs text-muted-foreground">
-                ({n.wavelet.wavelet}, level {n.wavelet.level}, percentiles {n.wavelet.lowerPerc}–{n.wavelet.upperPerc})
-              </span>
-            </dd>
-          </dl>
-          <p className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground">
-            Pass marks not defined <OpenQuestionTag id="OQ-25" />
-          </p>
-        </Category>
-        <Category title={RISK_CATEGORY_LABELS.EMAIL_VALIDITY} score={email ? `${email.score} / ${EMAIL_MAX}` : '—'} note={v.pii.email ? `Checks on ${v.pii.email}.` : 'No email in this session.'}>
-          {email && <ScoreTable label="Email validity breakdown" lines={email.lines} base={EMAIL_POINTS.base} />}
-        </Category>
-        <Category title={RISK_CATEGORY_LABELS.OSINT} score={`${s.osint.socialScore} / ${OSINT_MAX}`} note="Accounts registered with the email and its username, scored by an LLM with the other checks and the personal details.">
-          <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-sm">
-            <dt className="text-muted-foreground">Accounts found</dt>
-            <dd className="tabular-nums">{s.osint.accountsFound}</dd>
-            <dt className="text-muted-foreground">Social score</dt>
-            <dd className="tabular-nums">{s.osint.socialScore} of {OSINT_MAX}</dd>
-          </dl>
-        </Category>
-      </div>
     </Section>
   )
 }
@@ -275,7 +194,7 @@ export function RulesAppliedSection({ v }: { v: VerificationDetail }) {
           ['Cooldown', r.cooldownMin > 0 ? `${r.cooldownMin} min after a rejection` : 'None'],
           ['Accepted documents', r.acceptedDocuments.map((d) => DOCUMENT_TYPE_LABELS[d]).join(', ')],
           ['Session expiry', Number.isFinite(r.sessionExpiryMin) ? `${r.sessionExpiryMin} min` : undefined],
-          ...(r.risk ? ([['Risk', r.risk.enabled ? `Maximum allowed level ${r.risk.maxAllowedLevel}` : 'Off']] as [string, string][]) : []),
+          ...(r.risk ? ([['Risk minimums', r.risk.enabled ? RISK_CATEGORIES.map((c) => `${RISK_CATEGORY_LABELS[c].replace(' Score', '')} ${r.risk!.minimums[c]}`).join(' · ') : 'Off']] as [string, string][]) : []),
         ]}
       />
       <p className="mt-3 text-xs text-muted-foreground">Settings saved later apply to new sessions only.</p>

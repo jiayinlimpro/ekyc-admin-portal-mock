@@ -1,8 +1,8 @@
 // Flow Detail settings: defaults, validation, Advanced guard, diff and save with revision (DEC-19, DEC-50 … DEC-53).
 import { hasRisk } from './registryRules'
-import { DEFAULT_COOLDOWN_MIN, DEFAULT_RISK_MAX_ALLOWED, RETRY_LIMITS } from './openQuestions'
+import { DEFAULT_COOLDOWN_MIN, DEFAULT_RISK_MINIMUMS, RETRY_LIMITS } from './openQuestions'
 import { PRESET_LABELS, resolveThreshold } from './thresholds'
-import { CHECKS, type Check, type Flow, type FlowSettings, type Project, type RegistryEntry, type RuleError, type SettingChange, type ThresholdChoice } from './types'
+import { CHECKS, RISK_CATEGORIES, RISK_CATEGORY_LABELS, type Check, type Flow, type FlowSettings, type Project, type RegistryEntry, type RuleError, type SettingChange, type ThresholdChoice } from './types'
 
 type By = Flow['updatedBy']
 
@@ -17,7 +17,7 @@ export function newFlowSettings(entry: Pick<RegistryEntry, 'phases'>): FlowSetti
     cooldownMin: DEFAULT_COOLDOWN_MIN,
     acceptedDocuments: [],
     sessionExpiryMin: Number.NaN,
-    risk: hasRisk(entry) ? { enabled: true, maxAllowedLevel: DEFAULT_RISK_MAX_ALLOWED } : undefined,
+    risk: hasRisk(entry) ? { enabled: true, minimums: { ...DEFAULT_RISK_MINIMUMS } } : undefined, // REQ: DEC-107
   }
 }
 
@@ -48,7 +48,7 @@ export function createFlow(
 const whole = (n: number, min: number, max = Number.POSITIVE_INFINITY) => Number.isInteger(n) && n >= min && n <= max
 
 // REQ: DEC-53 — FRS messages where the FRS has one. Also the settings gate for activating a flow (flowRules.activateError).
-export function validateFlow(flow: Pick<Flow, 'name' | 'settings'>, entry: Pick<RegistryEntry, 'phases' | 'configurableChecks'>): RuleError[] {
+export function validateFlow(flow: Pick<Flow, 'name' | 'settings'>, entry: Pick<RegistryEntry, 'phases' | 'configurableChecks'> & Partial<Pick<RegistryEntry, 'riskMinimumsPerFlow'>>): RuleError[] {
   const errors: RuleError[] = []
   const s = flow.settings
   if (!flow.name.trim()) errors.push({ field: 'name', message: 'Flow name is required' })
@@ -75,6 +75,14 @@ export function validateFlow(flow: Pick<Flow, 'name' | 'settings'>, entry: Pick<
   else if (!whole(s.sessionExpiryMin, 1)) errors.push({ field: 'sessionExpiryMin', message: 'Session expiry must be a whole number of minutes, at least 1' })
   if (s.acceptedDocuments.length === 0) errors.push({ field: 'acceptedDocuments', message: 'Select at least one accepted document' })
   if (hasRisk(entry) && !s.risk) errors.push({ field: 'risk', message: 'Risk settings are required for this workflow version' })
+  // REQ: DEC-107 — one minimum per category, 0–100; only versions with "Risk minimums set per flow" (V5) may change them.
+  if (s.risk) {
+    for (const c of RISK_CATEGORIES) {
+      if (!whole(s.risk.minimums[c], 0, 100)) errors.push({ field: `risk.minimums.${c}`, message: `${RISK_CATEGORY_LABELS[c]} minimum must be a whole number from 0 to 100` })
+    }
+    if (entry.riskMinimumsPerFlow === false && RISK_CATEGORIES.some((c) => s.risk!.minimums[c] !== DEFAULT_RISK_MINIMUMS[c]))
+      errors.push({ field: 'risk', message: 'Risk minimums are fixed for this workflow version' })
+  }
   return errors
 }
 
@@ -120,7 +128,7 @@ export function diffFlow(base: Pick<Flow, 'name' | 'description' | 'settings'>, 
   push('sessionExpiryMin', show.num(base.settings.sessionExpiryMin), show.num(next.settings.sessionExpiryMin))
   push('acceptedDocuments', show.docs(base.settings.acceptedDocuments), show.docs(next.settings.acceptedDocuments))
   push('risk.enabled', String(base.settings.risk?.enabled ?? '—'), String(next.settings.risk?.enabled ?? '—'))
-  push('risk.maxAllowedLevel', base.settings.risk?.maxAllowedLevel ?? '—', next.settings.risk?.maxAllowedLevel ?? '—')
+  for (const c of RISK_CATEGORIES) push(`risk.minimums.${c}`, show.num(base.settings.risk?.minimums[c] ?? Number.NaN), show.num(next.settings.risk?.minimums[c] ?? Number.NaN))
   return out
 }
 

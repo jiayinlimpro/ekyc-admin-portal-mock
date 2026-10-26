@@ -4,7 +4,7 @@ import { evaluateCase } from '@/domain/checkRules'
 import { isClaimActive } from '@/domain/claimRules'
 import { inCooldown, revisionLabel, validateProjectName } from '@/domain/flowRules'
 import { validateFlow } from '@/domain/flowSettings'
-import { emailScore, exifScore } from '@/domain/riskSignals'
+import { evaluateRisk } from '@/domain/checkRules'
 import { hasRisk, validateRegistryInput } from '@/domain/registryRules'
 import { ENGINE_THRESHOLDS, idCaptureMetrics, selfiePasses } from '@/domain/telemetry'
 import { grantsOf, SYSTEM_ROLE_IDS } from '@/domain/roles'
@@ -39,7 +39,7 @@ describe('seedDatabase', () => {
       const rev = revisionOf(v.flowId, v.configRevision)
       expect(rev, v.referenceNo).toBeDefined()
       const ev = evaluateCase(
-        { submissions: v.submissions, riskLevel: v.riskLevel },
+        { submissions: v.submissions, riskScores: v.riskScores },
         { checks: entry.configurableChecks, faceMatchMethod: entry.faceMatchMethod, hasRisk: hasRisk(entry), settings: rev.settings },
       )
       expect(v.status, v.referenceNo).toBe(ev.status)
@@ -101,10 +101,10 @@ describe('seedDatabase', () => {
   })
 
   it('only cases on a version with Risk Assessment carry a risk result (DEC-13)', () => {
-    for (const v of db.verifications.filter((x) => !hasRisk(entryOf(x.workflowVersion)))) expect(v.riskLevel, v.referenceNo).toBeUndefined()
+    for (const v of db.verifications.filter((x) => !hasRisk(entryOf(x.workflowVersion)))) expect(v.riskScores ?? v.riskResult, v.referenceNo).toBeUndefined()
   })
 
-  it('covers every status × V1/V3/V4 combination, both manual and system decisions, and all risk levels', () => {
+  it('covers every status × V1/V3/V4 combination, both manual and system decisions, and both risk results', () => {
     for (const status of VERIFICATION_STATUSES) {
       for (const wf of ['V1', 'V3', 'V4']) {
         expect(db.verifications.some((v) => v.status === status && v.workflowVersion === wf), `${status} × ${wf}`).toBe(true)
@@ -115,7 +115,7 @@ describe('seedDatabase', () => {
         expect(db.verifications.some((v) => v.status === status && v.lastUpdatedBy.kind === kind), `${status} × ${kind}`).toBe(true)
       }
     }
-    for (const lvl of ['LOW', 'MEDIUM', 'HIGH']) expect(db.verifications.some((v) => v.riskLevel === lvl), lvl).toBe(true)
+    for (const r of ['CLEAR', 'FLAGGED']) expect(db.verifications.some((v) => v.riskResult === r), r).toBe(true)
   })
 
   it('every record is charged (DEC-60)', () => {
@@ -215,28 +215,22 @@ describe('telemetry, duplicate user and risk categories (DEC-105)', () => {
     expect(checked.some((v) => v.duplicateUser!.existingUser)).toBe(true)
   })
 
-  it('Given risk ran, then the four categories: EXIF, noise, email (V4/V5 have an email) and an OSINT score of 0–10', () => {
-    const withRisk = db.verifications.filter((v) => v.riskScore !== undefined)
+  it('Given risk ran, then four category scores 0–100 and the result from the minimums of the rules applied (DEC-107)', () => {
+    const withRisk = db.verifications.filter((v) => v.riskScores)
     expect(withRisk.length).toBeGreaterThan(0)
     for (const v of withRisk) {
-      const s = v.riskSignals!
-      expect(s.email, v.referenceNo).toBeDefined()
-      expect(s.osint.socialScore).toBeGreaterThanOrEqual(0)
-      expect(s.osint.socialScore).toBeLessThanOrEqual(10)
-      expect(Number.isFinite(exifScore(s.exif).score)).toBe(true)
+      expect(Object.keys(v.riskScores!).sort()).toEqual(['EMAIL_VALIDITY', 'EXIF', 'NOISE', 'OSINT'])
+      for (const n of Object.values(v.riskScores!)) expect(n >= 0 && n <= 100, v.referenceNo).toBe(true)
+      expect(v.riskResult, v.referenceNo).toBe(evaluateRisk(v.riskScores!, revisionOf(v.flowId, v.configRevision).settings.risk).result)
     }
-    expect(db.verifications.filter((v) => v.riskScore === undefined).every((v) => v.riskSignals === undefined)).toBe(true)
-    // Low-risk sessions look more genuine than high-risk ones, on average.
-    const avg = (xs: number[]) => xs.reduce((a, b) => a + b, 0) / xs.length
-    const exifOf = (level: string) => avg(withRisk.filter((v) => v.riskLevel === level).map((v) => exifScore(v.riskSignals!.exif).score))
-    expect(exifOf('LOW')).toBeGreaterThan(exifOf('HIGH'))
+    expect(db.verifications.filter((v) => !v.riskScores).every((v) => v.riskResult === undefined)).toBe(true)
   })
 
-  it('S02 (risk HIGH): an edited photo, a disposable new email domain and no social presence', () => {
-    const v = byRef('KYC-260901-900002')
-    expect(exifScore(v.riskSignals!.exif).score).toBe(7)
-    expect(emailScore(v.pii.email!, v.riskSignals!.email!).score).toBe(20)
-    expect(v.riskSignals!.osint).toEqual({ accountsFound: 0, socialScore: 1 })
+  it('S02 is Flagged in every category; S23 (V5) by its own OSINT minimum; S24 (V5) Clear with EXIF 45 under its minimum 40', () => {
+    expect(byRef('KYC-260901-900002')).toMatchObject({ riskResult: 'FLAGGED', statusDetail: 'EXIF Score 32 < 50 · Noise Score 18 < 50 · Email Validity Score 20 < 50 · OSINT Score 10 < 50' })
+    expect(byRef('KYC-260901-900023')).toMatchObject({ riskResult: 'FLAGGED', status: 'PENDING_REVIEW', statusDetail: 'OSINT Score 22 < 30' })
+    expect(byRef('KYC-260901-900024')).toMatchObject({ riskResult: 'CLEAR', status: 'APPROVED' })
+    expect(evaluateRisk(byRef('KYC-260901-900024').riskScores!, { enabled: true, minimums: { EXIF: 50, NOISE: 50, EMAIL_VALIDITY: 50, OSINT: 50 } }).result).toBe('FLAGGED') // V4's fixed minimums would flag it
   })
 
   it('S05 shows why the user stopped at ID capture; S21 found an existing user but is in review only for its face match', () => {
@@ -248,7 +242,7 @@ describe('telemetry, duplicate user and risk categories (DEC-105)', () => {
     const flow = flowOf(s21.flowId)
     const entry = entryOf(flow.workflowVersion)
     const rev = revisionOf(s21.flowId, s21.configRevision)
-    const ev = evaluateCase({ submissions: s21.submissions, riskLevel: s21.riskLevel }, { checks: entry.configurableChecks, faceMatchMethod: entry.faceMatchMethod, hasRisk: hasRisk(entry), settings: rev.settings })
+    const ev = evaluateCase({ submissions: s21.submissions, riskScores: s21.riskScores }, { checks: entry.configurableChecks, faceMatchMethod: entry.faceMatchMethod, hasRisk: hasRisk(entry), settings: rev.settings })
     expect(ev.status).toBe(s21.status) // the duplicate result is not an input
   })
 })
@@ -301,17 +295,18 @@ describe('named scenarios (docs/SCENARIOS.md)', () => {
   })
 
   it('S01 (V1) has no risk result; S02 (V4) does', () => {
-    const risk = (ref: string) => db.verifications.find((v) => v.referenceNo === ref)!.riskLevel
+    const risk = (ref: string) => db.verifications.find((v) => v.referenceNo === ref)!.riskResult
     expect(risk('KYC-260901-900001')).toBeUndefined()
-    expect(risk('KYC-260901-900002')).toBe('HIGH')
+    expect(risk('KYC-260901-900002')).toBe('FLAGGED')
   })
 })
 
 describe('projects, flows and registry (DEC-56 … DEC-58, DEC-90 … DEC-95)', () => {
   const entry = (code: string) => db.registry.find((e) => e.code === code)!
 
-  it('Given the registry, then V1, V3, V4 Active, V5 Draft, no V2, and exactly one default which is Active (DEC-57)', () => {
-    expect(db.registry.map((e) => `${e.code}:${e.status}`)).toEqual(['V1:ACTIVE', 'V3:ACTIVE', 'V4:ACTIVE', 'V5:DRAFT'])
+  it('Given the registry, then V1, V3, V4, V5 Active, no V2, one Active default, and only V5 lets flows set risk minimums (DEC-57, DEC-107)', () => {
+    expect(db.registry.map((e) => `${e.code}:${e.status}`)).toEqual(['V1:ACTIVE', 'V3:ACTIVE', 'V4:ACTIVE', 'V5:ACTIVE'])
+    expect(db.registry.filter((e) => e.riskMinimumsPerFlow).map((e) => e.code)).toEqual(['V5'])
     expect(db.registry.filter((e) => e.isDefault).map((e) => e.code)).toEqual(['V1'])
     for (const e of db.registry) expect(validateRegistryInput({ ...e, releaseNote: 'seed' }, [])).toEqual([])
   })

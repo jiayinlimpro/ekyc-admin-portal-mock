@@ -36,6 +36,7 @@ const inputOf = (e: RegistryEntry, over: Partial<RegistryInput> = {}): RegistryI
   faceMatchMethod: e.faceMatchMethod,
   requiredInputs: e.requiredInputs,
   configurableChecks: e.configurableChecks,
+  riskMinimumsPerFlow: e.riskMinimumsPerFlow,
   stateMachineSandbox: e.stateMachineSandbox,
   stateMachineProduction: e.stateMachineProduction,
   releaseNote: 'Test change',
@@ -53,7 +54,7 @@ describe('registryService access (DEC-70)', () => {
 
   it('Given a flow creator, then only Active versions are offered, without state machine references (DEC-56)', async () => {
     const versions = await registryService.listSelectable(OWNER)
-    expect(versions.map((v) => v.code)).toEqual(['V1', 'V3', 'V4'])
+    expect(versions.map((v) => v.code)).toEqual(['V1', 'V3', 'V4', 'V5'])
     expect(JSON.stringify(versions)).not.toContain('stateMachine')
     await expectError(registryService.listSelectable(ALI), 'FORBIDDEN') // Reviewer and Viewer only
   })
@@ -86,13 +87,14 @@ describe('registryService lifecycle (DEC-56, DEC-57)', () => {
     ])
   })
 
-  it('Given Draft V5, then it activates only with both state machine references, and never goes back to Draft', async () => {
-    await expectError(registryService.changeStatus('V5', 'ACTIVE', 'Ready for pilots', ADMIN), 'VALIDATION', 'Add both state machine references before activating.')
-    await registryService.update('V5', inputOf(entry('V5'), { stateMachineSandbox: ARN('sand'), stateMachineProduction: ARN('prod') }), ADMIN)
-    const v5 = await registryService.changeStatus('V5', 'ACTIVE', 'Ready for pilots', ADMIN)
-    expect(v5).toMatchObject({ status: 'ACTIVE', activatedAt: NOW.toISOString() })
-    await expectError(registryService.changeStatus('V5', 'DRAFT', 'Undo', ADMIN), 'VALIDATION', 'A version cannot go back to Draft.')
-    expect((await registryService.listSelectable(OWNER)).map((v) => v.code)).toContain('V5')
+  it('Given a Draft V6, then it activates only with both state machine references, and never goes back to Draft', async () => {
+    await registryService.register(inputOf(entry('V5'), { code: 'V6', name: 'Next', stateMachineSandbox: undefined, stateMachineProduction: undefined, releaseNote: 'Draft' }), ADMIN)
+    await expectError(registryService.changeStatus('V6', 'ACTIVE', 'Ready for pilots', ADMIN), 'VALIDATION', 'Add both state machine references before activating.')
+    await registryService.update('V6', inputOf(entry('V6'), { stateMachineSandbox: ARN('sand'), stateMachineProduction: ARN('prod') }), ADMIN)
+    const v6 = await registryService.changeStatus('V6', 'ACTIVE', 'Ready for pilots', ADMIN)
+    expect(v6).toMatchObject({ status: 'ACTIVE', activatedAt: NOW.toISOString() })
+    await expectError(registryService.changeStatus('V6', 'DRAFT', 'Undo', ADMIN), 'VALIDATION', 'A version cannot go back to Draft.')
+    expect((await registryService.listSelectable(OWNER)).map((v) => v.code)).toContain('V6')
   })
 
   it('Given the default moves to V3, then V1 can be deprecated and is no longer offered for new flows; V3 cannot be deprecated', async () => {

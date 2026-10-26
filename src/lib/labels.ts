@@ -1,4 +1,4 @@
-import type { AttemptOutcome, AuditAction, DocumentType, FlowStatus, MerchantStatus, Permission, RiskLevel, UserStatus, VerificationStatus } from '@/domain/types'
+import type { AttemptOutcome, AuditAction, DocumentType, FlowStatus, MerchantStatus, Permission, RiskResult, UserStatus, VerificationStatus } from '@/domain/types'
 
 export const FLOW_STATUS_LABELS: Record<FlowStatus, string> = { DRAFT: 'Draft', ACTIVE: 'Active', RETIRING: 'Retiring', INACTIVE: 'Inactive' }
 
@@ -111,10 +111,10 @@ export const DOCUMENT_TYPE_LABELS: Record<DocumentType, string> = {
   DRIVING_LICENSE: 'Driving License',
 }
 
-export const RISK_LABELS: Record<RiskLevel, string> = {
-  LOW: 'Low',
-  MEDIUM: 'Medium',
-  HIGH: 'High',
+// REQ: DEC-107 — never "Pass / Fail": that would read like the case status.
+export const RISK_RESULT_LABELS: Record<RiskResult, string> = {
+  CLEAR: 'Clear',
+  FLAGGED: 'Flagged',
 }
 
 export const OUTCOME_LABELS: Record<AttemptOutcome, string> = {

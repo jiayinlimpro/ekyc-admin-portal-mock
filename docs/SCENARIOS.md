@@ -47,7 +47,7 @@ data** before a UAT run.
 | ID | Reference ID | Project › Flow | Scenario | Expected behaviour |
 |---|---|---|---|---|
 | S01 | KYC-260901-900001 | Vantage Default › Standard onboarding (V1) | Both checks ≥ Auto-Pass | APPROVED · SYSTEM; no risk panel |
-| S02 | KYC-260901-900002 | Atoz Default › Malaysian onboarding (V4) | Checks pass, risk HIGH | PENDING_REVIEW, reason "Risk Assessment not passed"; Risk shows Noise 82 (screen pattern, recompressed) and Email Validity 64 (disposable) |
+| S02 | KYC-260901-900002 | Atoz Default › Malaysian onboarding (V4) | Checks pass, risk Flagged | PENDING_REVIEW, reason "Risk Assessment not passed"; every category below the fixed minimum 50 (EXIF 32, Noise 18, Email Validity 20, OSINT 10) (DEC-107) |
 | S03 | KYC-260901-900003 | Atoz Default › Malaysian onboarding (V4) | Similarity 80.4 → 82.1 → 84.0 → 88.5 | PENDING_REVIEW, "Liveness face does not match ID face (Retry Not Allowed)" |
 | S04 | KYC-260901-900004 | Atoz Default › Malaysian onboarding (V4) | Liveness below Auto-Reject on all 4 submissions | REJECTED · SYSTEM, "Face not live (Retry Not Allowed)" |
 | S05 | KYC-260901-900005 | Atoz Default › Malaysian onboarding (V4) | Stopped at ID capture, no submission yet | PROCESSING; read-only; ID capture shows why: image 300 × 240 and Address not read (both fail) |
@@ -67,4 +67,6 @@ data** before a UAT run.
 | S19 | KYC-260901-900019 | Vantage Default › Standard onboarding (V1, Advanced similarity 82/93) | Similarity (ID vs selfie) 70.0, retry pending | PROCESSING; selfie retakes are free and unlimited |
 | S20 | KYC-260901-900020 | Vantage Default › Standard onboarding (V1, accepts Driving License) | Driving License; similarity 80.1 → 84.0 → 86.2 → 88.0 | PENDING_REVIEW, "ID face and Selfie face do not match (Retry Not Allowed)"; End-user data shows IC, licence class and validity |
 | S22 | KYC-260901-900022 | Vantage Default › Standard onboarding (V1) | Selfie too dark (brightness 14.2 ≤ 25); the user stopped | PROCESSING; Selfie "Fail: not compared with the ID"; Telemetry shows the rejected selfie and "Similarity: Not run"; no duplicate-user search (DEC-105) |
+| S23 | KYC-260901-900023 | Atoz Default › Premium accounts (V5, own minimums EXIF 40 · Noise 60 · Email 50 · OSINT 30) | Checks pass; OSINT 22 | PENDING_REVIEW, "OSINT Score 22 < 30"; the other categories are OK against this flow's minimums (DEC-107) |
+| S24 | KYC-260901-900024 | Atoz Default › Premium accounts (V5) | Checks pass; EXIF 45 | APPROVED · SYSTEM: Clear under this flow's EXIF minimum 40, though V4's fixed 50 would flag it (DEC-107) |
 | S21 | KYC-260901-900021 | Atoz Default › Malaysian onboarding (V4) | Similarity 86.0 → 87.5 → 88.0 → 89.2; face search finds an existing user (97.6) | PENDING_REVIEW for the face match only; "Existing user found" is shown for information and changes nothing (DEC-105) |

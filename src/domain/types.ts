@@ -26,12 +26,14 @@ export const PHASE_LABELS: Record<Phase, string> = {
 export const WORKFLOW_VERSIONS = ['V1', 'V3', 'V4', 'V5'] as const
 export type WorkflowVersion = (typeof WORKFLOW_VERSIONS)[number]
 
-export const RISK_LEVELS = ['LOW', 'MEDIUM', 'HIGH'] as const
-export type RiskLevel = (typeof RISK_LEVELS)[number]
+// REQ: DEC-107 — the risk result. Clear / Flagged, never pass / fail, so it is not confused with the case status.
+export const RISK_RESULTS = ['CLEAR', 'FLAGGED'] as const
+export type RiskResult = (typeof RISK_RESULTS)[number]
 
-// REQ: DEC-105 — the risk engine's four categories, each with its own scale (domain/riskSignals.ts); no reason codes.
+// REQ: DEC-107 — the risk engine's four categories, each scored 0–100, higher = more genuine (how: OQ-25).
 export const RISK_CATEGORIES = ['EXIF', 'NOISE', 'EMAIL_VALIDITY', 'OSINT'] as const
 export type RiskCategory = (typeof RISK_CATEGORIES)[number]
+export type RiskScores = Record<RiskCategory, number>
 export const RISK_CATEGORY_LABELS: Record<RiskCategory, string> = { EXIF: 'EXIF Score', NOISE: 'Noise Score', EMAIL_VALIDITY: 'Email Validity Score', OSINT: 'OSINT Score' }
 
 /** Who is signed in. What they may do is read from their account and project roles (UserAccount, DEC-70), never from the session. */
@@ -97,42 +99,6 @@ export interface DuplicateUserCheck {
   similarity?: number // best match found; absent when no face was searched against yet
 }
 
-/** What the EXIF analysis read from the ID image. Scored by `exifScore`. */
-export interface ExifSignals {
-  tagsPresent: string[] // of EXIF_STRONG_TAGS and EXIF_MODERATE_TAGS
-  make?: string // the EXIF Make (phone maker)
-  megapixels?: number
-  modifyDiffSec?: number // FileModifyDate − DateTimeOriginal; absent when either is missing
-  claimGenerator?: string // ClaimGeneratorInfoName (AI generation watermark), e.g. "ChatGPT"
-}
-
-/** Image noise analysis: Error Level Analysis (AI-generated images) and wavelet peak values (edited images). */
-export interface NoiseSignals {
-  elaScore: number
-  waveletPeak: number
-}
-
-/** Email validity checks. The gibberish check reads the email itself. Scored by `emailScore`. */
-export interface EmailSignals {
-  mxRecord: boolean
-  aRecord: boolean
-  disposable: boolean
-  domainAgeDays?: number
-}
-
-/** OSINT social presence: accounts found for the email and username, scored 0–10 by an LLM. */
-export interface OsintSignals {
-  accountsFound: number
-  socialScore: number // 0–10
-}
-
-export interface RiskSignals {
-  exif: ExifSignals
-  noise: NoiseSignals
-  email?: EmailSignals // when the session has an email (V4/V5)
-  osint: OsintSignals
-}
-
 /** An uploaded image (ID document, selfie, liveness frame). `url` is a sample image in the mock. */
 export interface StoredFile {
   fileId: string // file_…
@@ -180,9 +146,8 @@ export interface Verification {
   claimedAt?: string
   claimExpiresAt?: string
   attempts: Attempt[]
-  riskLevel?: RiskLevel // V4 only
-  riskScore?: number // V4 only
-  riskSignals?: RiskSignals // REQ: DEC-105 — V4/V5, when risk ran: the four categories
+  riskScores?: RiskScores // REQ: DEC-107 — V4/V5, once risk ran: the engine's four category scores
+  riskResult?: RiskResult // REQ: DEC-107 — against the minimums of the rules applied
   idCapture?: IdCaptureTelemetry // REQ: DEC-105 — absent when no ID image was submitted
   duplicateUser?: DuplicateUserCheck // REQ: DEC-105 — absent until a face was searched; never in VerificationSummary (DEC-40)
   documentType: DocumentType
@@ -216,7 +181,7 @@ export interface VerificationSummary {
   documentType: DocumentType
   workflowVersion: WorkflowVersion
   status: VerificationStatus
-  riskLevel?: RiskLevel
+  riskResult?: RiskResult // REQ: DEC-107 — Clear / Flagged; no scores in the list
   claimedBy?: ClaimHolder // only while the claim is active
   claimExpiresAt?: string
   lastUpdatedBy: UpdatedBy
@@ -231,15 +196,16 @@ export type VerificationDetail = Verification & {
   flowName: string
   revisionLabel: string // "Rules applied", e.g. V4-R1 (DEC-51, DEC-52)
   rulesApplied: FlowSettings // the revision's settings: the snapshot at session start
-  steps: { phases: OnboardingPhase[]; faceMatchMethod: FaceMatchMethod; runsRisk: boolean } // from the registry version
+  steps: { phases: OnboardingPhase[]; faceMatchMethod: FaceMatchMethod; runsRisk: boolean; riskMinimumsPerFlow: boolean } // from the registry version
   checks: CheckEvaluation[] // face match / liveness: threshold applied, result, retries used / allowed
   newCaseAllowedAt?: string // REJECTED with a cooldown (DEC-26)
   reasonOptions: DecisionReason[] // REQ: DEC-106 — the project's active decision reasons, for the decision panel
 }
 
+/** REQ: DEC-107 — one minimum per category: below any of them, the risk result is Flagged. Fixed for V4, per flow for V5. */
 export interface RiskConfig {
   enabled: boolean
-  maxAllowedLevel: RiskLevel // OQ-05
+  minimums: RiskScores
 }
 
 // REQ: DEC-98 — [FRS] merchant statuses: Onboarding (sandbox) → Active (live) → Suspended (freeze) → Terminated (final).
@@ -405,7 +371,7 @@ export interface FlowSettings {
   cooldownMin: number // REQ: DEC-26
   acceptedDocuments: DocumentType[]
   sessionExpiryMin: number
-  risk?: RiskConfig // V4 (V5 is OQ-05)
+  risk?: RiskConfig // V4 / V5 (DEC-107)
 }
 
 /**
@@ -616,6 +582,7 @@ export interface RegistryEntry {
   faceMatchMethod: FaceMatchMethod
   requiredInputs: SessionInput[]
   configurableChecks: Check[]
+  riskMinimumsPerFlow: boolean // REQ: DEC-107 — the flow sets the risk minimums (V5); otherwise they are fixed (V4)
   stateMachineSandbox?: string // record only, never called
   stateMachineProduction?: string
   releaseNotes: { at: string; by: string; text: string }[] // append-only

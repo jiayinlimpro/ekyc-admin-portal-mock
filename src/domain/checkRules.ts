@@ -3,7 +3,7 @@
 import { checkCondition } from './conditions'
 import { POLICY, type PhaseCombination } from './openQuestions'
 import { resolveThreshold, type Thresholds } from './thresholds'
-import { RISK_LEVELS, type Check, type FaceMatchMethod, type FlowSettings, type RiskLevel, type VerificationStatus } from './types'
+import { RISK_CATEGORIES, RISK_CATEGORY_LABELS, type Check, type FaceMatchMethod, type FlowSettings, type RiskConfig, type RiskResult, type RiskScores, type VerificationStatus } from './types'
 
 /** PENDING = no submission yet; RETRY = below Auto-Pass with retries left; the rest are final. */
 export type CheckState = 'PENDING' | 'RETRY' | 'PASS' | 'REVIEW' | 'REJECT'
@@ -37,7 +37,7 @@ export interface FlowContext {
 export interface CaseInput {
   /** Scores per check, in submission order. ID capture and selfie retakes are not here: they are unlimited and free. */
   submissions: Partial<Record<Check, readonly number[]>>
-  riskLevel?: RiskLevel
+  riskScores?: RiskScores // REQ: DEC-107 — set once risk ran
 }
 
 export const RISK_NOT_PASSED = 'Risk Assessment not passed'
@@ -58,11 +58,20 @@ function detail(e: CheckEvaluation): string {
   return `Auto-Reject < ${e.thresholds.autoReject} · Auto-Pass ≥ ${e.thresholds.autoPass} · Actual ${e.lastScore}`
 }
 
-// REQ: DEC-13 / MOCK-02 — V4 risk passes when the level is at or below the allowed maximum.
-function riskPasses(level: RiskLevel, settings: FlowContext['settings']): boolean {
-  if (!settings.risk?.enabled) return true
-  return RISK_LEVELS.indexOf(level) <= RISK_LEVELS.indexOf(settings.risk.maxAllowedLevel)
+export interface RiskEvaluation {
+  result: RiskResult
+  below: { category: (typeof RISK_CATEGORIES)[number]; score: number; minimum: number }[]
 }
+
+// REQ: DEC-107 / MOCK-02 — Clear when every category is at or above its minimum; otherwise Flagged. Risk never rejects.
+export function evaluateRisk(scores: RiskScores, risk: RiskConfig | undefined): RiskEvaluation {
+  if (!risk?.enabled) return { result: 'CLEAR', below: [] }
+  const below = RISK_CATEGORIES.filter((c) => scores[c] < risk.minimums[c]).map((c) => ({ category: c, score: scores[c], minimum: risk.minimums[c] }))
+  return { result: below.length ? 'FLAGGED' : 'CLEAR', below }
+}
+
+/** "OSINT Score 22 < 30 · EXIF Score 40 < 50" */
+export const riskDetail = (r: RiskEvaluation) => r.below.map((b) => `${RISK_CATEGORY_LABELS[b.category]} ${b.score} < ${b.minimum}`).join(' · ')
 
 export function evaluateCase(input: CaseInput, flow: FlowContext, combination: PhaseCombination = POLICY.phaseCombination): CaseEvaluation {
   const checks = flow.checks.map((c) => evaluateCheck(c, input.submissions[c] ?? [], flow.settings.checks[c]))
@@ -89,8 +98,10 @@ export function evaluateCase(input: CaseInput, flow: FlowContext, combination: P
   }
 
   if (flow.hasRisk) {
-    if (!input.riskLevel) return { status: 'PROCESSING', checks } // risk has not run yet
-    if (!riskPasses(input.riskLevel, flow.settings)) return { status: 'PENDING_REVIEW', reason: RISK_NOT_PASSED, checks }
+    if (!input.riskScores) return { status: 'PROCESSING', checks } // risk has not run yet
+    // REQ: DEC-107 — biometrics approve + Flagged → PENDING_REVIEW (a biometric reject or review is decided above).
+    const risk = evaluateRisk(input.riskScores, flow.settings.risk)
+    if (risk.result === 'FLAGGED') return { status: 'PENDING_REVIEW', reason: RISK_NOT_PASSED, detail: riskDetail(risk), checks }
   }
   return { status: 'APPROVED', checks } // REQ: DEC-14 — lastUpdatedBy = SYSTEM
 }

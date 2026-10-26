@@ -1,19 +1,16 @@
 // Every value in this file is an OPEN QUESTION (docs/OPEN_QUESTIONS.md), not a signed-off requirement.
 // The UI must label anything read from here "OPEN QUESTION".
-import type { Check, RiskLevel, ThresholdPreset } from './types'
+import type { Check, RiskScores, ThresholdPreset } from './types'
 
 export type PhaseCombination = 'REJECT_WINS' | 'REVIEW_WINS'
 
 export interface Policy {
   /** OQ-01: REJECT_WINS = any reject → REJECTED; REVIEW_WINS = any review → PENDING_REVIEW even if another phase rejects. */
   phaseCombination: PhaseCombination
-  /** OQ-06: risk score (0–100, higher = riskier) → level. */
-  riskBands: { mediumFrom: number; highFrom: number }
 }
 
 export const POLICY: Policy = {
   phaseCombination: 'REJECT_WINS',
-  riskBands: { mediumFrom: 40, highFrom: 70 },
 }
 
 /** OQ-02: preset values per check (DEC-19). Low = lenient, High = strict. */
@@ -32,14 +29,8 @@ export const DEFAULT_COOLDOWN_MIN = 0
 export const DEFAULT_CLAIM_TIMEOUT_SEC = 30 * 60 // 30 minutes
 export const DEFAULT_CLAIM_WARNING_MIN = 5
 
-/** OQ-05 */
-export const DEFAULT_RISK_MAX_ALLOWED: RiskLevel = 'MEDIUM'
-
-export function riskLevelFromScore(score: number, bands = POLICY.riskBands): RiskLevel {
-  if (score >= bands.highFrom) return 'HIGH'
-  if (score >= bands.mediumFrom) return 'MEDIUM'
-  return 'LOW'
-}
+/** OQ-34: the minimum per risk category (DEC-107): fixed for V4, the starting value for V5. */
+export const DEFAULT_RISK_MINIMUMS: RiskScores = { EXIF: 50, NOISE: 50, EMAIL_VALIDITY: 50, OSINT: 50 }
 
 /** OQ-14: mock token price (RM per liveness submission, DEC-60). */
 export const TOKEN_PRICE = 0.5

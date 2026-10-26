@@ -18,7 +18,7 @@ import { fx, stableId } from '@/lib/ids'
 export const SEED = 2026
 export const BACKGROUND_COUNT = 300
 /** Bump when the shape of MockDbState changes: persisted demo data is then re-seeded. */
-export const DB_VERSION = 22
+export const DB_VERSION = 23
 
 export interface MockDbState {
   dbVersion: number
@@ -45,7 +45,7 @@ const DAY = 24 * 60 * MIN
 
 /** Share of background cases per flow (DRAFT flows never get cases; INACTIVE ones only before they were retired). */
 const FLOW_WEIGHTS: Record<string, number> = {
-  [fx('FLW-0001')]: 22, [fx('FLW-0002')]: 5, [fx('FLW-0004')]: 6, // Atoz: Default (2 flows) + SME app
+  [fx('FLW-0001')]: 22, [fx('FLW-0002')]: 5, [fx('FLW-0014')]: 4, [fx('FLW-0004')]: 6, // Atoz: Default (3 flows, one V5) + SME app
   [fx('FLW-0005')]: 20, // Vantage
   [fx('FLW-0006')]: 16, [fx('FLW-0013')]: 4, // Tesla: 20 % share on the strict flow
   [fx('FLW-0007')]: 12, [fx('FLW-0008')]: 3, // Boring: the Express pilot is retiring

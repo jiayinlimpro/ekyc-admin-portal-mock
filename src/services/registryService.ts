@@ -22,7 +22,7 @@ import { newId } from '@/lib/ids'
 export type RegistryRow = RegistryEntry & { flowsUsing: number }
 
 /** What a flow creator needs to pick a version. State machine references are internal and left out. */
-export type SelectableVersion = Pick<RegistryEntry, 'code' | 'name' | 'description' | 'phases' | 'faceMatchMethod' | 'requiredInputs' | 'configurableChecks' | 'isDefault'>
+export type SelectableVersion = Pick<RegistryEntry, 'code' | 'name' | 'description' | 'phases' | 'faceMatchMethod' | 'requiredInputs' | 'configurableChecks' | 'riskMinimumsPerFlow' | 'isDefault'>
 
 /** A flow on a version, with where it lives. */
 export interface FlowUsingVersion {
@@ -64,7 +64,7 @@ function audit(actor: Actor, action: AuditAction, code: WorkflowCode, details: R
   db.appendAudit(makeAudit({ id: '', now: now(), action, actor, actorRole: 'Super admin', ip: clientIpFor(actor), details: { code, ...details } }))
 }
 
-const FIELDS: (keyof RegistryInput)[] = ['name', 'description', 'phases', 'faceMatchMethod', 'requiredInputs', 'configurableChecks', 'stateMachineSandbox', 'stateMachineProduction']
+const FIELDS: (keyof RegistryInput)[] = ['name', 'description', 'phases', 'faceMatchMethod', 'requiredInputs', 'configurableChecks', 'riskMinimumsPerFlow', 'stateMachineSandbox', 'stateMachineProduction']
 const text = (v: unknown) => (Array.isArray(v) ? v.join(' → ') || '—' : v === undefined || v === '' ? '—' : String(v))
 
 function diff(e: RegistryEntry, input: RegistryInput): SettingChange[] {
@@ -78,6 +78,7 @@ const fields = (input: RegistryInput) => ({
   faceMatchMethod: input.faceMatchMethod,
   requiredInputs: input.requiredInputs,
   configurableChecks: input.configurableChecks,
+  riskMinimumsPerFlow: input.riskMinimumsPerFlow && input.phases.includes('RISK_ASSESSMENT'),
   stateMachineSandbox: input.stateMachineSandbox?.trim() || undefined,
   stateMachineProduction: input.stateMachineProduction?.trim() || undefined,
 })
@@ -111,7 +112,7 @@ export const mockRegistryService: RegistryService = {
     await simulateNetwork('list selectable versions')
     if (projectsWhere(accountOf(actor), 'createFlows', db.state().projects).length === 0) throw new ServiceError('FORBIDDEN', 'You do not have permission to create flows.')
     return wire(
-      selectableForNewFlow(db.state().registry).map(({ code, name, description, phases, faceMatchMethod, requiredInputs, configurableChecks, isDefault }) => ({
+      selectableForNewFlow(db.state().registry).map(({ code, name, description, phases, faceMatchMethod, requiredInputs, configurableChecks, riskMinimumsPerFlow, isDefault }) => ({
         code,
         name,
         description,
@@ -119,6 +120,7 @@ export const mockRegistryService: RegistryService = {
         faceMatchMethod,
         requiredInputs,
         configurableChecks,
+        riskMinimumsPerFlow,
         isDefault,
       })),
     )

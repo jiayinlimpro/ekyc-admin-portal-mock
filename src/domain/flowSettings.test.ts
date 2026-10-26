@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { advancedErrors, createFlow, diffFlow, newFlowSettings, saveFlow, validateFlow } from './flowSettings'
-import type { Flow, FlowSettings, RegistryEntry } from './types'
+import type { Flow, FlowSettings, RegistryEntry, RiskScores } from './types'
 import { fx } from '@/lib/ids'
 
 const NOW = new Date('2026-10-20T02:00:00.000Z')
@@ -19,7 +19,7 @@ describe('new flow (DEC-50, OQ-19)', () => {
     expect(f).toMatchObject({ name: 'Malaysian onboarding', status: 'DRAFT', revision: 0, workflowVersion: 'V4', routing: { kind: 'NONE' } })
     expect(f.settings.checks.LIVENESS).toEqual({ threshold: { preset: 'STANDARD' }, retriesAllowed: 3 })
     expect(f.settings.cooldownMin).toBe(0)
-    expect(f.settings.risk).toEqual({ enabled: true, maxAllowedLevel: 'MEDIUM' })
+    expect(f.settings.risk).toEqual({ enabled: true, minimums: { EXIF: 50, NOISE: 50, EMAIL_VALIDITY: 50, OSINT: 50 } }) // DEC-107, OQ-34
     expect(newFlowSettings(V1).risk).toBeUndefined()
   })
 
@@ -46,6 +46,32 @@ describe('validation (DEC-53)', () => {
     s.checks.LIVENESS.retriesAllowed = 6
     s.cooldownMin = -1
     expect(fields(validateFlow({ name: 'x', settings: s }, V4))).toEqual(['checks.FACE_MATCH.retriesAllowed', 'checks.LIVENESS.retriesAllowed', 'cooldownMin'])
+  })
+})
+
+describe('risk minimums (DEC-107)', () => {
+  const ready = (minimums: RiskScores): Pick<Flow, 'name' | 'settings'> => ({
+    name: 'x',
+    settings: { ...newFlowSettings(V4), acceptedDocuments: ['MYKAD'], sessionExpiryMin: 30, risk: { enabled: true, minimums } },
+  })
+  const custom = { EXIF: 40, NOISE: 60, EMAIL_VALIDITY: 50, OSINT: 30 }
+
+  it('Given V4 (fixed minimums), then changing one is refused; V5 (per flow) may set each', () => {
+    expect(validateFlow(ready(custom), { ...V4, riskMinimumsPerFlow: false })).toEqual([{ field: 'risk', message: 'Risk minimums are fixed for this workflow version' }])
+    expect(validateFlow(ready(custom), { ...V4, riskMinimumsPerFlow: true })).toEqual([])
+  })
+
+  it('Given a minimum outside 0–100 or not whole, then that category errors', () => {
+    expect(validateFlow(ready({ ...custom, NOISE: 101, OSINT: 2.5 }), { ...V4, riskMinimumsPerFlow: true }).map((e) => e.field)).toEqual(['risk.minimums.NOISE', 'risk.minimums.OSINT'])
+  })
+
+  it('Given a changed minimum, then the history names the category', () => {
+    const base = ready({ EXIF: 50, NOISE: 50, EMAIL_VALIDITY: 50, OSINT: 50 })
+    expect(diffFlow({ ...base, description: '' }, { ...ready(custom), description: '' }).map((c) => `${c.field}: ${c.from} → ${c.to}`)).toEqual([
+      'risk.minimums.EXIF: 50 → 40',
+      'risk.minimums.NOISE: 50 → 60',
+      'risk.minimums.OSINT: 50 → 30',
+    ])
   })
 })
 

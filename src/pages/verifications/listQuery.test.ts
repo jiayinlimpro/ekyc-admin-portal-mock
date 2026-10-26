@@ -24,10 +24,10 @@ describe('parseListParams / toSearchParams', () => {
         claim: 'OTHERS',
         createdFrom: '2026-09-01',
         createdTo: '2026-09-25',
-        riskLevels: ['HIGH'],
+        riskResults: ['FLAGGED'],
         lastUpdatedBy: 'MANUAL',
       },
-      sort: { by: 'riskLevel', dir: 'desc' },
+      sort: { by: 'riskResult', dir: 'desc' },
       page: 3,
       pageSize: 50,
     }

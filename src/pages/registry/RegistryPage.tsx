@@ -29,7 +29,7 @@ const STATUS_TONE: Record<RegistryStatus, string> = {
   DEPRECATED: 'bg-amber-100 text-amber-800 dark:bg-amber-500/20 dark:text-amber-200',
 }
 
-const emptyInput = (): RegistryInput => ({ code: '', name: '', description: '', phases: ['ID_CAPTURE', 'LIVENESS_CHECK'], faceMatchMethod: 'ID_VS_LIVENESS', requiredInputs: [], configurableChecks: ['FACE_MATCH', 'LIVENESS'], stateMachineSandbox: '', stateMachineProduction: '', releaseNote: '' })
+const emptyInput = (): RegistryInput => ({ code: '', name: '', description: '', phases: ['ID_CAPTURE', 'LIVENESS_CHECK'], faceMatchMethod: 'ID_VS_LIVENESS', requiredInputs: [], configurableChecks: ['FACE_MATCH', 'LIVENESS'], riskMinimumsPerFlow: false, stateMachineSandbox: '', stateMachineProduction: '', releaseNote: '' })
 const inputOf = (e: RegistryRow): RegistryInput => ({ ...e, stateMachineSandbox: e.stateMachineSandbox ?? '', stateMachineProduction: e.stateMachineProduction ?? '', releaseNote: '' })
 
 // REQ: DEC-56 — FRS field rules; after first activation only name, description and state machines change.
@@ -110,6 +110,13 @@ function VersionDialog({ editing, onClose, onDone }: { editing?: RegistryRow; on
                 ))}
                 {errors.configurableChecks && <p role="alert" className="text-xs text-destructive">{errors.configurableChecks}</p>}
               </fieldset>
+              {/* REQ: DEC-107 — V5-style versions let each flow set the risk minimums; otherwise they are fixed (V4). */}
+              {v.phases.includes('RISK_ASSESSMENT') && (
+                <label className="flex items-center gap-2 text-sm">
+                  <input type="checkbox" checked={v.riskMinimumsPerFlow} disabled={locked('riskMinimumsPerFlow')} onChange={(e) => setV({ ...v, riskMinimumsPerFlow: e.target.checked })} />
+                  Risk minimums set per flow
+                </label>
+              )}
             </div>
             <FormField id="r-sand" label="State machine ARN (sandbox)" error={errors.stateMachineSandbox} className="sm:col-span-2">
               <Input id="r-sand" value={v.stateMachineSandbox} onChange={(e) => setV({ ...v, stateMachineSandbox: e.target.value })} placeholder="arn:aws:states:…" aria-invalid={!!errors.stateMachineSandbox} />

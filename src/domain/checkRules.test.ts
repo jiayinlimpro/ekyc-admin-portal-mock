@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { RISK_NOT_PASSED, evaluateCase, evaluateCheck, type FlowContext } from './checkRules'
+import { RISK_NOT_PASSED, evaluateCase, evaluateRisk, evaluateCheck, type FlowContext } from './checkRules'
 import type { CheckSettings } from './types'
 
 // Standard presets (OQ-02): face match reject < 85, approve ≥ 95 · liveness reject < 70, approve ≥ 85. 3 retries.
@@ -9,8 +9,9 @@ const V4: FlowContext = {
   checks: ['FACE_MATCH', 'LIVENESS'],
   faceMatchMethod: 'ID_VS_LIVENESS',
   hasRisk: true,
-  settings: { checks: { FACE_MATCH: std(), LIVENESS: std() }, risk: { enabled: true, maxAllowedLevel: 'MEDIUM' } },
+  settings: { checks: { FACE_MATCH: std(), LIVENESS: std() }, risk: { enabled: true, minimums: { EXIF: 50, NOISE: 50, EMAIL_VALIDITY: 50, OSINT: 50 } } },
 }
+const CLEAN = { EXIF: 80, NOISE: 80, EMAIL_VALIDITY: 80, OSINT: 80 }
 const V1: FlowContext = { ...V4, faceMatchMethod: 'ID_VS_SELFIE', hasRisk: false, settings: { checks: V4.settings.checks } }
 
 describe('one check with retries (DEC-15, DEC-16, DEC-18)', () => {
@@ -41,7 +42,7 @@ describe('case status in a flow (DEC-12 … DEC-16)', () => {
   })
 
   it('Given liveness retries run out in the review band, then PENDING_REVIEW with the final condition and the numbers', () => {
-    const r = evaluateCase({ submissions: { FACE_MATCH: [97], LIVENESS: [60, 60, 60, 78] }, riskLevel: 'LOW' }, V4)
+    const r = evaluateCase({ submissions: { FACE_MATCH: [97], LIVENESS: [60, 60, 60, 78] }, riskScores: CLEAN }, V4)
     expect(r).toMatchObject({ status: 'PENDING_REVIEW', reason: 'Face not live (Retry Not Allowed)', detail: 'Auto-Reject < 70 · Auto-Pass ≥ 85 · Actual 78' })
   })
 
@@ -60,12 +61,20 @@ describe('case status in a flow (DEC-12 … DEC-16)', () => {
     expect(r.status).toBe('PENDING_REVIEW')
   })
 
-  it('Given every check passes, then V1 is APPROVED; V4 also needs a passing risk result (DEC-13)', () => {
+  it('Given every check passes, then V1 is APPROVED; V4 also needs risk Clear, else PENDING_REVIEW with the categories missed (DEC-107)', () => {
     const pass = { FACE_MATCH: [96], LIVENESS: [90] }
     expect(evaluateCase({ submissions: pass }, V1).status).toBe('APPROVED')
     expect(evaluateCase({ submissions: pass }, V4).status).toBe('PROCESSING') // risk not run yet
-    expect(evaluateCase({ submissions: pass, riskLevel: 'MEDIUM' }, V4).status).toBe('APPROVED')
-    expect(evaluateCase({ submissions: pass, riskLevel: 'HIGH' }, V4)).toMatchObject({ status: 'PENDING_REVIEW', reason: RISK_NOT_PASSED })
+    expect(evaluateCase({ submissions: pass, riskScores: { ...CLEAN, OSINT: 50 } }, V4).status).toBe('APPROVED') // at the minimum is enough
+    expect(evaluateCase({ submissions: pass, riskScores: { ...CLEAN, OSINT: 22, EXIF: 49 } }, V4)).toMatchObject({ status: 'PENDING_REVIEW', reason: RISK_NOT_PASSED, detail: 'EXIF Score 49 < 50 · OSINT Score 22 < 50' })
+  })
+
+  it('Given the decision table, then biometric review or reject wins whatever the risk result (DEC-107)', () => {
+    const flagged = { ...CLEAN, NOISE: 10 }
+    expect(evaluateCase({ submissions: { FACE_MATCH: [96, 96, 96, 90], LIVENESS: [90, 90, 90, 90] }, riskScores: CLEAN }, V4).status).toBe('PENDING_REVIEW') // review + Clear
+    expect(evaluateCase({ submissions: { FACE_MATCH: [96], LIVENESS: [10, 10, 10, 10] }, riskScores: flagged }, V4).status).toBe('REJECTED') // reject + Flagged: from biometrics
+    expect(evaluateRisk(flagged, V4.settings.risk)).toMatchObject({ result: 'FLAGGED', below: [{ category: 'NOISE', score: 10, minimum: 50 }] })
+    expect(evaluateRisk(CLEAN, V4.settings.risk).result).toBe('CLEAR')
   })
 
   it('Given 1 retry allowed (OQ-03 minimum), then the second submission decides', () => {

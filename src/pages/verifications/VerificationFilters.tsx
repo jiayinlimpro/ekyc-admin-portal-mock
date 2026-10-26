@@ -5,13 +5,13 @@ import { NativeSelect } from '@/components/common/NativeSelect'
 import { ToggleChips } from '@/components/common/ToggleChips'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { RISK_LEVELS, VERIFICATION_STATUSES } from '@/domain/types'
-import { RISK_LABELS, STATUS_LABELS } from '@/lib/labels'
+import { RISK_RESULTS, VERIFICATION_STATUSES } from '@/domain/types'
+import { RISK_RESULT_LABELS, STATUS_LABELS } from '@/lib/labels'
 import type { FilterOptions } from '@/services/verificationService'
 import { DEFAULT_FILTERS, validateFilters, type ListFilters } from './listQuery'
 
 const STATUS_OPTIONS = VERIFICATION_STATUSES.map((s) => ({ value: s, label: STATUS_LABELS[s] }))
-const RISK_OPTIONS = RISK_LEVELS.map((r) => ({ value: r, label: RISK_LABELS[r] }))
+const RISK_OPTIONS = RISK_RESULTS.map((r) => ({ value: r, label: RISK_RESULT_LABELS[r] }))
 
 function Field({ id, label, hint, children, className }: { id?: string; label: string; hint?: string; children: ReactNode; className?: string }) {
   return (
@@ -138,8 +138,8 @@ export function VerificationFilters({ initial, onSearch, onReset, options }: { i
           <ToggleChips label="Status" options={STATUS_OPTIONS} value={draft.statuses} onChange={(v) => set('statuses', v)} />
         </GroupField>
         {showRisk && (
-          <GroupField label="Risk Level" hint="flows with risk assessment">
-            <ToggleChips label="Risk Level" options={RISK_OPTIONS} value={draft.riskLevels} onChange={(v) => set('riskLevels', v)} />
+          <GroupField label="Risk" hint="flows with risk assessment">
+            <ToggleChips label="Risk" options={RISK_OPTIONS} value={draft.riskResults} onChange={(v) => set('riskResults', v)} />
           </GroupField>
         )}
       </div>

@@ -1,7 +1,5 @@
 // Shared builders for seeded and hand-written records. Status is always computed by checkRules.evaluateCase, never random.
-import { evaluateCase, type FlowContext } from '@/domain/checkRules'
-import { riskLevelFromScore } from '@/domain/openQuestions'
-import { EXIF_MODERATE_TAGS, EXIF_STRONG_TAGS } from '@/domain/riskSignals'
+import { evaluateCase, evaluateRisk, type FlowContext } from '@/domain/checkRules'
 import { hasRisk } from '@/domain/registryRules'
 import { ENGINE_THRESHOLDS, idCaptureMetrics, OCR_FIELDS } from '@/domain/telemetry'
 import {
@@ -14,7 +12,8 @@ import {
   type FlowRevision,
   type IdCaptureTelemetry,
   type RegistryEntry,
-  type RiskSignals,
+  RISK_CATEGORIES,
+  type RiskScores,
   type SelfieTelemetry,
   type Verification,
   type WorkflowVersion,
@@ -37,13 +36,14 @@ export interface CaseSpec {
   submissions: Partial<Record<Check, number[]>>
   /** Minutes between submissions (default 6). */
   stepMin?: number
-  riskScore?: number // V4: engine output, used once every check has a non-reject result
+  /** Mock input: how risky the session is (0–100). The engine's category scores are drawn from it (DEC-107). */
+  riskScore?: number
   softRejects?: number
   abandoned?: 'ABORTED' | 'TIMED_OUT'
   /** DEC-105 overrides; otherwise generated from the Reference No (stable). */
   idCapture?: Partial<IdCaptureTelemetry>
   duplicateSimilarity?: number
-  riskSignals?: RiskSignals
+  riskScores?: RiskScores
   /** V1 with no submission: the selfie the engine rejected when the user stopped (no similarity was run). */
   stoppedAtSelfie?: Partial<SelfieTelemetry>
 }
@@ -56,8 +56,8 @@ export function buildCase(spec: CaseSpec): Verification {
   const pre = evaluateCase({ submissions: spec.submissions }, flow)
   // Risk runs once onboarding completes without a reject (FRS AWS flow: V4 runs risk after onboarding).
   const riskRan = flow.hasRisk && spec.riskScore !== undefined && pre.checks.every((c) => c.state === 'PASS' || c.state === 'REVIEW')
-  const riskLevel = riskRan ? riskLevelFromScore(spec.riskScore!) : undefined
-  const ev = evaluateCase({ submissions: spec.submissions, riskLevel }, flow)
+  const riskScores = riskRan ? (spec.riskScores ?? categoryScores(rand, spec.riskScore!)) : undefined
+  const ev = evaluateCase({ submissions: spec.submissions, riskScores }, flow)
   const faceMatchState = pre.checks.find((c) => c.check === 'FACE_MATCH')?.state
 
   // REQ: DEC-17 — one attempt per submission round under the same Reference No (the round's time is on the timeline).
@@ -127,9 +127,8 @@ export function buildCase(spec: CaseSpec): Verification {
     lastUpdatedBy: { kind: 'SYSTEM' },
     lastUpdatedAt,
     attempts,
-    riskLevel,
-    riskScore: riskRan ? spec.riskScore : undefined,
-    riskSignals: riskRan ? (spec.riskSignals ?? riskSignals(rand, spec.riskScore!, spec.metadata, !!email)) : undefined,
+    riskScores,
+    riskResult: riskScores ? evaluateRisk(riskScores, rev.settings.risk).result : undefined,
     idCapture: idCap,
     // REQ: DEC-105 — the existing-user search runs only after the face comparison passes ("Existing User Seeking" follows
     // "Match Validation"); in the review band the case goes on, so it is searched too.
@@ -219,36 +218,13 @@ function duplicateUser(similarity: number) {
   return { existingUser: similarity >= T.duplicateSimilarityMin, similarity }
 }
 
-/** The EXIF Make a device would write; desktop webcams write none. */
-function makeOf(device: string): string | undefined {
-  if (/^iphone/i.test(device)) return 'Apple'
-  const brand = device.split(' ')[0]
-  return /chrome|safari|firefox|edge/i.test(device) ? undefined : brand
-}
-
-// REQ: DEC-105 (mock) — the engine's raw signals, weaker as the overall risk rises. How the engine turns them into the
-// overall score is OQ-25, so the overall score stays the given one.
-function riskSignals(r: () => number, overall: number, m: ClientMetadata, hasEmail: boolean): RiskSignals {
-  const g = 1 - overall / 100 // how genuine the session looks
-  const pick = <T,>(xs: readonly T[], n: number) => xs.filter(() => r() < n / xs.length)
-  const make = makeOf(m.device)
-  const phone = !!make
-  const strong = pick(EXIF_STRONG_TAGS, phone ? 2 + 7 * g : 1)
-  const moderate = [...(make ? ['Make', 'Model'] : []), ...pick(['DateTimeOriginal', 'FileModifyDate', 'OffsetTimeOriginal'], phone ? 1 + 2 * g : 1)]
-  const tagsPresent = [...strong, ...EXIF_MODERATE_TAGS.filter((t) => moderate.includes(t))]
-  const dated = tagsPresent.includes('DateTimeOriginal') && tagsPresent.includes('FileModifyDate')
-  return {
-    exif: {
-      tagsPresent,
-      make,
-      megapixels: phone ? between(r, 8, 50) : between(r, 0.9, 2.1),
-      modifyDiffSec: dated ? (r() < g ? Math.round(between(r, 0, 20)) : Math.round(between(r, 300, 86_400))) : undefined,
-      claimGenerator: overall >= 85 && r() < 0.3 ? 'ChatGPT' : undefined,
-    },
-    noise: { elaScore: between(r, 2 + 30 * (1 - g), 6 + 40 * (1 - g)), waveletPeak: between(r, 0.1 + 0.5 * (1 - g), 0.3 + 0.6 * (1 - g)) },
-    email: hasEmail ? { mxRecord: r() < 0.6 + 0.4 * g, aRecord: r() < 0.7 + 0.3 * g, disposable: r() < 0.4 * (1 - g), domainAgeDays: r() < 0.3 * (1 - g) ? Math.round(between(r, 2, 29)) : Math.round(between(r, 400, 9000)) } : undefined,
-    osint: { accountsFound: Math.round(between(r, 6 * g, 2 + 10 * g)), socialScore: Math.max(0, Math.min(10, Math.round(between(r, 10 * g - 3, 10 * g + 1)))) },
-  }
+// REQ: DEC-107 (mock) — the weakest category sits at 100 − risk; the others somewhat above it. How the engine scores and
+// normalises each category is OQ-25.
+function categoryScores(r: () => number, risk: number): RiskScores {
+  const base = 100 - risk
+  const weakest = Math.floor(r() * RISK_CATEGORIES.length)
+  const clamp = (n: number) => Math.max(0, Math.min(100, Math.round(n)))
+  return Object.fromEntries(RISK_CATEGORIES.map((c, i) => [c, clamp(i === weakest ? base : base + 4 + r() * 20)])) as RiskScores
 }
 
 function emailFor(fullName: string, referenceNo: string): string {

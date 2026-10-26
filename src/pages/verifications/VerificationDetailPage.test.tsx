@@ -161,23 +161,28 @@ describe('Verification Detail', () => {
     expect(screen.getByText(/^New case allowed from .* MYT \(cooldown\)$/)).toBeTruthy()
   })
 
-  it('Given V4 S02, then risk HIGH with one score per category and how each was made up, and the banner shows maximum vs actual (DEC-105)', async () => {
+  it('Given V4 S02, then Flagged with the four scores against the fixed minimums, and the banner lists the categories below (DEC-107)', async () => {
     await open(S(2))
     const risk = region('Risk Assessment')
-    expect(risk.getByText('High')).toBeTruthy()
-    expect(risk.getByText('7 / 20.5')).toBeTruthy() // EXIF
-    expect(risk.getByText('20 / 80')).toBeTruthy() // Email validity
-    expect(risk.getByText('1 / 10')).toBeTruthy() // OSINT
-    expect(risk.getByText('Open question OQ-25')).toBeTruthy()
-    const signals = region('Risk signals')
-    const exif = within(signals.getByRole('table', { name: 'EXIF breakdown' }))
-    expect(exif.getByRole('rowheader', { name: 'Taken vs modified' }).closest('tr')!.textContent).toBe('Taken vs modified5,400 s apart−4')
-    const email = within(signals.getByRole('table', { name: 'Email validity breakdown' }))
-    expect(email.getByRole('rowheader', { name: 'Disposable domain' }).closest('tr')!.textContent).toBe('Disposable domainYes−50')
-    expect(signals.getByText(/quality 89, scale 151/)).toBeTruthy()
+    expect(risk.getByText('Flagged')).toBeTruthy()
+    const table = risk.getByRole('table', { name: 'Risk categories' })
+    expect(column(table, 'Score')).toEqual(['32', '18', '20', '10'])
+    expect(column(table, 'Minimum')).toEqual(['50', '50', '50', '50'])
+    expect(column(table, 'Result')).toEqual(['Below minimum', 'Below minimum', 'Below minimum', 'Below minimum'])
+    expect(risk.getByText(/Minimums fixed by the platform/)).toBeTruthy()
+    expect(screen.queryByRole('region', { name: 'Risk signals' })).toBeNull() // no breakdown
     expect(screen.getByText('Risk Assessment not passed')).toBeTruthy()
-    expect(screen.getByText('Maximum allowed Medium · Actual High (82 / 100)')).toBeTruthy()
+    expect(screen.getByText('EXIF Score 32 < 50 · Noise Score 18 < 50 · Email Validity Score 20 < 50 · OSINT Score 10 < 50')).toBeTruthy()
     expect(region('Checks').queryByText('Selfie')).toBeNull() // V4 has no selfie phase
+  })
+
+  it('Given V5 S23, then the flow’s own minimums apply: Flagged by OSINT 22 < 30 only (DEC-107)', async () => {
+    await open(S(23))
+    const table = region('Risk Assessment').getByRole('table', { name: 'Risk categories' })
+    expect(column(table, 'Minimum')).toEqual(['40', '60', '50', '30'])
+    expect(column(table, 'Result')).toEqual(['OK', 'OK', 'OK', 'Below minimum'])
+    expect(region('Risk Assessment').getByText(/Minimums set by this flow/)).toBeTruthy()
+    expect(screen.getByText('OSINT Score 22 < 30')).toBeTruthy()
   })
 
   it('Given V1 S01, then no Risk section, a Selfie check, and every selfie metric with its engine threshold (DEC-105)', async () => {

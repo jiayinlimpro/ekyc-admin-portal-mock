@@ -13,14 +13,14 @@ export interface ImpactSummary {
 const zero = () => Object.fromEntries(VERIFICATION_STATUSES.map((s) => [s, 0])) as Record<VerificationStatus, number>
 
 export function flowImpact(
-  cases: readonly Pick<Verification, 'submissions' | 'riskLevel'>[],
+  cases: readonly Pick<Verification, 'submissions' | 'riskScores'>[],
   flow: Omit<FlowContext, 'settings'>,
   current: Pick<FlowSettings, 'checks' | 'risk'>,
   edited: Pick<FlowSettings, 'checks' | 'risk'>,
 ): ImpactSummary {
   const out: ImpactSummary = { total: cases.length, before: zero(), after: zero(), changed: 0 }
   for (const c of cases) {
-    const input = { submissions: c.submissions, riskLevel: c.riskLevel }
+    const input = { submissions: c.submissions, riskScores: c.riskScores }
     const a = evaluateCase(input, { ...flow, settings: current }).status
     const b = evaluateCase(input, { ...flow, settings: edited }).status
     out.before[a]++

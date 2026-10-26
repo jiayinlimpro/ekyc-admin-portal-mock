@@ -1,9 +1,9 @@
-// Named scenarios S01–S22 (docs/SCENARIOS.md). Each one is a UAT test case with a fixed Reference No (MOCK-05).
+// Named scenarios S01–S24 (docs/SCENARIOS.md). Each one is a UAT test case with a fixed Reference No (MOCK-05).
 // Thresholds referred to below come from the flow revision (fixtures/catalog.ts) and the presets (OQ-02).
 import { Faker, en } from '@faker-js/faker'
 import { makeAudit } from '@/domain/audit'
 import { applyDecision } from '@/domain/claimRules'
-import type { Actor, AuditEntry, Check, DocumentType, IdCaptureTelemetry, RiskSignals, SelfieTelemetry, UpdatedBy, Verification, VerificationStatus } from '@/domain/types'
+import type { Actor, AuditEntry, Check, DocumentType, IdCaptureTelemetry, RiskScores, SelfieTelemetry, UpdatedBy, Verification, VerificationStatus } from '@/domain/types'
 import { buildCase } from '../builders'
 import { clientMetadata, fakeIp, person } from '../malaysia'
 import type { Catalog } from './catalog'
@@ -45,6 +45,8 @@ export const EDGE_CASES: EdgeCaseExpectation[] = [
   { id: 'S19', title: 'V1 similarity (ID vs selfie) below threshold, retry pending', asUserId: fx('USR-2026-0044'), referenceNo: 'KYC-260901-900019', flowId: fx('FLW-0005'), status: 'PROCESSING' },
   { id: 'S20', title: 'Driving License: similarity retries used up, last in review band', asUserId: fx('USR-2026-0044'), referenceNo: 'KYC-260901-900020', flowId: fx('FLW-0005'), status: 'PENDING_REVIEW', reason: 'ID face and Selfie face do not match (Retry Not Allowed)' },
   { id: 'S22', title: 'V1: selfie too dark, rejected; user stopped, nothing compared', asUserId: fx('USR-2026-0044'), referenceNo: 'KYC-260901-900022', flowId: fx('FLW-0005'), status: 'PROCESSING' },
+  { id: 'S23', title: 'V5: risk Flagged by its own OSINT minimum (22 < 30)', asUserId: fx('USR-2026-0012'), referenceNo: 'KYC-260901-900023', flowId: fx('FLW-0014'), status: 'PENDING_REVIEW', reason: 'Risk Assessment not passed' },
+  { id: 'S24', title: 'V5: EXIF 45 is Clear under the flow’s minimum 40 (a V4 flow would flag it)', asUserId: fx('USR-2026-0012'), referenceNo: 'KYC-260901-900024', flowId: fx('FLW-0014'), status: 'APPROVED', lastUpdatedBy: 'SYSTEM' },
   { id: 'S21', title: 'Existing user found (duplicate, information only)', asUserId: fx('USR-2026-0012'), referenceNo: 'KYC-260901-900021', flowId: fx('FLW-0001'), status: 'PENDING_REVIEW', reason: 'Liveness face does not match ID face (Retry Not Allowed)' },
 ]
 
@@ -67,7 +69,7 @@ export function buildEdgeCases(ctx: { now: Date; catalog: Catalog }): {
     flowId: string,
     startMin: number,
     submissions: Partial<Record<Check, number[]>>,
-    opts: { riskScore?: number; documentType?: DocumentType; stepMin?: number; idCapture?: Partial<IdCaptureTelemetry>; duplicateSimilarity?: number; riskSignals?: RiskSignals; stoppedAtSelfie?: Partial<SelfieTelemetry> } = {},
+    opts: { riskScore?: number; documentType?: DocumentType; stepMin?: number; idCapture?: Partial<IdCaptureTelemetry>; duplicateSimilarity?: number; riskScores?: RiskScores; stoppedAtSelfie?: Partial<SelfieTelemetry> } = {},
   ): Verification => {
     const flow = catalog.flows.find((x) => x.flowId === flowId)!
     const p = person(f, now, opts.documentType ?? 'MYKAD')
@@ -84,7 +86,7 @@ export function buildEdgeCases(ctx: { now: Date; catalog: Catalog }): {
       riskScore: opts.riskScore ?? 20,
       idCapture: opts.idCapture,
       duplicateSimilarity: opts.duplicateSimilarity ?? 20 + seq, // REQ: DEC-105 — new users, except S21
-      riskSignals: opts.riskSignals,
+      riskScores: opts.riskScores,
       stoppedAtSelfie: opts.stoppedAtSelfie,
     })
   }
@@ -119,13 +121,8 @@ export function buildEdgeCases(ctx: { now: Date; catalog: Catalog }): {
     make(1, fx('FLW-0005'), 95, { FACE_MATCH: [95.5], LIVENESS: [97.4] }),
     make(2, fx('FLW-0001'), 90, { FACE_MATCH: [96.1], LIVENESS: [97.4] }, {
       riskScore: 82,
-      // A photo re-saved by an editor, a disposable new email domain and almost no social presence.
-      riskSignals: {
-        exif: { tagsPresent: ['ISO', 'ApertureValue', 'Make', 'Model', 'DateTimeOriginal', 'FileModifyDate'], make: 'Apple', megapixels: 12.2, modifyDiffSec: 5_400 },
-        noise: { elaScore: 38.6, waveletPeak: 0.84 },
-        email: { mxRecord: true, aRecord: true, disposable: true, domainAgeDays: 12 },
-        osint: { accountsFound: 0, socialScore: 1 },
-      },
+      // An edited photo, a disposable new email domain and no social presence: below every minimum (DEC-107).
+      riskScores: { EXIF: 32, NOISE: 18, EMAIL_VALIDITY: 20, OSINT: 10 },
     }),
     make(3, fx('FLW-0001'), 88, { FACE_MATCH: [80.4, 82.1, 84.0, 88.5], LIVENESS: passes(4) }, { riskScore: 15 }),
     make(4, fx('FLW-0001'), 86, { FACE_MATCH: passes(4), LIVENESS: [45.0, 52.4, 48.9, 50.2] }),
@@ -153,6 +150,9 @@ export function buildEdgeCases(ctx: { now: Date; catalog: Catalog }): {
     make(20, fx('FLW-0005'), 20, { FACE_MATCH: [80.1, 84.0, 86.2, 88.0], LIVENESS: [96.2] }, { documentType: 'DRIVING_LICENSE' }),
     // Atoz FLW-0001: face match in the review band after 3 retries; the face search found an existing user (97.6).
     make(21, fx('FLW-0001'), 50, { FACE_MATCH: [86.0, 87.5, 88.0, 89.2], LIVENESS: passes(4) }, { riskScore: 18, duplicateSimilarity: 97.6 }),
+    // Atoz "Premium accounts" FLW-0014 (V5, own risk minimums EXIF 40 · Noise 60 · Email 50 · OSINT 30).
+    make(23, fx('FLW-0014'), 30, { FACE_MATCH: [98.2], LIVENESS: [96.5] }, { riskScores: { EXIF: 72, NOISE: 80, EMAIL_VALIDITY: 65, OSINT: 22 } }),
+    make(24, fx('FLW-0014'), 28, { FACE_MATCH: [98.0], LIVENESS: [95.9] }, { riskScores: { EXIF: 45, NOISE: 78, EMAIL_VALIDITY: 70, OSINT: 55 } }),
     // Vantage FLW-0005 (V1): the selfie was too dark (brightness 14.2), so the engine ended the run before Face Match.
     make(22, fx('FLW-0005'), 15, {}, { idCapture: { faceConfidence: 98.4, imageWidth: 1600, imageHeight: 1000, ocrFieldsMissing: [] }, stoppedAtSelfie: { brightness: 14.2, sharpness: 52.0, yaw: 4.0, pitch: -3.0, eyesOpen: true, occluded: false } }),
   ]

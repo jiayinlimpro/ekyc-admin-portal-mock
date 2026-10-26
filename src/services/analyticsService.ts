@@ -73,7 +73,7 @@ function contextOf(v: Verification) {
   const s = db.state()
   const entry = s.registry.find((e) => e.code === v.workflowVersion)!
   const settings = s.flowRevisions.find((r) => r.flowId === v.flowId && r.revision === v.configRevision)?.settings ?? s.flows.find((f) => f.flowId === v.flowId)!.settings
-  const ev = evaluateCase({ submissions: v.submissions, riskLevel: v.riskLevel }, { checks: entry.configurableChecks, faceMatchMethod: entry.faceMatchMethod, hasRisk: hasRisk(entry), settings })
+  const ev = evaluateCase({ submissions: v.submissions, riskScores: v.riskScores }, { checks: entry.configurableChecks, faceMatchMethod: entry.faceMatchMethod, hasRisk: hasRisk(entry), settings })
   return { checks: ev.checks, hasSelfie: hasSelfie(entry) }
 }
 

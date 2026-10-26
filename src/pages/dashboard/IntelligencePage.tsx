@@ -4,10 +4,10 @@ import { DateRangePresets } from '@/components/charts/DateRangePresets'
 import { ScoreHistogram } from '@/components/charts/ScoreHistogram'
 import { ErrorState } from '@/components/common/States'
 import { HISTOGRAM_BIN } from '@/domain/dashboards'
-import { CHECKS, PHASE_LABELS, RISK_LEVELS } from '@/domain/types'
+import { CHECKS, PHASE_LABELS, RISK_RESULTS } from '@/domain/types'
 import { useLoad } from '@/hooks/useLoad'
 import { RANGE_PRESETS, useRangeDays } from '@/hooks/useRangeDays'
-import { RISK_LABELS } from '@/lib/labels'
+import { RISK_RESULT_LABELS } from '@/lib/labels'
 import { analyticsService } from '@/services/analyticsService'
 import { useDashboardScope } from './dashboardScope'
 
@@ -22,7 +22,7 @@ export function IntelligencePage() {
   const loading = stats.loading
   if (stats.error && !s) return <ErrorState message={stats.error} onRetry={stats.reload} />
   const rangeLabel = RANGE_PRESETS.find((p) => p.days === days)!.label.toLowerCase()
-  const riskTotal = s ? RISK_LEVELS.reduce((n, l) => n + s.riskLevels[l], 0) : 0
+  const riskTotal = s ? RISK_RESULTS.reduce((n, l) => n + s.riskResults[l], 0) : 0
   const showSelfie = !!s?.byFlow.some((f) => f.dropOff.selfie !== undefined)
 
   return (
@@ -81,12 +81,12 @@ export function IntelligencePage() {
               <BarList unit="retries" rows={CHECKS.map((c) => ({ label: PHASE_LABELS[c], value: s.retriesByCheck[c] }))} />
             </ChartCard>
             <ChartCard
-              title="Risk level (V4)"
+              title="Risk result (V4/V5)"
               subtitle={riskTotal ? `${fmtInt(riskTotal)} sessions with a risk result` : 'No sessions with a risk result in scope'}
               busy={loading}
-              table={<DataTable caption="Risk levels" columns={['Risk level', 'Sessions', 'Share']} rows={RISK_LEVELS.map((l) => [RISK_LABELS[l], s.riskLevels[l], fmtPct(pct(s.riskLevels[l], riskTotal))])} />}
+              table={<DataTable caption="Risk results" columns={['Risk', 'Sessions', 'Share']} rows={RISK_RESULTS.map((l) => [RISK_RESULT_LABELS[l], s.riskResults[l], fmtPct(pct(s.riskResults[l], riskTotal))])} />}
             >
-              <BarList unit="sessions" rows={RISK_LEVELS.map((l) => ({ label: RISK_LABELS[l], value: s.riskLevels[l] }))} />
+              <BarList unit="sessions" rows={RISK_RESULTS.map((l) => ({ label: RISK_RESULT_LABELS[l], value: s.riskResults[l] }))} />
             </ChartCard>
           </div>
 

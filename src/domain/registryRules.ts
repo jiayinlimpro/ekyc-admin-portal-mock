@@ -7,7 +7,7 @@ export const ARN_PATTERN = /^arn:aws:states:[a-z0-9-]+:\d{12}:stateMachine:[A-Za
 
 export type RegistryInput = Pick<
   RegistryEntry,
-  'code' | 'name' | 'description' | 'phases' | 'faceMatchMethod' | 'requiredInputs' | 'configurableChecks' | 'stateMachineSandbox' | 'stateMachineProduction'
+  'code' | 'name' | 'description' | 'phases' | 'faceMatchMethod' | 'requiredInputs' | 'configurableChecks' | 'riskMinimumsPerFlow' | 'stateMachineSandbox' | 'stateMachineProduction'
 > & { releaseNote: string }
 
 export function hasRisk(e: Pick<RegistryEntry, 'phases'>): boolean {
@@ -33,6 +33,8 @@ export function validateRegistryInput(input: RegistryInput, existingCodes: reado
     errors.push({ field: 'faceMatchMethod', message: 'ID vs Selfie needs the Selfie Capture phase' })
   }
   if (input.configurableChecks.length === 0) errors.push({ field: 'configurableChecks', message: 'Select at least one configurable threshold' })
+  // REQ: DEC-107 — only a version with Risk Assessment can let flows set the risk minimums.
+  if (input.riskMinimumsPerFlow && !hasRisk(input)) errors.push({ field: 'riskMinimumsPerFlow', message: 'Risk minimums need the Risk Assessment phase' })
   for (const f of ['stateMachineSandbox', 'stateMachineProduction'] as const) {
     const arn = input[f]?.trim()
     if (arn && !ARN_PATTERN.test(arn)) errors.push({ field: f, message: 'Enter a valid Step Functions state machine ARN' })

@@ -2,9 +2,9 @@
 // Coverage: every flow status, Advanced thresholds set by Super admin, rule and % routing, a revision history,
 // an archived project, and a merchant with two projects.
 import { diffFlow, newFlowSettings } from '@/domain/flowSettings'
-import { DEFAULT_RISK_MAX_ALLOWED } from '@/domain/openQuestions'
+import { DEFAULT_RISK_MINIMUMS } from '@/domain/openQuestions'
 import { PROJECT_SETTING_DEFAULTS } from '@/domain/projectSettings'
-import type { DocumentType, Flow, FlowRevision, FlowRouting, FlowSettings, FlowStatus, Project, RegistryEntry, ThresholdChoice } from '@/domain/types'
+import type { DocumentType, Flow, FlowRevision, FlowRouting, FlowSettings, FlowStatus, Project, RegistryEntry, RiskScores, ThresholdChoice } from '@/domain/types'
 import { fx, stableId } from '@/lib/ids'
 
 const HOUR = 3_600_000
@@ -15,8 +15,9 @@ const SYSTEM = { userId: 'SYSTEM' as const, fullName: 'SYSTEM' as const }
 
 export function buildRegistry(now: Date): RegistryEntry[] {
   const ago = (days: number) => new Date(now.getTime() - days * DAY).toISOString()
-  const entry = (e: Pick<RegistryEntry, 'code' | 'name' | 'description' | 'phases' | 'faceMatchMethod' | 'requiredInputs' | 'status' | 'isDefault'>, days: number, sm?: string): RegistryEntry => ({
+  const entry = (e: Pick<RegistryEntry, 'code' | 'name' | 'description' | 'phases' | 'faceMatchMethod' | 'requiredInputs' | 'status' | 'isDefault'> & Partial<Pick<RegistryEntry, 'riskMinimumsPerFlow'>>, days: number, sm?: string): RegistryEntry => ({
     entryId: stableId('wfv', e.code),
+    riskMinimumsPerFlow: false,
     ...e,
     configurableChecks: ['FACE_MATCH', 'LIVENESS'],
     stateMachineSandbox: sm && ARN(sm, 'sand'),
@@ -33,7 +34,8 @@ export function buildRegistry(now: Date): RegistryEntry[] {
     entry({ code: 'V1', name: 'ID + Selfie + Liveness', description: 'ID capture, selfie and liveness; face match ID vs selfie.', phases: ['ID_CAPTURE', 'SELFIE_CAPTURE', 'LIVENESS_CHECK'], faceMatchMethod: 'ID_VS_SELFIE', requiredInputs: [], status: 'ACTIVE', isDefault: true }, 400, 'onboard_v1'),
     entry({ code: 'V3', name: 'ID + Liveness', description: 'ID capture and liveness; face match ID vs liveness face.', phases: ['ID_CAPTURE', 'LIVENESS_CHECK'], faceMatchMethod: 'ID_VS_LIVENESS', requiredInputs: [], status: 'ACTIVE', isDefault: false }, 300, 'onboard_v4'),
     entry({ code: 'V4', name: 'ID + Liveness + Risk Assessment', description: 'V3 + risk assessment.', phases: ['ID_CAPTURE', 'LIVENESS_CHECK', 'RISK_ASSESSMENT'], faceMatchMethod: 'ID_VS_LIVENESS', requiredInputs: ['EMAIL'], status: 'ACTIVE', isDefault: false }, 300, 'onboard_v4'),
-    entry({ code: 'V5', name: 'ID + Liveness + component risk', description: 'TBC: merchant-adjustable component risk thresholds (OQ-05).', phases: ['ID_CAPTURE', 'LIVENESS_CHECK', 'RISK_ASSESSMENT'], faceMatchMethod: 'ID_VS_LIVENESS', requiredInputs: ['EMAIL'], status: 'DRAFT', isDefault: false }, 10),
+    // REQ: DEC-107 — V5 = V4 with the risk minimums set per flow.
+    entry({ code: 'V5', name: 'ID + Liveness + component risk', description: 'V4 with a risk minimum per category set by each flow.', phases: ['ID_CAPTURE', 'LIVENESS_CHECK', 'RISK_ASSESSMENT'], faceMatchMethod: 'ID_VS_LIVENESS', requiredInputs: ['EMAIL'], riskMinimumsPerFlow: true, status: 'ACTIVE', isDefault: false }, 10, 'onboard_v5'),
   ]
 }
 
@@ -42,7 +44,7 @@ interface FlowSpec {
   projectId: string
   name: string
   description: string
-  version: 'V1' | 'V3' | 'V4'
+  version: 'V1' | 'V3' | 'V4' | 'V5'
   status: FlowStatus
   routing?: FlowRouting
   createdDaysAgo: number
@@ -53,14 +55,14 @@ interface FlowSpec {
 
 const preset = (p: 'LOW' | 'STANDARD' | 'HIGH'): ThresholdChoice => ({ preset: p })
 
-function settings(o: { fm?: ThresholdChoice; l?: ThresholdChoice; retries?: number; cooldownMin?: number; docs?: DocumentType[]; expiry?: number; risk?: boolean }): FlowSettings {
+function settings(o: { fm?: ThresholdChoice; l?: ThresholdChoice; retries?: number; cooldownMin?: number; docs?: DocumentType[]; expiry?: number; risk?: boolean | RiskScores }): FlowSettings {
   const retriesAllowed = o.retries ?? 3
   return {
     checks: { FACE_MATCH: { threshold: o.fm ?? preset('STANDARD'), retriesAllowed }, LIVENESS: { threshold: o.l ?? preset('STANDARD'), retriesAllowed } },
     cooldownMin: o.cooldownMin ?? 0,
     acceptedDocuments: o.docs ?? ['MYKAD'],
     sessionExpiryMin: o.expiry ?? 30,
-    risk: o.risk ? { enabled: true, maxAllowedLevel: DEFAULT_RISK_MAX_ALLOWED } : undefined,
+    risk: o.risk ? { enabled: true, minimums: o.risk === true ? { ...DEFAULT_RISK_MINIMUMS } : o.risk } : undefined, // REQ: DEC-107
   }
 }
 
@@ -109,6 +111,12 @@ const FLOWS: FlowSpec[] = [
     flowId: fx('FLW-0002'), projectId: fx('PRJ-0001'), name: 'Foreigner onboarding', description: 'Passport holders', version: 'V4', status: 'ACTIVE', createdDaysAgo: 200,
     routing: { kind: 'RULE', priority: 1, summary: 'Document type is Passport' },
     revisions: [{ hoursAgo: 200 * 24, by: OWNER_ATOZ, reason: 'Flow activated', settings: settings({ fm: preset('HIGH'), cooldownMin: 120, docs: ['PASSPORT'], risk: true }) }],
+  },
+  {
+    // REQ: DEC-107 — V5: this flow's own risk minimums (EXIF looser, Noise stricter, OSINT looser than the defaults).
+    flowId: fx('FLW-0014'), projectId: fx('PRJ-0001'), name: 'Premium accounts', description: 'Premium customers, own risk minimums', version: 'V5', status: 'ACTIVE', createdDaysAgo: 9,
+    routing: { kind: 'RULE', priority: 2, summary: 'Customer segment is Premium' },
+    revisions: [{ hoursAgo: 9 * 24, by: OWNER_ATOZ, reason: 'Flow activated', settings: settings({ fm: preset('HIGH'), risk: { EXIF: 40, NOISE: 60, EMAIL_VALIDITY: 50, OSINT: 30 } }) }],
   },
   {
     flowId: fx('FLW-0003'), projectId: fx('PRJ-0001'), name: 'Tourist onboarding', description: 'Short-stay visitors (draft)', version: 'V4', status: 'DRAFT', createdDaysAgo: 3,

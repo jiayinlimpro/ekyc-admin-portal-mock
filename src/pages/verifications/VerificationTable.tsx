@@ -10,7 +10,7 @@ import { DOCUMENT_TYPE_LABELS } from '@/lib/labels'
 import { cn } from '@/lib/utils'
 import type { VerificationSort, VerificationSortKey } from '@/services/verificationService'
 
-type Column = 'Full Name' | 'Project' | 'Flow' | 'Document' | 'Status' | 'Risk Level' | 'Claimed By' | 'Created (MYT)' | 'Last updated (MYT)'
+type Column = 'Full Name' | 'Project' | 'Flow' | 'Document' | 'Status' | 'Risk' | 'Claimed By' | 'Created (MYT)' | 'Last updated (MYT)'
 
 // Sticky first column: on narrow screens the table still scrolls sideways, with the Reference ID visible.
 // REQ: DEC-40 — related values share a column (second line) so the list fits a desktop screen without scrolling.
@@ -20,7 +20,7 @@ const STICKY = 'sticky left-0 z-10 bg-card group-hover:bg-muted'
 const SORT_KEY: Partial<Record<Column | 'Reference ID', VerificationSortKey>> = {
   'Reference ID': 'referenceNo',
   Status: 'status',
-  'Risk Level': 'riskLevel',
+  Risk: 'riskResult',
   'Last updated (MYT)': 'lastUpdatedAt',
 }
 
@@ -86,7 +86,7 @@ const TwoLines = ({ top, sub }: { top: React.ReactNode; sub?: React.ReactNode })
 
 /**
  * REQ: DEC-40 — Project only when more than one project is in view (with the merchant when rows span merchants); Risk
- * Level only when a flow in view runs risk. No PII beyond Full Name, no client metadata, no duplicate-user information.
+ * (Clear / Flagged, DEC-107) only when a flow in view runs risk. No PII beyond Full Name, no client metadata, no duplicate-user information.
  */
 export function VerificationTable({
   rows,
@@ -122,7 +122,7 @@ export function VerificationTable({
     ['Flow', (r) => <TwoLines top={r.flowName} sub={r.workflowVersion} />],
     ['Document', (r) => <span className="whitespace-nowrap">{DOCUMENT_TYPE_LABELS[r.documentType]}</span>],
     ['Status', (r) => <StatusBadge status={r.status} />],
-    ['Risk Level', (r) => <RiskBadge level={r.riskLevel} />, showRisk],
+    ['Risk', (r) => <RiskBadge result={r.riskResult} />, showRisk],
     ['Claimed By', (r) => <ClaimedByCell row={r} now={now} currentUserId={currentUserId} />],
     ['Created (MYT)', (r) => <When iso={r.createdAt} />],
     ['Last updated (MYT)', (r) => <LastUpdated row={r} />],

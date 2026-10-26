@@ -1,6 +1,6 @@
 // Verifications List filter state <-> URL query params <-> service query. Pure, unit-tested.
 // Filters live in the URL so a filtered list can be shared and survives refresh / tab switches.
-import { RISK_LEVELS, VERIFICATION_STATUSES, type RiskLevel, type VerificationStatus } from '@/domain/types'
+import { RISK_RESULTS, VERIFICATION_STATUSES, type RiskResult, type VerificationStatus } from '@/domain/types'
 import { mytDateToUtcIso } from '@/lib/format'
 import { VERIFICATION_SORT_KEYS, type VerificationQuery, type VerificationSort, type VerificationSortKey } from '@/services/verificationService'
 
@@ -18,7 +18,7 @@ export interface ListFilters {
   claim: '' | ClaimState
   createdFrom: string // MYT date yyyy-MM-dd, '' = open
   createdTo: string
-  riskLevels: RiskLevel[]
+  riskResults: RiskResult[]
   lastUpdatedBy: '' | 'SYSTEM' | 'MANUAL'
 }
 
@@ -53,7 +53,7 @@ export const DEFAULT_FILTERS: ListFilters = {
   claim: '',
   createdFrom: '',
   createdTo: '',
-  riskLevels: [],
+  riskResults: [],
   lastUpdatedBy: '',
 }
 
@@ -91,7 +91,7 @@ export function parseListParams(sp: URLSearchParams): ListParams {
       claim: (CLAIM_STATES as readonly string[]).includes(claim ?? '') ? (claim as ClaimState) : '',
       createdFrom: date('from'),
       createdTo: date('to'),
-      riskLevels: list(sp.get('risk'), RISK_LEVELS),
+      riskResults: list(sp.get('risk'), RISK_RESULTS),
       lastUpdatedBy: updatedBy === 'SYSTEM' || updatedBy === 'MANUAL' ? updatedBy : '',
     },
     ...(sort && { sort }),
@@ -114,7 +114,7 @@ export function toSearchParams(p: ListParams): URLSearchParams {
   set('claim', f.claim)
   set('from', f.createdFrom)
   set('to', f.createdTo)
-  set('risk', f.riskLevels.join(','))
+  set('risk', f.riskResults.join(','))
   set('updatedBy', f.lastUpdatedBy)
   if (p.sort) sp.set('sort', `${p.sort.by}.${p.sort.dir}`)
   if (p.page > 1) sp.set('page', String(p.page))
@@ -143,7 +143,7 @@ export function toQuery(p: ListParams, inView?: readonly string[]): Verification
     claim: f.claim || undefined,
     createdFrom: f.createdFrom ? mytDateToUtcIso(f.createdFrom) : undefined,
     createdTo: f.createdTo ? mytDateToUtcIso(f.createdTo, true) : undefined,
-    riskLevels: f.riskLevels.length ? f.riskLevels : undefined,
+    riskResults: f.riskResults.length ? f.riskResults : undefined,
     lastUpdatedBy: f.lastUpdatedBy || undefined,
     ...(p.sort && { sort: p.sort }),
     page: p.page,

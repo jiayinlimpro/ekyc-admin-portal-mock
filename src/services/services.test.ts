@@ -82,8 +82,8 @@ describe('verificationService.list', () => {
     expect(newest).toEqual([...oldest].reverse())
   })
 
-  it('Given a column sort, then Reference ID, status (lifecycle order) and risk (Low → High, none last) sort both ways (DEC-100)', async () => {
-    const list = async (by: 'referenceNo' | 'status' | 'riskLevel', dir: 'asc' | 'desc') => (await svc.list({ sort: { by, dir }, pageSize: 500 }, OWNER)).items
+  it('Given a column sort, then Reference ID, status (lifecycle order) and risk (Clear → Flagged, none last) sort both ways (DEC-100, DEC-107)', async () => {
+    const list = async (by: 'referenceNo' | 'status' | 'riskResult', dir: 'asc' | 'desc') => (await svc.list({ sort: { by, dir }, pageSize: 500 }, OWNER)).items
     const refs = (await list('referenceNo', 'asc')).map((r) => r.referenceNo)
     expect(refs).toEqual([...refs].sort())
     expect((await list('referenceNo', 'desc')).map((r) => r.referenceNo)).toEqual([...refs].reverse())
@@ -92,11 +92,11 @@ describe('verificationService.list', () => {
     expect(statuses).toEqual([...statuses].sort((a, b) => a - b))
     const down = (await list('status', 'desc')).map((r) => order.indexOf(r.status))
     expect(down).toEqual([...down].sort((a, b) => b - a))
-    const risk = ['LOW', 'MEDIUM', 'HIGH']
+    const risk = ['CLEAR', 'FLAGGED']
     for (const dir of ['asc', 'desc'] as const) {
-      const levels = (await list('riskLevel', dir)).map((r) => r.riskLevel)
+      const levels = (await list('riskResult', dir)).map((r) => r.riskResult)
       const rated = levels.filter(Boolean).map((l) => risk.indexOf(l!))
-      expect(new Set(levels.slice(rated.length))).toEqual(new Set([undefined])) // no risk level: last either way
+      expect(new Set(levels.slice(rated.length))).toEqual(new Set([undefined])) // no risk result: last either way
       expect(rated).toEqual([...rated].sort((a, b) => (dir === 'asc' ? a - b : b - a)))
       expect(rated.length).toBeGreaterThan(0)
     }
@@ -105,7 +105,7 @@ describe('verificationService.list', () => {
   it('Given filter options, then only projects and flows in the case scope, with whether each flow runs risk', async () => {
     const o = await svc.filterOptions(ALI)
     expect(o.projects.map((p) => p.projectId)).toEqual([fx('PRJ-0001'), fx('PRJ-0002')])
-    expect(o.flows.map((f) => f.flowId)).toEqual([fx('FLW-0001'), fx('FLW-0002'), fx('FLW-0004')]) // FLW-0003 is Draft
+    expect(o.flows.map((f) => f.flowId)).toEqual([fx('FLW-0001'), fx('FLW-0002'), fx('FLW-0014'), fx('FLW-0004')]) // FLW-0003 is Draft
     expect(o.flows.find((f) => f.flowId === fx('FLW-0004'))!.runsRisk).toBe(false)
     expect(o.flows.find((f) => f.flowId === fx('FLW-0001'))!.runsRisk).toBe(true)
     expect((await svc.filterOptions(ADMIN)).projects.length).toBeGreaterThan(2) // every merchant (DEC-75)

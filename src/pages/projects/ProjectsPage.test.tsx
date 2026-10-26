@@ -41,7 +41,7 @@ describe('Projects (DEC-90, DEC-93)', () => {
     const def = await rowOf('Default')
     expect(def.textContent).toContain('Owner')
     expect(def.textContent).toContain('Malaysian onboarding')
-    expect(def.textContent).toMatch(/2 active \/ 3/) // Malaysian, Foreigner active; Tourist draft
+    expect(def.textContent).toMatch(/3 active \/ 4/) // Malaysian, Foreigner, Premium (V5) active; Tourist draft
     expect((await rowOf('SME app')).textContent).toContain('45 min')
   })
 

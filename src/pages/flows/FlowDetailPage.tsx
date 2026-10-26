@@ -4,7 +4,6 @@ import { AlertTriangle, ArrowLeft, FlaskConical } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAccess } from '@/app/access'
 import { FormField } from '@/components/common/FormField'
-import { NativeSelect } from '@/components/common/NativeSelect'
 import { OpenQuestionTag } from '@/components/common/OpenQuestionTag'
 import { EmptyState, ErrorState } from '@/components/common/States'
 import { Button } from '@/components/ui/button'
@@ -15,10 +14,10 @@ import type { ImpactSummary } from '@/domain/flowImpact'
 import { revisionLabel } from '@/domain/flowRules'
 import { MIN_REASON_LENGTH } from '@/domain/flowSettings'
 import { hasRisk } from '@/domain/registryRules'
-import { RISK_LEVELS, VERIFICATION_STATUSES, type DocumentType, type FlowSettings, type RiskLevel } from '@/domain/types'
+import { RISK_CATEGORIES, RISK_CATEGORY_LABELS, VERIFICATION_STATUSES, type DocumentType, type FlowSettings } from '@/domain/types'
 import { errorMessage, useLoad } from '@/hooks/useLoad'
 import { formatMyt } from '@/lib/format'
-import { DOCUMENT_TYPE_LABELS, RISK_LABELS, STATUS_LABELS } from '@/lib/labels'
+import { DOCUMENT_TYPE_LABELS, STATUS_LABELS } from '@/lib/labels'
 import { isServiceError } from '@/services/errors'
 import { flowService, type FlowDetail, type FlowEdit } from '@/services/flowService'
 import { useSession } from '@/stores/sessionStore'
@@ -41,7 +40,7 @@ const FIELD_LABELS: Record<string, string> = {
   sessionExpiryMin: 'Session expiry (min)',
   acceptedDocuments: 'Accepted documents',
   'risk.enabled': 'Risk assessment on',
-  'risk.maxAllowedLevel': 'Maximum allowed risk level',
+  ...Object.fromEntries(RISK_CATEGORIES.map((c) => [`risk.minimums.${c}`, `${RISK_CATEGORY_LABELS[c]} minimum`])),
 }
 
 const numberOrNaN = (s: string) => (s.trim() === '' ? Number.NaN : Number(s))
@@ -84,7 +83,7 @@ function Editor({ detail, onSaved }: { detail: FlowDetail; onSaved: () => void }
   const { flow, entry } = detail
   const project = projects.find((p) => p.projectId === flow.projectId)
   const canSetAdvanced = !!account && !!project && canInProject(account, 'setAdvancedThresholds', project)
-  // REQ: DEC-70 — thresholds, retries and risk level need Change verification level and retries.
+  // REQ: DEC-70 — thresholds, retries and risk minimums need Change verification level and retries.
   const canChangeLevel = !!account && !!project && canInProject(account, 'changeVerificationLevel', project)
   // REQ: DEC-99 / DEC-102 — Flows View is read-only; saving needs Edit (staff: Flows Edit).
   const canEdit = !!account && !!project && canInProject(account, 'editFlows', project)
@@ -182,24 +181,31 @@ function Editor({ detail, onSaved }: { detail: FlowDetail; onSaved: () => void }
         </fieldset>
       </Card>
 
-      {hasRisk(entry) && (
-        <Card title="Risk Assessment" aside={<OpenQuestionTag id="OQ-05" />}>
-          {entry.code === 'V5' ? (
-            <p className="text-sm text-muted-foreground">V5 per-component risk thresholds are not defined yet.</p>
-          ) : (
-            <fieldset disabled={!editable || !canChangeLevel} className="max-w-sm">
-              <legend className="sr-only">Risk</legend>
-              <FormField id="fl-risk" label="Maximum allowed risk level" hint="Above it, a case that passed every check goes to Pending Review. Risk never auto-rejects.">
-                <NativeSelect id="fl-risk" value={s.risk?.maxAllowedLevel ?? 'MEDIUM'} onChange={(e) => set({ risk: { enabled: true, maxAllowedLevel: e.target.value as RiskLevel } })}>
-                  {RISK_LEVELS.map((r) => (
-                    <option key={r} value={r}>
-                      {RISK_LABELS[r]}
-                    </option>
-                  ))}
-                </NativeSelect>
+      {/* REQ: DEC-107 — one minimum per category (0–100, higher = more genuine). V5: set by the flow; V4: fixed, read-only. */}
+      {hasRisk(entry) && s.risk && (
+        <Card title="Risk Assessment" aside={<OpenQuestionTag id="OQ-34" />}>
+          <p className="mb-3 text-sm text-muted-foreground">
+            {entry.riskMinimumsPerFlow ? 'One minimum per category.' : `Fixed by the platform for ${entry.code}.`} A category below its minimum makes the risk result Flagged: a case that
+            passed every check goes to Pending Review. Risk never rejects.
+          </p>
+          <fieldset disabled={!editable || !canChangeLevel || !entry.riskMinimumsPerFlow} className="grid max-w-3xl gap-3 sm:grid-cols-4">
+            <legend className="sr-only">Risk minimums</legend>
+            {RISK_CATEGORIES.map((c) => (
+              <FormField key={c} id={`fl-risk-${c}`} label={`${RISK_CATEGORY_LABELS[c]} minimum`} error={errors[`risk.minimums.${c}`]}>
+                <Input
+                  id={`fl-risk-${c}`}
+                  type="number"
+                  min={0}
+                  max={100}
+                  step={1}
+                  value={shown(s.risk!.minimums[c])}
+                  onChange={(e) => set({ risk: { enabled: true, minimums: { ...s.risk!.minimums, [c]: numberOrNaN(e.target.value) } } })}
+                  aria-invalid={!!errors[`risk.minimums.${c}`]}
+                />
               </FormField>
-            </fieldset>
-          )}
+            ))}
+          </fieldset>
+          {errors.risk && <p role="alert" className="mt-2 text-sm text-destructive">{errors.risk}</p>}
         </Card>
       )}
 

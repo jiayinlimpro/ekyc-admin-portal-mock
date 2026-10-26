@@ -34,8 +34,8 @@ export function verification(overrides: Partial<Verification> = {}): Verificatio
     lastUpdatedBy: { kind: 'SYSTEM' },
     lastUpdatedAt: NOW.toISOString(),
     attempts: [completed(ALL_PASS)],
-    riskLevel: 'LOW',
-    riskScore: 10,
+    riskScores: { EXIF: 80, NOISE: 85, EMAIL_VALIDITY: 75, OSINT: 70 },
+    riskResult: 'CLEAR',
     documentType: 'MYKAD',
     pii: {
       fullName: 'TEST PERSON',

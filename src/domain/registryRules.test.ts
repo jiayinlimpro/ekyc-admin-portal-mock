@@ -12,6 +12,7 @@ const input = (overrides: Partial<RegistryInput> = {}): RegistryInput => ({
   faceMatchMethod: 'ID_VS_LIVENESS',
   requiredInputs: ['EMAIL'],
   configurableChecks: ['FACE_MATCH', 'LIVENESS'],
+  riskMinimumsPerFlow: true,
   releaseNote: 'First registration',
   ...overrides,
 })
@@ -34,6 +35,10 @@ const entry = (code: string, status: RegistryStatus, isDefault = false): Registr
 const fields = (i: RegistryInput, codes: string[] = []) => validateRegistryInput(i, codes).map((e) => e.field)
 
 describe('registry: register and edit (FRS)', () => {
+  it('Given risk minimums per flow without the Risk Assessment phase, then refused (DEC-107)', () => {
+    expect(validateRegistryInput(input({ phases: ['ID_CAPTURE', 'LIVENESS_CHECK'] }), [])).toContainEqual({ field: 'riskMinimumsPerFlow', message: 'Risk minimums need the Risk Assessment phase' })
+  })
+
   it('Given a complete V5, then no errors', () => {
     expect(validateRegistryInput(input(), ['V1', 'V3', 'V4'])).toEqual([])
   })

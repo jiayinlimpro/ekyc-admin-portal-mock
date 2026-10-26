@@ -3,7 +3,7 @@
 // each case's flow revision.
 import type { CheckEvaluation } from './checkRules'
 import { isClaimActive } from './claimRules'
-import { CHECKS, RISK_LEVELS, VERIFICATION_STATUSES, type Check, type RiskLevel, type Verification, type VerificationStatus } from './types'
+import { CHECKS, RISK_RESULTS, VERIFICATION_STATUSES, type Check, type RiskResult, type Verification, type VerificationStatus } from './types'
 
 const MYT = 8 * 3_600_000
 const DAY = 86_400_000
@@ -148,7 +148,7 @@ export interface IntelligenceStats {
   retriesExhausted: number
   /** Last score per check and session. */
   histograms: Record<Check, number[]>
-  riskLevels: Record<RiskLevel, number>
+  riskResults: Record<RiskResult, number> // REQ: DEC-107 — Clear vs Flagged
   byFlow: FlowIntel[]
 }
 
@@ -162,7 +162,7 @@ export function intelligenceStats(records: readonly Verification[], range: DateR
   const bins = Math.ceil(100 / HISTOGRAM_BIN)
   const histograms = Object.fromEntries(CHECKS.map((c) => [c, Array<number>(bins).fill(0)])) as Record<Check, number[]>
   const retriesByCheck = Object.fromEntries(CHECKS.map((c) => [c, 0])) as Record<Check, number>
-  const riskLevels = Object.fromEntries(RISK_LEVELS.map((l) => [l, 0])) as Record<RiskLevel, number>
+  const riskResults = Object.fromEntries(RISK_RESULTS.map((l) => [l, 0])) as Record<RiskResult, number>
   const flows = new Map<string, FlowIntel>()
   const out = { sessions: rows.length, submitted: 0, firstAttemptPass: 0, retriedSessions: 0, retries: 0, retriesExhausted: 0 }
 
@@ -197,10 +197,10 @@ export function intelligenceStats(records: readonly Verification[], range: DateR
       else if (ctx.hasSelfie && !(v.submissions.LIVENESS?.length ?? 0)) f.dropOff.selfie = (f.dropOff.selfie ?? 0) + 1
       else f.dropOff.liveness++
     }
-    if (v.riskLevel) riskLevels[v.riskLevel]++
+    if (v.riskResult) riskResults[v.riskResult]++
     flows.set(v.flowId, f)
   }
-  return { ...out, retriesByCheck, histograms, riskLevels, byFlow: [...flows.values()].sort((a, b) => b.sessions - a.sessions) }
+  return { ...out, retriesByCheck, histograms, riskResults, byFlow: [...flows.values()].sort((a, b) => b.sessions - a.sessions) }
 }
 
 // ----- Billing -----------------------------------------------------------------------------------------------------------

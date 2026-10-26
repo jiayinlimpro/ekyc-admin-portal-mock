@@ -6,6 +6,7 @@ import { ADMIN, ALI, HAFIZ, NOW, OWNER, SITI } from '@/test/factories'
 import { auditService } from './auditService'
 import { devService } from './devService'
 import { isServiceError } from './errors'
+import { registryService } from './registryService'
 import { flowService } from './flowService'
 import { projectService } from './projectService'
 import { roleService } from './roleService'
@@ -87,7 +88,9 @@ describe('flowService access (DEC-70, DEC-75)', () => {
     const f = await flowService.create(fx('PRJ-0003'), { name: 'Students', description: 'University sign-ups', workflowVersion: 'V3' }, ADMIN)
     expect(f).toMatchObject({ projectId: fx('PRJ-0003'), merchantId: fx('MER-0002'), status: 'DRAFT', workflowVersion: 'V3' })
     expect(f.settings.checks.LIVENESS.threshold).toEqual({ preset: 'STANDARD' })
-    await expectError(flowService.create(fx('PRJ-0003'), { name: 'Next gen', description: '', workflowVersion: 'V5' }, ADMIN), 'VALIDATION', 'Choose an active workflow version.')
+    const v5 = db.state().registry.find((e) => e.code === 'V5')!
+    await registryService.register({ ...v5, code: 'V6', name: 'Next gen', stateMachineSandbox: undefined, stateMachineProduction: undefined, releaseNote: 'Draft' }, ADMIN)
+    await expectError(flowService.create(fx('PRJ-0003'), { name: 'Next gen', description: '', workflowVersion: 'V6' }, ADMIN), 'VALIDATION', 'Choose an active workflow version.')
   })
 })
 

@@ -51,7 +51,7 @@ const flow = (overrides: Partial<Flow> = {}): Flow => ({
     cooldownMin: 0,
     acceptedDocuments: ['PASSPORT'],
     sessionExpiryMin: 30,
-    risk: { enabled: true, maxAllowedLevel: 'MEDIUM' },
+    risk: { enabled: true, minimums: { EXIF: 50, NOISE: 50, EMAIL_VALIDITY: 50, OSINT: 50 } },
   },
   revision: 3,
   routing: { kind: 'RULE', priority: 1, summary: 'nationality ≠ MYS' },

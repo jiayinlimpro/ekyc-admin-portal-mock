@@ -60,7 +60,7 @@ describe('Flows List (DEC-94)', () => {
     const router = renderAt('/flows')
     fireEvent.click(await screen.findByRole('button', { name: /New flow/ }))
     const version = await screen.findByLabelText('Workflow version')
-    await waitFor(() => expect(within(version).getAllByRole('option').map((o) => o.getAttribute('value'))).toEqual(['V1', 'V3', 'V4']))
+    await waitFor(() => expect(within(version).getAllByRole('option').map((o) => o.getAttribute('value'))).toEqual(['V1', 'V3', 'V4', 'V5']))
     fireEvent.change(screen.getByLabelText('Flow name'), { target: { value: 'Students' } })
     fireEvent.click(screen.getByRole('button', { name: 'Create flow' }))
     await waitFor(() => expect(router.state.location.pathname).toMatch(/^\/flows\/flw_[a-z0-9]{24}$/))
