@@ -1,9 +1,9 @@
-// Named scenarios S01–S21 (docs/SCENARIOS.md). Each one is a UAT test case with a fixed Reference No (MOCK-05).
+// Named scenarios S01–S22 (docs/SCENARIOS.md). Each one is a UAT test case with a fixed Reference No (MOCK-05).
 // Thresholds referred to below come from the flow revision (fixtures/catalog.ts) and the presets (OQ-02).
 import { Faker, en } from '@faker-js/faker'
 import { makeAudit } from '@/domain/audit'
 import { applyDecision } from '@/domain/claimRules'
-import type { Actor, AuditEntry, Check, DocumentType, IdCaptureTelemetry, RiskCategoryScore, UpdatedBy, Verification, VerificationStatus } from '@/domain/types'
+import type { Actor, AuditEntry, Check, DocumentType, IdCaptureTelemetry, RiskCategoryScore, SelfieTelemetry, UpdatedBy, Verification, VerificationStatus } from '@/domain/types'
 import { buildCase } from '../builders'
 import { clientMetadata, fakeIp, person } from '../malaysia'
 import type { Catalog } from './catalog'
@@ -44,6 +44,7 @@ export const EDGE_CASES: EdgeCaseExpectation[] = [
   { id: 'S18', title: 'Rejected 30 min ago; 120-min cooldown running', asUserId: fx('USR-2026-0012'), referenceNo: 'KYC-260901-900018', flowId: fx('FLW-0002'), status: 'REJECTED', reason: 'Liveness face does not match ID face (Retry Not Allowed)', lastUpdatedBy: 'SYSTEM' },
   { id: 'S19', title: 'V1 face match (ID vs selfie) below threshold, retry pending', asUserId: fx('USR-2026-0044'), referenceNo: 'KYC-260901-900019', flowId: fx('FLW-0005'), status: 'PROCESSING' },
   { id: 'S20', title: 'Driving License: face match retries used up, last in review band', asUserId: fx('USR-2026-0044'), referenceNo: 'KYC-260901-900020', flowId: fx('FLW-0005'), status: 'PENDING_REVIEW', reason: 'ID face and Selfie face do not match (Retry Not Allowed)' },
+  { id: 'S22', title: 'V1: selfie too dark, rejected; user stopped, nothing compared', asUserId: fx('USR-2026-0044'), referenceNo: 'KYC-260901-900022', flowId: fx('FLW-0005'), status: 'PROCESSING' },
   { id: 'S21', title: 'Existing user found (duplicate, information only)', asUserId: fx('USR-2026-0012'), referenceNo: 'KYC-260901-900021', flowId: fx('FLW-0001'), status: 'PENDING_REVIEW', reason: 'Liveness face does not match ID face (Retry Not Allowed)' },
 ]
 
@@ -66,7 +67,7 @@ export function buildEdgeCases(ctx: { now: Date; catalog: Catalog }): {
     flowId: string,
     startMin: number,
     submissions: Partial<Record<Check, number[]>>,
-    opts: { riskScore?: number; documentType?: DocumentType; stepMin?: number; idCapture?: Partial<IdCaptureTelemetry>; duplicateSimilarity?: number; riskCategories?: RiskCategoryScore[] } = {},
+    opts: { riskScore?: number; documentType?: DocumentType; stepMin?: number; idCapture?: Partial<IdCaptureTelemetry>; duplicateSimilarity?: number; riskCategories?: RiskCategoryScore[]; stoppedAtSelfie?: Partial<SelfieTelemetry> } = {},
   ): Verification => {
     const flow = catalog.flows.find((x) => x.flowId === flowId)!
     const p = person(f, now, opts.documentType ?? 'MYKAD')
@@ -84,6 +85,7 @@ export function buildEdgeCases(ctx: { now: Date; catalog: Catalog }): {
       idCapture: opts.idCapture,
       duplicateSimilarity: opts.duplicateSimilarity ?? 20 + seq, // REQ: DEC-105 — new users, except S21
       riskCategories: opts.riskCategories,
+      stoppedAtSelfie: opts.stoppedAtSelfie,
     })
   }
   const passes = (n: number) => Array.from({ length: n }, (_, i) => 95.5 + i * 0.4)
@@ -150,6 +152,8 @@ export function buildEdgeCases(ctx: { now: Date; catalog: Catalog }): {
     make(20, fx('FLW-0005'), 20, { FACE_MATCH: [80.1, 84.0, 86.2, 88.0], LIVENESS: [96.2] }, { documentType: 'DRIVING_LICENSE' }),
     // Atoz FLW-0001: face match in the review band after 3 retries; the face search found an existing user (97.6).
     make(21, fx('FLW-0001'), 50, { FACE_MATCH: [86.0, 87.5, 88.0, 89.2], LIVENESS: passes(4) }, { riskScore: 18, duplicateSimilarity: 97.6 }),
+    // Vantage FLW-0005 (V1): the selfie was too dark (brightness 14.2), so the engine ended the run before Face Match.
+    make(22, fx('FLW-0005'), 15, {}, { idCapture: { faceConfidence: 98.4, imageWidth: 1600, imageHeight: 1000, ocrFieldsMissing: [] }, stoppedAtSelfie: { brightness: 14.2, sharpness: 52.0, yaw: 4.0, pitch: -3.0, eyesOpen: true, occluded: false } }),
   ]
 
   // S16: Nurul (Reviewer, SME app) looked at it a few minutes ago without claiming it.

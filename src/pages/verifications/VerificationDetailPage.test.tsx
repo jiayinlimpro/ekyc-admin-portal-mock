@@ -32,9 +32,9 @@ function column(table: HTMLElement, header: string): string[] {
   const i = within(table).getAllByRole('columnheader').findIndex((h) => h.textContent === header)
   return within(table).getAllByRole('row').slice(1).map((r) => (r.children[i] as HTMLElement).textContent ?? '')
 }
-/** Telemetry row (metric label) → [value, threshold, result, set by]. */
+/** Telemetry row (metric label; the last one when a label repeats across stages) → [value, threshold, result, set by]. */
 function metric(label: string): string[] {
-  const row = within(screen.getByRole('table', { name: 'Telemetry' })).getByRole('rowheader', { name: label }).closest('tr')!
+  const row = within(screen.getByRole('table', { name: 'Telemetry' })).getAllByRole('rowheader', { name: label }).at(-1)!.closest('tr')!
   return [...row.querySelectorAll('td')].map((td) => td.textContent ?? '')
 }
 
@@ -180,22 +180,37 @@ describe('Verification Detail', () => {
     await open(S(1))
     expect(screen.queryByRole('region', { name: 'Risk Assessment' })).toBeNull()
     expect(region('Checks').getByText('Selfie')).toBeTruthy()
-    for (const [label, threshold] of [['Sharpness', '> 25'], ['Brightness', '> 25'], ['Yaw', 'within ±30°'], ['Pitch', 'within ±30°'], ['Face size', '≥ 50 px']]) {
+    for (const [label, threshold] of [['Eyes open', 'Yes'], ['Face covered', 'No'], ['Sharpness', '> 25'], ['Brightness', '> 25'], ['Yaw', 'within ±30°'], ['Pitch', 'within ±30°']]) {
       expect(metric(label).slice(1), label).toEqual([threshold, 'Pass', 'Engine'])
     }
-    expect(metric('Similarity (ID vs selfie)')[3]).toBe('Flow')
+    expect(metric('Face size').slice(1)).toEqual(['50 px configured, not checked', 'Information only', 'Engine']) // OQ-32
+    expect(metric('Similarity (face vs ID)')[3]).toBe('Flow')
+    expect(region('Checks').getByText('Similarity (selfie vs ID)')).toBeTruthy()
   })
 
-  it('Given S03, then the faces side by side with the similarity, and face confidence kept apart from similarity (DEC-105)', async () => {
+  it('Given S03, then the faces side by side with the similarity; similarity (face vs ID) and face match (real face) are separate (DEC-105)', async () => {
     await open(S(3))
     const evidence = region('Evidence')
     expect(evidence.getByRole('img', { name: /^MyKad front/ })).toBeTruthy()
     expect(evidence.getByRole('img', { name: /^Liveness frame, attempt 4/ })).toBeTruthy()
     expect(evidence.getByText('Similarity 88.5')).toBeTruthy()
-    expect(metric('Similarity (ID vs liveness face)')).toEqual(['88.5', 'Auto-Reject < 85 · Auto-Pass ≥ 95', 'Review band', 'Flow'])
-    expect(metric('Matched face confidence').slice(1)).toEqual(['> 90', 'Pass', 'Engine'])
-    expect(within(screen.getByRole('table', { name: 'Telemetry' })).getAllByRole('rowheader', { name: 'Face confidence' })).toHaveLength(1) // ID capture's
+    expect(metric('Similarity (face vs ID)')).toEqual(['88.5', 'Auto-Reject < 85 · Auto-Pass ≥ 95', 'Review band', 'Flow'])
+    expect(metric('Face match (real face)').slice(1)).toEqual(['> 90', 'Pass', 'Engine'])
+    expect(metric('Face match (real face on the ID)').slice(1)).toEqual(['≥ 90', 'Pass', 'Engine'])
+    expect(region('Checks').getByText('Similarity (liveness face vs ID)')).toBeTruthy()
+    expect(region('Checks').queryByText(/^Face match/)).toBeNull() // the flow-set check is the similarity
     expect(metric('Image size')[1]).toBe('≥ 320 × 320 px')
+  })
+
+  it('Given V1 S22, whose selfie was too dark, then it was not compared: no similarity, and the rejected selfie says why (DEC-105)', async () => {
+    useSession.getState().switchUser(OTHER_MERCHANT_REVIEWER)
+    await open(S(22))
+    expect(region('Checks').getByText('Fail: not compared with the ID')).toBeTruthy()
+    expect(metric('Brightness')).toEqual(['14.2', '> 25', 'Fail', 'Engine'])
+    expect(metric('Similarity (face vs ID)').slice(0, 1)).toEqual(['Not run'])
+    expect(region('Evidence').getByText('Not compared: the selfie failed its quality check.')).toBeTruthy()
+    expect(within(screen.getByRole('table', { name: 'Attempts' })).getByText('Selfie rejected (free)')).toBeTruthy()
+    expect(region('Checks').getByText('Not checked yet')).toBeTruthy() // duplicate user: no search without a face comparison
   })
 
   it('Given S05 stopped at ID capture, then the failing ID checks say why (DEC-105)', async () => {

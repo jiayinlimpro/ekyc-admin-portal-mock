@@ -57,14 +57,17 @@ export function EvidenceSection({ v }: { v: VerificationDetail }) {
           ) : (
             <div className="flex aspect-[4/5] w-full items-center justify-center rounded-md border border-dashed p-2 text-center text-xs text-muted-foreground">No face submitted yet</div>
           )}
-          <figcaption className="mt-1 text-xs text-muted-foreground">{face ? `${faceLabel} · attempt ${face.attemptNo}` : faceLabel}</figcaption>
+          <figcaption className="mt-1 text-xs text-muted-foreground">{face ? `${faceLabel} · attempt ${face.attemptNo}${similarity === undefined ? ' (rejected)' : ''}` : faceLabel}</figcaption>
         </figure>
       </div>
       {similarity !== undefined && fm && (
         <p className={cn('mt-3 rounded-md px-3 py-2 text-sm', SIMILARITY_TONE[fm.state])}>
           <span className="font-semibold tabular-nums">Similarity {similarity.toFixed(1)}</span> · <Result state={fm.state} />
-          <span className="block text-xs opacity-80">{bandText(fm.thresholds)}</span>
+          <span className="block text-xs opacity-80">Face vs ID · {bandText(fm.thresholds)}</span>
         </p>
+      )}
+      {similarity === undefined && !!face?.telemetry?.selfieRetakes?.length && (
+        <p className="mt-3 rounded-md bg-muted px-3 py-2 text-sm text-muted-foreground">Not compared: the selfie failed its quality check.</p>
       )}
     </Section>
   )
@@ -92,6 +95,8 @@ export function ChecksSection({ v }: { v: VerificationDetail }) {
   const idFailed = idRows.filter((r) => r.result === 'FAIL')
   const face = lastFaceAttempt(v)
   const selfie = face?.telemetry?.selfie ? selfieMetrics(face.telemetry.selfie) : undefined
+  const selfieRetakes = v.attempts.reduce((n, a) => n + (a.telemetry?.selfieRetakes?.length ?? 0), 0)
+  const rejectedSelfie = !selfie && face?.telemetry?.selfieRetakes?.length
   const items: [string, React.ReactNode][] = [
     [
       'ID capture',
@@ -108,8 +113,15 @@ export function ChecksSection({ v }: { v: VerificationDetail }) {
     ],
   ]
   if (v.steps.phases.includes('SELFIE_CAPTURE'))
-    items.push(['Selfie', selfie ? (selfie.every((r) => r.result === 'PASS') ? <span key="s" className={PASS_TONE}>Pass</span> : <span key="s" className={FAIL_TONE}>Fail</span>) : <span key="s" className="text-muted-foreground">Not captured yet</span>])
-  if (v.checks.some((c) => c.check === 'FACE_MATCH')) items.push([v.steps.faceMatchMethod === 'ID_VS_SELFIE' ? 'Face match (ID vs selfie)' : 'Face match (ID vs liveness)', <CheckLine key="fm" v={v} check="FACE_MATCH" />])
+    items.push([
+      'Selfie',
+      <div key="s" className="space-y-0.5">
+        {selfie ? <span className={PASS_TONE}>Pass</span> : rejectedSelfie ? <span className={FAIL_TONE}>Fail: not compared with the ID</span> : <span className="text-muted-foreground">Not captured yet</span>}
+        {selfieRetakes > 0 && <div className="text-xs text-muted-foreground">{selfieRetakes} selfie(s) rejected by the quality check · free retakes, never compared</div>}
+      </div>,
+    ])
+  // REQ: DEC-105 — the flow-set check is the similarity of the face with the ID; "Face match" (real face) is in Telemetry.
+  if (v.checks.some((c) => c.check === 'FACE_MATCH')) items.push([v.steps.faceMatchMethod === 'ID_VS_SELFIE' ? 'Similarity (selfie vs ID)' : 'Similarity (liveness face vs ID)', <CheckLine key="fm" v={v} check="FACE_MATCH" />])
   if (v.checks.some((c) => c.check === 'LIVENESS')) items.push(['Liveness', <CheckLine key="lv" v={v} check="LIVENESS" />])
   items.push([
     'Duplicate user',
@@ -196,7 +208,7 @@ export function RulesAppliedSection({ v }: { v: VerificationDetail }) {
     <Section title="Rules applied" aside={<span className="font-mono text-xs text-muted-foreground">{v.revisionLabel}</span>}>
       <Fields
         items={[
-          ['Face match', check('FACE_MATCH')],
+          ['Similarity (face vs ID)', check('FACE_MATCH')],
           ['Liveness', check('LIVENESS')],
           ['Cooldown', r.cooldownMin > 0 ? `${r.cooldownMin} min after a rejection` : 'None'],
           ['Accepted documents', r.acceptedDocuments.map((d) => DOCUMENT_TYPE_LABELS[d]).join(', ')],

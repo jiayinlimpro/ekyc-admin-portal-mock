@@ -55,7 +55,7 @@ export interface Attempt {
   startedAt: string // ISO UTC
   outcome: AttemptOutcome
   isUserRetake: boolean // REQ: DEC-18 — Retry KPI counts only these
-  phaseScores: Partial<Record<CapturePhase, number>> // FACE_MATCH = similarity, LIVENESS = liveness confidence
+  phaseScores: Partial<Record<CapturePhase, number>> // FACE_MATCH = similarity (face vs ID), LIVENESS = liveness confidence
   faceImage?: StoredFile // the face matched in this attempt: the selfie (V1) or the liveness frame (V3/V4/V5)
   telemetry?: AttemptTelemetry // REQ: DEC-105
 }
@@ -64,7 +64,7 @@ export interface Attempt {
 /** The accepted ID image (or the last one, if the session stopped at ID capture). Retakes before it are `idCaptureSoftRejects`. */
 export interface IdCaptureTelemetry {
   facesFound: number
-  faceConfidence: number // 0–100: a face was detected (not a match score)
+  faceConfidence: number // 0–100: "face match", a real face on the ID (≥ 90); not a similarity
   eyesOpen: boolean
   occluded: boolean // face covered (mask, hand, glare)
   imageWidth: number // px
@@ -72,21 +72,23 @@ export interface IdCaptureTelemetry {
   ocrFieldsMissing: string[] // required fields of the document type (`OCR_FIELDS`) that were not read
 }
 
-/** V1 selfie quality, per face match submission. */
+/** V1 selfie quality (the engine's "Selfie Quality Check"). A selfie that fails it ends the run: no similarity. */
 export interface SelfieTelemetry {
-  faceConfidence: number
   eyesOpen: boolean
   occluded: boolean
   sharpness: number // 0–100
   brightness: number // 0–100
   yaw: number // degrees, signed
   pitch: number // degrees, signed
-  faceSizePx: number // shorter side of the face box
+  faceSizePx: number // shorter side of the face box; not part of the selfie check (OQ-32)
 }
 
 export interface AttemptTelemetry {
-  selfie?: SelfieTelemetry // V1 only
-  matchedFaceConfidence?: number // face match: confidence that the matched face is a face (not the similarity)
+  selfie?: SelfieTelemetry // V1 only: the selfie that passed and was compared
+  /** V1 only: selfies the engine rejected before that one (free retakes, DEC-18). None of them was compared with the ID. */
+  selfieRetakes?: SelfieTelemetry[]
+  /** "Face match": confidence that the compared face is a real face (> 90, engine). Not the similarity. */
+  faceMatchConfidence?: number
 }
 
 /** REQ: DEC-105 — the face search across the merchant's users. Information only: never changes a check or the status. */

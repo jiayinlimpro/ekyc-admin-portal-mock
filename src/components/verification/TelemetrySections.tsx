@@ -1,20 +1,21 @@
 // REQ: DEC-105 — every number the engine produced, with its threshold, result and who sets the threshold.
-// Face confidence (a face was detected) and similarity (two faces match) are always separate, labelled rows.
+// "Similarity" (the face compared with the ID face) and "Face match" (it is a real face) are always separate rows.
+import { Fragment } from 'react'
 import type { Check, VerificationDetail } from '@/domain/types'
-import { ENGINE_THRESHOLDS, duplicateUserText, lastFaceAttempt, flowMetric, idCaptureMetrics, matchedFaceConfidenceMetric, selfieMetrics, type MetricResult, type MetricRow } from '@/domain/telemetry'
+import { ENGINE_THRESHOLDS, duplicateUserText, lastFaceAttempt, flowMetric, idCaptureMetrics, faceMatchMetric, selfieMetrics, type MetricResult, type MetricRow } from '@/domain/telemetry'
 import { formatMyt } from '@/lib/format'
 import { OUTCOME_LABELS } from '@/lib/labels'
 import { cn } from '@/lib/utils'
 import { Section } from './Section'
 
-const RESULT: Record<MetricResult | 'INFO', { label: string; tone: string }> = {
+const RESULT: Record<MetricResult, { label: string; tone: string }> = {
   PASS: { label: 'Pass', tone: 'text-green-700 dark:text-green-400' },
   REVIEW: { label: 'Review band', tone: 'text-amber-700 dark:text-amber-300' },
   FAIL: { label: 'Fail', tone: 'text-red-700 dark:text-red-400' },
   INFO: { label: 'Information only', tone: 'text-muted-foreground' },
 }
 
-function ResultText({ result }: { result: MetricResult | 'INFO' }) {
+function ResultText({ result }: { result: MetricResult }) {
   return <span className={cn('font-medium whitespace-nowrap', RESULT[result].tone)}>{RESULT[result].label}</span>
 }
 
@@ -26,7 +27,7 @@ function SetBy({ source }: { source: MetricRow['source'] }) {
   )
 }
 
-type Group = { stage: string; rows: (MetricRow | (Omit<MetricRow, 'result'> & { result: 'INFO' }))[] }
+type Group = { stage: string; rows: MetricRow[] }
 
 function groups(v: VerificationDetail): Group[] {
   const out: Group[] = []
@@ -34,11 +35,19 @@ function groups(v: VerificationDetail): Group[] {
   const ev = (c: Check) => v.checks.find((x) => x.check === c)
   if (v.idCapture) out.push({ stage: 'ID capture', rows: idCaptureMetrics(v.idCapture, v.documentType) })
   if (face?.telemetry?.selfie) out.push({ stage: 'Selfie', rows: selfieMetrics(face.telemetry.selfie) })
+  const rejected = !face?.telemetry?.selfie ? face?.telemetry?.selfieRetakes?.at(-1) : undefined
+  // REQ: DEC-105 — V1: the selfie failed its quality check, so the run ended before the face comparison.
+  if (rejected) out.push({ stage: 'Selfie (rejected: not compared with the ID)', rows: selfieMetrics(rejected) })
   const fm = ev('FACE_MATCH')
+  const subject = v.steps.faceMatchMethod === 'ID_VS_SELFIE' ? 'selfie' : 'liveness face'
   if (fm?.lastScore !== undefined) {
-    const label = v.steps.faceMatchMethod === 'ID_VS_SELFIE' ? 'Similarity (ID vs selfie)' : 'Similarity (ID vs liveness face)'
-    const conf = v.attempts.findLast((a) => a.telemetry?.matchedFaceConfidence !== undefined)?.telemetry?.matchedFaceConfidence
-    out.push({ stage: 'Face match', rows: [flowMetric('faceMatch.similarity', label, fm.lastScore, fm.thresholds), ...(conf === undefined ? [] : [matchedFaceConfidenceMetric(conf)])] })
+    const conf = v.attempts.findLast((a) => a.telemetry?.faceMatchConfidence !== undefined)?.telemetry?.faceMatchConfidence
+    out.push({
+      stage: `Face comparison (${subject} vs ID)`,
+      rows: [flowMetric('compare.similarity', 'Similarity (face vs ID)', fm.lastScore, fm.thresholds), ...(conf === undefined ? [] : [faceMatchMetric(conf)])],
+    })
+  } else if (rejected) {
+    out.push({ stage: `Face comparison (${subject} vs ID)`, rows: [{ id: 'compare.notRun', label: 'Similarity (face vs ID)', value: 'Not run', threshold: 'The selfie must pass its check first', source: 'ENGINE', result: 'INFO' }] })
   }
   const lv = ev('LIVENESS')
   if (lv?.lastScore !== undefined) out.push({ stage: 'Liveness', rows: [flowMetric('liveness.confidence', 'Liveness confidence', lv.lastScore, lv.thresholds)] })
@@ -110,8 +119,8 @@ export function AttemptsSection({ v }: { v: VerificationDetail }) {
               <th className="py-1.5 pr-3 font-medium">Started (MYT)</th>
               <th className="py-1.5 pr-3 font-medium">Outcome</th>
               <th className="py-1.5 pr-3 font-medium">Face</th>
-              <th className="py-1.5 pr-3 text-right font-medium">Similarity</th>
-              <th className="py-1.5 pr-3 text-right font-medium">Matched face confidence</th>
+              <th className="py-1.5 pr-3 text-right font-medium">Similarity (face vs ID)</th>
+              <th className="py-1.5 pr-3 text-right font-medium">Face match (real face)</th>
               {hasLiveness && <th className="py-1.5 pr-3 text-right font-medium">Liveness confidence</th>}
               {v1 && <th className="py-1.5 font-medium">Selfie quality</th>}
             </tr>
@@ -120,8 +129,23 @@ export function AttemptsSection({ v }: { v: VerificationDetail }) {
             {v.attempts.map((a) => {
               const selfie = a.telemetry?.selfie ? selfieMetrics(a.telemetry.selfie) : undefined
               const failed = selfie?.filter((r) => r.result === 'FAIL') ?? []
+              const retakes = a.telemetry?.selfieRetakes ?? []
               return (
-                <tr key={a.attemptId} className="border-b align-top last:border-0">
+                <Fragment key={a.attemptId}>
+                {/* REQ: DEC-18 / DEC-105 — V1: selfies rejected by the quality check; free, and never compared with the ID. */}
+                {retakes.map((t, i) => (
+                  <tr key={`${a.attemptId}-r${i}`} className="border-b align-top text-muted-foreground">
+                    <th scope="row" className="py-1.5 pr-3 text-left font-normal">Attempt {a.attemptNo} · selfie retake</th>
+                    <td className="py-1.5 pr-3" />
+                    <td className="py-1.5 pr-3">Selfie rejected (free)</td>
+                    <td className="py-1.5 pr-3">—</td>
+                    <td className="py-1.5 pr-3 text-right">Not run</td>
+                    <td className="py-1.5 pr-3 text-right">Not run</td>
+                    {hasLiveness && <td className="py-1.5 pr-3 text-right">—</td>}
+                    {v1 && <td className="py-1.5 text-red-700 dark:text-red-400">Fail: {selfieMetrics(t).filter((m) => m.result === 'FAIL').map((m) => `${m.label} ${m.value}`).join(', ')}</td>}
+                  </tr>
+                ))}
+                <tr className="border-b align-top last:border-0">
                   <th scope="row" className="py-1.5 pr-3 text-left font-normal">Attempt {a.attemptNo}</th>
                   <td className="py-1.5 pr-3 whitespace-nowrap">{formatMyt(a.startedAt)}</td>
                   <td className="py-1.5 pr-3">{OUTCOME_LABELS[a.outcome]}</td>
@@ -129,13 +153,13 @@ export function AttemptsSection({ v }: { v: VerificationDetail }) {
                     {a.faceImage ? <img src={a.faceImage.url} alt={`Face, attempt ${a.attemptNo} (sample image, not real)`} className="h-12 w-10 rounded border object-cover" /> : <span className="text-muted-foreground">—</span>}
                   </td>
                   <td className="py-1.5 pr-3 text-right tabular-nums">{n1(a.phaseScores.FACE_MATCH)}</td>
-                  <td className="py-1.5 pr-3 text-right tabular-nums">{n1(a.telemetry?.matchedFaceConfidence)}</td>
+                  <td className="py-1.5 pr-3 text-right tabular-nums">{n1(a.telemetry?.faceMatchConfidence)}</td>
                   {hasLiveness && <td className="py-1.5 pr-3 text-right tabular-nums">{n1(a.phaseScores.LIVENESS)}</td>}
                   {v1 && (
                     <td className="py-1.5">
                       {selfie ? (
                         <details>
-                          <summary className="cursor-pointer">{failed.length ? `${failed.length} of ${selfie.length} fail` : `All ${selfie.length} pass`}</summary>
+                          <summary className="cursor-pointer">{failed.length ? `${failed.length} checks fail` : 'Passed'}</summary>
                           <ul className="mt-1 space-y-0.5 text-xs">
                             {selfie.map((r) => (
                               <li key={r.id}>
@@ -150,6 +174,7 @@ export function AttemptsSection({ v }: { v: VerificationDetail }) {
                     </td>
                   )}
                 </tr>
+                </Fragment>
               )
             })}
           </tbody>

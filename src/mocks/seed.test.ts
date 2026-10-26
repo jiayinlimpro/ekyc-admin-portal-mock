@@ -6,7 +6,7 @@ import { inCooldown, revisionLabel, validateProjectName } from '@/domain/flowRul
 import { validateFlow } from '@/domain/flowSettings'
 import { RISK_REASON_CODES } from '@/domain/openQuestions'
 import { hasRisk, validateRegistryInput } from '@/domain/registryRules'
-import { ENGINE_THRESHOLDS, idCaptureMetrics, selfieMetrics } from '@/domain/telemetry'
+import { ENGINE_THRESHOLDS, idCaptureMetrics, selfiePasses } from '@/domain/telemetry'
 import { grantsOf, SYSTEM_ROLE_IDS } from '@/domain/roles'
 import { VERIFICATION_STATUSES, type UserAccount } from '@/domain/types'
 import { NOW } from '@/test/factories'
@@ -166,16 +166,37 @@ describe('telemetry, duplicate user and risk categories (DEC-105)', () => {
     }
   })
 
-  it('Given each attempt, then a face image and matched face confidence; V1 attempts also carry passing selfie metrics', () => {
+  it('Given each compared attempt, then a face image and face match > 90; a V1 selfie was compared only after passing its check', () => {
     for (const v of db.verifications) {
       const v1 = entryOf(v.workflowVersion).faceMatchMethod === 'ID_VS_SELFIE'
       for (const a of v.attempts.filter((x) => x.phaseScores.FACE_MATCH !== undefined)) {
         expect(a.faceImage?.url, v.referenceNo).toBe(v1 ? '/mock/selfie.svg' : '/mock/liveness.svg')
-        expect(a.telemetry?.matchedFaceConfidence).toBeGreaterThan(ENGINE_THRESHOLDS.matchedFaceConfidenceMin)
-        if (v1) expect(selfieMetrics(a.telemetry!.selfie!).every((m) => m.result === 'PASS'), v.referenceNo).toBe(true)
+        expect(a.telemetry?.faceMatchConfidence).toBeGreaterThan(ENGINE_THRESHOLDS.faceMatchMin)
+        if (v1) expect(selfiePasses(a.telemetry!.selfie!), v.referenceNo).toBe(true)
         else expect(a.telemetry?.selfie).toBeUndefined()
       }
     }
+  })
+
+  it('Given a V1 selfie rejected by its quality check, then it fails a check and nothing was compared on that run (DEC-105)', () => {
+    const rejected = db.verifications.flatMap((v) => v.attempts.flatMap((a) => (a.telemetry?.selfieRetakes ?? []).map((t) => ({ v, a, t }))))
+    expect(rejected.length).toBeGreaterThan(0)
+    for (const { v, t } of rejected) {
+      expect(entryOf(v.workflowVersion).faceMatchMethod, v.referenceNo).toBe('ID_VS_SELFIE')
+      expect(selfiePasses(t), v.referenceNo).toBe(false)
+    }
+    const s22 = byRef('KYC-260901-900022')
+    expect(s22.attempts).toMatchObject([{ phase: 'SELFIE', phaseScores: {} }])
+    expect(s22.attempts[0].telemetry?.faceMatchConfidence).toBeUndefined()
+    expect(s22.duplicateUser).toBeUndefined()
+  })
+
+  it('Given the existing-user search, then it ran only where the face comparison passed or reached the review band', () => {
+    for (const v of db.verifications.filter((x) => x.duplicateUser)) {
+      const fm = v.submissions.FACE_MATCH ?? []
+      expect(fm.length, v.referenceNo).toBeGreaterThan(0)
+    }
+    expect(byRef('KYC-260901-900019').duplicateUser).toBeUndefined() // S19: retry pending after 70.0
   })
 
   it('Given an attempt, then it shows only the scores it submitted: V1 face match first, liveness last', () => {

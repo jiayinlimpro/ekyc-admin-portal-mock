@@ -209,20 +209,25 @@ Rules changed on 2026-10-20 (Projects & Flows restructure) are marked **(changed
     | Stage | Metric | Engine threshold |
     |---|---|---|
     | ID capture | Faces found | exactly 1 |
-    | ID capture | Face confidence (a face was detected) | ≥ 90 |
+    | ID capture | Face match: a real face on the ID (FaceMatchThreshold) | ≥ 90 |
     | ID capture | Eyes open · Face covered | open · not covered |
     | ID capture | Image size | ≥ 320 × 320 px |
     | ID capture | OCR fields detected | every field the document type needs (DEC-35) |
-    | Selfie (V1) | Face confidence · Eyes open · Face covered | ≥ 90 · open · not covered |
+    | Selfie (V1) | Eyes open · Face covered | open · not covered |
     | Selfie (V1) | Sharpness · Brightness | > 25 · > 25 |
     | Selfie (V1) | Yaw · Pitch | within ±30° · within ±30° |
-    | Selfie (V1) | Face size | ≥ 50 px |
-    | Face match | Similarity (ID face vs selfie for V1, vs liveness face for V3/V4/V5) | flow band |
-    | Face match | Matched face confidence | > 90 |
+    | Selfie (V1) | Face size | information only: 50 px is configured but not checked (OQ-32) |
+    | Face comparison | Similarity: the selfie (V1) or liveness face (V3/V4/V5) compared with the ID face | flow band |
+    | Face comparison | Face match: the compared face is a real face (FaceMatchThreshold) | > 90 |
     | Liveness | Liveness confidence | flow band |
 
-  - "**Face confidence**" (a face was detected) and "**Similarity**" (two faces match) always have different labels and are
-    never placed as if they were the same kind of number.
+  - **Similarity** (the face compared with the ID face) and **Face match** (confidence that it is a real face) are two
+    different numbers, named as in the engine workflow, and never shown as one [PO 2026-10-26]. The flow-set "face match"
+    band of DEC-10/19 applies to the similarity.
+  - **V1 order** (engine workflow): ID → selfie quality check → face comparison → existing-user search → liveness. A selfie
+    that fails its check ends the run ("Invalid selfie"): no similarity, no face match. The user retakes it for free
+    (DEC-18); rejected selfies are shown under Attempts as "Not run".
+  - The **existing-user search** runs only after the face comparison passes (or lands in the review band).
   - **Duplicate user:** "New user", or "Existing user found" with the match similarity (≥ 90 = existing). Shown for
     information only: it never changes a check, the status or the decision buttons, and it stays off the list (DEC-40).
   - **Risk** (V4/V5): overall level, overall score, maximum allowed (flow), pass / fail, and every category with its 0–100

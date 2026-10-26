@@ -1,20 +1,21 @@
 // REQ: DEC-105 — every engine metric is shown on Verification Detail with its threshold, its result and who sets the
-// threshold. Only face match and liveness thresholds come from the flow (DEC-10); the rest are fixed by the engine.
+// threshold. Only the similarity and liveness bands come from the flow (DEC-10); the rest are fixed by the engine.
+// Terms follow the engine workflow: "Similarity" = the face compared with the ID face (compareFaces Similarity);
+// "Face match" = confidence that a face is a real face (FaceMatchThreshold on Face.Confidence). Never mix the two.
 import type { Thresholds } from './thresholds'
 import type { Attempt, DocumentType, DuplicateUserCheck, IdCaptureTelemetry, SelfieTelemetry } from './types'
 
 /** Fixed by the engine (DEC-105). Not configurable by anyone. */
 export const ENGINE_THRESHOLDS = {
   facesFound: 1, // exactly one face on the ID
-  faceConfidenceMin: 90, // ≥
+  faceMatchMin: 90, // FaceMatchThreshold: ID face ≥, compared face >
   imageMinPx: 320, // ≥ on both sides
   sharpnessMin: 25, // >
   brightnessMin: 25, // >
   maxYawDeg: 30, // within ±
   maxPitchDeg: 30, // within ±
-  faceSizeMinPx: 50, // ≥
-  matchedFaceConfidenceMin: 90, // >
-  duplicateSimilarityMin: 90, // ≥ = existing user
+  faceSizeMinPx: 50, // FacePixelSizeThreshold: configured, but not applied by the selfie check (OQ-32)
+  duplicateSimilarityMin: 90, // UserMatchThreshold: ≥ = existing user
 } as const
 
 /** REQ: DEC-35 — the OCR fields each document type needs. */
@@ -25,7 +26,7 @@ export const OCR_FIELDS: Record<DocumentType, readonly string[]> = {
 }
 
 export type MetricSource = 'FLOW' | 'ENGINE'
-export type MetricResult = 'PASS' | 'REVIEW' | 'FAIL'
+export type MetricResult = 'PASS' | 'REVIEW' | 'FAIL' | 'INFO'
 
 export interface MetricRow {
   id: string
@@ -47,7 +48,7 @@ export function idCaptureMetrics(t: IdCaptureTelemetry, documentType: DocumentTy
   const found = fields.filter((f) => !t.ocrFieldsMissing.includes(f))
   return [
     engine('id.faces', 'Faces found', String(t.facesFound), `exactly ${T.facesFound}`, t.facesFound === T.facesFound),
-    engine('id.faceConfidence', 'Face confidence', n1(t.faceConfidence), `≥ ${T.faceConfidenceMin}`, t.faceConfidence >= T.faceConfidenceMin),
+    engine('id.faceMatch', 'Face match (real face on the ID)', n1(t.faceConfidence), `≥ ${T.faceMatchMin}`, t.faceConfidence >= T.faceMatchMin),
     engine('id.eyes', 'Eyes open', t.eyesOpen ? 'Yes' : 'No', 'Yes', t.eyesOpen),
     engine('id.occluded', 'Face covered', t.occluded ? 'Yes' : 'No', 'No', !t.occluded),
     engine('id.size', 'Image size', `${t.imageWidth} × ${t.imageHeight} px`, `≥ ${T.imageMinPx} × ${T.imageMinPx} px`, t.imageWidth >= T.imageMinPx && t.imageHeight >= T.imageMinPx),
@@ -61,18 +62,21 @@ export function idCaptureMetrics(t: IdCaptureTelemetry, documentType: DocumentTy
   ]
 }
 
+/** The engine's Selfie Quality Check, in its order; face size is shown for information (OQ-32). */
 export function selfieMetrics(t: SelfieTelemetry): MetricRow[] {
   return [
-    engine('selfie.faceConfidence', 'Face confidence', n1(t.faceConfidence), `≥ ${T.faceConfidenceMin}`, t.faceConfidence >= T.faceConfidenceMin),
     engine('selfie.eyes', 'Eyes open', t.eyesOpen ? 'Yes' : 'No', 'Yes', t.eyesOpen),
     engine('selfie.occluded', 'Face covered', t.occluded ? 'Yes' : 'No', 'No', !t.occluded),
     engine('selfie.sharpness', 'Sharpness', n1(t.sharpness), `> ${T.sharpnessMin}`, t.sharpness > T.sharpnessMin),
     engine('selfie.brightness', 'Brightness', n1(t.brightness), `> ${T.brightnessMin}`, t.brightness > T.brightnessMin),
     engine('selfie.yaw', 'Yaw', deg(t.yaw), `within ±${T.maxYawDeg}°`, Math.abs(t.yaw) <= T.maxYawDeg),
     engine('selfie.pitch', 'Pitch', deg(t.pitch), `within ±${T.maxPitchDeg}°`, Math.abs(t.pitch) <= T.maxPitchDeg),
-    engine('selfie.faceSize', 'Face size', `${t.faceSizePx} px`, `≥ ${T.faceSizeMinPx} px`, t.faceSizePx >= T.faceSizeMinPx),
+    { id: 'selfie.faceSize', label: 'Face size', value: `${t.faceSizePx} px`, threshold: `${T.faceSizeMinPx} px configured, not checked`, source: 'ENGINE', result: 'INFO' },
   ]
 }
+
+/** REQ: DEC-105 — the selfie passed the engine's check (face size is not part of it). Only then is it compared with the ID. */
+export const selfiePasses = (t: SelfieTelemetry) => selfieMetrics(t).every((m) => m.result !== 'FAIL')
 
 /** REQ: DEC-10 / DEC-11 — a flow-set band: ≥ Auto-Pass passes, < Auto-Reject fails, between is review. */
 export function bandResult(score: number, t: Thresholds): MetricResult {
@@ -86,8 +90,9 @@ export function flowMetric(id: string, label: string, score: number, t: Threshol
   return { id, label, value: n1(score), threshold: bandText(t), source: 'FLOW', result: bandResult(score, t) }
 }
 
-export function matchedFaceConfidenceMetric(confidence: number): MetricRow {
-  return engine('faceMatch.matchedFaceConfidence', 'Matched face confidence', n1(confidence), `> ${T.matchedFaceConfidenceMin}`, confidence > T.matchedFaceConfidenceMin)
+/** "Face match": the compared face is a real face (> 90). A separate number from the similarity. */
+export function faceMatchMetric(confidence: number): MetricRow {
+  return engine('compare.faceMatch', 'Face match (real face)', n1(confidence), `> ${T.faceMatchMin}`, confidence > T.faceMatchMin)
 }
 
 /** REQ: DEC-105 — information only: the result never feeds a check or the status. */

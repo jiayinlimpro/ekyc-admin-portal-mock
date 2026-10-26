@@ -2,7 +2,7 @@
 import { evaluateCase, type FlowContext } from '@/domain/checkRules'
 import { POLICY, RISK_REASON_CODES, riskLevelFromScore } from '@/domain/openQuestions'
 import { hasRisk } from '@/domain/registryRules'
-import { ENGINE_THRESHOLDS, OCR_FIELDS } from '@/domain/telemetry'
+import { ENGINE_THRESHOLDS, idCaptureMetrics, OCR_FIELDS } from '@/domain/telemetry'
 import {
   RISK_CATEGORIES,
   type Attempt,
@@ -15,6 +15,7 @@ import {
   type IdCaptureTelemetry,
   type RegistryEntry,
   type RiskCategoryScore,
+  type SelfieTelemetry,
   type Verification,
   type WorkflowVersion,
 } from '@/domain/types'
@@ -43,6 +44,8 @@ export interface CaseSpec {
   idCapture?: Partial<IdCaptureTelemetry>
   duplicateSimilarity?: number
   riskCategories?: RiskCategoryScore[]
+  /** V1 with no submission: the selfie the engine rejected when the user stopped (no similarity was run). */
+  stoppedAtSelfie?: Partial<SelfieTelemetry>
 }
 
 /** Builds a case in its SYSTEM-assigned state (checkRules.evaluateCase). Manual decisions and claims are applied afterwards. */
@@ -55,14 +58,31 @@ export function buildCase(spec: CaseSpec): Verification {
   const riskRan = flow.hasRisk && spec.riskScore !== undefined && pre.checks.every((c) => c.state === 'PASS' || c.state === 'REVIEW')
   const riskLevel = riskRan ? riskLevelFromScore(spec.riskScore!) : undefined
   const ev = evaluateCase({ submissions: spec.submissions, riskLevel }, flow)
+  const faceMatchState = pre.checks.find((c) => c.check === 'FACE_MATCH')?.state
 
   // REQ: DEC-17 — one attempt per submission round under the same Reference No (the round's time is on the timeline).
   const step = (spec.stepMin ?? 6) * 60_000
   const rounds = Math.max(0, ...Object.values(spec.submissions).map((s) => s?.length ?? 0))
   const at = (i: number) => new Date(spec.startedAt.getTime() + i * step).toISOString()
+  const v1 = spec.entry.faceMatchMethod === 'ID_VS_SELFIE'
+  const idCap = { ...idCapture(rand, spec.person.documentType, rounds === 0), ...spec.idCapture }
+  const idOk = idCaptureMetrics(idCap, spec.person.documentType).every((m) => m.result === 'PASS')
+  // REQ: DEC-105 — V1: a selfie that fails the quality check ends the run before Face Match: nothing is compared.
+  const stoppedSelfie = rounds === 0 && v1 && idOk && (spec.stoppedAtSelfie || rand() < 0.5) ? { ...failingSelfie(rand), ...spec.stoppedAtSelfie } : undefined
   const attempts: Attempt[] =
     rounds === 0
-      ? [{ attemptId: stableId('att', `${spec.referenceNo}:1`), attemptNo: 1, phase: 'DOCUMENT', startedAt: at(0), outcome: spec.abandoned ?? 'ABORTED', isUserRetake: false, phaseScores: {} }]
+      ? [
+          {
+            attemptId: stableId('att', `${spec.referenceNo}:1`),
+            attemptNo: 1,
+            phase: stoppedSelfie ? 'SELFIE' : 'DOCUMENT',
+            startedAt: at(0),
+            outcome: spec.abandoned ?? 'ABORTED',
+            isUserRetake: false,
+            phaseScores: {},
+            ...(stoppedSelfie ? { faceImage: { fileId: stableId('file', `${spec.referenceNo}:face:1`), url: '/mock/selfie.svg' }, telemetry: { selfieRetakes: [stoppedSelfie] } } : {}),
+          },
+        ]
       : Array.from({ length: rounds }, (_, i) => {
           const scores: Attempt['phaseScores'] = {}
           // REQ: DEC-105 — a score only on the attempt that submitted it. V1 runs face match before liveness, so its face
@@ -85,7 +105,7 @@ export function buildCase(spec: CaseSpec): Verification {
               ? {}
               : {
                   faceImage: { fileId: stableId('file', `${spec.referenceNo}:face:${i + 1}`), url: spec.entry.faceMatchMethod === 'ID_VS_SELFIE' ? '/mock/selfie.svg' : '/mock/liveness.svg' },
-                  telemetry: attemptTelemetry(rand, spec.entry.faceMatchMethod === 'ID_VS_SELFIE', scores.FACE_MATCH),
+                  telemetry: attemptTelemetry(rand, v1, scores.FACE_MATCH),
                 }),
           }
         })
@@ -110,8 +130,10 @@ export function buildCase(spec: CaseSpec): Verification {
     riskLevel,
     riskScore: riskRan ? spec.riskScore : undefined,
     riskCategories: riskRan ? (spec.riskCategories ?? riskCategories(rand, spec.riskScore!)) : undefined,
-    idCapture: { ...idCapture(rand, spec.person.documentType, rounds === 0), ...spec.idCapture },
-    duplicateUser: rounds === 0 ? undefined : duplicateUser(spec.duplicateSimilarity ?? (rand() < 0.06 ? between(rand, 90, 99.5) : between(rand, 8, 62))),
+    idCapture: idCap,
+    // REQ: DEC-105 — the existing-user search runs only after the face comparison passes ("Existing User Seeking" follows
+    // "Match Validation"); in the review band the case goes on, so it is searched too.
+    duplicateUser: faceMatchState === 'PASS' || faceMatchState === 'REVIEW' ? duplicateUser(spec.duplicateSimilarity ?? (rand() < 0.06 ? between(rand, 90, 99.5) : between(rand, 8, 62))) : undefined,
     documentType: spec.person.documentType,
     pii: email ? { ...spec.person.pii, email } : spec.person.pii,
     clientMetadata: spec.metadata,
@@ -156,19 +178,31 @@ function idCapture(r: () => number, documentType: DocumentType, stoppedAtId: boo
   const fields = OCR_FIELDS[documentType]
   const fail = Math.floor(r() * 3)
   if (fail === 0) return { ...ok, imageWidth: 300, imageHeight: 240 }
-  if (fail === 1) return { ...ok, faceConfidence: between(r, 60, T.faceConfidenceMin - 1) }
+  if (fail === 1) return { ...ok, faceConfidence: between(r, 60, T.faceMatchMin - 1) }
   return { ...ok, ocrFieldsMissing: [fields[fields.length - 1]] }
 }
 
-/** Lower similarity comes with a poorer (still passing) selfie, as in real sessions. */
+/** A selfie that fails one check of the engine's Selfie Quality Check (too dark, blurred, head turned, eyes closed, covered). */
+function failingSelfie(r: () => number): SelfieTelemetry {
+  const ok: SelfieTelemetry = { eyesOpen: true, occluded: false, sharpness: between(r, 40, 80), brightness: between(r, 40, 80), yaw: between(r, -10, 10), pitch: between(r, -10, 10), faceSizePx: Math.round(between(r, 90, 220)) }
+  const fail = Math.floor(r() * 5)
+  if (fail === 0) return { ...ok, brightness: between(r, 8, T.brightnessMin) }
+  if (fail === 1) return { ...ok, sharpness: between(r, 6, T.sharpnessMin) }
+  if (fail === 2) return { ...ok, yaw: (r() < 0.5 ? -1 : 1) * between(r, T.maxYawDeg + 2, 48) }
+  if (fail === 3) return { ...ok, eyesOpen: false }
+  return { ...ok, occluded: true }
+}
+
+/** Lower similarity comes with a poorer (still passing) selfie, as in real sessions. V1 sometimes needed a free retake first. */
 function attemptTelemetry(r: () => number, selfie: boolean, similarity: number | undefined): AttemptTelemetry {
   const q = similarity === undefined ? 1 : Math.max(0, Math.min(1, (similarity - 60) / 40))
   const sign = () => (r() < 0.5 ? -1 : 1)
+  const retakes = selfie ? Math.floor(r() * 4) - 2 : 0 // V1: 0 most of the time, sometimes 1
   return {
-    matchedFaceConfidence: similarity === undefined ? undefined : between(r, 95, 99.9),
+    faceMatchConfidence: similarity === undefined ? undefined : between(r, 95, 99.9),
+    ...(retakes > 0 ? { selfieRetakes: [failingSelfie(r)] } : {}),
     selfie: selfie
       ? {
-          faceConfidence: between(r, 92 + 5 * q, 99.9),
           eyesOpen: true,
           occluded: false,
           sharpness: between(r, 28 + 40 * q, 50 + 45 * q),
