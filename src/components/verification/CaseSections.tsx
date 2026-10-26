@@ -8,9 +8,7 @@ import { EMAIL_MAX, EMAIL_POINTS, emailScore, EXIF_MAX, exifScore, NOISE_PARAMS,
 import { bandText, duplicateUserText, idCaptureMetrics, lastFaceAttempt, selfieMetrics } from '@/domain/telemetry'
 import { PRESET_LABELS } from '@/domain/thresholds'
 import { RISK_CATEGORY_LABELS, RISK_LEVELS, type Check, type ThresholdChoice, type VerificationDetail } from '@/domain/types'
-import { formatUpdatedBy } from '@/domain/audit'
-import { formatMyt } from '@/lib/format'
-import { AUDIT_ACTION_LABELS, DOCUMENT_TYPE_LABELS } from '@/lib/labels'
+import { DOCUMENT_TYPE_LABELS } from '@/lib/labels'
 import { cn } from '@/lib/utils'
 import { Fields, Section } from './Section'
 
@@ -281,31 +279,6 @@ export function RulesAppliedSection({ v }: { v: VerificationDetail }) {
         ]}
       />
       <p className="mt-3 text-xs text-muted-foreground">Settings saved later apply to new sessions only.</p>
-    </Section>
-  )
-}
-
-const KIND_LABELS: Record<'SESSION_STARTED' | 'SUBMISSION' | 'SYSTEM_RESULT', string> = {
-  SESSION_STARTED: 'Session started',
-  SUBMISSION: 'Submission',
-  SYSTEM_RESULT: 'Automated result',
-}
-
-export function ActivitySection({ v }: { v: VerificationDetail }) {
-  return (
-    <Section title="Activity">
-      <ol className="space-y-3 border-l pl-4">
-        {v.activity.map((a, i) => (
-          <li key={i} className="relative text-sm">
-            <span className="absolute top-1.5 -left-[1.3rem] size-2 rounded-full bg-muted-foreground/50" aria-hidden />
-            <div className="font-medium">{a.kind in KIND_LABELS ? KIND_LABELS[a.kind as keyof typeof KIND_LABELS] : AUDIT_ACTION_LABELS[a.kind as keyof typeof AUDIT_ACTION_LABELS]}</div>
-            <div className="text-xs text-muted-foreground">
-              {formatMyt(a.at)} MYT · {formatUpdatedBy(a.by)}
-            </div>
-            {a.detail && <div className="mt-0.5 text-xs">{a.detail}</div>}
-          </li>
-        ))}
-      </ol>
     </Section>
   )
 }

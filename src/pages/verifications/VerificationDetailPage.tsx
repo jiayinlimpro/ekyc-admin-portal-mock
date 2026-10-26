@@ -6,7 +6,7 @@ import { NativeSelect } from '@/components/common/NativeSelect'
 import { StatusBadge } from '@/components/common/StatusBadge'
 import { EmptyState, ErrorState } from '@/components/common/States'
 import { Button } from '@/components/ui/button'
-import { ActivitySection, ChecksSection, EvidenceSection, RiskSection, RiskSignalsSection, RulesAppliedSection } from '@/components/verification/CaseSections'
+import { ChecksSection, EvidenceSection, RiskSection, RiskSignalsSection, RulesAppliedSection } from '@/components/verification/CaseSections'
 import { AttemptsSection, TelemetrySection } from '@/components/verification/TelemetrySections'
 import { ClaimBar } from '@/components/verification/ClaimBar'
 import { DecisionOverlay } from '@/components/verification/DecisionOverlay'
@@ -204,10 +204,10 @@ export function VerificationDetailPage() {
           {/* REQ: DEC-97 — the case ID, for support tickets and webhooks; the Reference ID above is the merchant's. */}
           <CopyId label="Case ID" value={v.caseId} />
         </div>
-        {/* REQ: DEC-105 — header strip: project › flow, version and revision, created, source, last updated, audit. */}
+        {/* REQ: DEC-105 — header strip: project › flow, version and revision, created, last updated, audit. */}
         <p className="text-sm text-muted-foreground">
           <span className="text-foreground">{v.projectName}</span> › <span className="text-foreground">{v.flowName}</span> · {v.workflowVersion} · Rules applied{' '}
-          <span className="font-mono text-foreground">{v.revisionLabel}</span> · {DOCUMENT_TYPE_LABELS[v.documentType]} · Source <span className="text-foreground">{v.clientMetadata.sdk}</span>
+          <span className="font-mono text-foreground">{v.revisionLabel}</span> · {DOCUMENT_TYPE_LABELS[v.documentType]}
         </p>
         <p className="text-sm text-muted-foreground">
           Created {formatMyt(v.createdAt)} MYT · Last updated by <span className="text-foreground">{formatUpdatedBy(v.lastUpdatedBy)}</span> · {formatMyt(v.lastUpdatedAt)} MYT
@@ -251,10 +251,7 @@ export function VerificationDetailPage() {
           <TelemetrySection v={v} />
           <RiskSignalsSection v={v} />
           <AttemptsSection v={v} />
-          <div className="grid items-start gap-4 @2xl:grid-cols-2">
-            <RulesAppliedSection v={v} />
-            <ActivitySection v={v} />
-          </div>
+          <RulesAppliedSection v={v} />
         </div>
         <aside className="space-y-3 lg:sticky lg:top-0">
           <DecisionOverlay

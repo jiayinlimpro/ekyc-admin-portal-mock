@@ -196,12 +196,6 @@ describe('verificationService.get detail sections (DEC-44)', () => {
     expect((await svc.get(C(4), ALI)).newCaseAllowedAt).toBeUndefined() // cooldown 0
   })
 
-  it('Given S11, then the activity timeline runs session start → submissions → claim → decision, without PII views', async () => {
-    const kinds = (await svc.get(C(11), ALI)).activity.map((a) => a.kind)
-    expect(kinds).toEqual(['SESSION_STARTED', 'SUBMISSION', 'SUBMISSION', 'SUBMISSION', 'SUBMISSION', 'CASE_CLAIMED', 'CASE_DECISION_APPROVED'])
-    const s04 = (await svc.get(C(4), ALI)).activity
-    expect(s04.at(-1)).toMatchObject({ kind: 'SYSTEM_RESULT', detail: 'REJECTED · Face not live (Retry Not Allowed)' })
-  })
 })
 
 describe('verificationService.get (DEC-41)', () => {

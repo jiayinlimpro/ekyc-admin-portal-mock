@@ -48,7 +48,7 @@ export function idCaptureMetrics(t: IdCaptureTelemetry, documentType: DocumentTy
   const found = fields.filter((f) => !t.ocrFieldsMissing.includes(f))
   return [
     engine('id.faces', 'Faces found', String(t.facesFound), `exactly ${T.facesFound}`, t.facesFound === T.facesFound),
-    engine('id.faceMatch', 'Face match (real face on the ID)', n1(t.faceConfidence), `≥ ${T.faceMatchMin}`, t.faceConfidence >= T.faceMatchMin),
+    engine('id.faceMatch', 'Face match', n1(t.faceConfidence), `≥ ${T.faceMatchMin}`, t.faceConfidence >= T.faceMatchMin),
     engine('id.eyes', 'Eyes open', t.eyesOpen ? 'Yes' : 'No', 'Yes', t.eyesOpen),
     engine('id.occluded', 'Face covered', t.occluded ? 'Yes' : 'No', 'No', !t.occluded),
     engine('id.size', 'Image size', `${t.imageWidth} × ${t.imageHeight} px`, `≥ ${T.imageMinPx} × ${T.imageMinPx} px`, t.imageWidth >= T.imageMinPx && t.imageHeight >= T.imageMinPx),
@@ -90,9 +90,9 @@ export function flowMetric(id: string, label: string, score: number, t: Threshol
   return { id, label, value: n1(score), threshold: bandText(t), source: 'FLOW', result: bandResult(score, t) }
 }
 
-/** "Face match": the compared face is a real face (> 90). A separate number from the similarity. */
+/** "Face match": confidence that a face is clearly detected in the compared image (> 90; not liveness). Not the similarity. */
 export function faceMatchMetric(confidence: number): MetricRow {
-  return engine('compare.faceMatch', 'Face match (real face)', n1(confidence), `> ${T.faceMatchMin}`, confidence > T.faceMatchMin)
+  return engine('compare.faceMatch', 'Face match', n1(confidence), `> ${T.faceMatchMin}`, confidence > T.faceMatchMin)
 }
 
 /** REQ: DEC-105 — information only: the result never feeds a check or the status. */

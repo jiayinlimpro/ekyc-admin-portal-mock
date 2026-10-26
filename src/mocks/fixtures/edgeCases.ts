@@ -27,7 +27,7 @@ export interface EdgeCaseExpectation {
 export const EDGE_CASES: EdgeCaseExpectation[] = [
   { id: 'S01', title: 'V1, both checks ≥ Auto-Pass', asUserId: fx('USR-2026-0044'), referenceNo: 'KYC-260901-900001', flowId: fx('FLW-0005'), status: 'APPROVED', lastUpdatedBy: 'SYSTEM' },
   { id: 'S02', title: 'V4, checks pass but risk HIGH', asUserId: fx('USR-2026-0012'), referenceNo: 'KYC-260901-900002', flowId: fx('FLW-0001'), status: 'PENDING_REVIEW', reason: 'Risk Assessment not passed' },
-  { id: 'S03', title: 'Face match 88.5 after 3 retries (review band)', asUserId: fx('USR-2026-0012'), referenceNo: 'KYC-260901-900003', flowId: fx('FLW-0001'), status: 'PENDING_REVIEW', reason: 'Liveness face does not match ID face (Retry Not Allowed)' },
+  { id: 'S03', title: 'Similarity 88.5 after 3 retries (review band)', asUserId: fx('USR-2026-0012'), referenceNo: 'KYC-260901-900003', flowId: fx('FLW-0001'), status: 'PENDING_REVIEW', reason: 'Liveness face does not match ID face (Retry Not Allowed)' },
   { id: 'S04', title: 'Liveness below Auto-Reject after 3 retries', asUserId: fx('USR-2026-0012'), referenceNo: 'KYC-260901-900004', flowId: fx('FLW-0001'), status: 'REJECTED', reason: 'Face not live (Retry Not Allowed)', lastUpdatedBy: 'SYSTEM' },
   { id: 'S05', title: 'Stopped at ID capture (read-only)', asUserId: fx('USR-2026-0012'), referenceNo: 'KYC-260901-900005', flowId: fx('FLW-0001'), status: 'PROCESSING' },
   { id: 'S06', title: 'Liveness retries used up: 4 submissions, last in review band', asUserId: fx('USR-2026-0012'), referenceNo: 'KYC-260901-900006', flowId: fx('FLW-0001'), status: 'PENDING_REVIEW', reason: 'Face not live (Retry Not Allowed)' },
@@ -42,8 +42,8 @@ export const EDGE_CASES: EdgeCaseExpectation[] = [
   { id: 'S16', title: 'SME app project (V3): Ali may only view', asUserId: fx('USR-2026-0012'), referenceNo: 'KYC-260901-900016', flowId: fx('FLW-0004'), status: 'PENDING_REVIEW', reason: 'Face not live (Retry Not Allowed)' },
   { id: 'S17', title: 'In flight on a retiring flow', asUserId: fx('USR-2026-0063'), referenceNo: 'KYC-260901-900017', flowId: fx('FLW-0008'), status: 'PROCESSING' },
   { id: 'S18', title: 'Rejected 30 min ago; 120-min cooldown running', asUserId: fx('USR-2026-0012'), referenceNo: 'KYC-260901-900018', flowId: fx('FLW-0002'), status: 'REJECTED', reason: 'Liveness face does not match ID face (Retry Not Allowed)', lastUpdatedBy: 'SYSTEM' },
-  { id: 'S19', title: 'V1 face match (ID vs selfie) below threshold, retry pending', asUserId: fx('USR-2026-0044'), referenceNo: 'KYC-260901-900019', flowId: fx('FLW-0005'), status: 'PROCESSING' },
-  { id: 'S20', title: 'Driving License: face match retries used up, last in review band', asUserId: fx('USR-2026-0044'), referenceNo: 'KYC-260901-900020', flowId: fx('FLW-0005'), status: 'PENDING_REVIEW', reason: 'ID face and Selfie face do not match (Retry Not Allowed)' },
+  { id: 'S19', title: 'V1 similarity (ID vs selfie) below threshold, retry pending', asUserId: fx('USR-2026-0044'), referenceNo: 'KYC-260901-900019', flowId: fx('FLW-0005'), status: 'PROCESSING' },
+  { id: 'S20', title: 'Driving License: similarity retries used up, last in review band', asUserId: fx('USR-2026-0044'), referenceNo: 'KYC-260901-900020', flowId: fx('FLW-0005'), status: 'PENDING_REVIEW', reason: 'ID face and Selfie face do not match (Retry Not Allowed)' },
   { id: 'S22', title: 'V1: selfie too dark, rejected; user stopped, nothing compared', asUserId: fx('USR-2026-0044'), referenceNo: 'KYC-260901-900022', flowId: fx('FLW-0005'), status: 'PROCESSING' },
   { id: 'S21', title: 'Existing user found (duplicate, information only)', asUserId: fx('USR-2026-0012'), referenceNo: 'KYC-260901-900021', flowId: fx('FLW-0001'), status: 'PENDING_REVIEW', reason: 'Liveness face does not match ID face (Retry Not Allowed)' },
 ]

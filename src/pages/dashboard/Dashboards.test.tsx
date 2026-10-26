@@ -92,7 +92,7 @@ describe('System Intelligence (DEC-18, DEC-86)', () => {
     await waitFor(() => expect(card.getByText('Reject < 85')).toBeTruthy()) // face match, Standard
     expect(card.getByText('Reject < 70')).toBeTruthy() // liveness, Standard
     const stats = await analyticsService.intelligence({ days: 90, flowId: fx('FLW-0001') }, ALI)
-    expect(tile('Average retries').textContent).toContain(`${stats.retries} face match and liveness retries`)
+    expect(tile('Average retries').textContent).toContain(`${stats.retries} similarity and liveness retries`)
   })
 
   it('Given all flows, then no threshold lines (they differ per flow) and a By flow table with drop-off', async () => {

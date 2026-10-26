@@ -33,8 +33,8 @@ const DOCUMENTS: DocumentType[] = ['MYKAD', 'PASSPORT', 'DRIVING_LICENSE']
 const FIELD_LABELS: Record<string, string> = {
   name: 'Name',
   description: 'Description',
-  'checks.FACE_MATCH.threshold': 'Face match threshold',
-  'checks.FACE_MATCH.retriesAllowed': 'Face match retries allowed',
+  'checks.FACE_MATCH.threshold': 'Similarity threshold',
+  'checks.FACE_MATCH.retriesAllowed': 'Similarity retries allowed',
   'checks.LIVENESS.threshold': 'Liveness threshold',
   'checks.LIVENESS.retriesAllowed': 'Liveness retries allowed',
   cooldownMin: 'Cooldown (min)',

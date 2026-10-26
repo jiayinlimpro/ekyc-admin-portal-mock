@@ -12,7 +12,7 @@ import { activeReasons, reasonsOf } from '@/domain/decisionReasons'
 import { evaluateCase } from '@/domain/checkRules'
 import { newCaseAllowedAt, revisionLabel } from '@/domain/flowRules'
 import { hasRisk } from '@/domain/registryRules'
-import { CHECKS, PHASE_LABELS, RISK_LEVELS, VERIFICATION_STATUSES, type Actor, type AuditAction, type CaseActivity, type Decision, type Flow, type Paged, type Project, type RiskLevel, type Verification, type VerificationDetail, type VerificationStatus, type VerificationSummary } from '@/domain/types'
+import { RISK_LEVELS, VERIFICATION_STATUSES, type Actor, type Decision, type Flow, type Paged, type Project, type RiskLevel, type Verification, type VerificationDetail, type VerificationStatus, type VerificationSummary } from '@/domain/types'
 import { now } from '@/lib/clock'
 import { db } from '@/mocks/mockDb'
 import { mayInProject, projectById, projectIdsWhere, requireActive, roleIn } from './accessGuard'
@@ -112,27 +112,6 @@ function toSummary(v: Verification, at: Date): VerificationSummary {
   }
 }
 
-/** Case events on the timeline. Views are left out (the Audit Log has them); the rest are the DEC-42 case events. */
-const TIMELINE_ACTIONS: readonly AuditAction[] = ['CASE_CLAIMED', 'CASE_RELEASED', 'CASE_CLAIM_EXPIRED', 'CASE_DECISION_APPROVED', 'CASE_DECISION_REJECTED', 'CASE_DECISION_BLOCKED']
-
-function activityOf(v: Verification): CaseActivity[] {
-  const system = { kind: 'SYSTEM' } as const
-  const out: CaseActivity[] = [{ at: v.createdAt, kind: 'SESSION_STARTED', by: system }]
-  const rounds = Math.max(0, ...CHECKS.map((c) => v.submissions[c]?.length ?? 0))
-  for (let i = 0; i < rounds; i++) {
-    const scores = CHECKS.filter((c) => v.submissions[c]?.[i] !== undefined).map((c) => `${PHASE_LABELS[c]} ${v.submissions[c]![i]}`)
-    out.push({ at: v.attempts[i]?.startedAt ?? v.createdAt, kind: 'SUBMISSION', by: system, detail: `#${i + 1}${i ? ` (retry ${i})` : ''} · ${scores.join(' · ')}` })
-  }
-  // The automated result; for a manual decision the audit entry below records the change instead (DEC-03).
-  if (v.status !== 'PROCESSING' && v.lastUpdatedBy.kind === 'SYSTEM') out.push({ at: v.lastUpdatedAt, kind: 'SYSTEM_RESULT', by: system, detail: [v.status, v.statusReason].filter(Boolean).join(' · ') })
-  for (const e of db.state().audit) {
-    if (e.caseId !== v.caseId || !TIMELINE_ACTIONS.includes(e.action)) continue
-    const d = e.details as { reasons?: string; note?: string; reason?: string }
-    out.push({ at: e.at, kind: e.action, by: e.actor, detail: [d.reasons, d.note && `“${d.note}”`, d.reason].filter(Boolean).join(' · ') || undefined })
-  }
-  return out.sort((a, b) => a.at.localeCompare(b.at))
-}
-
 // REQ: DEC-44 — everything the Detail sections need, evaluated with the revision the case started on (DEC-52).
 function toDetail(v: Verification): VerificationDetail {
   const s = db.state()
@@ -152,7 +131,6 @@ function toDetail(v: Verification): VerificationDetail {
     steps: { phases: entry.phases, faceMatchMethod: entry.faceMatchMethod, runsRisk },
     checks: ev.checks,
     newCaseAllowedAt: v.status === 'REJECTED' ? newCaseAllowedAt(v.lastUpdatedAt, settings.cooldownMin)?.toISOString() : undefined,
-    activity: activityOf(v),
     reasonOptions: activeReasons(projectById(v.projectId)!.decisionReasons), // REQ: DEC-106
   })
 }

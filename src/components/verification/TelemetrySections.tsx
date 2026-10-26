@@ -1,5 +1,5 @@
 // REQ: DEC-105 — every number the engine produced, with its threshold, result and who sets the threshold.
-// "Similarity" (the face compared with the ID face) and "Face match" (it is a real face) are always separate rows.
+// "Similarity" (the face compared with the ID face) and "Face match" (a face is clearly detected) are separate rows.
 import { Fragment } from 'react'
 import type { Check, VerificationDetail } from '@/domain/types'
 import { ENGINE_THRESHOLDS, duplicateUserText, lastFaceAttempt, flowMetric, idCaptureMetrics, faceMatchMetric, selfieMetrics, type MetricResult, type MetricRow } from '@/domain/telemetry'
@@ -19,13 +19,6 @@ function ResultText({ result }: { result: MetricResult }) {
   return <span className={cn('font-medium whitespace-nowrap', RESULT[result].tone)}>{RESULT[result].label}</span>
 }
 
-function SetBy({ source }: { source: MetricRow['source'] }) {
-  return (
-    <span className={cn('rounded border px-1.5 py-0.5 text-[11px] whitespace-nowrap', source === 'FLOW' ? 'border-blue-300 text-blue-800 dark:border-blue-500/40 dark:text-blue-300' : 'text-muted-foreground')}>
-      {source === 'FLOW' ? 'Flow' : 'Engine'}
-    </span>
-  )
-}
 
 type Group = { stage: string; rows: MetricRow[] }
 
@@ -43,11 +36,11 @@ function groups(v: VerificationDetail): Group[] {
   if (fm?.lastScore !== undefined) {
     const conf = v.attempts.findLast((a) => a.telemetry?.faceMatchConfidence !== undefined)?.telemetry?.faceMatchConfidence
     out.push({
-      stage: `Face comparison (${subject} vs ID)`,
+      stage: `Similarity and face match (${subject} vs ID)`,
       rows: [flowMetric('compare.similarity', 'Similarity (face vs ID)', fm.lastScore, fm.thresholds), ...(conf === undefined ? [] : [faceMatchMetric(conf)])],
     })
   } else if (rejected) {
-    out.push({ stage: `Face comparison (${subject} vs ID)`, rows: [{ id: 'compare.notRun', label: 'Similarity (face vs ID)', value: 'Not run', threshold: 'The selfie must pass its check first', source: 'ENGINE', result: 'INFO' }] })
+    out.push({ stage: `Similarity and face match (${subject} vs ID)`, rows: [{ id: 'compare.notRun', label: 'Similarity (face vs ID)', value: 'Not run', threshold: 'The selfie must pass its check first', source: 'ENGINE', result: 'INFO' }] })
   }
   const lv = ev('LIVENESS')
   if (lv?.lastScore !== undefined) out.push({ stage: 'Liveness', rows: [flowMetric('liveness.confidence', 'Liveness confidence', lv.lastScore, lv.thresholds)] })
@@ -63,7 +56,7 @@ function groups(v: VerificationDetail): Group[] {
 export function TelemetrySection({ v }: { v: VerificationDetail }) {
   const gs = groups(v)
   return (
-    <Section title="Telemetry" aside={<span className="text-xs text-muted-foreground">Latest attempt · thresholds set by the flow or fixed by the engine</span>}>
+    <Section title="Telemetry" aside={<span className="text-xs text-muted-foreground">Latest attempt</span>}>
       {!gs.length ? (
         <p className="text-sm text-muted-foreground">Nothing submitted yet.</p>
       ) : (
@@ -74,14 +67,13 @@ export function TelemetrySection({ v }: { v: VerificationDetail }) {
                 <th className="py-1.5 pr-3 font-medium">Metric</th>
                 <th className="py-1.5 pr-3 font-medium">Value</th>
                 <th className="py-1.5 pr-3 font-medium">Threshold</th>
-                <th className="py-1.5 pr-3 font-medium">Result</th>
-                <th className="py-1.5 font-medium">Set by</th>
+                <th className="py-1.5 font-medium">Result</th>
               </tr>
             </thead>
             {gs.map((g) => (
               <tbody key={g.stage}>
                 <tr>
-                  <th scope="rowgroup" colSpan={5} className="bg-muted/50 px-2 py-1 text-left text-xs font-semibold">
+                  <th scope="rowgroup" colSpan={4} className="bg-muted/50 px-2 py-1 text-left text-xs font-semibold">
                     {g.stage}
                   </th>
                 </tr>
@@ -90,13 +82,15 @@ export function TelemetrySection({ v }: { v: VerificationDetail }) {
                     <th scope="row" className="py-1.5 pr-3 pl-2 text-left font-normal">{r.label}</th>
                     <td className="py-1.5 pr-3 tabular-nums">{r.value}</td>
                     <td className="py-1.5 pr-3 text-xs text-muted-foreground">{r.threshold}</td>
-                    <td className="py-1.5 pr-3"><ResultText result={r.result} /></td>
-                    <td className="py-1.5"><SetBy source={r.source} /></td>
+                    <td className="py-1.5"><ResultText result={r.result} /></td>
                   </tr>
                 ))}
               </tbody>
             ))}
           </table>
+          <p className="mt-2 text-xs text-muted-foreground">
+            Face match: confidence that a face is clearly detected (not liveness). Similarity: the face compared with the ID photo.
+          </p>
         </div>
       )}
     </Section>
@@ -120,7 +114,7 @@ export function AttemptsSection({ v }: { v: VerificationDetail }) {
               <th className="py-1.5 pr-3 font-medium">Outcome</th>
               <th className="py-1.5 pr-3 font-medium">Face</th>
               <th className="py-1.5 pr-3 text-right font-medium">Similarity (face vs ID)</th>
-              <th className="py-1.5 pr-3 text-right font-medium">Face match (real face)</th>
+              <th className="py-1.5 pr-3 text-right font-medium">Face match</th>
               {hasLiveness && <th className="py-1.5 pr-3 text-right font-medium">Liveness confidence</th>}
               {v1 && <th className="py-1.5 font-medium">Selfie quality</th>}
             </tr>

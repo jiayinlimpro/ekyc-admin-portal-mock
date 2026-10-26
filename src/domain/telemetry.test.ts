@@ -9,7 +9,7 @@ const failing = (rows: { label: string; result: string }[]) => rows.filter((r) =
 describe('engine metrics (DEC-105)', () => {
   it('Given a good ID image, then every ID capture metric passes and the threshold is fixed by the engine', () => {
     const rows = idCaptureMetrics(ID_OK, 'MYKAD')
-    expect(rows.map((r) => r.label)).toEqual(['Faces found', 'Face match (real face on the ID)', 'Eyes open', 'Face covered', 'Image size', 'OCR fields detected'])
+    expect(rows.map((r) => r.label)).toEqual(['Faces found', 'Face match', 'Eyes open', 'Face covered', 'Image size', 'OCR fields detected'])
     expect(rows.every((r) => r.result === 'PASS' && r.source === 'ENGINE')).toBe(true)
     expect(rows.find((r) => r.label === 'OCR fields detected')!.value).toBe('4 / 4')
   })
@@ -18,7 +18,7 @@ describe('engine metrics (DEC-105)', () => {
     const rows = idCaptureMetrics({ ...ID_OK, facesFound: 2, imageWidth: 320, imageHeight: 319, ocrFieldsMissing: ['Class'] }, 'DRIVING_LICENSE')
     expect(failing(rows)).toEqual(['Faces found', 'Image size', 'OCR fields detected'])
     expect(rows.find((r) => r.label === 'OCR fields detected')!.value).toBe('5 / 6 (missing: Class)')
-    expect(failing(idCaptureMetrics({ ...ID_OK, faceConfidence: 89.9 }, 'MYKAD'))).toEqual(['Face match (real face on the ID)'])
+    expect(failing(idCaptureMetrics({ ...ID_OK, faceConfidence: 89.9 }, 'MYKAD'))).toEqual(['Face match'])
     expect(failing(idCaptureMetrics({ ...ID_OK, faceConfidence: 90 }, 'MYKAD'))).toEqual([])
   })
 
@@ -35,10 +35,10 @@ describe('engine metrics (DEC-105)', () => {
     expect(selfiePasses({ ...SELFIE_OK, eyesOpen: false })).toBe(false)
   })
 
-  it('Given similarity and face match, then two separate rows: face vs ID (flow band) and real face (> 90, engine)', () => {
+  it('Given similarity and face match, then two separate rows: face vs ID (flow band) and face detected (> 90, engine)', () => {
     const real = faceMatchMetric(99.2)
     const sim = flowMetric('compare.similarity', 'Similarity (face vs ID)', 83.5, { autoReject: 75, autoPass: 85 })
-    expect(real).toMatchObject({ label: 'Face match (real face)', source: 'ENGINE', result: 'PASS', threshold: '> 90' })
+    expect(real).toMatchObject({ label: 'Face match', source: 'ENGINE', result: 'PASS', threshold: '> 90' })
     expect(sim).toMatchObject({ label: 'Similarity (face vs ID)', source: 'FLOW', result: 'REVIEW', threshold: 'Auto-Reject < 75 · Auto-Pass ≥ 85' })
     expect(faceMatchMetric(90).result).toBe('FAIL') // > 90, as in Match Validation
   })

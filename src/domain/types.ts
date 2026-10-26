@@ -17,7 +17,7 @@ export type CapturePhase = (typeof CAPTURE_PHASES)[number]
 export const PHASE_LABELS: Record<Phase, string> = {
   DOCUMENT: 'Document',
   SELFIE: 'Selfie',
-  FACE_MATCH: 'Face Match',
+  FACE_MATCH: 'Similarity', // REQ: DEC-10 — the configurable band (face vs ID); "Face match" is the engine's face-detected value
   LIVENESS: 'Liveness',
   RISK_ASSESSMENT: 'Risk Assessment',
 }
@@ -224,14 +224,6 @@ export interface VerificationSummary {
   createdAt: string // session started (DEC-04)
 }
 
-/** One line of the case's Activity timeline (DEC-44): session events plus the case's audit events, oldest first. */
-export interface CaseActivity {
-  at: string
-  kind: 'SESSION_STARTED' | 'SUBMISSION' | 'SYSTEM_RESULT' | AuditAction
-  by: UpdatedBy
-  detail?: string
-}
-
 // REQ: DEC-41 / DEC-44 — detail carries full PII + client metadata, and everything the Detail sections show.
 export type VerificationDetail = Verification & {
   merchantName: string
@@ -242,7 +234,6 @@ export type VerificationDetail = Verification & {
   steps: { phases: OnboardingPhase[]; faceMatchMethod: FaceMatchMethod; runsRisk: boolean } // from the registry version
   checks: CheckEvaluation[] // face match / liveness: threshold applied, result, retries used / allowed
   newCaseAllowedAt?: string // REJECTED with a cooldown (DEC-26)
-  activity: CaseActivity[]
   reasonOptions: DecisionReason[] // REQ: DEC-106 — the project's active decision reasons, for the decision panel
 }
 

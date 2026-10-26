@@ -13,7 +13,7 @@ import { useDashboardScope } from './dashboardScope'
 
 const avg = (n: number, of: number) => (of ? (n / of).toFixed(2) : '—')
 
-// REQ: DEC-18 / DEC-86 — retry KPIs count face match and liveness retries only; drop-off by phase and retries by flow.
+// REQ: DEC-18 / DEC-86 — retry KPIs count similarity and liveness retries only; drop-off by phase and retries by flow.
 export function IntelligencePage() {
   const d = useDashboardScope()
   const [days, setDays] = useRangeDays()
@@ -41,7 +41,7 @@ export function IntelligencePage() {
 
       <div className={`grid gap-4 sm:grid-cols-3 transition-opacity ${loading && s ? 'opacity-60' : ''}`} aria-busy={loading}>
         <StatTile label="First-attempt pass rate" value={s ? fmtPct(pct(s.firstAttemptPass, s.submitted)) : '—'} note={s ? `${fmtInt(s.firstAttemptPass)} of ${fmtInt(s.submitted)} submitted sessions passed every check first time` : undefined} />
-        <StatTile label="Average retries" value={s ? avg(s.retries, s.submitted) : '—'} note={s ? `${fmtInt(s.retries)} face match and liveness retries · ID capture and selfie retakes are free and not counted` : undefined} />
+        <StatTile label="Average retries" value={s ? avg(s.retries, s.submitted) : '—'} note={s ? `${fmtInt(s.retries)} similarity and liveness retries · ID capture and selfie retakes are free and not counted` : undefined} />
         <StatTile label="Retries used up" value={s ? fmtInt(s.retriesExhausted) : '—'} note="The last attempt decided: Pending Review or Rejected" />
       </div>
 

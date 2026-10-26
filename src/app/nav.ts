@@ -125,7 +125,7 @@ export const NAV_ITEMS: NavItem[] = [
       'Needs View details (DEC-104). Opening writes a SENSITIVE_PII_VIEW audit entry; full PII + client metadata (DEC-41).',
       'Claim bar: Assign to me / Cancel / countdown. Viewing is never blocked (DEC-25).',
       'Decision only for the claim owner on PENDING_REVIEW: Confirm Manual Pass, or Reject with catalogue reasons; note optional (DEC-30, DEC-31).',
-      'Sections per DEC-105: evidence, extracted data, checks (similarity, liveness, duplicate user), risk, telemetry, attempts, rules applied, activity.',
+      'Sections per DEC-105: evidence, extracted data, checks (similarity, liveness, duplicate user), risk, telemetry, attempts, rules applied.',
     ],
   },
   // REQ: DEC-85 / DEC-103 — Projects, Project Settings, Flows List, Flow Detail, in eKYC; only Projects is in the menu.
