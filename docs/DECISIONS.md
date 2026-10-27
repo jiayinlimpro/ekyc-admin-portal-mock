@@ -31,7 +31,7 @@ Rules changed on 2026-10-20 (Projects & Flows restructure) are marked **(changed
   version is locked once a flow is active; to change version, create a new flow. [MS]
 - **DEC-95** Routing (which flow a new session uses) is set by the merchant through the API. The portal shows the routing
   method, rules (priority, conditions, target flow) and percentage shares **read-only** (OQ-18). [MS]
-- **DEC-96** Case lists may span all of a user's projects ("All my projects"). Settings pages always work on one selected
+- **DEC-96** **(superseded by DEC-109: always one project)** Case lists may span all of a user's projects ("All my projects"). Settings pages always work on one selected
   project. [MS]
 
 ## Statuses
@@ -409,7 +409,7 @@ Rules changed on 2026-10-20 (Projects & Flows restructure) are marked **(changed
 - **DEC-71** Client-side permission checks are UI only, not security. The real backend must enforce them.
 - **DEC-72** **(changed)** Every page checks the user's access to the project; hiding a menu item is not enough. A case from
   a project the user's assignments don't cover returns "not found" (not "forbidden"). [MS]
-- **DEC-73** **(changed)** Global header: project switcher (only projects the user's assignments cover, plus "All my
+- **DEC-73** **(changed; the header and "All my projects" superseded by DEC-109)** Global header: project switcher (only projects the user's assignments cover, plus "All my
   projects" for more than one), current project name always visible, menu filtered by the user's permissions in the
   selected project, user menu (name, email, roles in the current project, log out). A user with no assignments can sign in
   but sees "You don't have access to any project yet". [MS][PO 2026-10-20]
@@ -646,15 +646,32 @@ Rules changed on 2026-10-20 (Projects & Flows restructure) are marked **(changed
     `ROL-2026-XXXX` and their columns (DEC-74, DEC-76, DEC-79).
 
 ## Screens and navigation
-- **DEC-84** **(new)** No Home page. **Everyone lands on Overview.** UAT scenario links are on a mock-only page in the Dev
-  menu. [PO 2026-10-20]
+- **DEC-109** **(new)** Two layers, like Langfuse's organizations and projects [PO 2026-10-27]. Replaces DEC-73's "All my
+  projects", DEC-84 (landing), DEC-96, DEC-103 and the cross-project scope of DEC-86.
+  - **Outer layer** (where everyone lands, `/`): the **Merchants** page. One row per merchant, each project a card with
+    **Go to project** and ⚙ (its Project Settings). The card shows the project name only. Platform users see every
+    merchant; a merchant user sees only their merchant and the projects they can reach. Top right: Search projects, and
+    **New merchant** for platform users who may create merchants.
+    - Row header: ⚙ **Merchant settings** · 👥 **Users** · **+ New project** (each shown only with the permission).
+    - **Merchant settings** (outer): General (merchant details; edit and status for platform users) · Users · Roles
+      (merchant roles) · Billing (every project of the merchant) · Audit log (the whole merchant).
+    - Outer sidebar: Merchants; for platform users with the permission, **Super admins**, **Platform staff** (staff users
+      and platform roles) and **Workflow Registry**. These platform modules no longer exist inside a project.
+  - **Inner layer** (today's portal): always **one project**. Opened by Go to project (or a link to a case, which selects
+    that case's project). Header breadcrumb: `Merchant ▾ / Project ▾` switchers; the logo goes back to the Merchants page.
+    Menu: Overview, System Intelligence, Billing · Verifications, Flows · Audit Logs · Project Settings, every one showing
+    that project's data only. No "All my projects", no cross-project or cross-merchant views (DEC-86's merchant filter is
+    gone), no Projects list (the Merchants page replaces it; rename and archive are in Project Settings › General).
+  - Platform-wide billing totals are dropped: billing is per merchant (Merchant settings) and per project.
+- **DEC-84** **(superseded by DEC-109)** No Home page. Everyone lands on Overview. UAT scenario links are on a mock-only page in
+  the Dev menu (still true). [PO 2026-10-20]
 - **DEC-85** **(new)** Screens: Overview, System Intelligence, Billing (all roles, DEC-86), Verifications List, Verification
   Detail, Projects, Project Settings, Flows List, Flow Detail, Users, Roles, Audit Log; Platform Admin only: Merchants,
   Workflow Registry, Admins (DEC-79). Replaced: eKYC Workflow → Flows List + Flow Detail; Developers → Project Settings › Integration;
   Users and Access → Users + Roles ([FRS] method, DEC-74, DEC-76); Merchant Workflow Directory → Workflow Registry ("flows using it"); the [MS] Reports
   module → folded into the three dashboards (DEC-86). Overview, System Intelligence, Billing and Merchants otherwise follow
   [FRS]. [MS][PO 2026-10-20]
-- **DEC-103** **(new)** Sidebar menu [PO 2026-10-22]:
+- **DEC-103** **(superseded by DEC-109; the collapsed-sidebar flyout stays)** Sidebar menu [PO 2026-10-22]:
   - Groups, in order: **Dashboards** (Overview, System Intelligence, Billing) · **eKYC** (Verifications, Projects) ·
     **User Management** (Users, Roles) · **Governance** (Audit Logs) · **Platform** (Merchants, Super admins, Workflow
     Registry). Group icons: gauge, face scan, people, scroll, cog.

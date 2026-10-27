@@ -69,8 +69,11 @@ UAT scenarios: `docs/SCENARIOS.md`.
   (information only); every open writes a SENSITIVE_PII_VIEW audit entry.
 - Every mutation writes an audit entry (DEC-42 event names).
 - Config lives on each flow; saving an active flow needs a reason and creates a revision; applies to new sessions only.
-- No Home page; everyone lands on Overview. Overview, System Intelligence and Billing are for every role, data scoped to
-  the user (no separate Reports screen). Merchants and Workflow Registry are for super admins and staff with those permissions. No Manual Review Queue.
+- Two layers (DEC-109): everyone lands on the outer **Merchants** page (rows = merchants, cards = projects: Go to project,
+  ⚙ Project Settings; row ⚙ Merchant settings = General, Users, Roles, Billing, Audit log). Outer platform modules: Super
+  admins, Platform staff, Workflow Registry. The inner portal is always ONE project (`Merchant ▾ / Project ▾` in the
+  header): Overview, System Intelligence, Billing, Verifications, Flows, Audit Logs, Project Settings. No "All my
+  projects", no cross-project or cross-merchant views. No Manual Review Queue.
 - Open questions must be parameters (`src/domain/openQuestions.ts`, or on the project/flow) with an "OPEN QUESTION" label
   in the UI, never hard-coded values in components.
 
