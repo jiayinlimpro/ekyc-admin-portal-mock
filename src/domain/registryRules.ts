@@ -7,7 +7,7 @@ export const ARN_PATTERN = /^arn:aws:states:[a-z0-9-]+:\d{12}:stateMachine:[A-Za
 
 export type RegistryInput = Pick<
   RegistryEntry,
-  'code' | 'name' | 'description' | 'phases' | 'faceMatchMethod' | 'requiredInputs' | 'configurableChecks' | 'riskMinimumsPerFlow' | 'stateMachineSandbox' | 'stateMachineProduction'
+  'code' | 'name' | 'description' | 'phases' | 'faceMatchMethod' | 'requiredInputs' | 'configurableChecks' | 'riskMinimumsPerFlow' | 'accessMerchantIds' | 'stateMachineSandbox' | 'stateMachineProduction'
 > & { releaseNote: string }
 
 export function hasRisk(e: Pick<RegistryEntry, 'phases'>): boolean {
@@ -44,23 +44,28 @@ export function validateRegistryInput(input: RegistryInput, existingCodes: reado
 }
 
 /** FRS Notes C: once a version has been Active, only these can change; anything else needs a new code. */
-export const EDITABLE_AFTER_ACTIVE = ['name', 'description', 'stateMachineSandbox', 'stateMachineProduction'] as const
+export const EDITABLE_AFTER_ACTIVE = ['name', 'description', 'accessMerchantIds', 'stateMachineSandbox', 'stateMachineProduction'] as const
 
 export function isLocked(e: Pick<RegistryEntry, 'activatedAt'>, field: keyof RegistryInput): boolean {
   return !!e.activatedAt && !(EDITABLE_AFTER_ACTIVE as readonly string[]).includes(field) && field !== 'releaseNote'
 }
 
-// REQ: DEC-56 / DEC-57
+/** REQ: DEC-56 — statuses under which sessions run, so the state machines must be recorded. */
+export const RUNNABLE_STATUSES: readonly RegistryStatus[] = ['INTERNAL_TESTING', 'LIMITED_RELEASE', 'ACTIVE']
+
+// REQ: DEC-56 / DEC-57 — no lifecycle: any status, with a reason. The default stays Active; running statuses need state machines.
 export function statusChangeError(e: Pick<RegistryEntry, 'status' | 'isDefault' | 'stateMachineSandbox' | 'stateMachineProduction'>, to: RegistryStatus, reason: string): string | undefined {
-  if (e.status === to) return `This version is already ${to.toLowerCase()}.`
-  if (to === 'DRAFT') return 'A version cannot go back to Draft.'
+  if (e.status === to) return 'This version already has that status.'
   if (!reason.trim()) return 'Reason for change is required.'
-  if (to === 'ACTIVE' && (!e.stateMachineSandbox?.trim() || !e.stateMachineProduction?.trim())) {
-    return 'Add both state machine references before activating.'
+  if (e.isDefault && to !== 'ACTIVE') return 'Set another version as default first: the default for new merchants must stay Active.'
+  if (RUNNABLE_STATUSES.includes(to) && (!e.stateMachineSandbox?.trim() || !e.stateMachineProduction?.trim())) {
+    return 'Add both state machine references first.'
   }
-  if (to === 'DEPRECATED' && e.isDefault) return 'Set another version as default before deprecating this version'
   return undefined
 }
+
+/** REQ: DEC-56 — fields lock once merchants could build on it (Limited release or Active). */
+export const locksFields = (to: RegistryStatus) => to === 'LIMITED_RELEASE' || to === 'ACTIVE'
 
 export function setDefaultError(e: Pick<RegistryEntry, 'status' | 'isDefault'>): string | undefined {
   if (e.isDefault) return 'This version is already the default.'
@@ -78,6 +83,9 @@ export function defaultVersion<E extends Pick<RegistryEntry, 'isDefault'>>(entri
 }
 
 /** Versions offered when creating a flow. Draft and Deprecated are never offered (DEC-56). */
-export function selectableForNewFlow<E extends Pick<RegistryEntry, 'status'>>(entries: readonly E[]): E[] {
-  return entries.filter((e) => e.status === 'ACTIVE')
+/** REQ: DEC-56 — versions a user may choose for a new flow: internal users (super admin, platform staff) or a merchant's users. */
+export function selectableForNewFlow<E extends Pick<RegistryEntry, 'status' | 'accessMerchantIds'>>(entries: readonly E[], who: { internal: boolean; merchantId?: string }): E[] {
+  return entries.filter(
+    (e) => e.status === 'ACTIVE' || (who.internal && (e.status === 'INTERNAL_TESTING' || e.status === 'LIMITED_RELEASE')) || (e.status === 'LIMITED_RELEASE' && !!who.merchantId && e.accessMerchantIds.includes(who.merchantId)),
+  )
 }

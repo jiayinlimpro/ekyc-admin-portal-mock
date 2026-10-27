@@ -147,7 +147,7 @@ export function buildCase(spec: CaseSpec): Verification {
     pii: email ? { ...spec.person.pii, email } : spec.person.pii,
     clientMetadata: spec.metadata,
     images: { docFront: { fileId: stableId('file', `${spec.referenceNo}:doc`), url: image }, selfie: { fileId: stableId('file', `${spec.referenceNo}:selfie`), url: '/mock/selfie.svg' } },
-    charged: true,
+    charged: spec.entry.status !== 'INTERNAL_TESTING', // REQ: DEC-60 / DEC-56
     projectId: spec.flow.projectId,
     flowId: spec.flow.flowId,
     configRevision: rev.revision,

@@ -15,15 +15,16 @@ const SYSTEM = { userId: 'SYSTEM' as const, fullName: 'SYSTEM' as const }
 
 export function buildRegistry(now: Date): RegistryEntry[] {
   const ago = (days: number) => new Date(now.getTime() - days * DAY).toISOString()
-  const entry = (e: Pick<RegistryEntry, 'code' | 'name' | 'description' | 'phases' | 'faceMatchMethod' | 'requiredInputs' | 'status' | 'isDefault'> & Partial<Pick<RegistryEntry, 'riskMinimumsPerFlow'>>, days: number, sm?: string): RegistryEntry => ({
+  const entry = (e: Pick<RegistryEntry, 'code' | 'name' | 'description' | 'phases' | 'faceMatchMethod' | 'requiredInputs' | 'status' | 'isDefault'> & Partial<Pick<RegistryEntry, 'riskMinimumsPerFlow' | 'accessMerchantIds'>>, days: number, sm?: string): RegistryEntry => ({
     entryId: stableId('wfv', e.code),
     riskMinimumsPerFlow: false,
+    accessMerchantIds: [],
     ...e,
     configurableChecks: ['FACE_MATCH', 'LIVENESS'],
     stateMachineSandbox: sm && ARN(sm, 'sand'),
     stateMachineProduction: sm && ARN(sm, 'prod'),
     releaseNotes: [{ at: ago(days), by: ADMIN.fullName, text: `Registered ${e.code}.` }],
-    activatedAt: e.status === 'DRAFT' ? undefined : ago(days),
+    activatedAt: e.status === 'LIMITED_RELEASE' || e.status === 'ACTIVE' || e.status === 'DEPRECATED' ? ago(days) : undefined,
     registeredAt: ago(days),
     registeredBy: ADMIN.fullName,
     updatedAt: ago(days),
@@ -34,8 +35,10 @@ export function buildRegistry(now: Date): RegistryEntry[] {
     entry({ code: 'V1', name: 'ID + Selfie + Liveness', description: 'ID capture, selfie and liveness; face match ID vs selfie.', phases: ['ID_CAPTURE', 'SELFIE_CAPTURE', 'LIVENESS_CHECK'], faceMatchMethod: 'ID_VS_SELFIE', requiredInputs: [], status: 'ACTIVE', isDefault: true }, 400, 'onboard_v1'),
     entry({ code: 'V3', name: 'ID + Liveness', description: 'ID capture and liveness; face match ID vs liveness face.', phases: ['ID_CAPTURE', 'LIVENESS_CHECK'], faceMatchMethod: 'ID_VS_LIVENESS', requiredInputs: [], status: 'ACTIVE', isDefault: false }, 300, 'onboard_v4'),
     entry({ code: 'V4', name: 'ID + Liveness + Risk Assessment', description: 'V3 + risk assessment.', phases: ['ID_CAPTURE', 'LIVENESS_CHECK', 'RISK_ASSESSMENT'], faceMatchMethod: 'ID_VS_LIVENESS', requiredInputs: ['EMAIL'], status: 'ACTIVE', isDefault: false }, 300, 'onboard_v4'),
-    // REQ: DEC-107 — V5 = V4 with the risk minimums set per flow.
-    entry({ code: 'V5', name: 'ID + Liveness + component risk', description: 'V4 with a risk minimum per category set by each flow.', phases: ['ID_CAPTURE', 'LIVENESS_CHECK', 'RISK_ASSESSMENT'], faceMatchMethod: 'ID_VS_LIVENESS', requiredInputs: ['EMAIL'], riskMinimumsPerFlow: true, status: 'ACTIVE', isDefault: false }, 10, 'onboard_v5'),
+    // REQ: DEC-107 / DEC-56 — V5 = V4 with the risk minimums set per flow; Limited release to Atoz.
+    entry({ code: 'V5', name: 'ID + Liveness + component risk', description: 'V4 with a risk minimum per category set by each flow.', phases: ['ID_CAPTURE', 'LIVENESS_CHECK', 'RISK_ASSESSMENT'], faceMatchMethod: 'ID_VS_LIVENESS', requiredInputs: ['EMAIL'], riskMinimumsPerFlow: true, status: 'LIMITED_RELEASE', accessMerchantIds: [fx('MER-0001')], isDefault: false }, 10, 'onboard_v5'),
+    // REQ: DEC-56 — Internal testing: only super admins and platform staff can build flows on it; not charged.
+    entry({ code: 'V6', name: 'ID + Liveness (next engine build)', description: 'V3 on the next engine build, in internal testing.', phases: ['ID_CAPTURE', 'LIVENESS_CHECK'], faceMatchMethod: 'ID_VS_LIVENESS', requiredInputs: [], status: 'INTERNAL_TESTING', isDefault: false }, 3, 'onboard_v6'),
   ]
 }
 

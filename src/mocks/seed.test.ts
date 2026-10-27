@@ -320,7 +320,7 @@ describe('projects, flows and registry (DEC-56 … DEC-58, DEC-90 … DEC-95)', 
   const entry = (code: string) => db.registry.find((e) => e.code === code)!
 
   it('Given the registry, then V1, V3, V4, V5 Active, no V2, one Active default, and only V5 lets flows set risk minimums (DEC-57, DEC-107)', () => {
-    expect(db.registry.map((e) => `${e.code}:${e.status}`)).toEqual(['V1:ACTIVE', 'V3:ACTIVE', 'V4:ACTIVE', 'V5:ACTIVE'])
+    expect(db.registry.map((e) => `${e.code}:${e.status}`)).toEqual(['V1:ACTIVE', 'V3:ACTIVE', 'V4:ACTIVE', 'V5:LIMITED_RELEASE', 'V6:INTERNAL_TESTING'])
     expect(db.registry.filter((e) => e.riskMinimumsPerFlow).map((e) => e.code)).toEqual(['V5'])
     expect(db.registry.filter((e) => e.isDefault).map((e) => e.code)).toEqual(['V1'])
     for (const e of db.registry) expect(validateRegistryInput({ ...e, releaseNote: 'seed' }, [])).toEqual([])

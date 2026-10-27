@@ -13,6 +13,7 @@ const input = (overrides: Partial<RegistryInput> = {}): RegistryInput => ({
   requiredInputs: ['EMAIL'],
   configurableChecks: ['FACE_MATCH', 'LIVENESS'],
   riskMinimumsPerFlow: true,
+  accessMerchantIds: [],
   releaseNote: 'First registration',
   ...overrides,
 })
@@ -67,25 +68,25 @@ describe('registry: register and edit (FRS)', () => {
   })
 })
 
-describe('registry: status lifecycle (DEC-56)', () => {
-  it('Given Draft → Active, Draft → Deprecated, Active → Deprecated, Deprecated → Active, then allowed with a reason', () => {
-    expect(statusChangeError(entry('V5', 'DRAFT'), 'ACTIVE', 'Released')).toBeUndefined()
-    expect(statusChangeError(entry('V5', 'DRAFT'), 'DEPRECATED', 'Withdrawn')).toBeUndefined()
+describe('registry: statuses, no lifecycle (DEC-56)', () => {
+  it('Given any other status with a reason, then allowed, Draft and back included', () => {
+    expect(statusChangeError(entry('V5', 'DRAFT'), 'INTERNAL_TESTING', 'Engine build ready')).toBeUndefined()
+    expect(statusChangeError(entry('V5', 'INTERNAL_TESTING'), 'LIMITED_RELEASE', 'Pilot with Atoz')).toBeUndefined()
     expect(statusChangeError(entry('V3', 'ACTIVE'), 'DEPRECATED', 'Replaced by V4')).toBeUndefined()
-    expect(statusChangeError(entry('V3', 'DEPRECATED'), 'ACTIVE', 'Re-activated')).toBeUndefined()
+    expect(statusChangeError(entry('V3', 'DEPRECATED'), 'DRAFT', 'Back to the drawing board')).toBeUndefined()
   })
 
-  it('Given any move back to Draft, then refused', () => {
-    expect(statusChangeError(entry('V3', 'ACTIVE'), 'DRAFT', 'x')).toBe('A version cannot go back to Draft.')
-  })
-
-  it('Given no reason, or activation without both state machine refs, then refused', () => {
+  it('Given the same status, no reason, or a running status without both state machine refs, then refused', () => {
+    expect(statusChangeError(entry('V3', 'ACTIVE'), 'ACTIVE', 'x')).toBe('This version already has that status.')
     expect(statusChangeError(entry('V3', 'ACTIVE'), 'DEPRECATED', '  ')).toBe('Reason for change is required.')
-    expect(statusChangeError({ ...entry('V5', 'DRAFT'), stateMachineProduction: undefined }, 'ACTIVE', 'Go')).toBe('Add both state machine references before activating.')
+    for (const to of ['INTERNAL_TESTING', 'LIMITED_RELEASE', 'ACTIVE'] as const) {
+      expect(statusChangeError({ ...entry('V5', 'DRAFT'), stateMachineProduction: undefined }, to, 'Go'), to).toBe('Add both state machine references first.')
+    }
   })
 
-  it('Given the default version, when deprecating, then refused until another default is set (DEC-57)', () => {
-    expect(statusChangeError(entry('V1', 'ACTIVE', true), 'DEPRECATED', 'Old')).toBe('Set another version as default before deprecating this version')
+  it('Given the default version, then it must stay Active (DEC-57)', () => {
+    expect(statusChangeError(entry('V1', 'ACTIVE', true), 'DEPRECATED', 'Old')).toBe('Set another version as default first: the default for new merchants must stay Active.')
+    expect(statusChangeError(entry('V1', 'ACTIVE', true), 'INTERNAL_TESTING', 'Retest')).toMatch(/must stay Active/)
   })
 })
 
@@ -103,8 +104,11 @@ describe('registry: default for new merchants (DEC-57)', () => {
     expect(setDefaultError(entry('V3', 'ACTIVE'))).toBeUndefined()
   })
 
-  it('Given flow creation, then only Active versions are offered — no Draft, no Deprecated (DEC-56)', () => {
-    const list = selectableForNewFlow([...entries, entry('V2X', 'DEPRECATED')]).map((e) => e.code)
-    expect(list).toEqual(['V1', 'V3', 'V4'])
+  it('Given flow creation, then Active for everyone; Internal testing for internal users only; Limited release also for listed merchants (DEC-56)', () => {
+    const all = [...entries, entry('V2X', 'DEPRECATED'), entry('V6', 'INTERNAL_TESTING'), { ...entry('V7', 'LIMITED_RELEASE'), accessMerchantIds: ['mer_a'] }]
+    const codes = (who: { internal: boolean; merchantId?: string }) => selectableForNewFlow(all, who).map((e) => e.code)
+    expect(codes({ internal: false, merchantId: 'mer_b' })).toEqual(['V1', 'V3', 'V4'])
+    expect(codes({ internal: false, merchantId: 'mer_a' })).toEqual(['V1', 'V3', 'V4', 'V7'])
+    expect(codes({ internal: true })).toEqual(['V1', 'V3', 'V4', 'V6', 'V7'])
   })
 })

@@ -233,8 +233,9 @@ export interface BillingTotals {
 const round2 = (n: number) => Math.round(n * 100) / 100
 
 export function billingLine(v: Verification, tokenPrice: number): BillingLine {
-  const documents = v.idCapture ? v.idCaptureSoftRejects + 1 : 0
-  const liveness = v.submissions.LIVENESS?.length ?? 0
+  // REQ: DEC-60 / DEC-56 — sessions on an Internal testing version are not charged.
+  const documents = v.charged && v.idCapture ? v.idCaptureSoftRejects + 1 : 0
+  const liveness = v.charged ? (v.submissions.LIVENESS?.length ?? 0) : 0
   const tokens = documents + liveness
   return {
     caseId: v.caseId,

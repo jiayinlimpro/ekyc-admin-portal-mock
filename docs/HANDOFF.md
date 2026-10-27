@@ -32,7 +32,7 @@ What the mock gives engineering, and what the real backend must do that a mock c
 | | `POST /projects/{id}/decision-reasons`, `PATCH …/{code}`, `POST …/{code}/status` | Custom decision reasons (code generated, never deleted); System Default ones only turn off; "Other" stays on; 422 for a duplicate name per outcome; audited `PROJECT_SETTING_CHANGED` (DEC-106) |
 | Integration | `GET /projects/{id}/integration`, `POST …/api-keys`, `POST /api-keys/{id}/rotate`, `DELETE /api-keys/{id}`, `PUT …/webhook`, `PUT …/access-lists` | Manage API keys and webhook, and Platform Admin (DEC-75); secrets returned once, only a hint stored |
 | Flows | `GET /projects/{id}/flows`, `GET /flows/{id}`, `POST …/flows`, `PUT /flows/{id}`, `POST /flows/{id}/activate | retire | default | duplicate` | Saving an Active flow needs a reason and creates `<Version>-R<n>` for new sessions only (DEC-51, DEC-52) |
-| Registry | `GET /registry`, `GET /registry/selectable`, `POST /registry`, `PUT /registry/{code}`, `POST …/status`, `POST …/default`, `GET …/flows` | Platform Admin; only Active versions selectable (DEC-56, DEC-57) |
+| Registry | `GET /registry`, `GET /registry/selectable?merchantId=` (DEC-56: Internal testing for internal users, Limited release for `accessMerchantIds`), `POST /registry`, `PUT /registry/{code}`, `POST …/status`, `POST …/default`, `GET …/flows` | Platform Admin; only Active versions selectable (DEC-56, DEC-57) |
 | Users | `GET /users`, `GET /users/{id}`, `POST /merchants/{id}/users`, `POST /users/{id}/invitation`, `PUT /users/{id}/role`, `POST /users/{id}/suspend | reactivate`, `GET|POST|DELETE /projects/{id}/members` | One merchant role per user (Member by default); project roles only in Members, never with merchant-wide permissions; grant only what you hold; one Owner remains; changes release claims (DEC-74, DEC-77, DEC-104) |
 | Platform staff | `GET /staff`, `GET /staff/{id}`, `POST /staff`, `POST /staff/{id}/invitation`, `PUT /staff/{id}/role`, `POST /staff/{id}/suspend | reactivate` | Super admin only, "not found" otherwise; one platform role, no scope; company staff domain (OQ-31). A platform role holds every merchant module too (users, roles, projects, members… in every merchant) (DEC-99, DEC-104) |
 | Super admins | `GET /admins`, `POST /admins`, `POST /admins/{id}/invitation`, `POST /admins/{id}/suspend | reactivate` | Super admin only; no roles; one active admin must remain; nobody suspends themselves (DEC-79) |
@@ -54,7 +54,7 @@ server-side**. The tests (Given/When/Then names) are a shared spec; port or mirr
 - `telemetry.ts`: engine thresholds and the metric rows shown on the case page (DEC-105); the duplicate-user result is never an input to `checkRules`.
 - `claimRules.ts`: claim, cancel, expiry, overlay enablement, save-time ownership check, decisions (DEC-31).
 - `flowSettings.ts`, `flowRules.ts`, `thresholds.ts`: presets / Advanced, validation, revisions, lifecycle, cooldown.
-- `registryRules.ts`, `projectSettings.ts`, `conditions.ts`: registry lifecycle, settings validation, reason catalogue.
+- `registryRules.ts`, `projectSettings.ts`, `conditions.ts`: registry statuses and who may choose a version (`selectableForNewFlow`, DEC-56), settings validation, reason catalogue.
 - `dashboards.ts`: KPI definitions (Auto-Clear = SYSTEM approvals; retries = submissions after the first in every phase; tokens =
   document + liveness submissions, DEC-60).
 

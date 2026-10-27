@@ -1,14 +1,14 @@
 // Workflow Registry API (mock). DEC-56 … DEC-58. A record only: nothing here builds, deploys or calls AWS Step Functions.
 //   GET  /registry                    list           → 200 RegistryRow[]           (Super admin)
-//   GET  /registry/selectable         listSelectable → 200 SelectableVersion[]     (anyone who may create flows)
+//   GET  /registry/selectable?merchantId=  listSelectable → 200 SelectableVersion[]  (anyone who may create flows; DEC-56)
 //   POST /registry                    register       → 201 RegistryEntry | 422 VALIDATION
 //   PUT  /registry/{code}             update         → 200 RegistryEntry | 422 VALIDATION (locked fields)
 //   POST /registry/{code}/status      changeStatus   → 200 RegistryEntry | 422 VALIDATION
 //   POST /registry/{code}/default     setDefault     → 200 RegistryEntry | 422 VALIDATION
 //   GET  /registry/{code}/flows       flowsUsing     → 200 FlowUsingVersion[] (replaces the Merchant Workflow Directory, DEC-85)
-import { canOnPlatform, projectsWhere } from '@/domain/access'
+import { canOnPlatform, isInternal, projectsWhere } from '@/domain/access'
 import { makeAudit } from '@/domain/audit'
-import { isLocked, selectableForNewFlow, setDefaultError, statusChangeError, validateRegistryInput, withDefault, type RegistryInput } from '@/domain/registryRules'
+import { isLocked, locksFields, selectableForNewFlow, setDefaultError, statusChangeError, validateRegistryInput, withDefault, type RegistryInput } from '@/domain/registryRules'
 import type { Actor, AuditAction, Flow, RegistryEntry, RegistryStatus, SettingChange, WorkflowCode } from '@/domain/types'
 import { now } from '@/lib/clock'
 import { db } from '@/mocks/mockDb'
@@ -36,7 +36,8 @@ export interface FlowUsingVersion {
 export interface RegistryService {
   list(actor: Actor): Promise<RegistryRow[]>
   flowsUsing(code: WorkflowCode, actor: Actor): Promise<FlowUsingVersion[]>
-  listSelectable(actor: Actor): Promise<SelectableVersion[]>
+  /** REQ: DEC-56 — what this user may choose for a new flow in that merchant (Internal testing: internal users only). */
+  listSelectable(actor: Actor, merchantId?: string): Promise<SelectableVersion[]>
   register(input: RegistryInput, actor: Actor): Promise<RegistryEntry>
   /** The code never changes. After first activation only name, description and state machine references can (DEC-56). */
   update(code: WorkflowCode, input: RegistryInput, actor: Actor): Promise<RegistryEntry>
@@ -64,7 +65,7 @@ function audit(actor: Actor, action: AuditAction, code: WorkflowCode, details: R
   db.appendAudit(makeAudit({ id: '', now: now(), action, actor, actorRole: 'Super admin', ip: clientIpFor(actor), details: { code, ...details } }))
 }
 
-const FIELDS: (keyof RegistryInput)[] = ['name', 'description', 'phases', 'faceMatchMethod', 'requiredInputs', 'configurableChecks', 'riskMinimumsPerFlow', 'stateMachineSandbox', 'stateMachineProduction']
+const FIELDS: (keyof RegistryInput)[] = ['name', 'description', 'phases', 'faceMatchMethod', 'requiredInputs', 'configurableChecks', 'riskMinimumsPerFlow', 'accessMerchantIds', 'stateMachineSandbox', 'stateMachineProduction']
 const text = (v: unknown) => (Array.isArray(v) ? v.join(' → ') || '—' : v === undefined || v === '' ? '—' : String(v))
 
 function diff(e: RegistryEntry, input: RegistryInput): SettingChange[] {
@@ -79,6 +80,7 @@ const fields = (input: RegistryInput) => ({
   requiredInputs: input.requiredInputs,
   configurableChecks: input.configurableChecks,
   riskMinimumsPerFlow: input.riskMinimumsPerFlow && input.phases.includes('RISK_ASSESSMENT'),
+  accessMerchantIds: input.accessMerchantIds.filter((id) => db.state().merchants.some((m) => m.merchantId === id)),
   stateMachineSandbox: input.stateMachineSandbox?.trim() || undefined,
   stateMachineProduction: input.stateMachineProduction?.trim() || undefined,
 })
@@ -108,11 +110,11 @@ export const mockRegistryService: RegistryService = {
   },
 
   // REQ: DEC-56 — Active versions only; for anyone who may create flows somewhere.
-  async listSelectable(actor) {
+  async listSelectable(actor, merchantId) {
     await simulateNetwork('list selectable versions')
     if (projectsWhere(accountOf(actor), 'createFlows', db.state().projects).length === 0) throw new ServiceError('FORBIDDEN', 'You do not have permission to create flows.')
     return wire(
-      selectableForNewFlow(db.state().registry).map(({ code, name, description, phases, faceMatchMethod, requiredInputs, configurableChecks, riskMinimumsPerFlow, isDefault }) => ({
+      selectableForNewFlow(db.state().registry, { internal: isInternal(accountOf(actor)), merchantId: merchantId ?? accountOf(actor).merchantId }).map(({ code, name, description, phases, faceMatchMethod, requiredInputs, configurableChecks, riskMinimumsPerFlow, isDefault }) => ({
         code,
         name,
         description,
@@ -171,7 +173,7 @@ export const mockRegistryService: RegistryService = {
     return wire(updated)
   },
 
-  // REQ: DEC-56 / DEC-57 — Draft → Active needs complete fields; never back to Draft; the default can't be deprecated.
+  // REQ: DEC-56 / DEC-57 — any status with a reason; the default stays Active; running statuses need state machines.
   async changeStatus(code, to, reason, actor) {
     await simulateNetwork('change workflow status')
     requireActive(actor)
@@ -180,7 +182,7 @@ export const mockRegistryService: RegistryService = {
     const blocked = statusChangeError(e, to, reason)
     if (blocked) throw validation([{ field: 'status', message: blocked }])
     const at = now().toISOString()
-    const updated: RegistryEntry = { ...e, status: to, activatedAt: e.activatedAt ?? (to === 'ACTIVE' ? at : undefined), updatedAt: at, updatedBy: actor.fullName }
+    const updated: RegistryEntry = { ...e, status: to, activatedAt: e.activatedAt ?? (locksFields(to) ? at : undefined), updatedAt: at, updatedBy: actor.fullName }
     put(updated)
     audit(actor, 'WORKFLOW_STATUS_CHANGED', code, { reason: reason.trim(), changes: [{ field: 'Status', from: e.status, to }] })
     return wire(updated)

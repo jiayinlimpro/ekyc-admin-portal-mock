@@ -10,11 +10,12 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { isLocked, type RegistryInput } from '@/domain/registryRules'
-import { CHECKS, ONBOARDING_PHASES, PHASE_LABELS, type FaceMatchMethod, type OnboardingPhase, type RegistryStatus } from '@/domain/types'
+import { CHECKS, ONBOARDING_PHASES, PHASE_LABELS, REGISTRY_STATUSES, type FaceMatchMethod, type OnboardingPhase, type RegistryStatus } from '@/domain/types'
 import { errorMessage, useLoad } from '@/hooks/useLoad'
 import { formatMyt } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { isServiceError } from '@/services/errors'
+import { merchantService } from '@/services/merchantService'
 import { registryService, type RegistryRow } from '@/services/registryService'
 import { useSession } from '@/stores/sessionStore'
 import { FLOW_STATUS_LABELS } from '@/lib/labels'
@@ -22,19 +23,32 @@ import { useAccess } from '@/app/access'
 
 const PHASE_TEXT: Record<OnboardingPhase, string> = { ID_CAPTURE: 'ID Capture', SELFIE_CAPTURE: 'Selfie Capture', LIVENESS_CHECK: 'Liveness Check', RISK_ASSESSMENT: 'Risk Assessment' }
 const METHOD_TEXT: Record<FaceMatchMethod, string> = { ID_VS_SELFIE: 'ID vs selfie', ID_VS_LIVENESS: 'ID vs liveness face' }
-const STATUS_TEXT: Record<RegistryStatus, string> = { DRAFT: 'Draft', ACTIVE: 'Active', DEPRECATED: 'Deprecated' }
+// REQ: DEC-56 — who may choose a version for a new flow follows its status.
+const STATUS_TEXT: Record<RegistryStatus, string> = { DRAFT: 'Draft', INTERNAL_TESTING: 'Internal testing', LIMITED_RELEASE: 'Limited release', ACTIVE: 'Active', DEPRECATED: 'Deprecated' }
+const STATUS_HINT: Record<RegistryStatus, string> = {
+  DRAFT: 'Nobody can choose it for a new flow.',
+  INTERNAL_TESTING: 'Only super admins and platform staff can build flows on it. Sessions are not charged.',
+  LIMITED_RELEASE: 'Internal users and the merchants ticked under Merchant access (Edit) can choose it.',
+  ACTIVE: 'Everyone who may create flows can choose it.',
+  DEPRECATED: 'Nobody can choose it for a new flow; existing flows keep running.',
+}
 const STATUS_TONE: Record<RegistryStatus, string> = {
   DRAFT: 'bg-slate-100 text-slate-700 dark:bg-slate-500/20 dark:text-slate-200',
+  INTERNAL_TESTING: 'bg-violet-100 text-violet-800 dark:bg-violet-500/20 dark:text-violet-200',
+  LIMITED_RELEASE: 'bg-sky-100 text-sky-800 dark:bg-sky-500/20 dark:text-sky-200',
   ACTIVE: 'bg-green-100 text-green-800 dark:bg-green-500/20 dark:text-green-200',
   DEPRECATED: 'bg-amber-100 text-amber-800 dark:bg-amber-500/20 dark:text-amber-200',
 }
 
-const emptyInput = (): RegistryInput => ({ code: '', name: '', description: '', phases: ['ID_CAPTURE', 'LIVENESS_CHECK'], faceMatchMethod: 'ID_VS_LIVENESS', requiredInputs: [], configurableChecks: ['FACE_MATCH', 'LIVENESS'], riskMinimumsPerFlow: false, stateMachineSandbox: '', stateMachineProduction: '', releaseNote: '' })
+const emptyInput = (): RegistryInput => ({ code: '', name: '', description: '', phases: ['ID_CAPTURE', 'LIVENESS_CHECK'], faceMatchMethod: 'ID_VS_LIVENESS', requiredInputs: [], configurableChecks: ['FACE_MATCH', 'LIVENESS'], riskMinimumsPerFlow: false, accessMerchantIds: [], stateMachineSandbox: '', stateMachineProduction: '', releaseNote: '' })
 const inputOf = (e: RegistryRow): RegistryInput => ({ ...e, stateMachineSandbox: e.stateMachineSandbox ?? '', stateMachineProduction: e.stateMachineProduction ?? '', releaseNote: '' })
 
 // REQ: DEC-56 — FRS field rules; after first activation only name, description and state machines change.
 function VersionDialog({ editing, onClose, onDone }: { editing?: RegistryRow; onClose: () => void; onDone: () => void }) {
   const actor = useSession((s) => s.actor)
+  // REQ: DEC-56 — Limited release: the merchants that may choose this version.
+  const limited = editing?.status === 'LIMITED_RELEASE'
+  const merchants = useLoad(() => (limited ? merchantService.list(actor) : Promise.resolve([])), [actor.userId, limited])
   const [v, setV] = useState<RegistryInput>(editing ? inputOf(editing) : emptyInput())
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [busy, setBusy] = useState(false)
@@ -128,6 +142,24 @@ function VersionDialog({ editing, onClose, onDone }: { editing?: RegistryRow; on
               <Textarea id="r-note" rows={2} value={v.releaseNote} onChange={(e) => setV({ ...v, releaseNote: e.target.value })} aria-invalid={!!errors.releaseNote} />
             </FormField>
           </div>
+          {limited && (
+            <fieldset className="rounded-md border p-3">
+              <legend className="px-1 text-sm font-medium">Merchant access</legend>
+              <p className="mb-2 text-xs text-muted-foreground">Merchants that may choose this version for new flows while it is in Limited release. Internal users always can.</p>
+              <div className="grid gap-1 sm:grid-cols-2">
+                {(merchants.data ?? []).map((m) => (
+                  <label key={m.merchantId} className="flex items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={v.accessMerchantIds.includes(m.merchantId)}
+                      onChange={(e) => setV({ ...v, accessMerchantIds: e.target.checked ? [...v.accessMerchantIds, m.merchantId] : v.accessMerchantIds.filter((id) => id !== m.merchantId) })}
+                    />
+                    {m.name}
+                  </label>
+                ))}
+              </div>
+            </fieldset>
+          )}
           {errors.form && <p role="alert" className="text-sm text-destructive">{errors.form}</p>}
           <DialogFooter>
             <Button type="button" variant="outline" disabled={busy} onClick={onClose}>Cancel</Button>
@@ -139,11 +171,11 @@ function VersionDialog({ editing, onClose, onDone }: { editing?: RegistryRow; on
   )
 }
 
-// REQ: DEC-56 / DEC-57 — Draft → Active (complete), Draft → Deprecated, Active ↔ Deprecated; never back to Draft.
+// REQ: DEC-56 / DEC-57 — no lifecycle: any other status, with a reason (the default must stay Active).
 function StatusDialog({ row, onClose, onDone }: { row: RegistryRow; onClose: () => void; onDone: () => void }) {
   const actor = useSession((s) => s.actor)
-  const to: RegistryStatus = row.status === 'ACTIVE' ? 'DEPRECATED' : 'ACTIVE'
-  const [target, setTarget] = useState<RegistryStatus>(to)
+  const choices = REGISTRY_STATUSES.filter((s) => s !== row.status)
+  const [target, setTarget] = useState<RegistryStatus>(row.status === 'ACTIVE' ? 'DEPRECATED' : 'ACTIVE')
   const [reason, setReason] = useState('')
   const [error, setError] = useState<string>()
   const save = async () => {
@@ -160,11 +192,11 @@ function StatusDialog({ row, onClose, onDone }: { row: RegistryRow; onClose: () 
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Change status of {row.code}</DialogTitle>
-          <DialogDescription>Deprecated versions can’t be chosen for new flows; existing flows keep running. A version never goes back to Draft.</DialogDescription>
+          <DialogDescription>The status decides who can choose this version for new flows; existing flows keep running.</DialogDescription>
         </DialogHeader>
-        <FormField id="s-to" label="New status">
+        <FormField id="s-to" label="New status" hint={STATUS_HINT[target]}>
           <NativeSelect id="s-to" value={target} onChange={(e) => setTarget(e.target.value as RegistryStatus)}>
-            {(row.status === 'DRAFT' ? (['ACTIVE', 'DEPRECATED'] as const) : ([to] as const)).map((s) => (
+            {choices.map((s) => (
               <option key={s} value={s}>
                 {STATUS_TEXT[s]}
               </option>
@@ -230,7 +262,7 @@ export function RegistryPage() {
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold">Workflow Registry</h1>
-          <p className="text-sm text-muted-foreground">Versions merchants’ flows are built on. Only Active versions can be chosen for new flows.</p>
+          <p className="text-sm text-muted-foreground">Versions flows are built on. Active: everyone; Limited release: listed merchants; Internal testing: internal users only.</p>
         </div>
         <Button className={canManage ? undefined : 'hidden'} onClick={() => setEditing('new')}>
           <Plus aria-hidden /> Register version
@@ -256,7 +288,10 @@ export function RegistryPage() {
                   </button>
                   <div className="text-xs text-muted-foreground">{r.description}</div>
                 </th>
-                <td className="px-3 py-2"><span className={cn('rounded px-1.5 py-0.5 text-xs font-medium', STATUS_TONE[r.status])}>{STATUS_TEXT[r.status]}</span></td>
+                <td className="px-3 py-2">
+                  <span className={cn('rounded px-1.5 py-0.5 text-xs font-medium whitespace-nowrap', STATUS_TONE[r.status])} title={STATUS_HINT[r.status]}>{STATUS_TEXT[r.status]}</span>
+                  {r.status === 'LIMITED_RELEASE' && <div className="mt-1 text-xs text-muted-foreground">{r.accessMerchantIds.length ? `${r.accessMerchantIds.length} merchant(s)` : 'No merchants yet'}</div>}
+                </td>
                 <td className="px-3 py-2 text-xs">{r.phases.map((p) => PHASE_TEXT[p]).join(' → ')}</td>
                 <td className="px-3 py-2 text-xs whitespace-nowrap">{METHOD_TEXT[r.faceMatchMethod]}{r.requiredInputs.includes('EMAIL') ? ' · email' : ''}</td>
                 <td className="px-3 py-2 tabular-nums">{r.flowsUsing}</td>

@@ -90,6 +90,13 @@ describe('billing (DEC-60)', () => {
     expect(billingTotals(lines, 0.5)).toEqual({ verifications: 3, tokens: 4, retryTokens: 2, cost: 2, retryCost: 1 })
   })
 
+  it('Given documents, then a token per document submission too; an Internal testing session is not charged (DEC-60, DEC-56)', () => {
+    const idCapture = { facesFound: 1, faceConfidence: 98, eyesOpen: true, occluded: false, imageWidth: 1280, imageHeight: 800, ocrFieldsMissing: [] }
+    const withDocs = verification({ referenceNo: 'D', idCapture, idCaptureSoftRejects: 2, submissions: { FACE_MATCH: [96], LIVENESS: [90] } })
+    expect(billingLine(withDocs, 0.5)).toMatchObject({ tokens: 3 + 1, retryTokens: 2 })
+    expect(billingLine({ ...withDocs, charged: false }, 0.5)).toMatchObject({ tokens: 0, retryTokens: 0, cost: 0 })
+  })
+
   it('groups tokens and cost by project and flow', () => {
     expect(billingBy(lines, (l) => l.projectId, 0.5).map((r) => [r.key, r.tokens])).toEqual([
       [fx('PRJ-0001'), 4],

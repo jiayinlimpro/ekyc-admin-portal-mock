@@ -23,7 +23,7 @@ export const PHASE_LABELS: Record<Phase, string> = {
 }
 
 // REQ: DEC-58 — known registry codes (no V2). Version-dependent behaviour comes from the registry entry, not this list.
-export const WORKFLOW_VERSIONS = ['V1', 'V3', 'V4', 'V5'] as const
+export const WORKFLOW_VERSIONS = ['V1', 'V3', 'V4', 'V5', 'V6'] as const
 export type WorkflowVersion = (typeof WORKFLOW_VERSIONS)[number]
 
 // REQ: DEC-107 — the risk result. Low risk / High risk, never pass / fail, so it is not confused with the case status.
@@ -154,7 +154,7 @@ export interface Verification {
   pii: Pii
   clientMetadata: ClientMetadata
   images: { docFront: StoredFile; selfie: StoredFile } // REQ: DEC-97 — uploaded files have their own ID
-  charged: true // REQ: DEC-60 — every verification is charged
+  charged: boolean // REQ: DEC-60 / DEC-56 — false only for sessions on an Internal testing version
   // Projects & Flows (DEC-44, DEC-52). `status` and `statusReason` come from checkRules.evaluateCase over `submissions`
   // with the settings of `configRevision`.
   projectId: string
@@ -572,7 +572,9 @@ export interface UserAccess {
 }
 
 // REQ: DEC-56 / DEC-58
-export const REGISTRY_STATUSES = ['DRAFT', 'ACTIVE', 'DEPRECATED'] as const
+// REQ: DEC-56 — who can choose a version for a new flow: nobody (Draft, Deprecated), internal users (Internal testing),
+// internal users + listed merchants (Limited release), everyone (Active).
+export const REGISTRY_STATUSES = ['DRAFT', 'INTERNAL_TESTING', 'LIMITED_RELEASE', 'ACTIVE', 'DEPRECATED'] as const
 export type RegistryStatus = (typeof REGISTRY_STATUSES)[number]
 export const ONBOARDING_PHASES = ['ID_CAPTURE', 'SELFIE_CAPTURE', 'LIVENESS_CHECK', 'RISK_ASSESSMENT'] as const
 export type OnboardingPhase = (typeof ONBOARDING_PHASES)[number]
@@ -589,6 +591,7 @@ export interface RegistryEntry {
   requiredInputs: SessionInput[]
   configurableChecks: Check[]
   riskMinimumsPerFlow: boolean // REQ: DEC-107 — the flow sets the risk minimums (V5); otherwise they are fixed (V4)
+  accessMerchantIds: string[] // REQ: DEC-56 — Limited release: the merchants that may choose it (internal users always may)
   stateMachineSandbox?: string // record only, never called
   stateMachineProduction?: string
   releaseNotes: { at: string; by: string; text: string }[] // append-only

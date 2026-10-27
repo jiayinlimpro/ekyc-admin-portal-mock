@@ -95,7 +95,7 @@ Claim / release, Approve / reject; every case page open is audited. The header's
 | Project Settings › Members | Project roles for this project (add / remove; roles without merchant-wide permissions); merchant-role users listed as inherited (read-only) |
 | Audit Log | DEC-42 events with project and actor role |
 | Merchants | Super admins and staff with Merchants permissions, per the FRS: registration number, country, contact; Onboarding → Active → Suspended → Terminated with reasons (suspension locks the merchant's users out and stops its API keys); never deleted; a new merchant gets a Default project and owner |
-| Super admins / Workflow Registry | Super admin accounts (super admins only); versions and flows using them (read-only with Registry View) |
+| Super admins / Workflow Registry | Super admin accounts (super admins only); versions and flows using them (read-only with Registry View); statuses Draft, Internal testing (internal users only), Limited release (ticked merchants, Merchant access in Edit), Active, Deprecated (DEC-56) |
 | Users / Roles with Type | Super admins create Platform (internal) roles and staff (one role, every merchant); merchant users get one merchant role (Member by default) |
 | Project Settings › Roles | The project's role table: System Default project roles and its own Custom roles; New role, Duplicate from another project |
 

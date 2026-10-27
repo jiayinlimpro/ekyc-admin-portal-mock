@@ -8,7 +8,7 @@
 //   POST /flows/{id}/activate          activate   → 200 Flow | 422 VALIDATION
 //   POST /flows/{id}/retire            retire     → 200 Flow | 422 VALIDATION
 //   POST /flows/{id}/default           setDefault → 200 Project | 422 VALIDATION
-import { canInProject } from '@/domain/access'
+import { canInProject, isInternal } from '@/domain/access'
 import { activate, activateError, duplicateFlow, IN_FLIGHT_STATUSES, retire, retireError, setDefaultFlowError, settleRetiring } from '@/domain/flowRules'
 import { createFlow, saveFlow, validateFlow } from '@/domain/flowSettings'
 import { selectableForNewFlow } from '@/domain/registryRules'
@@ -109,15 +109,16 @@ export const mockFlowService: FlowService = {
     })
   },
 
-  // REQ: DEC-56 / DEC-94 — only Active registry versions can be picked; the new flow starts as Draft on Standard.
+  // REQ: DEC-56 / DEC-94 — only versions the user may choose (DEC-56); the new flow starts as Draft on Standard.
   async create(projectId, input, actor) {
     await simulateNetwork('create flow')
     requireActive(actor)
     const project = loadProject(actor, projectId)
     requireInProject(actor, 'createFlows', project, 'create flows')
     if (project.status === 'ARCHIVED') throw validation([{ field: 'form', message: 'This project is archived, so it cannot get new flows.' }])
-    const entry = selectableForNewFlow(db.state().registry).find((e) => e.code === input.workflowVersion)
-    if (!entry) throw validation([{ field: 'workflowVersion', message: 'Choose an active workflow version.' }])
+    // REQ: DEC-56 — Internal testing for internal users; Limited release also for the merchants it lists.
+    const entry = selectableForNewFlow(db.state().registry, { internal: isInternal(accountOf(actor)), merchantId: project.merchantId }).find((e) => e.code === input.workflowVersion)
+    if (!entry) throw validation([{ field: 'workflowVersion', message: 'Choose a workflow version available to this merchant.' }])
     if (!input.name.trim()) throw validation([{ field: 'name', message: 'Flow name is required' }])
     const at = now()
     const flow = createFlow({ flowId: newId('flw'), project }, input, entry, at, by(actor))

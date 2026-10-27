@@ -26,11 +26,35 @@ beforeEach(async () => {
 afterEach(cleanup)
 
 describe('Workflow Registry (DEC-56 … DEC-58)', () => {
+  it('Given V5 in Limited release, then Edit shows Merchant access; ticking Vantage gives it access (DEC-56)', async () => {
+    renderAt('/registry')
+    fireEvent.click(within(await row('V5')).getByRole('button', { name: 'Edit V5' }))
+    const access = within(await screen.findByRole('group', { name: 'Merchant access' }))
+    expect((access.getByLabelText('Atoz Software Tech') as HTMLInputElement).checked).toBe(true)
+    fireEvent.click(access.getByLabelText(/Vantage/))
+    fireEvent.change(screen.getByLabelText('Release note'), { target: { value: 'Pilot with Vantage' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+    await waitFor(() => expect(entry('V5').accessMerchantIds).toHaveLength(2))
+    fireEvent.click(within(await row('V4')).getByRole('button', { name: 'Edit V4' }))
+    await screen.findByRole('dialog')
+    expect(screen.queryByRole('group', { name: 'Merchant access' })).toBeNull() // only for Limited release
+  })
+
+  it('Given Change status, then every other status is offered, with what it means (DEC-56)', async () => {
+    renderAt('/registry')
+    fireEvent.click(within(await row('V6')).getByRole('button', { name: 'Change status of V6' }))
+    const select = (await screen.findByLabelText('New status')) as HTMLSelectElement
+    expect([...select.options].map((o) => o.textContent)).toEqual(['Draft', 'Limited release', 'Active', 'Deprecated'])
+    fireEvent.change(select, { target: { value: 'LIMITED_RELEASE' } })
+    expect(screen.getByText(/the merchants ticked under Merchant access/)).toBeTruthy()
+  })
+
   it('Given the list, then each version with status, default and the flows using it; expanding shows them', async () => {
     renderAt('/registry')
     const v1 = await row('V1')
     expect(v1.textContent).toContain('Default for new merchants')
-    expect((await row('V5')).textContent).toContain('Active') // DEC-107: V5 lets flows set the risk minimums
+    expect((await row('V5')).textContent).toContain('Limited release1 merchant(s)') // DEC-56: Atoz only
+    expect((await row('V6')).textContent).toContain('Internal testing')
     fireEvent.click(within(await row('V3')).getByRole('button', { name: /^V3 ·/ }))
     const list = within(await screen.findByRole('list', { name: 'Flows using V3' }))
     expect(list.getByText(/Atoz Software Tech › SME app ›/)).toBeTruthy()
@@ -45,9 +69,9 @@ describe('Workflow Registry (DEC-56 … DEC-58)', () => {
     fireEvent.change(screen.getByLabelText('Release note'), { target: { value: 'First draft' } })
     fireEvent.click(screen.getByRole('button', { name: 'Register' }))
     expect(await screen.findByText('Workflow code already exists')).toBeTruthy()
-    fireEvent.change(screen.getByLabelText('Workflow code'), { target: { value: 'V6' } })
+    fireEvent.change(screen.getByLabelText('Workflow code'), { target: { value: 'V7' } })
     fireEvent.click(screen.getByRole('button', { name: 'Register' }))
-    await waitFor(() => expect(entry('V6')).toMatchObject({ status: 'DRAFT', name: 'Duplicate' }))
+    await waitFor(() => expect(entry('V7')).toMatchObject({ status: 'DRAFT', name: 'Duplicate' }))
   })
 
   it('Given an active version, then only name, description and state machines can be edited', async () => {
@@ -62,7 +86,7 @@ describe('Workflow Registry (DEC-56 … DEC-58)', () => {
     fireEvent.click(within(await row('V1')).getByRole('button', { name: 'Change status of V1' }))
     fireEvent.change(await screen.findByLabelText('Reason for change'), { target: { value: 'Replaced' } })
     fireEvent.click(screen.getByRole('button', { name: 'Change status' }))
-    expect(await screen.findByText('Set another version as default before deprecating this version')).toBeTruthy()
+    expect(await screen.findByText('Set another version as default first: the default for new merchants must stay Active.')).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
     fireEvent.click(within(await row('V3')).getByRole('button', { name: 'Make V3 the default' }))
     await waitFor(() => expect(entry('V3').isDefault).toBe(true))

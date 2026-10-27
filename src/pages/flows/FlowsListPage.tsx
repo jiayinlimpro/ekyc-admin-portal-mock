@@ -39,11 +39,11 @@ export function routingLabel(f: Pick<FlowRow, 'routing' | 'isDefault'>): string 
   return f.isDefault ? 'Default' : '—'
 }
 
-// REQ: DEC-56 / DEC-94 — create on an Active version only; then fill it in on Flow Detail.
+// REQ: DEC-56 / DEC-94 — create on a version this user may choose for this merchant; then fill it in on Flow Detail.
 function NewFlowDialog({ project, onClose }: { project: MyProject; onClose: () => void }) {
   const actor = useSession((s) => s.actor)
   const navigate = useNavigate()
-  const versions = useLoad(() => registryService.listSelectable(actor), [actor.userId])
+  const versions = useLoad(() => registryService.listSelectable(actor, project.merchantId), [actor.userId, project.merchantId])
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
   const [version, setVersion] = useState('')

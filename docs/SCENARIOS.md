@@ -44,6 +44,7 @@ data** before a UAT run.
 | A21 | Aaron Teoh (`?as=aaron.teoh@atoz.example`) | Users › New user | User Coordinator: he can invite, giving only Member or his own User Coordinator role (nothing he doesn't hold, DEC-74); no Change role or Suspend on other users |
 | A23 | Tan Mei Ling, project Default | Project Settings › Review operations › Decision reasons | System Default reasons have no Edit and only a switch; "Other" is always on; Atoz's own "Customer on internal watchlist" (Reject, note required) and "Identity confirmed by video call" (Approve) can be edited. Turn off "Below minimum age" → it is no longer offered on S10; audited as a project setting (DEC-106) |
 | A24 | Ali Bin Ahmad (`?as=ali.ahmad@atoz.example`) | S10: Assign to me, then Decision | Reject: reasons by group, one or more; Confirm Manual Pass: exactly one reason; choosing "Other" makes the note required. On Vantage cases (Kavitha) "Nationality or residency not accepted" is not offered (turned off there) (DEC-106) |
+| A25 | Lim Wei Jie (`?as=weijie.lim@ekyc-platform.example`) | Platform › Workflow Registry | V5 is **Limited release** (1 merchant: Atoz; Edit › Merchant access) and V6 **Internal testing**; Change status offers every other status. As Tan Mei Ling, New flow offers V5 but not V6; as Kavitha (Vantage), neither; as the super admin, both in any project (DEC-56) |
 
 | ID | Reference ID | Project › Flow | Scenario | Expected behaviour |
 |---|---|---|---|---|
