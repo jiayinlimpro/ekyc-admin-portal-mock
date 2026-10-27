@@ -53,7 +53,7 @@ describe('Workflow Registry (DEC-56 … DEC-58)', () => {
   it('Given an active version, then only name, description and state machines can be edited', async () => {
     renderAt('/registry')
     fireEvent.click(within(await row('V4')).getByRole('button', { name: 'Edit V4' }))
-    expect((await screen.findByLabelText('Face match') as HTMLSelectElement).disabled).toBe(true)
+    expect((await screen.findByLabelText('Face match compares') as HTMLSelectElement).disabled).toBe(true)
     expect((screen.getByLabelText('Name') as HTMLInputElement).disabled).toBe(false)
   })
 

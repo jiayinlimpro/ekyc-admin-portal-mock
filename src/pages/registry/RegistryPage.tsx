@@ -87,7 +87,7 @@ function VersionDialog({ editing, onClose, onDone }: { editing?: RegistryRow; on
               {errors.phases && <p role="alert" className="text-xs text-destructive">{errors.phases}</p>}
             </fieldset>
             <div className="space-y-3">
-              <FormField id="r-method" label="Face match" error={errors.faceMatchMethod}>
+              <FormField id="r-method" label="Face match compares" error={errors.faceMatchMethod}>
                 <NativeSelect id="r-method" value={v.faceMatchMethod} disabled={locked('faceMatchMethod')} onChange={(e) => setV({ ...v, faceMatchMethod: e.target.value as FaceMatchMethod })}>
                   {Object.entries(METHOD_TEXT).map(([k, l]) => (
                     <option key={k} value={k}>
