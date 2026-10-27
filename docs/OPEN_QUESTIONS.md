@@ -9,7 +9,7 @@ Each question is a **parameter**, not a fact. The mock uses the default below. I
 |---|---|---|---|
 | OQ-01 | How do check results combine? Does a reject in one check outweigh a review in another? (MS OQ-5) | `REJECT_WINS`: any reject → REJECTED, else any review → PENDING_REVIEW | `POLICY.phaseCombination` |
 | OQ-02 | Low / Standard / High preset values (reject below / approve at or above) | Face match: Low 80/90, Standard 85/95, High 90/97 · Liveness: Low 60/80, Standard 70/85, High 80/92 | `THRESHOLD_PRESETS` |
-| OQ-03 | Range for "Retries allowed" (default 3) | 1–5 | `RETRY_LIMITS` |
+| OQ-03 | Range for "Retries allowed" per phase (default 3, DEC-108) | 1–5 | `RETRY_LIMITS` |
 | OQ-04 | Default auto-release claim timeout and warning time (MS OQ-4) | 30 min timeout, warning 5 min before expiry | Project `claimTimeoutSec` (seconds; entered in minutes, DEC-53) / `POLICY.claimWarningMin` |
 | OQ-09 | Final role names, System Default roles and the permission list (MS OQ-3; the FRS "User Access Matrix" spreadsheet). Also: are separate read and edit permissions needed (e.g. see users without changing them)? | System Default: Merchant Owner, Project Admin, Reviewer, Viewer; permissions as in DEC-70, one per area (no read-only variants) | `src/domain/roles.ts` |
 | OQ-11 | Does a claim end when the reviewer logs out or closes the tab? | No: only Release, timeout, decision or removal from the project | `claimRules.ts` |
@@ -28,6 +28,7 @@ Each question is a **parameter**, not a fact. The mock uses the default below. I
 | OQ-29 | How long are a Terminated merchant's cases and audit log kept, and are they then archived or deleted? Keeping them is required for compliance; the PDPA says not longer than needed (DEC-98) | Kept; nothing is deleted | — (backend policy) |
 | OQ-30 | Are invoices issued from this portal? If so, merchants also need registered address, TIN, SST number and a billing email (MyInvois) (DEC-98) | No; only the FRS fields | `Merchant` |
 | OQ-33 | EXIF edge cases: (a) the modern-maker list has no Samsung, Xiaomi, Huawei or Realme, so their photos get 0 for the maker; (b) a missing Megapixels value; (c) a missing DateTimeOriginal or FileModifyDate | (a) 0 points as listed; (b) 0 points; (c) counts as "differ" (−4) | `exifScore` in `src/domain/riskSignals.ts` |
+| OQ-35 | Does a submitted V1 selfie also cost a token (DEC-60)? Documents and liveness do | No: tokens = document + liveness submissions | `billingLine` in `src/domain/dashboards.ts` |
 | OQ-34 | Default minimum per risk category: V4's fixed minimums and V5's starting values (DEC-107) | 50 for each category | `DEFAULT_RISK_MINIMUMS` in `src/domain/openQuestions.ts` |
 | OQ-32 | The engine sets FacePixelSizeThreshold = 50, but its Selfie Quality Check doesn't apply it. Should a selfie face smaller than 50 px fail? | Not checked; shown as information | `selfieMetrics` in `src/domain/telemetry.ts` |
 | OQ-31 | The company staff email domain (DEC-99): platform staff and super admins must use it; merchant users may not | `ekyc-platform.example` | `STAFF_EMAIL_DOMAIN` in `src/domain/openQuestions.ts` |

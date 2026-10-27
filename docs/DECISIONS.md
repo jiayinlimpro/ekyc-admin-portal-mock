@@ -43,10 +43,11 @@ Rules changed on 2026-10-20 (Projects & Flows restructure) are marked **(changed
   fields. **(changed)** [MS]
 
 ## Automated evaluation
-- **DEC-10** **(changed)** Only two checks have configurable thresholds: **Similarity** and **Liveness**, each with an
-  Auto-Reject / Auto-Pass pair. **(renamed 2026-10-26)** The configurable band is the **similarity** of the face with the
-  ID (it was labelled "Face match"); **Face match** is the engine's fixed confidence that a face is clearly detected (not
-  liveness), never configurable [PO 2026-10-26]. The internal code stays `FACE_MATCH`. ID capture and Selfie have no configurable thresholds; their quality checks are fixed by the
+- **DEC-10** **(changed)** Only two checks have configurable thresholds: **Face match** and **Liveness**, each with an
+  Auto-Reject / Auto-Pass pair. **(2026-10-27)** "Face match" is the configurable band and it judges the **similarity**
+  score (the selfie or liveness face compared with the ID photo), the business threshold. The engine's fixed > 90 value is
+  **Face detection confidence** (the box contains a face; a quality check, not liveness), never configurable
+  [PO 2026-10-27; AWS face liveness and matching whitepaper §3.4, §6.1]. The internal code stays `FACE_MATCH`. ID capture and Selfie have no configurable thresholds; their quality checks are fixed by the
   engine. **(changed 2026-10-23)** Every engine metric (pitch, yaw, sharpness, brightness, face confidence …) is now
   **shown** on Verification Detail with its fixed threshold (DEC-105), but still never configurable. Risk Assessment runs for
   V4 and V5 only. [MS][FRS][PO 2026-10-19][PO 2026-10-23]
@@ -92,12 +93,26 @@ Rules changed on 2026-10-20 (Projects & Flows restructure) are marked **(changed
   stays `PROCESSING`. An incomplete, aborted or timed-out run also stays `PROCESSING`. [PO 2026-10-20]
 - **DEC-16** **(changed)** When retries run out, the **last attempt** decides: below Auto-Reject → `REJECTED`; review band →
   `PENDING_REVIEW`. The reason is the matching condition from DEC-35 (e.g. "Liveness face does not match ID face (Retry Not
-  Allowed)"). [PO 2026-10-20]
+  Allowed)"). [PO 2026-10-20] **(added 2026-10-27)** A document (OCR) or V1 selfie submission that still fails its engine
+  checks when that phase's retries are used up → `REJECTED` by SYSTEM with the failing condition and "(Retry Not Allowed)",
+  e.g. "ID image smaller than 320x320 (Retry Not Allowed)" (DEC-108).
 - **DEC-17** Retries keep the same case (case ID and Reference ID); each retry is appended to `attempts[]`, never a new record.
-- **DEC-18** **(changed)** "**Retries allowed**" is set per check (similarity, liveness) per flow: the number of retries after
-  the first submission. Default 3 = up to 4 submissions. Range is OQ-03. ID capture and Selfie retakes are **unlimited, not
-  counted and free**. The retry KPIs (First-Attempt Pass Rate, Average Retries) count similarity and liveness retries only.
-  [PO 2026-10-20][FRS]
+- **DEC-18** **(changed again by DEC-108)** "**Retries allowed**" is set **per phase** per flow, not per check: the number of
+  retries after the first submission. Default 3 = up to 4 submissions. Range is OQ-03. [PO 2026-10-20][FRS][PO 2026-10-27]
+- **DEC-108** **(new)** Retries per phase [PO 2026-10-27]. Each phase that sends something to the engine has its own
+  "Retries allowed" (default 3), in its own card on Flow Detail, apart from the thresholds:
+
+  | Phase | Versions | A retry is used by |
+  |---|---|---|
+  | **Document (OCR)** | all | a submitted ID image that fails any engine check (face, size, OCR fields) |
+  | **Selfie** | V1 | a submitted selfie that fails its quality check, or a face match below Auto-Pass |
+  | **Liveness** | all | a liveness result below Auto-Pass; on V3/V4/V5 also a face match below Auto-Pass (the face match uses the liveness face) |
+
+  - Retaking a photo **before** submitting is free and not counted; every **submitted** attempt that fails, whatever the
+    reason in that phase, uses one retry.
+  - Retries used up: the last submission decides (DEC-16): face match and liveness by their bands; a document or V1 selfie
+    that still fails its engine checks → `REJECTED`.
+  - The retry KPIs (First-Attempt Pass Rate, Average Retries) count retries in every phase.
 - **DEC-26** **(new)** Cooldown (per flow, minutes, default 0): after a case is `REJECTED`, the **same end user** cannot start
   a new case until the cooldown ends. 0 = no wait. How "same end user" is identified, and whether the wait covers only this
   flow or the whole project, is OQ-22. Verification Detail shows "New case allowed from …" on rejected cases. [PO 2026-10-20]
@@ -236,7 +251,7 @@ Rules changed on 2026-10-20 (Projects & Flows restructure) are marked **(changed
     | Stage | Metric | Engine threshold |
     |---|---|---|
     | ID capture | Faces found | exactly 1 |
-    | ID capture | Face match: a face is clearly detected on the ID (FaceMatchThreshold) | ≥ 90 |
+    | ID capture | Face detection confidence: a face is clearly detected on the ID (FaceMatchThreshold) | ≥ 90 |
     | ID capture | Eyes open · Face covered | open · not covered |
     | ID capture | Image size | ≥ 320 × 320 px |
     | ID capture | OCR fields detected | every field the document type needs (DEC-35) |
@@ -244,13 +259,12 @@ Rules changed on 2026-10-20 (Projects & Flows restructure) are marked **(changed
     | Selfie (V1) | Sharpness · Brightness | > 25 · > 25 |
     | Selfie (V1) | Yaw · Pitch | within ±30° · within ±30° |
     | Selfie (V1) | Face size | information only: 50 px is configured but not checked (OQ-32) |
-    | Similarity and face match | Similarity: the selfie (V1) or liveness face (V3/V4/V5) compared with the ID face | flow band |
-    | Similarity and face match | Face match: a face is clearly detected in the compared image (FaceMatchThreshold) | > 90 |
+    | Face match | Face match (similarity): the selfie (V1) or liveness face (V3/V4/V5) compared with the ID photo | flow band |
+    | Face match | Face detection confidence: a face is clearly detected in the compared image (FaceMatchThreshold) | > 90 |
     | Liveness | Liveness confidence | flow band |
 
-  - **Similarity** (the face compared with the ID face) and **Face match** (confidence that a face is clearly detected;
-    not liveness) are two different numbers, named as in the engine workflow, and never shown as one [PO 2026-10-26]. The
-    flow-set band of DEC-10/19 is the similarity.
+  - **Face match** (the flow band on the similarity of the face with the ID photo) and **Face detection confidence** (a face
+    is clearly detected; not liveness) are two different numbers and never shown as one [PO 2026-10-26, 2026-10-27].
   - **V1 order** (engine workflow): ID → selfie quality check → face comparison → existing-user search → liveness. A selfie
     that fails its check ends the run ("Invalid selfie"): no similarity, no face match. The user retakes it for free
     (DEC-18); rejected selfies are shown under Attempts as "Not run".
@@ -266,7 +280,7 @@ Rules changed on 2026-10-20 (Projects & Flows restructure) are marked **(changed
   |---|---|---|---|---|
   | General: name, description, workflow version (locked once active) | ✓ | ✓ | ✓ | ✓ |
   | Thresholds: similarity, liveness (DEC-19) | ✓ | ✓ | ✓ | ✓ |
-  | Retries allowed: similarity, liveness (DEC-18) · cooldown (DEC-26) | ✓ | ✓ | ✓ | ✓ |
+  | Retries allowed per phase: Document (OCR), Selfie (V1), Liveness (DEC-108) · cooldown (DEC-26) | ✓ | ✓ | ✓ | ✓ |
   | Accepted documents (MyKad, Passport, Driving License) | ✓ | ✓ | ✓ | ✓ |
   | Session expiry | ✓ | ✓ | ✓ | ✓ |
   | Risk minimums per category (DEC-107) | | | read-only (fixed) | ✓ |
@@ -307,8 +321,10 @@ Rules changed on 2026-10-20 (Projects & Flows restructure) are marked **(changed
   liveness face), V4 (V3 + Risk Assessment; email required), V5 (Draft, TBC). No V2. [FRS][MS]
 
 ## Charging
-- **DEC-60** **(changed)** Tokens are consumed per **liveness submission**, whatever the final status (including cases still
-  `PROCESSING`). ID capture and Selfie retakes are free. "Cost of retries" = tokens from liveness submissions after the first.
+- **DEC-60** **(changed again 2026-10-27)** Tokens are consumed per **document (OCR) submission** and per **liveness
+  submission**, whatever the final status (including cases still `PROCESSING`) [PO 2026-10-27]. Retakes before submitting
+  are free. "Cost of retries" = tokens from submissions after the first in each phase. Whether a V1 selfie submission also
+  costs a token is OQ-35.
   Billing column is "Verification Status". [FRS][PO 2026-10-20]
 
 ## Roles and access

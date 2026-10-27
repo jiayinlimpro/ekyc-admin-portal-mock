@@ -39,15 +39,16 @@ UAT scenarios: `docs/SCENARIOS.md`.
 - IDs (DEC-97): every stored record gets a prefixed cuid2-shaped ID from `src/lib/ids.ts` (`newId`; seeded records
   `fx('PRJ-0001')` / `stableId`, stable across resets). Never sort by ID, never show user / role / audit IDs. A case is
   addressed by `caseId` (`ver_…`); `referenceNo` is the merchant's Reference ID.
-- Only FACE_MATCH (shown as **Similarity**: face vs ID) and LIVENESS have thresholds: autoReject/autoPass, chosen as a Low/Standard/High preset, or Advanced
+- Only FACE_MATCH (shown as **Face match**; it judges the similarity, face vs ID photo) and LIVENESS have thresholds: autoReject/autoPass, chosen as a Low/Standard/High preset, or Advanced
   (custom, super admin or staff with Calibrate). Never per individual metric. Every engine metric is shown on the case page with its fixed threshold (DEC-105).
-  "Face match" = the engine's fixed face-detected confidence, never configurable. Risk for V4/V5 only (DEC-107): four
+  "Face detection confidence" = the engine's fixed > 90 value, never configurable. Risk for V4/V5 only (DEC-107): four
   category scores 0–100 (EXIF / Noise / Email Validity / OSINT), Low risk when each ≥ its minimum, else High risk → review;
   minimums fixed for V4, per flow for V5; risk never rejects. No risk levels.
 - `>= autoPass` → pass; `< autoReject` → reject; between → review. Below autoPass with retries left → retry, case stays
   PROCESSING. Retries used up → the last attempt decides. V4/V5: APPROVED also requires risk pass, else PENDING_REVIEW.
-- "Retries allowed" = retries after the first submission (default 3), face match and liveness only. ID capture and
-  selfie retakes are unlimited and free. Tokens = liveness submissions. Retries keep the same referenceNo.
+- "Retries allowed" is per phase (DEC-108): Document (OCR), Selfie (V1), Liveness; default 3 each. A submitted attempt
+  that fails for any reason in that phase uses one; retakes before submitting are free. Documents / V1 selfies that still
+  fail when retries are used up → REJECTED. Tokens = document + liveness submissions. Retries keep the same referenceNo.
 - PROCESSING records are read-only. Decisions are final (no reopen, no resubmission). Reasons come from the project's
   decision reasons (DEC-106), not the engine conditions (DEC-35): Reject one or more, Approve exactly one; note optional
   unless the reason requires it (Other).
