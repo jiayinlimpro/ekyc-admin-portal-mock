@@ -68,8 +68,14 @@ If `npm` scripts are blocked in PowerShell: `Set-ExecutionPolicy -Scope CurrentU
 Access (DEC-104): two role tables. **Merchant roles** (Roles screen) are given on Users, one per user, and apply to the
 whole merchant and all its projects. **Project roles** (each project's Settings › Roles) are given in Project › Members
 and apply in that project only. **Member** (the default merchant role) gives nothing by itself. Platform staff have one platform role, for every merchant. No masking: View list, View details,
-Claim / release, Approve / reject; every case page open is audited. The header's project switcher picks one project or
-"All my projects", and the menu follows your permissions there.
+Claim / release, Approve / reject; every case page open is audited.
+
+**Two layers (DEC-109).** The portal opens on the **Merchants** page: one row per merchant (platform users see every
+merchant, merchant users their own), its projects as cards. **Go to project** opens the project portal: every screen there
+shows that one project, the header reads `Merchant ▾ / Project ▾` to switch, and the menu follows your permissions in it.
+A card's ⚙ opens Project Settings; a row's ⚙ opens **Merchant settings** (General, Users, Roles, Billing and Audit log for
+the whole merchant). Super admins, Platform staff and Workflow Registry are in the Merchants page's menu only. Links can
+carry `?project=<project ID>` to open a screen in that project; case links select the case's project themselves.
 
 **The Dev menu** (top right, amber) is mock-only:
 - **Switch user.**
@@ -86,17 +92,18 @@ Claim / release, Approve / reject; every case page open is audited. The header's
 
 | Screen | What it demonstrates |
 |---|---|
-| Overview / System Intelligence / Billing | Every role, data scoped; by project, flow and version; retry KPIs and drop-off; tokens per liveness submission |
-| Verifications | Pending Review in your projects, oldest first; project / flow / claim-state filters; no PII beyond name |
+| Merchants page (outer) | Rows = merchants, cards = projects (archived dimmed); Search projects; New merchant (platform), New project, ⚙ Merchant settings, 👥 Users; Go to project |
+| Overview / System Intelligence / Billing | Every role, data of the project in the header; by flow and version; retry KPIs and drop-off; tokens per document and liveness submission. Billing for the whole merchant is in Merchant settings |
+| Verifications | Pending Review in the project, oldest first; flow / claim-state filters; no PII beyond name |
 | Verification detail | Hybrid layout (DEC-105): header strip, claim bar, reason with target vs actual; evidence side by side, extracted data, checks (duplicate user for information), risk Low risk / High risk with four category scores against their minimums (DEC-107); every engine metric with its threshold; client metadata at the top right; attempts, rules applied (revision); sticky decision panel |
-| Projects / Project Settings | Create, rename, archive; branding, API keys (shown once), webhook, claim timeout, decision reasons (DEC-106), read-only routing |
+| Project Settings | Rename, archive (create on the Merchants page); branding, API keys (shown once), webhook, claim timeout, decision reasons (DEC-106), read-only routing |
 | Flows / Flow Detail | Low / Standard / High with a 0–100 band bar, Advanced thresholds (super admin, staff with Calibrate), retries 1–5 per phase in their own card (Document, Selfie on V1, Liveness; DEC-108), revisions; read-only for Flows View |
-| Users / Roles | FRS lists with `Role · Scope` chips; invite (Pending, resend); Access table with Add / Edit / Remove and a plain-language preview; Effective access with "Comes from"; suspend; permission matrix (module × View × actions, a module box ticks the row; DEC-102), System Default roles locked, Duplicate, "Affects N users in M projects" |
+| Merchant settings › Users / Roles | FRS lists with `Role · Scope` chips; invite (Pending, resend); Access table with Add / Edit / Remove and a plain-language preview; Effective access with "Comes from"; suspend; permission matrix (module × View × actions, a module box ticks the row; DEC-102), System Default roles locked, Duplicate, "Affects N users in M projects" |
 | Project Settings › Members | Project roles for this project (add / remove; roles without merchant-wide permissions); merchant-role users listed as inherited (read-only) |
-| Audit Log | DEC-42 events with project and actor role |
-| Merchants | Super admins and staff with Merchants permissions, per the FRS: registration number, country, contact; Onboarding → Active → Suspended → Terminated with reasons (suspension locks the merchant's users out and stops its API keys); never deleted; a new merchant gets a Default project and owner |
+| Audit Log | DEC-42 events of the project, with actor role; the whole merchant's in Merchant settings › Audit log |
+| Merchant settings › General | Details for everyone with access; super admins and staff with Merchants permissions edit, per the FRS: registration number, country, contact; Onboarding → Active → Suspended → Terminated with reasons (suspension locks the merchant's users out and stops its API keys); never deleted; a new merchant gets a Default project and owner |
 | Super admins / Workflow Registry | Super admin accounts (super admins only); versions and flows using them (read-only with Registry View); statuses Draft, Internal testing (internal users only), Limited release (ticked merchants, Merchant access in Edit), Active, Deprecated (DEC-56) |
-| Users / Roles with Type | Super admins create Platform (internal) roles and staff (one role, every merchant); merchant users get one merchant role (Member by default) |
+| Platform staff | Staff (one platform role, every merchant) and Platform roles, created by super admins; merchant users get one merchant role (Member by default) in Merchant settings |
 | Project Settings › Roles | The project's role table: System Default project roles and its own Custom roles; New role, Duplicate from another project |
 
 Values tagged **OPEN QUESTION** are placeholders, not signed-off requirements.

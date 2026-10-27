@@ -98,11 +98,12 @@ docs/           DECISIONS.md, OPEN_QUESTIONS.md, SCENARIOS.md
 
 ## Build status
 - **Projects & Flows restructure done** (DEC-85 screens): Overview, System Intelligence, Billing (every role, scoped),
-  Verifications List + Detail, Projects, Project Settings (General, Integration, Review operations, Routing, Members),
-  Flows List, Flow Detail (presets, band bar, retries, Advanced thresholds, history), Users, Roles (both with
-  Type = Platform / Merchant), Audit Log; Platform: Merchants, Super admins, Workflow Registry. Header: project switcher + roles in the current project.
+  Verifications List + Detail, Project Settings (General with rename / archive, Integration, Review operations, Routing,
+  Members, Roles), Flows List, Flow Detail (presets, band bar, retries, Advanced thresholds, history), Audit Log.
+  Outer layer (DEC-109): Merchants page, Merchant settings (General, Users, Roles, Billing, Audit log), Platform staff
+  (staff + platform roles), Super admins, Workflow Registry. Inner header: `Merchant ▾ / Project ▾` + roles in the project.
   Mock Login.
-  No Home page: `/` opens Overview; UAT scenario links and data coverage are on the mock-only `/uat` page (Dev menu).
+  `/` is the Merchants page (no separate Home); UAT scenario links and data coverage are on the mock-only `/uat` page (Dev menu).
 - Retired (DEC-85): eKYC Workflow, Developers, Merchant Workflow Directory, the merchant-level config, the two-role
   model and the one-role-per-project Users and Access screen (replaced by Users + Roles, DEC-74 / DEC-76).
 - Tests: Vitest (`npm test`) for rules, data, services and screens; Playwright (`npm run e2e`) for the claim race and the
