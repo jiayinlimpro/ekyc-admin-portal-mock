@@ -171,7 +171,7 @@ function rng(seed: string): () => number {
 const between = (r: () => number, min: number, max: number) => Math.round((min + r() * (max - min)) * 10) / 10
 const T = ENGINE_THRESHOLDS
 
-// REQ: DEC-105 / DEC-18 — an ID image or selfie that fails the engine checks is retaken (free), so the accepted one passes.
+// REQ: DEC-105 / DEC-108 — an ID image or selfie that fails the engine checks is submitted again, so the accepted one passes.
 // A session that stopped at ID capture sometimes shows why: its last image failed one check.
 function idCapture(r: () => number, documentType: DocumentType, stoppedAtId: boolean): IdCaptureTelemetry {
   const ok: IdCaptureTelemetry = {

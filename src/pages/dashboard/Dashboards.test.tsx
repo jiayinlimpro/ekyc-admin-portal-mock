@@ -113,14 +113,14 @@ describe('System Intelligence (DEC-18, DEC-86)', () => {
 })
 
 describe('Billing (DEC-60, DEC-86)', () => {
-  it('Given the Super admin in Merchant settings › Billing, then tokens per document and liveness submission (DEC-60), cost of retries, and tables by project and flow (DEC-109)', async () => {
+  it('Given the Super admin in Merchant settings › Billing, then tokens per document, selfie and liveness submission (DEC-60), cost of retries, and tables by project and flow (DEC-109)', async () => {
     useSession.getState().switchUser(ADMIN)
     renderAt(`/merchants/${fx('MER-0001')}?tab=billing`)
     const periods = await analyticsService.billingPeriods(ADMIN)
     const report = await analyticsService.billing({ period: periods[0], merchantId: fx('MER-0001'), projectIds: [fx('PRJ-0001'), fx('PRJ-0002')] }, ADMIN)
     await waitFor(() => expect(tile('Tokens').textContent).toContain(report.totals.tokens.toLocaleString('en-MY')))
     expect(tile('Cost of Retries').textContent).toContain('submissions after the first in a phase')
-    expect(tile('Tokens').textContent).toContain('Document and liveness submissions')
+    expect(tile('Tokens').textContent).toContain('Document, selfie and liveness submissions')
     expect(await screen.findByRole('region', { name: 'By project' })).toBeTruthy()
     expect(screen.getByRole('region', { name: 'By flow' })).toBeTruthy()
     const lines = within(screen.getByRole('region', { name: 'Line items' }))

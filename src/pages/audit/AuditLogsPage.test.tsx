@@ -17,7 +17,7 @@ function renderAt(path: string) {
   return router
 }
 async function rows(regionName: string) {
-  const table = within(await screen.findByRole('region', { name: regionName }, { timeout: 5000 })).getByRole('table')
+  const table = within(await screen.findByRole('region', { name: regionName })).getByRole('table')
   await waitFor(() => expect(table.getAttribute('aria-busy')).toBe('false'))
   return within(table).getAllByRole('row').slice(1)
 }

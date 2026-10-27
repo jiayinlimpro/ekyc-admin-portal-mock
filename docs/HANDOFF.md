@@ -56,7 +56,7 @@ server-side**. The tests (Given/When/Then names) are a shared spec; port or mirr
 - `flowSettings.ts`, `flowRules.ts`, `thresholds.ts`: presets / Advanced, validation, revisions, lifecycle, cooldown.
 - `registryRules.ts`, `projectSettings.ts`, `conditions.ts`: registry statuses and who may choose a version (`selectableForNewFlow`, DEC-56), settings validation, reason catalogue.
 - `dashboards.ts`: KPI definitions (Auto-Clear = SYSTEM approvals; retries = submissions after the first in every phase; tokens =
-  document + liveness submissions, DEC-60).
+  document + V1 selfie + liveness submissions, DEC-60 / OQ-35).
 
 ## 3. What the mock cannot prove — backend must do
 

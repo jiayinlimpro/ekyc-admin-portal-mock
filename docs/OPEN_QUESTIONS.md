@@ -28,7 +28,6 @@ Each question is a **parameter**, not a fact. The mock uses the default below. I
 | OQ-29 | How long are a Terminated merchant's cases and audit log kept, and are they then archived or deleted? Keeping them is required for compliance; the PDPA says not longer than needed (DEC-98) | Kept; nothing is deleted | — (backend policy) |
 | OQ-30 | Are invoices issued from this portal? If so, merchants also need registered address, TIN, SST number and a billing email (MyInvois) (DEC-98) | No; only the FRS fields | `Merchant` |
 | OQ-33 | EXIF edge cases: (a) the modern-maker list has no Samsung, Xiaomi, Huawei or Realme, so their photos get 0 for the maker; (b) a missing Megapixels value; (c) a missing DateTimeOriginal or FileModifyDate | (a) 0 points as listed; (b) 0 points; (c) counts as "differ" (−4) | `exifScore` in `src/domain/riskSignals.ts` |
-| OQ-35 | Does a submitted V1 selfie also cost a token (DEC-60)? Documents and liveness do | No: tokens = document + liveness submissions | `billingLine` in `src/domain/dashboards.ts` |
 | OQ-34 | Default minimum per risk category: V4's fixed minimums and V5's starting values (DEC-107) | 50 for each category | `DEFAULT_RISK_MINIMUMS` in `src/domain/openQuestions.ts` |
 | OQ-32 | The engine sets FacePixelSizeThreshold = 50, but its Selfie Quality Check doesn't apply it. Should a selfie face smaller than 50 px fail? | Not checked; shown as information | `selfieMetrics` in `src/domain/telemetry.ts` |
 | OQ-31 | The company staff email domain (DEC-99): platform staff and super admins must use it; merchant users may not | `ekyc-platform.example` | `STAFF_EMAIL_DOMAIN` in `src/domain/openQuestions.ts` |
@@ -36,6 +35,7 @@ Each question is a **parameter**, not a fact. The mock uses the default below. I
 ## Answered (kept for traceability)
 | ID | Question | Answer |
 |---|---|---|
+| OQ-35 | Does a submitted V1 selfie also cost a token (DEC-60)? | Yes: everything submitted costs a token, a rejected selfie included [PO 2026-10-27] |
 | OQ-07 | Are retakes charged per attempt? | Tokens per liveness submission; ID capture and selfie retakes are free (DEC-60) |
 | OQ-08 | Can Platform Admin claim and decide? | Yes, changed 2026-10-21 (DEC-75); was No (DEC-70) |
 | OQ-20 | Can internal staff (Platform Admin) view merchant cases for support? (MS OQ-7) | Yes; every open is audited (DEC-75) |

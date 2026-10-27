@@ -126,12 +126,12 @@ export function AttemptsSection({ v }: { v: VerificationDetail }) {
               const retakes = a.telemetry?.selfieRetakes ?? []
               return (
                 <Fragment key={a.attemptId}>
-                {/* REQ: DEC-18 / DEC-105 — V1: selfies rejected by the quality check; free, and never compared with the ID. */}
+                {/* REQ: DEC-105 / DEC-108 / DEC-60 — V1: submitted selfies rejected by the quality check use a selfie retry and a token; never compared with the ID. */}
                 {retakes.map((t, i) => (
                   <tr key={`${a.attemptId}-r${i}`} className="border-b align-top text-muted-foreground">
                     <th scope="row" className="py-1.5 pr-3 text-left font-normal">Attempt {a.attemptNo} · selfie retake</th>
                     <td className="py-1.5 pr-3" />
-                    <td className="py-1.5 pr-3">Selfie rejected (free)</td>
+                    <td className="py-1.5 pr-3">Selfie rejected</td>
                     <td className="py-1.5 pr-3">—</td>
                     <td className="py-1.5 pr-3 text-right">Not run</td>
                     <td className="py-1.5 pr-3 text-right">Not run</td>

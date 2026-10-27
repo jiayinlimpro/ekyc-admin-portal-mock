@@ -32,7 +32,7 @@ export const DEFAULT_CLAIM_WARNING_MIN = 5
 /** OQ-34: the minimum per risk category (DEC-107): fixed for V4, the starting value for V5. */
 export const DEFAULT_RISK_MINIMUMS: RiskScores = { EXIF: 50, NOISE: 50, EMAIL_VALIDITY: 50, OSINT: 50 }
 
-/** OQ-14: mock token price (RM per liveness submission, DEC-60). */
+/** OQ-14: mock token price (RM per token: one per document, V1 selfie or liveness submission, DEC-60). */
 export const TOKEN_PRICE = 0.5
 
 /** OQ-31: the company staff email domain (DEC-99): platform staff and super admins must use it; merchant users may not. */

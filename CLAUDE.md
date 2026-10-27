@@ -48,7 +48,7 @@ UAT scenarios: `docs/SCENARIOS.md`.
   PROCESSING. Retries used up → the last attempt decides. V4/V5: APPROVED also requires risk pass, else PENDING_REVIEW.
 - "Retries allowed" is per phase (DEC-108): Document (OCR), Selfie (V1), Liveness; default 3 each. A submitted attempt
   that fails for any reason in that phase uses one; retakes before submitting are free. Documents / V1 selfies that still
-  fail when retries are used up → REJECTED. Tokens = document + liveness submissions. Retries keep the same referenceNo.
+  fail when retries are used up → REJECTED. Tokens = every submission: document, V1 selfie, liveness (OQ-35). Retries keep the same referenceNo.
 - PROCESSING records are read-only. Decisions are final (no reopen, no resubmission). Reasons come from the project's
   decision reasons (DEC-106), not the engine conditions (DEC-35): Reject one or more, Approve exactly one; note optional
   unless the reason requires it (Other).

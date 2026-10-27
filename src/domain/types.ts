@@ -87,7 +87,7 @@ export interface SelfieTelemetry {
 
 export interface AttemptTelemetry {
   selfie?: SelfieTelemetry // V1 only: the selfie that passed and was compared
-  /** V1 only: selfies the engine rejected before that one (free retakes, DEC-18). None of them was compared with the ID. */
+  /** V1 only: submitted selfies the engine rejected before that one; each used a selfie retry and a token (DEC-108, DEC-60). None was compared with the ID. */
   selfieRetakes?: SelfieTelemetry[]
   /** Face detection confidence: a face is clearly detected in the compared image (> 90, engine). Not the similarity. */
   faceMatchConfidence?: number

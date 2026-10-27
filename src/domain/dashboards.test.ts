@@ -84,7 +84,7 @@ describe('billing (DEC-60)', () => {
     billingLine(verification({ referenceNo: 'C', submissions: {}, projectId: fx('PRJ-0002'), flowId: fx('FLW-0004') }), 0.5),
   ]
 
-  it('charges a token per liveness submission whatever the status; ID capture and selfie are free', () => {
+  it('charges a token per liveness submission whatever the status', () => {
     expect(lines.map((l) => l.tokens)).toEqual([1, 3, 0])
     expect(lines[1]).toMatchObject({ retryTokens: 2, cost: 1.5 })
     expect(billingTotals(lines, 0.5)).toEqual({ verifications: 3, tokens: 4, retryTokens: 2, cost: 2, retryCost: 1 })
@@ -95,6 +95,16 @@ describe('billing (DEC-60)', () => {
     const withDocs = verification({ referenceNo: 'D', idCapture, idCaptureSoftRejects: 2, submissions: { FACE_MATCH: [96], LIVENESS: [90] } })
     expect(billingLine(withDocs, 0.5)).toMatchObject({ tokens: 3 + 1, retryTokens: 2 })
     expect(billingLine({ ...withDocs, charged: false }, 0.5)).toMatchObject({ tokens: 0, retryTokens: 0, cost: 0 })
+  })
+
+  it('Given a V1 case with a rejected selfie, then every submitted selfie costs a token, the rejected one included (DEC-60, OQ-35)', () => {
+    const selfie = { eyesOpen: true, occluded: false, sharpness: 60, brightness: 70, yaw: 2, pitch: -1, faceSizePx: 180 }
+    const base = verification({ referenceNo: 'E', submissions: { FACE_MATCH: [80, 96] } })
+    const attempts = [
+      { ...base.attempts[0], telemetry: { selfieRetakes: [selfie], selfie } },
+      { ...base.attempts[0], telemetry: { selfie } },
+    ]
+    expect(billingLine({ ...base, attempts }, 0.5)).toMatchObject({ tokens: 3, retryTokens: 2, cost: 1.5 })
   })
 
   it('groups tokens and cost by project and flow', () => {

@@ -153,7 +153,7 @@ export const NAV_ITEMS: NavItem[] = [
     access: { project: 'viewBilling' }, // every role, data scoped (DEC-86)
     priority: 'P2',
     built: true,
-    notes: ['Tokens per document and liveness submission (DEC-60); this project only (DEC-109).'],
+    notes: ['Tokens per document, V1 selfie and liveness submission (DEC-60); this project only (DEC-109).'],
   },
   {
     path: '/verifications',

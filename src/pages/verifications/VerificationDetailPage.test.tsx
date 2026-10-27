@@ -226,7 +226,7 @@ describe('Verification Detail', () => {
     expect(metric('Brightness')).toEqual(['14.2', '> 25', 'Fail'])
     expect(metric('Face match (similarity)').slice(0, 1)).toEqual(['Not run'])
     expect(region('Evidence').getByText('Not compared: the selfie failed its quality check.')).toBeTruthy()
-    expect(within(screen.getByRole('table', { name: 'Attempts' })).getByText('Selfie rejected (free)')).toBeTruthy()
+    expect(within(screen.getByRole('table', { name: 'Attempts' })).getByText('Selfie rejected')).toBeTruthy()
     expect(region('Checks').getByText('Not checked yet')).toBeTruthy() // duplicate user: no search without a face comparison
   })
 

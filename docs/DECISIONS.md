@@ -266,8 +266,8 @@ Rules changed on 2026-10-20 (Projects & Flows restructure) are marked **(changed
   - **Face match** (the flow band on the similarity of the face with the ID photo) and **Face detection confidence** (a face
     is clearly detected; not liveness) are two different numbers and never shown as one [PO 2026-10-26, 2026-10-27].
   - **V1 order** (engine workflow): ID → selfie quality check → face comparison → existing-user search → liveness. A selfie
-    that fails its check ends the run ("Invalid selfie"): no similarity, no face match. The user retakes it for free
-    (DEC-18); rejected selfies are shown under Attempts as "Not run".
+    that fails its check ends the run ("Invalid selfie"): no similarity, no face match. Once submitted it uses a selfie
+    retry (DEC-108) and a token (DEC-60, OQ-35); rejected selfies are shown under Attempts as "Not run".
   - The **existing-user search** runs only after the face comparison passes (or lands in the review band).
   - **Duplicate user:** "New user", or "Existing user found" with the match similarity (≥ 90 = existing). Shown for
     information only: it never changes a check, the status or the decision buttons, and it stays off the list (DEC-40).
@@ -332,9 +332,10 @@ Rules changed on 2026-10-20 (Projects & Flows restructure) are marked **(changed
 
 ## Charging
 - **DEC-60** **(changed again 2026-10-27)** Sessions on an **Internal testing** version (DEC-56) are not charged. Otherwise,
-  tokens are consumed per **document (OCR) submission** and per **liveness submission**, whatever the final status (including cases still `PROCESSING`) [PO 2026-10-27]. Retakes before submitting
-  are free. "Cost of retries" = tokens from submissions after the first in each phase. Whether a V1 selfie submission also
-  costs a token is OQ-35.
+  tokens are consumed per **document (OCR) submission**, per **V1 selfie submission** and per **liveness submission**,
+  whatever the final status (including cases still `PROCESSING`) [PO 2026-10-27]: everything submitted costs a token,
+  including a selfie the engine rejects (OQ-35 answered) [PO 2026-10-27]. Retakes before submitting are free. "Cost of
+  retries" = tokens from submissions after the first in each phase.
   Billing column is "Verification Status". [FRS][PO 2026-10-20]
 
 ## Roles and access

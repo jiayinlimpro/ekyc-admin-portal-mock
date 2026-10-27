@@ -207,7 +207,7 @@ export function intelligenceStats(records: readonly Verification[], range: DateR
 
 // ----- Billing -----------------------------------------------------------------------------------------------------------
 
-/** REQ: DEC-60 — tokens = document (OCR) submissions + liveness submissions, whatever the final status (DEC-108). */
+/** REQ: DEC-60 — tokens = document (OCR) + V1 selfie + liveness submissions, whatever the final status (DEC-108, OQ-35). */
 export interface BillingLine {
   caseId: string
   referenceNo: string
@@ -235,8 +235,10 @@ const round2 = (n: number) => Math.round(n * 100) / 100
 export function billingLine(v: Verification, tokenPrice: number): BillingLine {
   // REQ: DEC-60 / DEC-56 — sessions on an Internal testing version are not charged.
   const documents = v.charged && v.idCapture ? v.idCaptureSoftRejects + 1 : 0
+  // V1: every submitted selfie, the ones the engine rejected and the ones compared with the ID (OQ-35).
+  const selfies = v.charged ? v.attempts.reduce((n, a) => n + (a.telemetry?.selfieRetakes?.length ?? 0) + (a.telemetry?.selfie ? 1 : 0), 0) : 0
   const liveness = v.charged ? (v.submissions.LIVENESS?.length ?? 0) : 0
-  const tokens = documents + liveness
+  const tokens = documents + selfies + liveness
   return {
     caseId: v.caseId,
     referenceNo: v.referenceNo,
@@ -247,7 +249,7 @@ export function billingLine(v: Verification, tokenPrice: number): BillingLine {
     workflowVersion: v.workflowVersion,
     status: v.status,
     tokens,
-    retryTokens: Math.max(documents - 1, 0) + Math.max(liveness - 1, 0),
+    retryTokens: Math.max(documents - 1, 0) + Math.max(selfies - 1, 0) + Math.max(liveness - 1, 0),
     cost: round2(tokens * tokenPrice),
   }
 }

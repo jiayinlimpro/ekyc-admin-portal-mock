@@ -146,7 +146,7 @@ export function buildEdgeCases(ctx: { now: Date; catalog: Catalog }): {
     make(17, fx('FLW-0008'), 35, { FACE_MATCH: [96.0], LIVENESS: [50.0] }),
     // Atoz "Foreigner onboarding" FLW-0002 (High face match < 90 / ≥ 97, cooldown 120 min).
     make(18, fx('FLW-0002'), 40, { FACE_MATCH: [84.0, 86.5, 88.0, 85.2], LIVENESS: passes(4) }, { documentType: 'PASSPORT' }),
-    // Vantage FLW-0005 (V1, face match Advanced < 82 / ≥ 93): selfie retakes are free; face match retry pending.
+    // Vantage FLW-0005 (V1, face match Advanced < 82 / ≥ 93): face match retry pending.
     make(19, fx('FLW-0005'), 25, { FACE_MATCH: [70.0] }),
     // Vantage FLW-0005 R2 accepts Driving License: face match < 82 / ≥ 93, 3 retries used, last 88.0 → review; liveness passes.
     make(20, fx('FLW-0005'), 20, { FACE_MATCH: [80.1, 84.0, 86.2, 88.0], LIVENESS: [96.2] }, { documentType: 'DRIVING_LICENSE' }),

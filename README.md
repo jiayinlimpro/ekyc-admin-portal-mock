@@ -93,7 +93,7 @@ carry `?project=<project ID>` to open a screen in that project; case links selec
 | Screen | What it demonstrates |
 |---|---|
 | Merchants page (outer) | Rows = merchants, cards = projects (archived dimmed); Search projects; New merchant (platform), New project, ⚙ Merchant settings, 👥 Users; Go to project |
-| Overview / System Intelligence / Billing | Every role, data of the project in the header; by flow and version; retry KPIs and drop-off; tokens per document and liveness submission. Billing for the whole merchant is in Merchant settings |
+| Overview / System Intelligence / Billing | Every role, data of the project in the header; by flow and version; retry KPIs and drop-off; tokens per document, V1 selfie and liveness submission. Billing for the whole merchant is in Merchant settings |
 | Verifications | Pending Review in the project, oldest first; flow / claim-state filters; no PII beyond name |
 | Verification detail | Hybrid layout (DEC-105): header strip, claim bar, reason with target vs actual; evidence side by side, extracted data, checks (duplicate user for information), risk Low risk / High risk with four category scores against their minimums (DEC-107); every engine metric with its threshold; client metadata at the top right; attempts, rules applied (revision); sticky decision panel |
 | Project Settings | Rename, archive (create on the Merchants page); branding, API keys (shown once), webhook, claim timeout, decision reasons (DEC-106), read-only routing |
