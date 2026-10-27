@@ -34,7 +34,7 @@ const SIMILARITY_TONE: Record<CheckState, string> = {
   REJECT: 'bg-red-100 text-red-900 dark:bg-red-500/20 dark:text-red-100',
 }
 
-/** REQ: DEC-105 — the document front and the matched face side by side, with the similarity. */
+/** REQ: DEC-105 — the document front and the matched face side by side, with the face match (similarity) score. */
 export function EvidenceSection({ v }: { v: VerificationDetail }) {
   const doc = DOCUMENT_TYPE_LABELS[v.documentType]
   const face = lastFaceAttempt(v)
@@ -59,8 +59,8 @@ export function EvidenceSection({ v }: { v: VerificationDetail }) {
       </div>
       {similarity !== undefined && fm && (
         <p className={cn('mt-3 rounded-md px-3 py-2 text-sm', SIMILARITY_TONE[fm.state])}>
-          <span className="font-semibold tabular-nums">Similarity {similarity.toFixed(1)}</span> · <Result state={fm.state} />
-          <span className="block text-xs opacity-80">Face vs ID · {bandText(fm.thresholds)}</span>
+          <span className="font-semibold tabular-nums">Face match {similarity.toFixed(1)}</span> · <Result state={fm.state} />
+          <span className="block text-xs opacity-80">Similarity of the face with the ID photo · {bandText(fm.thresholds)}</span>
         </p>
       )}
       {similarity === undefined && !!face?.telemetry?.selfieRetakes?.length && (
@@ -117,8 +117,8 @@ export function ChecksSection({ v }: { v: VerificationDetail }) {
         {selfieRetakes > 0 && <div className="text-xs text-muted-foreground">{selfieRetakes} selfie(s) rejected by the quality check · free retakes, never compared</div>}
       </div>,
     ])
-  // REQ: DEC-105 — the flow-set check is the similarity of the face with the ID; "Face match" (real face) is in Telemetry.
-  if (v.checks.some((c) => c.check === 'FACE_MATCH')) items.push([v.steps.faceMatchMethod === 'ID_VS_SELFIE' ? 'Similarity (selfie vs ID)' : 'Similarity (liveness face vs ID)', <CheckLine key="fm" v={v} check="FACE_MATCH" />])
+  // REQ: DEC-10 / DEC-105 — the flow-set face match judges the similarity of the face with the ID photo.
+  if (v.checks.some((c) => c.check === 'FACE_MATCH')) items.push([v.steps.faceMatchMethod === 'ID_VS_SELFIE' ? 'Face match (selfie vs ID)' : 'Face match (liveness face vs ID)', <CheckLine key="fm" v={v} check="FACE_MATCH" />])
   if (v.checks.some((c) => c.check === 'LIVENESS')) items.push(['Liveness', <CheckLine key="lv" v={v} check="LIVENESS" />])
   items.push([
     'Duplicate user',
@@ -192,7 +192,7 @@ export function RulesAppliedSection({ v }: { v: VerificationDetail }) {
     <Section title="Rules applied" aside={<span className="font-mono text-xs text-muted-foreground">{v.revisionLabel}</span>}>
       <Fields
         items={[
-          ['Similarity (face vs ID)', check('FACE_MATCH')],
+          ['Face match', check('FACE_MATCH')],
           ['Liveness', check('LIVENESS')],
           ['Cooldown', r.cooldownMin > 0 ? `${r.cooldownMin} min after a rejection` : 'None'],
           ['Accepted documents', r.acceptedDocuments.map((d) => DOCUMENT_TYPE_LABELS[d]).join(', ')],

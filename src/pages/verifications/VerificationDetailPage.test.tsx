@@ -200,31 +200,31 @@ describe('Verification Detail', () => {
       expect(metric(label).slice(1), label).toEqual([threshold, 'Pass'])
     }
     expect(metric('Face size').slice(1)).toEqual(['50 px configured, not checked', 'Information only']) // OQ-32
-    expect(region('Checks').getByText('Similarity (selfie vs ID)')).toBeTruthy()
+    expect(region('Checks').getByText('Face match (selfie vs ID)')).toBeTruthy()
   })
 
-  it('Given S03, then the faces side by side with the similarity; similarity (face vs ID) and face match (face detected) are separate (DEC-105)', async () => {
+  it('Given S03, then the faces side by side with the face match score; face match (similarity) and face detection confidence are separate (DEC-105)', async () => {
     await open(S(3))
     const evidence = region('Evidence')
     expect(evidence.getByRole('img', { name: /^MyKad front/ })).toBeTruthy()
     expect(evidence.getByRole('img', { name: /^Liveness frame, attempt 4/ })).toBeTruthy()
-    expect(evidence.getByText('Similarity 88.5')).toBeTruthy()
-    expect(metric('Similarity (face vs ID)')).toEqual(['88.5', 'Auto-Reject < 85 · Auto-Pass ≥ 95', 'Review band'])
-    const faceMatch = within(screen.getByRole('table', { name: 'Telemetry' })).getAllByRole('rowheader', { name: 'Face match' }).map((h) => h.closest('tr')!.textContent)
+    expect(evidence.getByText('Face match 88.5')).toBeTruthy()
+    expect(metric('Face match (similarity)')).toEqual(['88.5', 'Auto-Reject < 85 · Auto-Pass ≥ 95', 'Review band'])
+    const faceMatch = within(screen.getByRole('table', { name: 'Telemetry' })).getAllByRole('rowheader', { name: 'Face detection confidence' }).map((h) => h.closest('tr')!.textContent)
     expect(faceMatch).toEqual([expect.stringMatching(/≥ 90Pass$/), expect.stringMatching(/> 90Pass$/)]) // on the ID, then on the compared face
-    expect(screen.getByText(/^Face match: confidence that a face is clearly detected \(not liveness\)/)).toBeTruthy()
+    expect(screen.getByText(/Face detection confidence: a face is clearly detected \(not liveness\)/)).toBeTruthy()
     expect(screen.queryByRole('columnheader', { name: 'Set by' })).toBeNull()
-    expect(region('Checks').getByText('Similarity (liveness face vs ID)')).toBeTruthy()
-    expect(region('Checks').queryByText(/^Face match/)).toBeNull() // the flow-set check is the similarity
+    expect(region('Checks').getByText('Face match (liveness face vs ID)')).toBeTruthy()
+    expect(region('Checks').queryByText(/Similarity|Face detection/)).toBeNull() // the check is named Face match
     expect(metric('Image size')[1]).toBe('≥ 320 × 320 px')
   })
 
-  it('Given V1 S22, whose selfie was too dark, then it was not compared: no similarity, and the rejected selfie says why (DEC-105)', async () => {
+  it('Given V1 S22, whose selfie was too dark, then it was not compared: no face match, and the rejected selfie says why (DEC-105)', async () => {
     useSession.getState().switchUser(OTHER_MERCHANT_REVIEWER)
     await open(S(22))
     expect(region('Checks').getByText('Fail: not compared with the ID')).toBeTruthy()
     expect(metric('Brightness')).toEqual(['14.2', '> 25', 'Fail'])
-    expect(metric('Similarity (face vs ID)').slice(0, 1)).toEqual(['Not run'])
+    expect(metric('Face match (similarity)').slice(0, 1)).toEqual(['Not run'])
     expect(region('Evidence').getByText('Not compared: the selfie failed its quality check.')).toBeTruthy()
     expect(within(screen.getByRole('table', { name: 'Attempts' })).getByText('Selfie rejected (free)')).toBeTruthy()
     expect(region('Checks').getByText('Not checked yet')).toBeTruthy() // duplicate user: no search without a face comparison

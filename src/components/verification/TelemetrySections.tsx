@@ -1,5 +1,5 @@
 // REQ: DEC-105 — every number the engine produced, with its threshold, result and who sets the threshold.
-// "Similarity" (the face compared with the ID face) and "Face match" (a face is clearly detected) are separate rows.
+// "Face match" (the flow band on the similarity with the ID photo) and "Face detection confidence" are separate rows.
 import { Fragment } from 'react'
 import type { Check, VerificationDetail } from '@/domain/types'
 import { ENGINE_THRESHOLDS, duplicateUserText, lastFaceAttempt, flowMetric, idCaptureMetrics, faceMatchMetric, selfieMetrics, type MetricResult, type MetricRow } from '@/domain/telemetry'
@@ -36,11 +36,11 @@ function groups(v: VerificationDetail): Group[] {
   if (fm?.lastScore !== undefined) {
     const conf = v.attempts.findLast((a) => a.telemetry?.faceMatchConfidence !== undefined)?.telemetry?.faceMatchConfidence
     out.push({
-      stage: `Similarity and face match (${subject} vs ID)`,
-      rows: [flowMetric('compare.similarity', 'Similarity (face vs ID)', fm.lastScore, fm.thresholds), ...(conf === undefined ? [] : [faceMatchMetric(conf)])],
+      stage: `Face match (${subject} vs ID)`,
+      rows: [flowMetric('compare.faceMatch', 'Face match (similarity)', fm.lastScore, fm.thresholds), ...(conf === undefined ? [] : [faceMatchMetric(conf)])],
     })
   } else if (rejected) {
-    out.push({ stage: `Similarity and face match (${subject} vs ID)`, rows: [{ id: 'compare.notRun', label: 'Similarity (face vs ID)', value: 'Not run', threshold: 'The selfie must pass its check first', source: 'ENGINE', result: 'INFO' }] })
+    out.push({ stage: `Face match (${subject} vs ID)`, rows: [{ id: 'compare.notRun', label: 'Face match (similarity)', value: 'Not run', threshold: 'The selfie must pass its check first', source: 'ENGINE', result: 'INFO' }] })
   }
   const lv = ev('LIVENESS')
   if (lv?.lastScore !== undefined) out.push({ stage: 'Liveness', rows: [flowMetric('liveness.confidence', 'Liveness confidence', lv.lastScore, lv.thresholds)] })
@@ -89,7 +89,7 @@ export function TelemetrySection({ v }: { v: VerificationDetail }) {
             ))}
           </table>
           <p className="mt-2 text-xs text-muted-foreground">
-            Face match: confidence that a face is clearly detected (not liveness). Similarity: the face compared with the ID photo.
+            Face match: the similarity of the face with the ID photo, judged by the flow's band. Face detection confidence: a face is clearly detected (not liveness).
           </p>
         </div>
       )}
@@ -113,8 +113,8 @@ export function AttemptsSection({ v }: { v: VerificationDetail }) {
               <th className="py-1.5 pr-3 font-medium">Started (MYT)</th>
               <th className="py-1.5 pr-3 font-medium">Outcome</th>
               <th className="py-1.5 pr-3 font-medium">Face</th>
-              <th className="py-1.5 pr-3 text-right font-medium">Similarity (face vs ID)</th>
-              <th className="py-1.5 pr-3 text-right font-medium">Face match</th>
+              <th className="py-1.5 pr-3 text-right font-medium">Face match (similarity)</th>
+              <th className="py-1.5 pr-3 text-right font-medium">Face detection confidence</th>
               {hasLiveness && <th className="py-1.5 pr-3 text-right font-medium">Liveness confidence</th>}
               {v1 && <th className="py-1.5 font-medium">Selfie quality</th>}
             </tr>

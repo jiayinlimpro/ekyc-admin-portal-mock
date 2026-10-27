@@ -44,7 +44,7 @@ describe('Flow Detail (DEC-18, DEC-19, DEC-50, DEC-51)', () => {
 
   it('Given an Active flow, then Save needs a reason; with one it creates V4-R3 for new sessions (DEC-51)', async () => {
     renderAt(`/flows/${fx('FLW-0001')}`)
-    fireEvent.click((await card('Similarity')).getByRole('radio', { name: /Low/ }))
+    fireEvent.click((await card('Face match')).getByRole('radio', { name: /Low/ }))
     expect(screen.getByText(/Creates V4-R3 · applies to new sessions only/)).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: 'Save new revision' }))
     expect(await screen.findByText(/Reason for change is required/, { selector: '[role="alert"]' })).toBeTruthy()
@@ -56,24 +56,24 @@ describe('Flow Detail (DEC-18, DEC-19, DEC-50, DEC-51)', () => {
 
   it('Given the retries stepper, then it moves within 1–5 and shows the submissions it allows (DEC-18, OQ-03)', async () => {
     renderAt(`/flows/${fx('FLW-0001')}`)
-    const fm = await card('Similarity')
-    fireEvent.click(fm.getByRole('button', { name: 'More Similarity retries' }))
-    fireEvent.click(fm.getByRole('button', { name: 'More Similarity retries' }))
-    expect(fm.getByLabelText('Similarity retries allowed').textContent).toBe('5')
-    expect((fm.getByRole('button', { name: 'More Similarity retries' }) as HTMLButtonElement).disabled).toBe(true)
+    const fm = await card('Face match')
+    fireEvent.click(fm.getByRole('button', { name: 'More Face match retries' }))
+    fireEvent.click(fm.getByRole('button', { name: 'More Face match retries' }))
+    expect(fm.getByLabelText('Face match retries allowed').textContent).toBe('5')
+    expect((fm.getByRole('button', { name: 'More Face match retries' }) as HTMLButtonElement).disabled).toBe(true)
     expect(fm.getByText(/up to 6 submissions/)).toBeTruthy()
   })
 
   it('Given Advanced set by the platform, then the merchant sees a read-only chip; the Super admin edits the numbers (DEC-19)', async () => {
     useSession.getState().switchUser(VANTAGE_OWNER)
     renderAt(`/flows/${fx('FLW-0005')}`)
-    const fm = await card('Similarity')
+    const fm = await card('Face match')
     expect(fm.getByRole('radio', { name: /Advanced \(set by platform\)/ }).getAttribute('aria-checked')).toBe('true')
     expect(fm.queryByLabelText('Auto-Reject below')).toBeNull()
     cleanup()
     useSession.getState().switchUser(ADMIN)
     renderAt(`/flows/${fx('FLW-0005')}`)
-    const admin = await card('Similarity')
+    const admin = await card('Face match')
     fireEvent.change(admin.getByLabelText('Auto-Reject below'), { target: { value: '95' } })
     expect(admin.getByRole('img').getAttribute('aria-label')).toBe('Bands not valid yet')
     fireEvent.change(screen.getByLabelText(/Reason for change/), { target: { value: 'Testing invalid values' } })

@@ -17,7 +17,7 @@ export type CapturePhase = (typeof CAPTURE_PHASES)[number]
 export const PHASE_LABELS: Record<Phase, string> = {
   DOCUMENT: 'Document',
   SELFIE: 'Selfie',
-  FACE_MATCH: 'Similarity', // REQ: DEC-10 — the configurable band (face vs ID); "Face match" is the engine's face-detected value
+  FACE_MATCH: 'Face match', // REQ: DEC-10 — the configurable band on the similarity (face vs ID photo)
   LIVENESS: 'Liveness',
   RISK_ASSESSMENT: 'Risk Assessment',
 }
@@ -57,7 +57,7 @@ export interface Attempt {
   startedAt: string // ISO UTC
   outcome: AttemptOutcome
   isUserRetake: boolean // REQ: DEC-18 — Retry KPI counts only these
-  phaseScores: Partial<Record<CapturePhase, number>> // FACE_MATCH = similarity (face vs ID), LIVENESS = liveness confidence
+  phaseScores: Partial<Record<CapturePhase, number>> // FACE_MATCH = the similarity it judges (face vs ID photo), LIVENESS = liveness confidence
   faceImage?: StoredFile // the face matched in this attempt: the selfie (V1) or the liveness frame (V3/V4/V5)
   telemetry?: AttemptTelemetry // REQ: DEC-105
 }
@@ -66,7 +66,7 @@ export interface Attempt {
 /** The accepted ID image (or the last one, if the session stopped at ID capture). Retakes before it are `idCaptureSoftRejects`. */
 export interface IdCaptureTelemetry {
   facesFound: number
-  faceConfidence: number // 0–100: "face match", a real face on the ID (≥ 90); not a similarity
+  faceConfidence: number // 0–100: face detection confidence on the ID (≥ 90); not a similarity
   eyesOpen: boolean
   occluded: boolean // face covered (mask, hand, glare)
   imageWidth: number // px
@@ -89,7 +89,7 @@ export interface AttemptTelemetry {
   selfie?: SelfieTelemetry // V1 only: the selfie that passed and was compared
   /** V1 only: selfies the engine rejected before that one (free retakes, DEC-18). None of them was compared with the ID. */
   selfieRetakes?: SelfieTelemetry[]
-  /** "Face match": confidence that the compared face is a real face (> 90, engine). Not the similarity. */
+  /** Face detection confidence: a face is clearly detected in the compared image (> 90, engine). Not the similarity. */
   faceMatchConfidence?: number
 }
 

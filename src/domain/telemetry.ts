@@ -1,7 +1,7 @@
 // REQ: DEC-105 — every engine metric is shown on Verification Detail with its threshold, its result and who sets the
-// threshold. Only the similarity and liveness bands come from the flow (DEC-10); the rest are fixed by the engine.
-// Terms follow the engine workflow: "Similarity" = the face compared with the ID face (compareFaces Similarity);
-// "Face match" = confidence that a face is a real face (FaceMatchThreshold on Face.Confidence). Never mix the two.
+// threshold. Only the face match (on the similarity) and liveness bands come from the flow (DEC-10); the rest are fixed by
+// the engine. "Face match" = the flow band on the similarity of the face with the ID photo (compareFaces Similarity);
+// "Face detection confidence" = a face is clearly detected (FaceMatchThreshold on Face.Confidence). Never mix the two.
 import type { Thresholds } from './thresholds'
 import type { Attempt, DocumentType, DuplicateUserCheck, IdCaptureTelemetry, SelfieTelemetry } from './types'
 
@@ -48,7 +48,7 @@ export function idCaptureMetrics(t: IdCaptureTelemetry, documentType: DocumentTy
   const found = fields.filter((f) => !t.ocrFieldsMissing.includes(f))
   return [
     engine('id.faces', 'Faces found', String(t.facesFound), `exactly ${T.facesFound}`, t.facesFound === T.facesFound),
-    engine('id.faceMatch', 'Face match', n1(t.faceConfidence), `≥ ${T.faceMatchMin}`, t.faceConfidence >= T.faceMatchMin),
+    engine('id.faceDetection', 'Face detection confidence', n1(t.faceConfidence), `≥ ${T.faceMatchMin}`, t.faceConfidence >= T.faceMatchMin),
     engine('id.eyes', 'Eyes open', t.eyesOpen ? 'Yes' : 'No', 'Yes', t.eyesOpen),
     engine('id.occluded', 'Face covered', t.occluded ? 'Yes' : 'No', 'No', !t.occluded),
     engine('id.size', 'Image size', `${t.imageWidth} × ${t.imageHeight} px`, `≥ ${T.imageMinPx} × ${T.imageMinPx} px`, t.imageWidth >= T.imageMinPx && t.imageHeight >= T.imageMinPx),
@@ -90,9 +90,9 @@ export function flowMetric(id: string, label: string, score: number, t: Threshol
   return { id, label, value: n1(score), threshold: bandText(t), source: 'FLOW', result: bandResult(score, t) }
 }
 
-/** "Face match": confidence that a face is clearly detected in the compared image (> 90; not liveness). Not the similarity. */
+/** Face detection confidence: a face is clearly detected in the compared image (> 90; not liveness). Not the similarity. */
 export function faceMatchMetric(confidence: number): MetricRow {
-  return engine('compare.faceMatch', 'Face match', n1(confidence), `> ${T.faceMatchMin}`, confidence > T.faceMatchMin)
+  return engine('compare.faceDetection', 'Face detection confidence', n1(confidence), `> ${T.faceMatchMin}`, confidence > T.faceMatchMin)
 }
 
 /** REQ: DEC-105 — information only: the result never feeds a check or the status. */
