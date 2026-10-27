@@ -148,7 +148,7 @@ export interface IntelligenceStats {
   retriesExhausted: number
   /** Last score per check and session. */
   histograms: Record<Check, number[]>
-  riskResults: Record<RiskResult, number> // REQ: DEC-107 — Normal vs Elevated
+  riskResults: Record<RiskResult, number> // REQ: DEC-107 — Low risk vs High risk
   byFlow: FlowIntel[]
 }
 

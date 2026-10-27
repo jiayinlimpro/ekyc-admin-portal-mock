@@ -61,7 +61,7 @@ describe('case status in a flow (DEC-12 … DEC-16)', () => {
     expect(r.status).toBe('PENDING_REVIEW')
   })
 
-  it('Given every check passes, then V1 is APPROVED; V4 also needs risk Normal, else PENDING_REVIEW with the categories missed (DEC-107)', () => {
+  it('Given every check passes, then V1 is APPROVED; V4 also needs Low risk, else PENDING_REVIEW with the categories missed (DEC-107)', () => {
     const pass = { FACE_MATCH: [96], LIVENESS: [90] }
     expect(evaluateCase({ submissions: pass }, V1).status).toBe('APPROVED')
     expect(evaluateCase({ submissions: pass }, V4).status).toBe('PROCESSING') // risk not run yet
@@ -71,10 +71,10 @@ describe('case status in a flow (DEC-12 … DEC-16)', () => {
 
   it('Given the decision table, then biometric review or reject wins whatever the risk result (DEC-107)', () => {
     const flagged = { ...CLEAN, NOISE: 10 }
-    expect(evaluateCase({ submissions: { FACE_MATCH: [96, 96, 96, 90], LIVENESS: [90, 90, 90, 90] }, riskScores: CLEAN }, V4).status).toBe('PENDING_REVIEW') // review + Normal
-    expect(evaluateCase({ submissions: { FACE_MATCH: [96], LIVENESS: [10, 10, 10, 10] }, riskScores: flagged }, V4).status).toBe('REJECTED') // reject + Elevated: from biometrics
-    expect(evaluateRisk(flagged, V4.settings.risk)).toMatchObject({ result: 'ELEVATED', below: [{ category: 'NOISE', score: 10, minimum: 50 }] })
-    expect(evaluateRisk(CLEAN, V4.settings.risk).result).toBe('NORMAL')
+    expect(evaluateCase({ submissions: { FACE_MATCH: [96, 96, 96, 90], LIVENESS: [90, 90, 90, 90] }, riskScores: CLEAN }, V4).status).toBe('PENDING_REVIEW') // review + Low risk
+    expect(evaluateCase({ submissions: { FACE_MATCH: [96], LIVENESS: [10, 10, 10, 10] }, riskScores: flagged }, V4).status).toBe('REJECTED') // reject + High risk: from biometrics
+    expect(evaluateRisk(flagged, V4.settings.risk)).toMatchObject({ result: 'HIGH', below: [{ category: 'NOISE', score: 10, minimum: 50 }] })
+    expect(evaluateRisk(CLEAN, V4.settings.risk).result).toBe('LOW')
   })
 
   it('Given 1 retry allowed (OQ-03 minimum), then the second submission decides', () => {

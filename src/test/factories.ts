@@ -35,7 +35,7 @@ export function verification(overrides: Partial<Verification> = {}): Verificatio
     lastUpdatedAt: NOW.toISOString(),
     attempts: [completed(ALL_PASS)],
     riskScores: { EXIF: 80, NOISE: 85, EMAIL_VALIDITY: 75, OSINT: 70 },
-    riskResult: 'NORMAL',
+    riskResult: 'LOW',
     documentType: 'MYKAD',
     pii: {
       fullName: 'TEST PERSON',

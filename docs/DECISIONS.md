@@ -53,14 +53,14 @@ Rules changed on 2026-10-20 (Projects & Flows restructure) are marked **(changed
 - **DEC-11** For similarity and liveness: score `>= autoPass` → pass; `< autoReject` → reject band; in between → review band.
 - **DEC-12** When every check has a final result, they combine: any reject → `REJECTED`; otherwise any review →
   `PENDING_REVIEW`; otherwise all pass. *(Precedence is OQ-01 and is configurable.)*
-- **DEC-13** **(changed)** V4 and V5: all checks passing is not enough; Risk Assessment must also be Normal, otherwise
-  `PENDING_REVIEW` with reason "Risk Assessment not passed". The risk model is DEC-107.
+- **DEC-13** **(changed)** V4 and V5: all checks passing is not enough; Risk Assessment must also be Low risk, otherwise
+  `PENDING_REVIEW` with reason "Risk Assessment: high risk". The risk model is DEC-107.
 - **DEC-107** **(new)** Risk Assessment, V4 and V5 [PO 2026-10-26]. Replaces the risk levels (Low / Medium / High), the
   "maximum allowed risk level" and the overall risk score.
   - The engine returns **four category scores, each 0–100, higher = more genuine**: EXIF, Noise, Email Validity, OSINT.
     How each is computed and normalised (EXIF tag points, ELA and wavelet values, email points, OSINT social score 0–10)
     is not final (OQ-25); the portal shows only the four scores, no breakdown and no reason codes.
-  - **Risk result:** **Normal** when every category is at or above its minimum, otherwise **Elevated**. These words are used
+  - **Risk result:** **Low risk** when every category is at or above its minimum, otherwise **High risk**. These words are used
     instead of pass / fail so they are never confused with the case statuses. One minimum per category.
   - **V4:** the minimums are fixed by the platform; the merchant sees them read-only. **V5:** the flow sets one minimum per
     category (0–100) in Flow Detail, with the same rules as the thresholds (Change verification level and retries; saving
@@ -71,14 +71,14 @@ Rules changed on 2026-10-20 (Projects & Flows restructure) are marked **(changed
     | Biometric result | Risk result | Final status |
     |---|---|---|
     | Approve | Clear | `APPROVED` |
-    | Approve | Elevated | `PENDING_REVIEW` |
+    | Approve | High risk | `PENDING_REVIEW` |
     | Pending review | Any | `PENDING_REVIEW` |
     | Reject | Any | `REJECTED` (from biometrics, not risk) |
 
-  - Risk never rejects. An Elevated case goes to review with the reason "Risk Assessment not passed" and the categories below
+  - Risk never rejects. A high-risk case goes to review with the reason "Risk Assessment: high risk" and the categories below
     their minimum, e.g. "OSINT 22 < 30".
-  - Verifications List: a **Risk** column and filter with Normal / Elevated (DEC-40, DEC-43, DEC-100). System Intelligence
-    counts Normal vs Elevated.
+  - Verifications List: a **Risk** column and filter with Low risk / High risk (DEC-40, DEC-43, DEC-100). System Intelligence
+    counts Low risk vs High risk.
 - **DEC-14** A system approval is `APPROVED` with `lastUpdatedBy = SYSTEM` ("Auto-Clear").
 - **DEC-19** Threshold presets. **(new)** [PO 2026-10-20]
   - Each of similarity and liveness offers **Low**, **Standard** and **High** presets. Low = lenient (more automatic
@@ -171,7 +171,7 @@ Rules changed on 2026-10-20 (Projects & Flows restructure) are marked **(changed
 
 ## Visibility, PII & audit
 - **DEC-40** **(changed)** Verifications List columns: Reference ID, Full Name, Project (when more than one project is in view),
-  Flow, Workflow version, Document type, Status, Risk (Normal / Elevated; only when a flow in view runs risk, DEC-107), Claimed by (or "Unclaimed"),
+  Flow, Workflow version, Document type, Status, Risk (Low risk / High risk; only when a flow in view runs risk, DEC-107), Claimed by (or "Unclaimed"),
   Claim expires, Created, Last updated. No other PII, no client metadata, no duplicate-user information. Enforced by the
   `VerificationSummary` type. [MS][FRS][PO 2026-10-20]
   - Layout, same information [PO 2026-10-21]: the list must fit a desktop screen without scrolling sideways, so related
@@ -193,13 +193,13 @@ Rules changed on 2026-10-20 (Projects & Flows restructure) are marked **(changed
   - Merchants (Platform Admin only): `MERCHANT_CREATED`, `MERCHANT_UPDATED`, `MERCHANT_STATUS_CHANGED`
   [MS][FRS]
 - **DEC-43** **(new)** Verifications List filters: project, flow, workflow version, status, claim state (unclaimed / mine /
-  others), risk (Normal / Elevated), date range; search by Reference ID and Full Name. Default view: `PENDING_REVIEW` cases in the user's
+  others), risk (Low risk / High risk), date range; search by Reference ID and Full Name. Default view: `PENDING_REVIEW` cases in the user's
   projects, oldest first. [MS][FRS]
 - **DEC-100** **(new)** Verifications List sorting is on the column names, not in the filters [PO 2026-10-22]. Sortable
   columns, per the FRS: Reference ID, Status, Risk, Last updated (never Full Name or Merchant). Each click on a
   column: ascending → descending → back to the default order (Last updated, oldest first, DEC-43; this replaces the FRS
   default "updatedAt descending" for the review queue). The column shows its state with a small icon (and `aria-sort`).
-  Status sorts in lifecycle order (Processing, Pending Review, Approved, Rejected); risk Normal → Elevated, cases without a risk
+  Status sorts in lifecycle order (Processing, Pending Review, Approved, Rejected); risk Low → High, cases without a risk
   result last either way; ties by Last updated, then Reference ID. A sort applies at once and is kept in the URL
   (`sort=status.asc`); it does not reset the filters. [FRS][PO 2026-10-22]
 - **DEC-101** **(new)** The Created filter is one date-range field, not "Created from" and "Created to" [PO 2026-10-22].
@@ -217,7 +217,7 @@ Rules changed on 2026-10-20 (Projects & Flows restructure) are marked **(changed
 - **DEC-105** **(new)** Verification Detail layout and content [PO 2026-10-23]. Replaces the section list of DEC-44; the
   original Axure page and the DEC-44 page are combined ("hybrid").
   - **Header strip:** Reference ID, status, case ID (copy) · Project › Flow · workflow version and preset (e.g. "V4 ·
-    High") and configuration revision · Created · Audit trail link (the SDK is in the client metadata box, not repeated here). **Client metadata** (SDK, OS,
+    High") and configuration revision · Created · Last updated. No Audit trail link [PO 2026-10-27] (the Audit Log is in the menu); the SDK is in the client metadata box, not repeated here. **Client metadata** (SDK, OS,
     device, IP address, location) sits in a compact box at the top right of the header [PO 2026-10-26]; on narrow screens
     it moves under the title. The claim bar sits directly under the header.
   - **Reason banner** (`PENDING_REVIEW` / `REJECTED`): the DEC-35 condition plus **target vs actual**, e.g. "Auto-Reject
@@ -228,7 +228,7 @@ Rules changed on 2026-10-20 (Projects & Flows restructure) are marked **(changed
   - **Decision panel:** sticky on the right on wide screens; full width under the content on narrow screens. Buttons
     "Confirm Manual Pass" and "Reject" (DEC-30); never "Maintain Automated Rejection".
   - **Below the fold:** Attempts (each attempt's scores, metrics and images), Rules applied. **No Activity section**
-    [PO 2026-10-26]: the case's history is in the Audit Log (Audit trail link).
+    [PO 2026-10-26]: the case's history is in the Audit Log.
   - **Every number is shown** to everyone who can open the page (View details), per attempt. Each metric shows its value,
     its threshold and pass / fail. No "Set by" column [PO 2026-10-26]: the flow-set similarity and liveness bands read
     "Auto-Reject … · Auto-Pass …"; every other threshold is fixed by the engine. Engine thresholds live in `ENGINE_THRESHOLDS` (`src/domain/telemetry.ts`):
@@ -257,7 +257,7 @@ Rules changed on 2026-10-20 (Projects & Flows restructure) are marked **(changed
   - The **existing-user search** runs only after the face comparison passes (or lands in the review band).
   - **Duplicate user:** "New user", or "Existing user found" with the match similarity (≥ 90 = existing). Shown for
     information only: it never changes a check, the status or the decision buttons, and it stays off the list (DEC-40).
-  - **Risk** (V4/V5): the result (Normal / Elevated) and the four category scores against their minimums (DEC-107).
+  - **Risk** (V4/V5): the result (Low risk / High risk) and the four category scores against their minimums (DEC-107).
 
 ## Configuration
 - **DEC-50** **(changed)** Settings live on each **flow** (Flow Detail). The form shows only what applies to the flow's version:
@@ -662,7 +662,7 @@ These keep the mock runnable. They are not signed-off requirements; change them 
 
 - **MOCK-01** **(changed)** Attempt counting: each `Attempt` records the check where it stopped and its scores. Retries for a
   check = submissions for that check after the first. ID capture and selfie retakes are not recorded as attempts.
-- **MOCK-02** Risk gate: Normal when every category score ≥ its minimum (DEC-107). Risk never auto-rejects.
+- **MOCK-02** Risk gate: Low risk when every category score ≥ its minimum (DEC-107). Risk never auto-rejects.
 - **MOCK-03** Claim expiry is lazy: every service call sweeps expired claims and writes one `CASE_CLAIM_EXPIRED` per expired claim.
 - **MOCK-04** Time is read from an injectable clock (`src/lib/clock.ts`) with a dev "time warp" offset, so expiry can be demoed
   without waiting.
@@ -705,7 +705,7 @@ These keep the mock runnable. They are not signed-off requirements; change them 
 | DEC-22 | Claim timeout per merchant; ends by Cancel, timeout or decision | DEC-22 |
 | DEC-31 | Reason code and audit comment required for both decisions; then (2026-10-20) Reject reasons = DEC-35 conditions, no Approve reason | DEC-31, DEC-106 |
 | DEC-10 / DEC-35 | Granular metrics and duplicate-user information never shown | Shown on Verification Detail (DEC-105) |
-| DEC-13 / MOCK-02 / OQ-05 / OQ-06 | Risk level Low / Medium / High from a 0–100 score; V4 "maximum allowed level" per flow | Four category scores, Normal / Elevated, minimums fixed (V4) or per flow (V5) (DEC-107) |
+| DEC-13 / MOCK-02 / OQ-05 / OQ-06 | Risk level Low / Medium / High from a 0–100 score; V4 "maximum allowed level" per flow | Four category scores, Low risk / High risk, minimums fixed (V4) or per flow (V5) (DEC-107) |
 | DEC-44 / DEC-105 | Activity timeline on the case page | Removed; history in the Audit Log |
 | DEC-42 | `PII_VIEW`, `CLAIM`, `CLAIM_RELEASE`, `CLAIM_TIMEOUT`, `DECISION`, `OWNERSHIP_CONFLICT`, `CONFIG_*`, `CREDENTIAL_ROTATION` | DEC-42 |
 | DEC-50/51 | One config per merchant, Save Draft / Discard / Deploy | DEC-50, DEC-51 |

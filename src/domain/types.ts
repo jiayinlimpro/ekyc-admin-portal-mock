@@ -26,8 +26,8 @@ export const PHASE_LABELS: Record<Phase, string> = {
 export const WORKFLOW_VERSIONS = ['V1', 'V3', 'V4', 'V5'] as const
 export type WorkflowVersion = (typeof WORKFLOW_VERSIONS)[number]
 
-// REQ: DEC-107 — the risk result. Normal / Elevated, never pass / fail, so it is not confused with the case status.
-export const RISK_RESULTS = ['NORMAL', 'ELEVATED'] as const
+// REQ: DEC-107 — the risk result. Low risk / High risk, never pass / fail, so it is not confused with the case status.
+export const RISK_RESULTS = ['LOW', 'HIGH'] as const
 export type RiskResult = (typeof RISK_RESULTS)[number]
 
 // REQ: DEC-107 — the risk engine's four categories, each scored 0–100, higher = more genuine (how: OQ-25).
@@ -181,7 +181,7 @@ export interface VerificationSummary {
   documentType: DocumentType
   workflowVersion: WorkflowVersion
   status: VerificationStatus
-  riskResult?: RiskResult // REQ: DEC-107 — Normal / Elevated; no scores in the list
+  riskResult?: RiskResult // REQ: DEC-107 — Low risk / High risk; no scores in the list
   claimedBy?: ClaimHolder // only while the claim is active
   claimExpiresAt?: string
   lastUpdatedBy: UpdatedBy
@@ -202,7 +202,7 @@ export type VerificationDetail = Verification & {
   reasonOptions: DecisionReason[] // REQ: DEC-106 — the project's active decision reasons, for the decision panel
 }
 
-/** REQ: DEC-107 — one minimum per category: below any of them, the risk result is Elevated. Fixed for V4, per flow for V5. */
+/** REQ: DEC-107 — one minimum per category: below any of them, the risk result is High risk. Fixed for V4, per flow for V5. */
 export interface RiskConfig {
   enabled: boolean
   minimums: RiskScores

@@ -24,7 +24,7 @@ describe('parseListParams / toSearchParams', () => {
         claim: 'OTHERS',
         createdFrom: '2026-09-01',
         createdTo: '2026-09-25',
-        riskResults: ['ELEVATED'],
+        riskResults: ['HIGH'],
         lastUpdatedBy: 'MANUAL',
       },
       sort: { by: 'riskResult', dir: 'desc' },

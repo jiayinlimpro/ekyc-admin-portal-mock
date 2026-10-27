@@ -201,21 +201,13 @@ export function VerificationDetailPage() {
           {/* REQ: DEC-97 — the case ID, for support tickets and webhooks; the Reference ID above is the merchant's. */}
           <CopyId label="Case ID" value={v.caseId} />
         </div>
-        {/* REQ: DEC-105 — header strip: project › flow, version and revision, created, last updated, audit. */}
+        {/* REQ: DEC-105 — header strip: project › flow, version and revision, created, last updated (no audit link). */}
         <p className="text-sm text-muted-foreground">
           <span className="text-foreground">{v.projectName}</span> › <span className="text-foreground">{v.flowName}</span> · {v.workflowVersion} · Rules applied{' '}
           <span className="font-mono text-foreground">{v.revisionLabel}</span> · {DOCUMENT_TYPE_LABELS[v.documentType]}
         </p>
         <p className="text-sm text-muted-foreground">
           Created {formatMyt(v.createdAt)} MYT · Last updated by <span className="text-foreground">{formatUpdatedBy(v.lastUpdatedBy)}</span> · {formatMyt(v.lastUpdatedAt)} MYT
-          {may('viewAudit') && (
-            <>
-              {' · '}
-              <Link to={`/audit?ref=${v.referenceNo}`} className="text-blue-700 hover:underline dark:text-blue-400">
-                Audit trail
-              </Link>
-            </>
-          )}
         </p>
         </div>
         {/* REQ: DEC-105 — client metadata in the header's free space, top right (below the title on narrow screens). */}

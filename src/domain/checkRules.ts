@@ -40,7 +40,7 @@ export interface CaseInput {
   riskScores?: RiskScores // REQ: DEC-107 — set once risk ran
 }
 
-export const RISK_NOT_PASSED = 'Risk Assessment not passed'
+export const RISK_NOT_PASSED = 'Risk Assessment: high risk'
 
 // REQ: DEC-11 / DEC-15 / DEC-16 / DEC-18
 export function evaluateCheck(check: Check, scores: readonly number[], settings: FlowSettings['checks'][Check]): CheckEvaluation {
@@ -63,11 +63,11 @@ export interface RiskEvaluation {
   below: { category: (typeof RISK_CATEGORIES)[number]; score: number; minimum: number }[]
 }
 
-// REQ: DEC-107 / MOCK-02 — Normal when every category is at or above its minimum; otherwise Elevated. Risk never rejects.
+// REQ: DEC-107 / MOCK-02 — Low risk when every category is at or above its minimum; otherwise High risk. Risk never rejects.
 export function evaluateRisk(scores: RiskScores, risk: RiskConfig | undefined): RiskEvaluation {
-  if (!risk?.enabled) return { result: 'NORMAL', below: [] }
+  if (!risk?.enabled) return { result: 'LOW', below: [] }
   const below = RISK_CATEGORIES.filter((c) => scores[c] < risk.minimums[c]).map((c) => ({ category: c, score: scores[c], minimum: risk.minimums[c] }))
-  return { result: below.length ? 'ELEVATED' : 'NORMAL', below }
+  return { result: below.length ? 'HIGH' : 'LOW', below }
 }
 
 /** "OSINT Score 22 < 30 · EXIF Score 40 < 50" */
@@ -99,9 +99,9 @@ export function evaluateCase(input: CaseInput, flow: FlowContext, combination: P
 
   if (flow.hasRisk) {
     if (!input.riskScores) return { status: 'PROCESSING', checks } // risk has not run yet
-    // REQ: DEC-107 — biometrics approve + Elevated → PENDING_REVIEW (a biometric reject or review is decided above).
+    // REQ: DEC-107 — biometrics approve + High risk → PENDING_REVIEW (a biometric reject or review is decided above).
     const risk = evaluateRisk(input.riskScores, flow.settings.risk)
-    if (risk.result === 'ELEVATED') return { status: 'PENDING_REVIEW', reason: RISK_NOT_PASSED, detail: riskDetail(risk), checks }
+    if (risk.result === 'HIGH') return { status: 'PENDING_REVIEW', reason: RISK_NOT_PASSED, detail: riskDetail(risk), checks }
   }
   return { status: 'APPROVED', checks } // REQ: DEC-14 — lastUpdatedBy = SYSTEM
 }

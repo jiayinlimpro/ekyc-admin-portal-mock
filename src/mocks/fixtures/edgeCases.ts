@@ -26,7 +26,7 @@ export interface EdgeCaseExpectation {
 
 export const EDGE_CASES: EdgeCaseExpectation[] = [
   { id: 'S01', title: 'V1, both checks ≥ Auto-Pass', asUserId: fx('USR-2026-0044'), referenceNo: 'KYC-260901-900001', flowId: fx('FLW-0005'), status: 'APPROVED', lastUpdatedBy: 'SYSTEM' },
-  { id: 'S02', title: 'V4, checks pass but risk HIGH', asUserId: fx('USR-2026-0012'), referenceNo: 'KYC-260901-900002', flowId: fx('FLW-0001'), status: 'PENDING_REVIEW', reason: 'Risk Assessment not passed' },
+  { id: 'S02', title: 'V4, checks pass but risk HIGH', asUserId: fx('USR-2026-0012'), referenceNo: 'KYC-260901-900002', flowId: fx('FLW-0001'), status: 'PENDING_REVIEW', reason: 'Risk Assessment: high risk' },
   { id: 'S03', title: 'Similarity 88.5 after 3 retries (review band)', asUserId: fx('USR-2026-0012'), referenceNo: 'KYC-260901-900003', flowId: fx('FLW-0001'), status: 'PENDING_REVIEW', reason: 'Liveness face does not match ID face (Retry Not Allowed)' },
   { id: 'S04', title: 'Liveness below Auto-Reject after 3 retries', asUserId: fx('USR-2026-0012'), referenceNo: 'KYC-260901-900004', flowId: fx('FLW-0001'), status: 'REJECTED', reason: 'Face not live (Retry Not Allowed)', lastUpdatedBy: 'SYSTEM' },
   { id: 'S05', title: 'Stopped at ID capture (read-only)', asUserId: fx('USR-2026-0012'), referenceNo: 'KYC-260901-900005', flowId: fx('FLW-0001'), status: 'PROCESSING' },
@@ -45,8 +45,8 @@ export const EDGE_CASES: EdgeCaseExpectation[] = [
   { id: 'S19', title: 'V1 similarity (ID vs selfie) below threshold, retry pending', asUserId: fx('USR-2026-0044'), referenceNo: 'KYC-260901-900019', flowId: fx('FLW-0005'), status: 'PROCESSING' },
   { id: 'S20', title: 'Driving License: similarity retries used up, last in review band', asUserId: fx('USR-2026-0044'), referenceNo: 'KYC-260901-900020', flowId: fx('FLW-0005'), status: 'PENDING_REVIEW', reason: 'ID face and Selfie face do not match (Retry Not Allowed)' },
   { id: 'S22', title: 'V1: selfie too dark, rejected; user stopped, nothing compared', asUserId: fx('USR-2026-0044'), referenceNo: 'KYC-260901-900022', flowId: fx('FLW-0005'), status: 'PROCESSING' },
-  { id: 'S23', title: 'V5: risk Elevated by its own OSINT minimum (22 < 30)', asUserId: fx('USR-2026-0012'), referenceNo: 'KYC-260901-900023', flowId: fx('FLW-0014'), status: 'PENDING_REVIEW', reason: 'Risk Assessment not passed' },
-  { id: 'S24', title: 'V5: EXIF 45 is Normal under the flow’s minimum 40 (a V4 flow would flag it)', asUserId: fx('USR-2026-0012'), referenceNo: 'KYC-260901-900024', flowId: fx('FLW-0014'), status: 'APPROVED', lastUpdatedBy: 'SYSTEM' },
+  { id: 'S23', title: 'V5: High risk by its own OSINT minimum (22 < 30)', asUserId: fx('USR-2026-0012'), referenceNo: 'KYC-260901-900023', flowId: fx('FLW-0014'), status: 'PENDING_REVIEW', reason: 'Risk Assessment: high risk' },
+  { id: 'S24', title: 'V5: EXIF 45 is Low risk under the flow’s minimum 40 (a V4 flow would flag it)', asUserId: fx('USR-2026-0012'), referenceNo: 'KYC-260901-900024', flowId: fx('FLW-0014'), status: 'APPROVED', lastUpdatedBy: 'SYSTEM' },
   { id: 'S21', title: 'Existing user found (duplicate, information only)', asUserId: fx('USR-2026-0012'), referenceNo: 'KYC-260901-900021', flowId: fx('FLW-0001'), status: 'PENDING_REVIEW', reason: 'Liveness face does not match ID face (Retry Not Allowed)' },
 ]
 

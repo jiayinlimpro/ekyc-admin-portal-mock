@@ -82,7 +82,7 @@ describe('verificationService.list', () => {
     expect(newest).toEqual([...oldest].reverse())
   })
 
-  it('Given a column sort, then Reference ID, status (lifecycle order) and risk (Normal → Elevated, none last) sort both ways (DEC-100, DEC-107)', async () => {
+  it('Given a column sort, then Reference ID, status (lifecycle order) and risk (Low → High, none last) sort both ways (DEC-100, DEC-107)', async () => {
     const list = async (by: 'referenceNo' | 'status' | 'riskResult', dir: 'asc' | 'desc') => (await svc.list({ sort: { by, dir }, pageSize: 500 }, OWNER)).items
     const refs = (await list('referenceNo', 'asc')).map((r) => r.referenceNo)
     expect(refs).toEqual([...refs].sort())
@@ -92,7 +92,7 @@ describe('verificationService.list', () => {
     expect(statuses).toEqual([...statuses].sort((a, b) => a - b))
     const down = (await list('status', 'desc')).map((r) => order.indexOf(r.status))
     expect(down).toEqual([...down].sort((a, b) => b - a))
-    const risk = ['NORMAL', 'ELEVATED']
+    const risk = ['LOW', 'HIGH']
     for (const dir of ['asc', 'desc'] as const) {
       const levels = (await list('riskResult', dir)).map((r) => r.riskResult)
       const rated = levels.filter(Boolean).map((l) => risk.indexOf(l!))

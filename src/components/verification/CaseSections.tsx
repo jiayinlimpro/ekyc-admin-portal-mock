@@ -136,7 +136,7 @@ export function ChecksSection({ v }: { v: VerificationDetail }) {
   )
 }
 
-/** REQ: DEC-107 — V4/V5: Normal / Elevated, and each category's 0–100 score against its minimum (higher = more genuine). */
+/** REQ: DEC-107 — V4/V5: Low risk / High risk, and each category's 0–100 score against its minimum (higher = more genuine). */
 export function RiskSection({ v }: { v: VerificationDetail }) {
   if (!v.steps.runsRisk) return null
   const minimums = v.rulesApplied.risk?.minimums
@@ -164,8 +164,8 @@ export function RiskSection({ v }: { v: VerificationDetail }) {
                     <td className="py-1.5 pr-2 text-right tabular-nums">{v.riskScores![c]}</td>
                     <td className="py-1.5 pr-2 text-right text-muted-foreground tabular-nums">{minimums[c]}</td>
                     <td className="py-1.5">
-                      {/* REQ: DEC-107 — the same words as the list: Normal / Elevated. */}
-                      <RiskBadge result={below ? 'ELEVATED' : 'NORMAL'} />
+                      {/* REQ: DEC-107 — the same words as the list: Low risk / High risk. */}
+                      <RiskBadge result={below ? 'HIGH' : 'LOW'} />
                     </td>
                   </tr>
                 )

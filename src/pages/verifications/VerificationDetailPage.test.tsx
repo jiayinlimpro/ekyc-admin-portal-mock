@@ -9,7 +9,7 @@ import { auditService } from '@/services/auditService'
 import { devService } from '@/services/devService'
 import { DEFAULT_DEV_FLAGS, useDevFlags } from '@/stores/devFlagsStore'
 import { useSession } from '@/stores/sessionStore'
-import { ADMIN, ALI, NURUL, OTHER_MERCHANT_REVIEWER, minutes } from '@/test/factories'
+import { ADMIN, ALI, NURUL, OTHER_MERCHANT_REVIEWER, OWNER, minutes } from '@/test/factories'
 import { caseIdOf } from '@/lib/ids'
 
 const S = (n: number) => `KYC-260901-${900000 + n}`
@@ -111,7 +111,7 @@ describe('Verification Detail', () => {
     expect(decision().getByRole('status').textContent).toBe('No review permission')
     expect(screen.queryByRole('button', { name: 'Assign to me' })).toBeNull()
     expect(screen.getByText(/Your role in this project can view this record but not review it/)).toBeTruthy()
-    expect(screen.queryByRole('link', { name: 'Audit trail' })).toBeNull() // Reviewers and Viewers have no Audit Log (DEC-70)
+    expect(screen.queryByRole('link', { name: 'Audit trail' })).toBeNull() // no audit link on the case page (DEC-105); Reviewers and Viewers have no Audit Log (DEC-70)
   })
 
   it('Given S16, when Nurul (Reviewer in SME app) opens it, then she can assign it', async () => {
@@ -155,32 +155,38 @@ describe('Verification Detail', () => {
     expect(os).toBeTruthy()
   })
 
+  it('Given the Owner, who can open the Audit Log, then still no Audit trail link on the case page (DEC-105)', async () => {
+    useSession.getState().switchUser(OWNER)
+    await open(S(3))
+    expect(screen.queryByRole('link', { name: 'Audit trail' })).toBeNull()
+  })
+
   it('Given S18 rejected under a 120-min cooldown, then the banner says when a new case is allowed (DEC-26)', async () => {
     await open(S(18))
     expect(region('Rules applied').getByText('120 min after a rejection')).toBeTruthy()
     expect(screen.getByText(/^New case allowed from .* MYT \(cooldown\)$/)).toBeTruthy()
   })
 
-  it('Given V4 S02, then Elevated with the four scores against the fixed minimums, and the banner lists the categories below (DEC-107)', async () => {
+  it('Given V4 S02, then High risk with the four scores against the fixed minimums, and the banner lists the categories below (DEC-107)', async () => {
     await open(S(2))
     const risk = region('Risk Assessment')
-    expect(within(risk.getByRole('heading', { name: 'Risk Assessment' }).parentElement!).getByText('Elevated')).toBeTruthy() // overall, in the section header
+    expect(within(risk.getByRole('heading', { name: 'Risk Assessment' }).parentElement!).getByText('High risk')).toBeTruthy() // overall, in the section header
     const table = risk.getByRole('table', { name: 'Risk categories' })
     expect(column(table, 'Score')).toEqual(['32', '18', '20', '10'])
     expect(column(table, 'Minimum')).toEqual(['50', '50', '50', '50'])
-    expect(column(table, 'Result')).toEqual(['Elevated', 'Elevated', 'Elevated', 'Elevated'])
+    expect(column(table, 'Result')).toEqual(['High risk', 'High risk', 'High risk', 'High risk'])
     expect(risk.getByText(/Minimums fixed by the platform/)).toBeTruthy()
     expect(screen.queryByRole('region', { name: 'Risk signals' })).toBeNull() // no breakdown
-    expect(screen.getByText('Risk Assessment not passed')).toBeTruthy()
+    expect(screen.getByText('Risk Assessment: high risk')).toBeTruthy()
     expect(screen.getByText('EXIF Score 32 < 50 · Noise Score 18 < 50 · Email Validity Score 20 < 50 · OSINT Score 10 < 50')).toBeTruthy()
     expect(region('Checks').queryByText('Selfie')).toBeNull() // V4 has no selfie phase
   })
 
-  it('Given V5 S23, then the flow’s own minimums apply: Elevated by OSINT 22 < 30 only (DEC-107)', async () => {
+  it('Given V5 S23, then the flow’s own minimums apply: High risk by OSINT 22 < 30 only (DEC-107)', async () => {
     await open(S(23))
     const table = region('Risk Assessment').getByRole('table', { name: 'Risk categories' })
     expect(column(table, 'Minimum')).toEqual(['40', '60', '50', '30'])
-    expect(column(table, 'Result')).toEqual(['Normal', 'Normal', 'Normal', 'Elevated'])
+    expect(column(table, 'Result')).toEqual(['Low risk', 'Low risk', 'Low risk', 'High risk'])
     expect(region('Risk Assessment').getByText(/Minimums set by this flow/)).toBeTruthy()
     expect(screen.getByText('OSINT Score 22 < 30')).toBeTruthy()
   })

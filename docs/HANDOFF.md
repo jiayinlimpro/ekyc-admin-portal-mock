@@ -50,7 +50,7 @@ server-side**. The tests (Given/When/Then names) are a shared spec; port or mirr
 - `roles.ts`: System Default roles, grants from assignments, scope / grant / last-owner rules.
 - `access.ts`: each action's permission; `canInProject`, `canInMerchant` (merchant role only), `hasProject` (a role that gives nothing, like Member, opens no project).
 - `checkRules.ts`: per-check thresholds, retries, the last attempt decides (DEC-15, DEC-16), V4 risk gate.
-- `checkRules.evaluateRisk`: Normal when every category ≥ its minimum (`FlowSettings.risk.minimums`); the registry's `riskMinimumsPerFlow` decides whether a flow may change them (V5) or they stay `DEFAULT_RISK_MINIMUMS` (V4) (DEC-107).
+- `checkRules.evaluateRisk`: Low risk when every category ≥ its minimum (`FlowSettings.risk.minimums`); the registry's `riskMinimumsPerFlow` decides whether a flow may change them (V5) or they stay `DEFAULT_RISK_MINIMUMS` (V4) (DEC-107).
 - `telemetry.ts`: engine thresholds and the metric rows shown on the case page (DEC-105); the duplicate-user result is never an input to `checkRules`.
 - `claimRules.ts`: claim, cancel, expiry, overlay enablement, save-time ownership check, decisions (DEC-31).
 - `flowSettings.ts`, `flowRules.ts`, `thresholds.ts`: presets / Advanced, validation, revisions, lifecycle, cooldown.
