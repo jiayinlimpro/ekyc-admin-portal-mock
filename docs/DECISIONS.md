@@ -307,12 +307,22 @@ Rules changed on 2026-10-20 (Projects & Flows restructure) are marked **(changed
   secret; non-2xx → up to 3 retries at increasing intervals, each attempt audited. Mock: deliveries are simulated only. [FRS]
 
 ## Workflow Registry
-- **DEC-56** **(changed)** Statuses `Draft`, `Active`, `Deprecated`. [FRS][PO 2026-10-20]
-  - Allowed: Draft → Active (all mandatory fields complete), Draft → Deprecated (withdraw), Active → Deprecated, Deprecated →
-    Active (re-activate). Never back to Draft.
-  - Only Active versions can be chosen when creating a flow. Draft versions cannot be chosen by anyone; there are no test
-    flows. [PO 2026-10-20]
-  - Deprecated versions cannot be chosen for new flows; existing flows keep running and show a "version deprecated" warning.
+- **DEC-56** **(changed again 2026-10-27)** Statuses [FRS][PO 2026-10-20][PO 2026-10-27]:
+
+  | Status | Who can choose it for a new flow |
+  |---|---|
+  | `Draft` | nobody (being registered) |
+  | `Internal testing` | internal users only: super admins and platform staff with Flows Create; never a merchant. Sessions on it are not charged (DEC-60) |
+  | `Limited release` | internal users, and users of the merchants ticked under **Merchant access** in the version's Edit modal |
+  | `Active` | everyone who may create flows |
+  | `Deprecated` | nobody; existing flows keep running and show a "version deprecated" warning |
+
+  - **No lifecycle:** a super admin (or staff with Registry Manage) picks any status, with a reason. Only two guards stay: the
+    default for new merchants must stay Active (DEC-57), and Internal testing, Limited release and Active need both state
+    machine references.
+  - A status decides only who can **create new flows** on the version; existing flows keep running whatever it becomes.
+  - Fields lock once the version has been Limited release or Active (merchants may have built on it); Internal testing can
+    still be edited.
   - No hard delete. Once a version has been Active, only name, description, state machine references and release notes can be
     edited; anything else needs a new version code.
 - **DEC-57** **(new)** Exactly one version is "**Default for new merchants**" and it must be Active. It cannot be deprecated
@@ -321,8 +331,8 @@ Rules changed on 2026-10-20 (Projects & Flows restructure) are marked **(changed
   liveness face), V4 (V3 + Risk Assessment; email required), V5 (Draft, TBC). No V2. [FRS][MS]
 
 ## Charging
-- **DEC-60** **(changed again 2026-10-27)** Tokens are consumed per **document (OCR) submission** and per **liveness
-  submission**, whatever the final status (including cases still `PROCESSING`) [PO 2026-10-27]. Retakes before submitting
+- **DEC-60** **(changed again 2026-10-27)** Sessions on an **Internal testing** version (DEC-56) are not charged. Otherwise,
+  tokens are consumed per **document (OCR) submission** and per **liveness submission**, whatever the final status (including cases still `PROCESSING`) [PO 2026-10-27]. Retakes before submitting
   are free. "Cost of retries" = tokens from submissions after the first in each phase. Whether a V1 selfie submission also
   costs a token is OQ-35.
   Billing column is "Verification Status". [FRS][PO 2026-10-20]

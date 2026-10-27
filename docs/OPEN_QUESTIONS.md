@@ -45,5 +45,5 @@ Each question is a **parameter**, not a fact. The mock uses the default below. I
 | OQ-26 | Which reason rejects a case in review only for risk (DEC-13)? | "Risk not acceptable after review" (DEC-106) |
 | OQ-15 | Which 3 KPIs does the Overview show? | Total Submissions, Auto-Clear Rate, Active Review Queue ([FRS], DEC-85) |
 | OQ-16 | Should user and merchant changes be audited? | Yes (DEC-42) |
-| OQ-23 | Can Platform Admin use Draft registry versions for test flows? | No; Draft versions cannot be chosen by anyone (DEC-56) |
+| OQ-23 | Can Platform Admin use Draft registry versions for test flows? | Changed 2026-10-27: test flows use an Internal testing version (internal users only); Draft can't be chosen by anyone (DEC-56) |
 | MS OQ-8 | Is rejection reason free text or a fixed list? | Fixed list plus optional note (DEC-31) |
