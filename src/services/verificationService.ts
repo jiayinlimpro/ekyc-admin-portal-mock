@@ -11,6 +11,7 @@ import { applyDecision, checkOwnershipAtSave, decisionReason, claim as claimRule
 import { activeReasons, reasonsOf } from '@/domain/decisionReasons'
 import { evaluateCase } from '@/domain/checkRules'
 import { newCaseAllowedAt, revisionLabel } from '@/domain/flowRules'
+import { caseInputOf } from '@/domain/telemetry'
 import { hasRisk } from '@/domain/registryRules'
 import { RISK_RESULTS, VERIFICATION_STATUSES, type Actor, type Decision, type Flow, type Paged, type Project, type RiskResult, type Verification, type VerificationDetail, type VerificationStatus, type VerificationSummary } from '@/domain/types'
 import { now } from '@/lib/clock'
@@ -120,7 +121,7 @@ function toDetail(v: Verification): VerificationDetail {
   const settings = rev?.settings ?? flow.settings
   const entry = s.registry.find((e) => e.code === v.workflowVersion)!
   const runsRisk = hasRisk(entry)
-  const ev = evaluateCase({ submissions: v.submissions, riskScores: v.riskScores }, { checks: entry.configurableChecks, faceMatchMethod: entry.faceMatchMethod, hasRisk: runsRisk, settings })
+  const ev = evaluateCase(caseInputOf(v), { checks: entry.configurableChecks, faceMatchMethod: entry.faceMatchMethod, hasRisk: runsRisk, settings })
   return wire({
     ...v,
     merchantName: merchantName(v.merchantId),
@@ -130,6 +131,7 @@ function toDetail(v: Verification): VerificationDetail {
     rulesApplied: settings,
     steps: { phases: entry.phases, faceMatchMethod: entry.faceMatchMethod, runsRisk, riskMinimumsPerFlow: entry.riskMinimumsPerFlow },
     checks: ev.checks,
+    phases: ev.phases, // REQ: DEC-108
     newCaseAllowedAt: v.status === 'REJECTED' ? newCaseAllowedAt(v.lastUpdatedAt, settings.cooldownMin)?.toISOString() : undefined,
     reasonOptions: activeReasons(projectById(v.projectId)!.decisionReasons), // REQ: DEC-106
   })

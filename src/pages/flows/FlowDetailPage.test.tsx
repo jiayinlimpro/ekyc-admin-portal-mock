@@ -54,14 +54,25 @@ describe('Flow Detail (DEC-18, DEC-19, DEC-50, DEC-51)', () => {
     expect(await (await card('History')).findByText('V4-R3', { exact: false })).toBeTruthy()
   })
 
-  it('Given the retries stepper, then it moves within 1–5 and shows the submissions it allows (DEC-18, OQ-03)', async () => {
+  it('Given Retries allowed, then its own card per phase (no Selfie on V4), each stepper within 1–5 (DEC-108, OQ-03)', async () => {
     renderAt(`/flows/${fx('FLW-0001')}`)
-    const fm = await card('Face match')
-    fireEvent.click(fm.getByRole('button', { name: 'More Face match retries' }))
-    fireEvent.click(fm.getByRole('button', { name: 'More Face match retries' }))
-    expect(fm.getByLabelText('Face match retries allowed').textContent).toBe('5')
-    expect((fm.getByRole('button', { name: 'More Face match retries' }) as HTMLButtonElement).disabled).toBe(true)
-    expect(fm.getByText(/up to 6 submissions/)).toBeTruthy()
+    const r = await card('Retries allowed')
+    expect(r.queryByLabelText('Selfie retries allowed')).toBeNull() // V4 has no selfie step
+    expect(r.getByLabelText('Document (OCR) retries allowed').textContent).toBe('3')
+    fireEvent.click(r.getByRole('button', { name: 'More Document (OCR) retries' }))
+    fireEvent.click(r.getByRole('button', { name: 'More Document (OCR) retries' }))
+    expect(r.getByLabelText('Document (OCR) retries allowed').textContent).toBe('5')
+    expect((r.getByRole('button', { name: 'More Document (OCR) retries' }) as HTMLButtonElement).disabled).toBe(true)
+    expect(r.getByText(/up to 6 submissions/)).toBeTruthy()
+    expect((await card('Face match')).queryByText(/Retries allowed/)).toBeNull() // not in the threshold card
+  })
+
+  it('Given a V1 flow, then Selfie retries too: a failed selfie or a face match below Auto-Pass uses one (DEC-108)', async () => {
+    useSession.getState().switchUser(ADMIN)
+    renderAt(`/flows/${fx('FLW-0005')}`)
+    const r = await card('Retries allowed')
+    expect(r.getByLabelText('Selfie retries allowed').textContent).toBe('3')
+    expect(r.getByText(/A submitted selfie that fails its quality check, or a face match below Auto-Pass/)).toBeTruthy()
   })
 
   it('Given Advanced set by the platform, then the merchant sees a read-only chip; the Super admin edits the numbers (DEC-19)', async () => {

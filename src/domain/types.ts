@@ -1,5 +1,5 @@
 // Domain contract for the eKYC Admin Portal mock. Source of truth: docs/DECISIONS.md.
-import type { CheckEvaluation } from './checkRules'
+import type { CheckEvaluation, PhaseEvaluation } from './checkRules'
 // Const arrays + derived types (not TS enums): loopable for dropdowns/badges and compatible with erasableSyntaxOnly.
 
 // REQ: DEC-01 — exactly 4 statuses. Never add more.
@@ -162,7 +162,7 @@ export interface Verification {
   configRevision: number // the flow revision live when the session started ("Rules applied")
   createdAt: string // session started (DEC-04)
   submissions: Partial<Record<Check, number[]>> // scores per check, in submission order
-  idCaptureSoftRejects: number // ID capture retakes: unlimited, free, not counted as retries (DEC-18)
+  idCaptureSoftRejects: number // REQ: DEC-108 — submitted ID images that failed before the last one: each used a Document retry
   statusDetail?: string // e.g. "Auto-Reject < 70 · Auto-Pass ≥ 85 · Actual 78"
   decidedReasons?: DecisionReasonRef[] // REQ: DEC-106 — set by a manual decision
 }
@@ -198,6 +198,7 @@ export type VerificationDetail = Verification & {
   rulesApplied: FlowSettings // the revision's settings: the snapshot at session start
   steps: { phases: OnboardingPhase[]; faceMatchMethod: FaceMatchMethod; runsRisk: boolean; riskMinimumsPerFlow: boolean } // from the registry version
   checks: CheckEvaluation[] // face match / liveness: threshold applied, result, retries used / allowed
+  phases: PhaseEvaluation[] // REQ: DEC-108 — submissions and retries per phase
   newCaseAllowedAt?: string // REJECTED with a cooldown (DEC-26)
   reasonOptions: DecisionReason[] // REQ: DEC-106 — the project's active decision reasons, for the decision panel
 }
@@ -306,6 +307,11 @@ export type WorkflowCode = string
 export const CHECKS = ['FACE_MATCH', 'LIVENESS'] as const
 export type Check = (typeof CHECKS)[number]
 
+// REQ: DEC-108 — "Retries allowed" is per phase: every submitted attempt that fails in that phase uses one.
+export const RETRY_PHASES = ['DOCUMENT', 'SELFIE', 'LIVENESS'] as const
+export type RetryPhase = (typeof RETRY_PHASES)[number]
+export const RETRY_PHASE_LABELS: Record<RetryPhase, string> = { DOCUMENT: 'Document (OCR)', SELFIE: 'Selfie', LIVENESS: 'Liveness' }
+
 export const PROJECT_STATUSES = ['ACTIVE', 'ARCHIVED'] as const
 export type ProjectStatus = (typeof PROJECT_STATUSES)[number]
 
@@ -363,11 +369,11 @@ export type ThresholdChoice = { preset: ThresholdPreset } | { preset: 'ADVANCED'
 
 export interface CheckSettings {
   threshold: ThresholdChoice
-  retriesAllowed: number // REQ: DEC-18 — retries after the first submission
 }
 
 export interface FlowSettings {
   checks: Record<Check, CheckSettings>
+  retries: Record<RetryPhase, number> // REQ: DEC-108 — retries after the first submission, per phase (Selfie: V1 only)
   cooldownMin: number // REQ: DEC-26
   acceptedDocuments: DocumentType[]
   sessionExpiryMin: number

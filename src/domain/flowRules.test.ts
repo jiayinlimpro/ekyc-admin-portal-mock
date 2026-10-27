@@ -47,7 +47,8 @@ const flow = (overrides: Partial<Flow> = {}): Flow => ({
   workflowVersion: 'V4',
   status: 'ACTIVE',
   settings: {
-    checks: { FACE_MATCH: { threshold: { preset: 'STANDARD' }, retriesAllowed: 3 }, LIVENESS: { threshold: { preset: 'HIGH' }, retriesAllowed: 3 } },
+    checks: { FACE_MATCH: { threshold: { preset: 'STANDARD' } }, LIVENESS: { threshold: { preset: 'HIGH' } } },
+    retries: { DOCUMENT: 3, SELFIE: 3, LIVENESS: 3 },
     cooldownMin: 0,
     acceptedDocuments: ['PASSPORT'],
     sessionExpiryMin: 30,

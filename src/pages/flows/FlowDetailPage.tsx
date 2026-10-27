@@ -14,7 +14,7 @@ import type { ImpactSummary } from '@/domain/flowImpact'
 import { revisionLabel } from '@/domain/flowRules'
 import { MIN_REASON_LENGTH } from '@/domain/flowSettings'
 import { hasRisk } from '@/domain/registryRules'
-import { RISK_CATEGORIES, RISK_CATEGORY_LABELS, VERIFICATION_STATUSES, type DocumentType, type FlowSettings } from '@/domain/types'
+import { RETRY_PHASE_LABELS, RETRY_PHASES, RISK_CATEGORIES, RISK_CATEGORY_LABELS, VERIFICATION_STATUSES, type DocumentType, type FlowSettings } from '@/domain/types'
 import { errorMessage, useLoad } from '@/hooks/useLoad'
 import { formatMyt } from '@/lib/format'
 import { DOCUMENT_TYPE_LABELS, STATUS_LABELS } from '@/lib/labels'
@@ -22,6 +22,7 @@ import { isServiceError } from '@/services/errors'
 import { flowService, type FlowDetail, type FlowEdit } from '@/services/flowService'
 import { useSession } from '@/stores/sessionStore'
 import { FlowStatusBadge } from './FlowsListPage'
+import { RetriesCard } from './RetriesCard'
 import { ThresholdCard } from './ThresholdCard'
 import { Card } from '../projects/settingsUi'
 import { CopyId } from '@/components/common/CopyId'
@@ -33,9 +34,8 @@ const FIELD_LABELS: Record<string, string> = {
   name: 'Name',
   description: 'Description',
   'checks.FACE_MATCH.threshold': 'Face match threshold',
-  'checks.FACE_MATCH.retriesAllowed': 'Face match retries allowed',
   'checks.LIVENESS.threshold': 'Liveness threshold',
-  'checks.LIVENESS.retriesAllowed': 'Liveness retries allowed',
+  ...Object.fromEntries(RETRY_PHASES.map((p) => [`retries.${p}`, `${RETRY_PHASE_LABELS[p]} retries allowed`])),
   cooldownMin: 'Cooldown (min)',
   sessionExpiryMin: 'Session expiry (min)',
   acceptedDocuments: 'Accepted documents',
@@ -143,13 +143,15 @@ function Editor({ detail, onSaved }: { detail: FlowDetail; onSaved: () => void }
       </Card>
 
       {editable && !canChangeLevel && (
-        <p className="rounded-md bg-muted px-3 py-2 text-sm">Thresholds, retries and the risk level are read-only for you: they need the “Change verification level and retries” permission.</p>
+        <p className="rounded-md bg-muted px-3 py-2 text-sm">Thresholds, retries and the risk minimums are read-only for you: they need the “Change verification level and retries” permission.</p>
       )}
-      <section aria-label="Thresholds and retries" className="grid gap-4 lg:grid-cols-2">
+      <section aria-label="Thresholds" className="grid gap-4 lg:grid-cols-2">
         {entry.configurableChecks.map((c) => (
           <ThresholdCard key={c} check={c} value={s.checks[c]} onChange={(v) => set({ checks: { ...s.checks, [c]: v } })} canSetAdvanced={canSetAdvanced} disabled={!editable || !canChangeLevel} errors={errors} />
         ))}
       </section>
+      {/* REQ: DEC-108 — retries per phase, apart from the thresholds. */}
+      <RetriesCard entry={entry} value={s.retries} onChange={(retries) => set({ retries })} disabled={!editable || !canChangeLevel} errors={errors} />
 
       <Card title="Session">
         <fieldset disabled={!editable} className="grid gap-4 sm:grid-cols-3">

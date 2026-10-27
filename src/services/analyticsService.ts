@@ -9,6 +9,7 @@
 import { evaluateCase } from '@/domain/checkRules'
 import { billingBy, billingLine, billingTotals, intelligenceStats, monthRange, mytDay, overviewStats, presetRange, type BillingLine, type BillingTotals, type IntelligenceStats, type OverviewStats } from '@/domain/dashboards'
 import { TOKEN_PRICE } from '@/domain/openQuestions'
+import { caseInputOf } from '@/domain/telemetry'
 import { hasRisk, hasSelfie } from '@/domain/registryRules'
 import { resolveThreshold, type Thresholds } from '@/domain/thresholds'
 import type { Actor, Check, Flow, Project, Verification } from '@/domain/types'
@@ -73,8 +74,8 @@ function contextOf(v: Verification) {
   const s = db.state()
   const entry = s.registry.find((e) => e.code === v.workflowVersion)!
   const settings = s.flowRevisions.find((r) => r.flowId === v.flowId && r.revision === v.configRevision)?.settings ?? s.flows.find((f) => f.flowId === v.flowId)!.settings
-  const ev = evaluateCase({ submissions: v.submissions, riskScores: v.riskScores }, { checks: entry.configurableChecks, faceMatchMethod: entry.faceMatchMethod, hasRisk: hasRisk(entry), settings })
-  return { checks: ev.checks, hasSelfie: hasSelfie(entry) }
+  const ev = evaluateCase(caseInputOf(v), { checks: entry.configurableChecks, faceMatchMethod: entry.faceMatchMethod, hasRisk: hasRisk(entry), settings })
+  return { checks: ev.checks, phases: ev.phases, exhaustedPhase: ev.exhaustedPhase, hasSelfie: hasSelfie(entry) }
 }
 
 export const mockAnalyticsService: AnalyticsService = {

@@ -2,7 +2,7 @@
 import { hasRisk } from './registryRules'
 import { DEFAULT_COOLDOWN_MIN, DEFAULT_RISK_MINIMUMS, RETRY_LIMITS } from './openQuestions'
 import { PRESET_LABELS, resolveThreshold } from './thresholds'
-import { CHECKS, RISK_CATEGORIES, RISK_CATEGORY_LABELS, type Check, type Flow, type FlowSettings, type Project, type RegistryEntry, type RuleError, type SettingChange, type ThresholdChoice } from './types'
+import { CHECKS, RETRY_PHASE_LABELS, RETRY_PHASES, RISK_CATEGORIES, RISK_CATEGORY_LABELS, type Check, type Flow, type FlowSettings, type Project, type RegistryEntry, type RuleError, type SettingChange, type ThresholdChoice } from './types'
 
 type By = Flow['updatedBy']
 
@@ -11,9 +11,10 @@ type By = Flow['updatedBy']
  * default: they are required fields until OQ-19 is answered.
  */
 export function newFlowSettings(entry: Pick<RegistryEntry, 'phases'>): FlowSettings {
-  const check = { threshold: { preset: 'STANDARD' } as ThresholdChoice, retriesAllowed: RETRY_LIMITS.default }
+  const check = { threshold: { preset: 'STANDARD' } as ThresholdChoice }
   return {
     checks: { FACE_MATCH: { ...check }, LIVENESS: { ...check } },
+    retries: { DOCUMENT: RETRY_LIMITS.default, SELFIE: RETRY_LIMITS.default, LIVENESS: RETRY_LIMITS.default }, // REQ: DEC-108
     cooldownMin: DEFAULT_COOLDOWN_MIN,
     acceptedDocuments: [],
     sessionExpiryMin: Number.NaN,
@@ -65,8 +66,11 @@ export function validateFlow(flow: Pick<Flow, 'name' | 'settings'>, entry: Pick<
         errors.push({ field: f('autoReject'), message: 'Auto-Reject threshold must be lower than Auto-Pass threshold' })
       }
     }
-    if (!whole(s.checks[c].retriesAllowed, RETRY_LIMITS.min, RETRY_LIMITS.max)) {
-      errors.push({ field: f('retriesAllowed'), message: `Retries allowed must be a whole number between ${RETRY_LIMITS.min} and ${RETRY_LIMITS.max}` })
+  }
+  // REQ: DEC-108 — retries per phase; Selfie only where the version has a selfie step (V1).
+  for (const p of RETRY_PHASES.filter((x) => x !== 'SELFIE' || entry.phases.includes('SELFIE_CAPTURE'))) {
+    if (!whole(s.retries[p], RETRY_LIMITS.min, RETRY_LIMITS.max)) {
+      errors.push({ field: `retries.${p}`, message: `${RETRY_PHASE_LABELS[p]} retries allowed must be a whole number between ${RETRY_LIMITS.min} and ${RETRY_LIMITS.max}` })
     }
   }
   if (!Number.isFinite(s.cooldownMin)) errors.push({ field: 'cooldownMin', message: 'Cooldown period is required. Enter 0 for no cooldown' })
@@ -122,8 +126,8 @@ export function diffFlow(base: Pick<Flow, 'name' | 'description' | 'settings'>, 
   push('description', base.description, next.description)
   for (const c of CHECKS) {
     push(`checks.${c}.threshold`, show.threshold(c, base.settings.checks[c].threshold), show.threshold(c, next.settings.checks[c].threshold))
-    push(`checks.${c}.retriesAllowed`, show.num(base.settings.checks[c].retriesAllowed), show.num(next.settings.checks[c].retriesAllowed))
   }
+  for (const p of RETRY_PHASES) push(`retries.${p}`, show.num(base.settings.retries[p]), show.num(next.settings.retries[p]))
   push('cooldownMin', show.num(base.settings.cooldownMin), show.num(next.settings.cooldownMin))
   push('sessionExpiryMin', show.num(base.settings.sessionExpiryMin), show.num(next.settings.sessionExpiryMin))
   push('acceptedDocuments', show.docs(base.settings.acceptedDocuments), show.docs(next.settings.acceptedDocuments))

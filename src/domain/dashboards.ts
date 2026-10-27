@@ -1,9 +1,9 @@
 // Dashboard and billing aggregations (pure). DEC-18, DEC-60, DEC-86. Sessions are counted by `createdAt` (DEC-04);
 // days and billing months are MYT calendar days. Check evaluations (threshold, retries) come from the caller, who knows
 // each case's flow revision.
-import type { CheckEvaluation } from './checkRules'
+import type { CheckEvaluation, PhaseEvaluation } from './checkRules'
 import { isClaimActive } from './claimRules'
-import { CHECKS, RISK_RESULTS, VERIFICATION_STATUSES, type Check, type RiskResult, type Verification, type VerificationStatus } from './types'
+import { CHECKS, RETRY_PHASES, RISK_RESULTS, VERIFICATION_STATUSES, type Check, type RetryPhase, type RiskResult, type Verification, type VerificationStatus } from './types'
 
 const MYT = 8 * 3_600_000
 const DAY = 86_400_000
@@ -124,6 +124,8 @@ export const HISTOGRAM_BIN = 5 // score bins of 5 points: [0,5), [5,10) … [95,
 /** What the caller knows about a case: its checks evaluated with its revision, and whether the flow has a selfie step. */
 export interface CaseContext {
   checks: CheckEvaluation[]
+  phases: PhaseEvaluation[] // REQ: DEC-108 — retries per phase
+  exhaustedPhase?: RetryPhase
   hasSelfie: boolean
 }
 
@@ -132,7 +134,7 @@ export interface FlowIntel {
   sessions: number
   submitted: number // reached a face match or liveness submission
   firstAttemptPass: number // every check passed on its first submission
-  retries: number // REQ: DEC-18 — face match + liveness submissions after the first
+  retries: number // REQ: DEC-108 — submissions after the first, in every phase
   retriesExhausted: number
   /** Unfinished sessions (PROCESSING) by the last phase reached. Selfie only for flows with a selfie step (V1). */
   dropOff: { idCapture: number; selfie?: number; liveness: number }
@@ -144,7 +146,7 @@ export interface IntelligenceStats {
   firstAttemptPass: number
   retriedSessions: number
   retries: number
-  retriesByCheck: Record<Check, number>
+  retriesByPhase: Record<RetryPhase, number>
   retriesExhausted: number
   /** Last score per check and session. */
   histograms: Record<Check, number[]>
@@ -152,16 +154,16 @@ export interface IntelligenceStats {
   byFlow: FlowIntel[]
 }
 
-const retriesOf = (v: Pick<Verification, 'submissions'>, c: Check) => Math.max((v.submissions[c]?.length ?? 0) - 1, 0)
 const submittedAny = (v: Pick<Verification, 'submissions'>) => CHECKS.some((c) => (v.submissions[c]?.length ?? 0) > 0)
-const firstPass = (ctx: CaseContext) => ctx.checks.length > 0 && ctx.checks.every((c) => c.submissions > 0) && ctx.checks.every((c) => c.submissions === 1 && c.state === 'PASS')
-const exhausted = (ctx: CaseContext) => ctx.checks.some((c) => (c.state === 'REVIEW' || c.state === 'REJECT') && c.retriesUsed >= c.retriesAllowed)
+// REQ: DEC-18 / DEC-108 — first attempt: every check passed on its first submission and no phase used a retry.
+const firstPass = (ctx: CaseContext) => ctx.checks.length > 0 && ctx.checks.every((c) => c.submissions === 1 && c.state === 'PASS') && ctx.phases.every((p) => p.retriesUsed === 0)
+const exhausted = (ctx: CaseContext) => !!ctx.exhaustedPhase
 
 export function intelligenceStats(records: readonly Verification[], range: DateRange, contextOf: (v: Verification) => CaseContext): IntelligenceStats {
   const rows = records.filter((v) => inRange(v, range))
   const bins = Math.ceil(100 / HISTOGRAM_BIN)
   const histograms = Object.fromEntries(CHECKS.map((c) => [c, Array<number>(bins).fill(0)])) as Record<Check, number[]>
-  const retriesByCheck = Object.fromEntries(CHECKS.map((c) => [c, 0])) as Record<Check, number>
+  const retriesByPhase = Object.fromEntries(RETRY_PHASES.map((p) => [p, 0])) as Record<RetryPhase, number>
   const riskResults = Object.fromEntries(RISK_RESULTS.map((l) => [l, 0])) as Record<RiskResult, number>
   const flows = new Map<string, FlowIntel>()
   const out = { sessions: rows.length, submitted: 0, firstAttemptPass: 0, retriedSessions: 0, retries: 0, retriesExhausted: 0 }
@@ -170,9 +172,9 @@ export function intelligenceStats(records: readonly Verification[], range: DateR
     const ctx = contextOf(v)
     const f = flows.get(v.flowId) ?? { flowId: v.flowId, sessions: 0, submitted: 0, firstAttemptPass: 0, retries: 0, retriesExhausted: 0, dropOff: { idCapture: 0, ...(ctx.hasSelfie ? { selfie: 0 } : {}), liveness: 0 } }
     f.sessions++
-    const retries = CHECKS.reduce((n, c) => n + retriesOf(v, c), 0)
+    const retries = ctx.phases.reduce((n, p) => n + p.retriesUsed, 0)
+    for (const p of ctx.phases) retriesByPhase[p.phase] += p.retriesUsed
     for (const c of CHECKS) {
-      retriesByCheck[c] += retriesOf(v, c)
       const last = v.submissions[c]?.at(-1)
       if (last !== undefined) histograms[c][Math.min(bins - 1, Math.floor(last / HISTOGRAM_BIN))]++
     }
@@ -200,12 +202,12 @@ export function intelligenceStats(records: readonly Verification[], range: DateR
     if (v.riskResult) riskResults[v.riskResult]++
     flows.set(v.flowId, f)
   }
-  return { ...out, retriesByCheck, histograms, riskResults, byFlow: [...flows.values()].sort((a, b) => b.sessions - a.sessions) }
+  return { ...out, retriesByPhase, histograms, riskResults, byFlow: [...flows.values()].sort((a, b) => b.sessions - a.sessions) }
 }
 
 // ----- Billing -----------------------------------------------------------------------------------------------------------
 
-/** REQ: DEC-60 — tokens = liveness submissions, whatever the final status; ID capture and selfie retakes are free. */
+/** REQ: DEC-60 — tokens = document (OCR) submissions + liveness submissions, whatever the final status (DEC-108). */
 export interface BillingLine {
   caseId: string
   referenceNo: string
@@ -216,7 +218,7 @@ export interface BillingLine {
   workflowVersion: string
   status: VerificationStatus // "Verification Status" column
   tokens: number
-  retryTokens: number // liveness submissions after the first: "Cost of retries"
+  retryTokens: number // submissions after the first in each phase: "Cost of retries"
   cost: number
 }
 
@@ -231,7 +233,9 @@ export interface BillingTotals {
 const round2 = (n: number) => Math.round(n * 100) / 100
 
 export function billingLine(v: Verification, tokenPrice: number): BillingLine {
-  const tokens = v.submissions.LIVENESS?.length ?? 0
+  const documents = v.idCapture ? v.idCaptureSoftRejects + 1 : 0
+  const liveness = v.submissions.LIVENESS?.length ?? 0
+  const tokens = documents + liveness
   return {
     caseId: v.caseId,
     referenceNo: v.referenceNo,
@@ -242,7 +246,7 @@ export function billingLine(v: Verification, tokenPrice: number): BillingLine {
     workflowVersion: v.workflowVersion,
     status: v.status,
     tokens,
-    retryTokens: Math.max(tokens - 1, 0),
+    retryTokens: Math.max(documents - 1, 0) + Math.max(liveness - 1, 0),
     cost: round2(tokens * tokenPrice),
   }
 }

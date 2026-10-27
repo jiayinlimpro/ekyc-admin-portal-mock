@@ -6,7 +6,7 @@ import { RiskBadge } from '@/components/common/RiskBadge'
 import type { CheckEvaluation, CheckState } from '@/domain/checkRules'
 import { bandText, duplicateUserText, idCaptureMetrics, lastFaceAttempt, selfieMetrics } from '@/domain/telemetry'
 import { PRESET_LABELS } from '@/domain/thresholds'
-import { RISK_CATEGORIES, RISK_CATEGORY_LABELS, type Check, type ThresholdChoice, type VerificationDetail } from '@/domain/types'
+import { RETRY_PHASE_LABELS, RISK_CATEGORIES, RISK_CATEGORY_LABELS, type Check, type RetryPhase, type ThresholdChoice, type VerificationDetail } from '@/domain/types'
 import { DOCUMENT_TYPE_LABELS } from '@/lib/labels'
 import { cn } from '@/lib/utils'
 import { Fields, Section } from './Section'
@@ -70,7 +70,7 @@ export function EvidenceSection({ v }: { v: VerificationDetail }) {
   )
 }
 
-function CheckLine({ v, check }: { v: VerificationDetail; check: Check }) {
+function CheckLine({ v, check, compares }: { v: VerificationDetail; check: Check; compares?: string }) {
   const e = v.checks.find((c) => c.check === check)
   if (!e) return null
   return (
@@ -80,6 +80,7 @@ function CheckLine({ v, check }: { v: VerificationDetail; check: Check }) {
         <Result state={e.state} />
       </div>
       <div className="text-xs text-muted-foreground">
+        {compares && `${compares} · `}
         {thresholdText(v.rulesApplied.checks[check].threshold, e)} · {e.retriesUsed} of {e.retriesAllowed} retries used
       </div>
     </div>
@@ -94,6 +95,9 @@ export function ChecksSection({ v }: { v: VerificationDetail }) {
   const selfie = face?.telemetry?.selfie ? selfieMetrics(face.telemetry.selfie) : undefined
   const selfieRetakes = v.attempts.reduce((n, a) => n + (a.telemetry?.selfieRetakes?.length ?? 0), 0)
   const rejectedSelfie = !selfie && face?.telemetry?.selfieRetakes?.length
+  // REQ: DEC-108 — retries per phase: a failed submitted ID image or selfie used one.
+  const phase = (p: RetryPhase) => v.phases.find((x) => x.phase === p)
+  const used = (p: RetryPhase) => (phase(p) ? `${phase(p)!.retriesUsed} of ${phase(p)!.retriesAllowed} retries used` : '')
   const items: [string, React.ReactNode][] = [
     [
       'ID capture',
@@ -105,7 +109,9 @@ export function ChecksSection({ v }: { v: VerificationDetail }) {
         ) : (
           <span className={PASS_TONE}>Pass</span>
         )}
-        <div className="text-xs text-muted-foreground">{v.idCaptureSoftRejects} retake(s) before this image · free, not counted as retries</div>
+        <div className="text-xs text-muted-foreground">
+          {v.idCaptureSoftRejects} earlier ID image(s) failed · {used('DOCUMENT')}
+        </div>
       </div>,
     ],
   ]
@@ -114,11 +120,13 @@ export function ChecksSection({ v }: { v: VerificationDetail }) {
       'Selfie',
       <div key="s" className="space-y-0.5">
         {selfie ? <span className={PASS_TONE}>Pass</span> : rejectedSelfie ? <span className={FAIL_TONE}>Fail: not compared with the ID</span> : <span className="text-muted-foreground">Not captured yet</span>}
-        {selfieRetakes > 0 && <div className="text-xs text-muted-foreground">{selfieRetakes} selfie(s) rejected by the quality check · free retakes, never compared</div>}
+        <div className="text-xs text-muted-foreground">
+          {selfieRetakes} submitted selfie(s) failed the quality check (never compared) · {used('SELFIE')}, face match included
+        </div>
       </div>,
     ])
   // REQ: DEC-10 / DEC-105 — the flow-set face match judges the similarity of the face with the ID photo.
-  if (v.checks.some((c) => c.check === 'FACE_MATCH')) items.push([v.steps.faceMatchMethod === 'ID_VS_SELFIE' ? 'Face match (selfie vs ID)' : 'Face match (liveness face vs ID)', <CheckLine key="fm" v={v} check="FACE_MATCH" />])
+  if (v.checks.some((c) => c.check === 'FACE_MATCH')) items.push(['Face match', <CheckLine key="fm" v={v} check="FACE_MATCH" compares={v.steps.faceMatchMethod === 'ID_VS_SELFIE' ? 'Selfie vs ID' : 'Liveness face vs ID'} />])
   if (v.checks.some((c) => c.check === 'LIVENESS')) items.push(['Liveness', <CheckLine key="lv" v={v} check="LIVENESS" />])
   items.push([
     'Duplicate user',
@@ -186,7 +194,7 @@ export function RulesAppliedSection({ v }: { v: VerificationDetail }) {
   const r = v.rulesApplied
   const check = (c: Check) => {
     const e = v.checks.find((x) => x.check === c)
-    return e ? `${thresholdText(r.checks[c].threshold, e)} · ${r.checks[c].retriesAllowed} retries` : undefined
+    return e ? thresholdText(r.checks[c].threshold, e) : undefined
   }
   return (
     <Section title="Rules applied" aside={<span className="font-mono text-xs text-muted-foreground">{v.revisionLabel}</span>}>
@@ -194,6 +202,7 @@ export function RulesAppliedSection({ v }: { v: VerificationDetail }) {
         items={[
           ['Face match', check('FACE_MATCH')],
           ['Liveness', check('LIVENESS')],
+          ['Retries allowed', v.phases.map((p) => `${RETRY_PHASE_LABELS[p.phase]} ${p.retriesAllowed}`).join(' · ')],
           ['Cooldown', r.cooldownMin > 0 ? `${r.cooldownMin} min after a rejection` : 'None'],
           ['Accepted documents', r.acceptedDocuments.map((d) => DOCUMENT_TYPE_LABELS[d]).join(', ')],
           ['Session expiry', Number.isFinite(r.sessionExpiryMin) ? `${r.sessionExpiryMin} min` : undefined],

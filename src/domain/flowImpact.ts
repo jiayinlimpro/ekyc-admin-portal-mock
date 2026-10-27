@@ -1,7 +1,7 @@
 // REQ: MOCK-10 — Flow Detail what-if: re-run the status rules over a flow's finished sessions with edited settings.
 // Read-only: it never changes a record. Pure.
-import { evaluateCase, type FlowContext } from './checkRules'
-import { VERIFICATION_STATUSES, type FlowSettings, type Verification, type VerificationStatus } from './types'
+import { evaluateCase, type CaseInput, type FlowContext } from './checkRules'
+import { VERIFICATION_STATUSES, type FlowSettings, type VerificationStatus } from './types'
 
 export interface ImpactSummary {
   total: number
@@ -13,16 +13,15 @@ export interface ImpactSummary {
 const zero = () => Object.fromEntries(VERIFICATION_STATUSES.map((s) => [s, 0])) as Record<VerificationStatus, number>
 
 export function flowImpact(
-  cases: readonly Pick<Verification, 'submissions' | 'riskScores'>[],
+  cases: readonly CaseInput[], // `caseInputOf` each finished case
   flow: Omit<FlowContext, 'settings'>,
-  current: Pick<FlowSettings, 'checks' | 'risk'>,
-  edited: Pick<FlowSettings, 'checks' | 'risk'>,
+  current: Pick<FlowSettings, 'checks' | 'retries' | 'risk'>,
+  edited: Pick<FlowSettings, 'checks' | 'retries' | 'risk'>,
 ): ImpactSummary {
   const out: ImpactSummary = { total: cases.length, before: zero(), after: zero(), changed: 0 }
   for (const c of cases) {
-    const input = { submissions: c.submissions, riskScores: c.riskScores }
-    const a = evaluateCase(input, { ...flow, settings: current }).status
-    const b = evaluateCase(input, { ...flow, settings: edited }).status
+    const a = evaluateCase(c, { ...flow, settings: current }).status
+    const b = evaluateCase(c, { ...flow, settings: edited }).status
     out.before[a]++
     out.after[b]++
     if (a !== b) out.changed++

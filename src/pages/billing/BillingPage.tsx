@@ -41,7 +41,7 @@ function ByTable({ title, rows, name }: { title: string; rows: (BillingTotals & 
   )
 }
 
-// REQ: DEC-60 / DEC-86 — tokens per liveness submission, whatever the final status; by project and flow; every role, scoped.
+// REQ: DEC-60 / DEC-86 — tokens per document (OCR) and liveness submission, whatever the final status; by project and flow; every role, scoped.
 export function BillingPage() {
   const d = useDashboardScope()
   const [sp, setSp] = useSearchParams()
@@ -74,7 +74,7 @@ export function BillingPage() {
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold">Billing</h1>
-          <p className="text-sm text-muted-foreground">{d.label} · one token per liveness submission, whatever the case’s status. ID capture and selfie retakes are free.</p>
+          <p className="text-sm text-muted-foreground">{d.label} · one token per document (OCR) submission and per liveness submission, whatever the case’s status. Retakes before submitting are free.</p>
         </div>
         {canExport && (
           <Button variant="outline" disabled={!r?.lines.length} onClick={exportCsv}>
@@ -102,8 +102,8 @@ export function BillingPage() {
 
       <div className={cn('grid gap-4 sm:grid-cols-2 lg:grid-cols-4 transition-opacity', loading && r && 'opacity-60')} aria-busy={loading}>
         <StatTile label="Verifications" value={t ? fmtInt(t.verifications) : '—'} note="Including Processing and Rejected" />
-        <StatTile label="Tokens" value={t ? fmtInt(t.tokens) : '—'} note="Liveness submissions" />
-        <StatTile label="Cost of Retries" value={t ? money(t.retryCost) : '—'} note={t ? `${fmtInt(t.retryTokens)} liveness submissions after the first` : undefined} />
+        <StatTile label="Tokens" value={t ? fmtInt(t.tokens) : '—'} note="Document and liveness submissions" />
+        <StatTile label="Cost of Retries" value={t ? money(t.retryCost) : '—'} note={t ? `${fmtInt(t.retryTokens)} submissions after the first in a phase` : undefined} />
         <StatTile label="Total" value={t ? money(t.cost) : '—'} note={period ? periodLabel(period) : undefined} />
       </div>
 

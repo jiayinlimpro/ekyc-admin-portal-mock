@@ -1,4 +1,4 @@
-// Named scenarios S01–S24 (docs/SCENARIOS.md). Each one is a UAT test case with a fixed Reference No (MOCK-05).
+// Named scenarios S01–S25 (docs/SCENARIOS.md). Each one is a UAT test case with a fixed Reference No (MOCK-05).
 // Thresholds referred to below come from the flow revision (fixtures/catalog.ts) and the presets (OQ-02).
 import { Faker, en } from '@faker-js/faker'
 import { makeAudit } from '@/domain/audit'
@@ -47,6 +47,7 @@ export const EDGE_CASES: EdgeCaseExpectation[] = [
   { id: 'S22', title: 'V1: selfie too dark, rejected; user stopped, nothing compared', asUserId: fx('USR-2026-0044'), referenceNo: 'KYC-260901-900022', flowId: fx('FLW-0005'), status: 'PROCESSING' },
   { id: 'S23', title: 'V5: High risk by its own OSINT minimum (22 < 30)', asUserId: fx('USR-2026-0012'), referenceNo: 'KYC-260901-900023', flowId: fx('FLW-0014'), status: 'PENDING_REVIEW', reason: 'Risk Assessment: high risk' },
   { id: 'S24', title: 'V5: EXIF 45 is Low risk under the flow’s minimum 40 (a V4 flow would flag it)', asUserId: fx('USR-2026-0012'), referenceNo: 'KYC-260901-900024', flowId: fx('FLW-0014'), status: 'APPROVED', lastUpdatedBy: 'SYSTEM' },
+  { id: 'S25', title: 'Document retries used up: 4th ID image still too small', asUserId: fx('USR-2026-0012'), referenceNo: 'KYC-260901-900025', flowId: fx('FLW-0001'), status: 'REJECTED', reason: 'ID image smaller than 320x320 (Retry Not Allowed)', lastUpdatedBy: 'SYSTEM' },
   { id: 'S21', title: 'Existing user found (duplicate, information only)', asUserId: fx('USR-2026-0012'), referenceNo: 'KYC-260901-900021', flowId: fx('FLW-0001'), status: 'PENDING_REVIEW', reason: 'Liveness face does not match ID face (Retry Not Allowed)' },
 ]
 
@@ -69,7 +70,7 @@ export function buildEdgeCases(ctx: { now: Date; catalog: Catalog }): {
     flowId: string,
     startMin: number,
     submissions: Partial<Record<Check, number[]>>,
-    opts: { riskScore?: number; documentType?: DocumentType; stepMin?: number; idCapture?: Partial<IdCaptureTelemetry>; duplicateSimilarity?: number; riskScores?: RiskScores; stoppedAtSelfie?: Partial<SelfieTelemetry> } = {},
+    opts: { riskScore?: number; documentType?: DocumentType; stepMin?: number; idCapture?: Partial<IdCaptureTelemetry>; duplicateSimilarity?: number; riskScores?: RiskScores; stoppedAtSelfie?: Partial<SelfieTelemetry>; softRejects?: number } = {},
   ): Verification => {
     const flow = catalog.flows.find((x) => x.flowId === flowId)!
     const p = person(f, now, opts.documentType ?? 'MYKAD')
@@ -88,6 +89,7 @@ export function buildEdgeCases(ctx: { now: Date; catalog: Catalog }): {
       duplicateSimilarity: opts.duplicateSimilarity ?? 20 + seq, // REQ: DEC-105 — new users, except S21
       riskScores: opts.riskScores,
       stoppedAtSelfie: opts.stoppedAtSelfie,
+      softRejects: opts.softRejects,
     })
   }
   const passes = (n: number) => Array.from({ length: n }, (_, i) => 95.5 + i * 0.4)
@@ -150,6 +152,8 @@ export function buildEdgeCases(ctx: { now: Date; catalog: Catalog }): {
     make(20, fx('FLW-0005'), 20, { FACE_MATCH: [80.1, 84.0, 86.2, 88.0], LIVENESS: [96.2] }, { documentType: 'DRIVING_LICENSE' }),
     // Atoz FLW-0001: face match in the review band after 3 retries; the face search found an existing user (97.6).
     make(21, fx('FLW-0001'), 50, { FACE_MATCH: [86.0, 87.5, 88.0, 89.2], LIVENESS: passes(4) }, { riskScore: 18, duplicateSimilarity: 97.6 }),
+    // Atoz FLW-0001: three ID images failed, and the fourth (the last of 3 Document retries) is still too small (DEC-108).
+    make(25, fx('FLW-0001'), 12, {}, { softRejects: 3, idCapture: { imageWidth: 300, imageHeight: 240 } }),
     // Atoz "Premium accounts" FLW-0014 (V5, own risk minimums EXIF 40 · Noise 60 · Email 50 · OSINT 30).
     make(23, fx('FLW-0014'), 30, { FACE_MATCH: [98.2], LIVENESS: [96.5] }, { riskScores: { EXIF: 72, NOISE: 80, EMAIL_VALIDITY: 65, OSINT: 22 } }),
     make(24, fx('FLW-0014'), 28, { FACE_MATCH: [98.0], LIVENESS: [95.9] }, { riskScores: { EXIF: 45, NOISE: 78, EMAIL_VALIDITY: 70, OSINT: 55 } }),

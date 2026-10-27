@@ -1,7 +1,7 @@
 // Shared builders for seeded and hand-written records. Status is always computed by checkRules.evaluateCase, never random.
 import { evaluateCase, evaluateRisk, type FlowContext } from '@/domain/checkRules'
 import { hasRisk } from '@/domain/registryRules'
-import { ENGINE_THRESHOLDS, idCaptureMetrics, OCR_FIELDS } from '@/domain/telemetry'
+import { ENGINE_THRESHOLDS, idCaptureCondition, OCR_FIELDS, SELFIE_FAILED_CONDITION } from '@/domain/telemetry'
 import {
   type Attempt,
   type AttemptTelemetry,
@@ -53,12 +53,6 @@ export function buildCase(spec: CaseSpec): Verification {
   const rev = revisionAt(spec.revisions, spec.flow.flowId, spec.startedAt)!
   const rand = rng(spec.referenceNo) // REQ: DEC-105 — telemetry is stable per case across resets (MOCK-05)
   const flow: FlowContext = { checks: spec.entry.configurableChecks, faceMatchMethod: spec.entry.faceMatchMethod, hasRisk: hasRisk(spec.entry), settings: rev.settings }
-  const pre = evaluateCase({ submissions: spec.submissions }, flow)
-  // Risk runs once onboarding completes without a reject (FRS AWS flow: V4 runs risk after onboarding).
-  const riskRan = flow.hasRisk && spec.riskScore !== undefined && pre.checks.every((c) => c.state === 'PASS' || c.state === 'REVIEW')
-  const riskScores = riskRan ? (spec.riskScores ?? categoryScores(rand, spec.riskScore!)) : undefined
-  const ev = evaluateCase({ submissions: spec.submissions, riskScores }, flow)
-  const faceMatchState = pre.checks.find((c) => c.check === 'FACE_MATCH')?.state
 
   // REQ: DEC-17 — one attempt per submission round under the same Reference No (the round's time is on the timeline).
   const step = (spec.stepMin ?? 6) * 60_000
@@ -66,9 +60,25 @@ export function buildCase(spec: CaseSpec): Verification {
   const at = (i: number) => new Date(spec.startedAt.getTime() + i * step).toISOString()
   const v1 = spec.entry.faceMatchMethod === 'ID_VS_SELFIE'
   const idCap = { ...idCapture(rand, spec.person.documentType, rounds === 0), ...spec.idCapture }
-  const idOk = idCaptureMetrics(idCap, spec.person.documentType).every((m) => m.result === 'PASS')
+  // REQ: DEC-108 — failed ID submissions each used a Document retry; the last one may still be failing.
+  const idFailed = idCaptureCondition(idCap, spec.person.documentType)
+  const document = { failed: (spec.softRejects ?? 0) + (idFailed ? 1 : 0), lastFailed: idFailed }
   // REQ: DEC-105 — V1: a selfie that fails the quality check ends the run before Face Match: nothing is compared.
-  const stoppedSelfie = rounds === 0 && v1 && idOk && (spec.stoppedAtSelfie || rand() < 0.5) ? { ...failingSelfie(rand), ...spec.stoppedAtSelfie } : undefined
+  const stoppedSelfie = rounds === 0 && v1 && !idFailed && (spec.stoppedAtSelfie || rand() < 0.5) ? { ...failingSelfie(rand), ...spec.stoppedAtSelfie } : undefined
+  // REQ: DEC-108 — V1: sometimes one submitted selfie failed its check before a compared one. It used a Selfie retry, so it is
+  // only added where the budget leaves the planned outcome unchanged.
+  const fm = spec.submissions.FACE_MATCH ?? []
+  const base = evaluateCase({ submissions: spec.submissions, document }, flow)
+  const fmState = base.checks.find((c) => c.check === 'FACE_MATCH')?.state
+  const room = rev.settings.retries.SELFIE + 1 - fm.length - (fmState === 'RETRY' ? 1 : 0)
+  const retakeRound = v1 && fm.length > 0 && room > 0 && rand() < 0.25 ? Math.floor(rand() * fm.length) : undefined
+  const selfie = stoppedSelfie || retakeRound !== undefined ? { failed: stoppedSelfie || retakeRound !== undefined ? 1 : 0, lastFailed: stoppedSelfie ? SELFIE_FAILED_CONDITION : undefined } : undefined
+  const pre = evaluateCase({ submissions: spec.submissions, document, selfie }, flow)
+  // Risk runs once onboarding completes without a reject (FRS AWS flow: V4 runs risk after onboarding).
+  const riskRan = flow.hasRisk && spec.riskScore !== undefined && !document.lastFailed && pre.checks.every((c) => c.state === 'PASS' || c.state === 'REVIEW')
+  const riskScores = riskRan ? (spec.riskScores ?? categoryScores(rand, spec.riskScore!)) : undefined
+  const ev = evaluateCase({ submissions: spec.submissions, riskScores, document, selfie }, flow)
+  const faceMatchState = pre.checks.find((c) => c.check === 'FACE_MATCH')?.state
   const attempts: Attempt[] =
     rounds === 0
       ? [
@@ -77,7 +87,7 @@ export function buildCase(spec: CaseSpec): Verification {
             attemptNo: 1,
             phase: stoppedSelfie ? 'SELFIE' : 'DOCUMENT',
             startedAt: at(0),
-            outcome: spec.abandoned ?? 'ABORTED',
+            outcome: ev.status === 'REJECTED' ? 'COMPLETED' : (spec.abandoned ?? 'ABORTED'), // REQ: DEC-108 — document retries used up
             isUserRetake: false,
             phaseScores: {},
             ...(stoppedSelfie ? { faceImage: { fileId: stableId('file', `${spec.referenceNo}:face:1`), url: '/mock/selfie.svg' }, telemetry: { selfieRetakes: [stoppedSelfie] } } : {}),
@@ -105,7 +115,7 @@ export function buildCase(spec: CaseSpec): Verification {
               ? {}
               : {
                   faceImage: { fileId: stableId('file', `${spec.referenceNo}:face:${i + 1}`), url: spec.entry.faceMatchMethod === 'ID_VS_SELFIE' ? '/mock/selfie.svg' : '/mock/liveness.svg' },
-                  telemetry: attemptTelemetry(rand, v1, scores.FACE_MATCH),
+                  telemetry: attemptTelemetry(rand, v1, scores.FACE_MATCH, i === retakeRound),
                 }),
           }
         })
@@ -192,14 +202,13 @@ function failingSelfie(r: () => number): SelfieTelemetry {
   return { ...ok, occluded: true }
 }
 
-/** Lower similarity comes with a poorer (still passing) selfie, as in real sessions. V1 sometimes needed a free retake first. */
-function attemptTelemetry(r: () => number, selfie: boolean, similarity: number | undefined): AttemptTelemetry {
+/** Lower similarity comes with a poorer (still passing) selfie, as in real sessions. V1: `retake` = a failed selfie before it. */
+function attemptTelemetry(r: () => number, selfie: boolean, similarity: number | undefined, retake: boolean): AttemptTelemetry {
   const q = similarity === undefined ? 1 : Math.max(0, Math.min(1, (similarity - 60) / 40))
   const sign = () => (r() < 0.5 ? -1 : 1)
-  const retakes = selfie ? Math.floor(r() * 4) - 2 : 0 // V1: 0 most of the time, sometimes 1
   return {
     faceMatchConfidence: similarity === undefined ? undefined : between(r, 95, 99.9),
-    ...(retakes > 0 ? { selfieRetakes: [failingSelfie(r)] } : {}),
+    ...(selfie && retake ? { selfieRetakes: [failingSelfie(r)] } : {}),
     selfie: selfie
       ? {
           eyesOpen: true,

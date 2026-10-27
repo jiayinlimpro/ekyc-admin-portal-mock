@@ -56,9 +56,10 @@ interface FlowSpec {
 const preset = (p: 'LOW' | 'STANDARD' | 'HIGH'): ThresholdChoice => ({ preset: p })
 
 function settings(o: { fm?: ThresholdChoice; l?: ThresholdChoice; retries?: number; cooldownMin?: number; docs?: DocumentType[]; expiry?: number; risk?: boolean | RiskScores }): FlowSettings {
-  const retriesAllowed = o.retries ?? 3
+  const r = o.retries ?? 3
   return {
-    checks: { FACE_MATCH: { threshold: o.fm ?? preset('STANDARD'), retriesAllowed }, LIVENESS: { threshold: o.l ?? preset('STANDARD'), retriesAllowed } },
+    checks: { FACE_MATCH: { threshold: o.fm ?? preset('STANDARD') }, LIVENESS: { threshold: o.l ?? preset('STANDARD') } },
+    retries: { DOCUMENT: 3, SELFIE: r, LIVENESS: r }, // REQ: DEC-108
     cooldownMin: o.cooldownMin ?? 0,
     acceptedDocuments: o.docs ?? ['MYKAD'],
     sessionExpiryMin: o.expiry ?? 30,

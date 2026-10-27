@@ -3,7 +3,7 @@ import { Faker, en } from '@faker-js/faker'
 import { canInProject, roleNamesInProject } from '@/domain/access'
 import { grantsOf } from '@/domain/roles'
 import { makeAudit } from '@/domain/audit'
-import { RISK_NOT_PASSED } from '@/domain/checkRules'
+import { RISK_NOT_PASSED, retryPhaseOf } from '@/domain/checkRules'
 import { applyDecision } from '@/domain/claimRules'
 import { resolveThreshold, type Thresholds } from '@/domain/thresholds'
 import type { Actor, AuditEntry, Check, Decision, Flow, ProjectApiKey, ProjectWebhook, FlowRevision, Merchant, Project, RegistryEntry, Role, UserAccount, Verification } from '@/domain/types'
@@ -18,7 +18,7 @@ import { fx, stableId } from '@/lib/ids'
 export const SEED = 2026
 export const BACKGROUND_COUNT = 300
 /** Bump when the shape of MockDbState changes: persisted demo data is then re-seeded. */
-export const DB_VERSION = 25
+export const DB_VERSION = 26
 
 export interface MockDbState {
   dbVersion: number
@@ -63,7 +63,7 @@ function scoreIn(f: Faker, t: Thresholds, band: 'PASS' | 'REVIEW' | 'REJECT'): n
 /** Per-check submissions for a profile. V3/V4 score face match on every liveness submission, so both lists have the same length. */
 function submissionsFor(f: Faker, profile: Profile, rev: FlowRevision, entry: RegistryEntry): Partial<Record<Check, number[]>> {
   const t = (c: Check) => resolveThreshold(c, rev.settings.checks[c].threshold)
-  const retries = (c: Check) => rev.settings.checks[c].retriesAllowed
+  const retries = (c: Check) => rev.settings.retries[retryPhaseOf(c, entry.faceMatchMethod)] // REQ: DEC-108
   const below = (c: Check) => scoreIn(f, t(c), f.helpers.arrayElement(['REVIEW', 'REJECT'] as const))
   const pass = (c: Check) => scoreIn(f, t(c), 'PASS')
   const paired = entry.faceMatchMethod === 'ID_VS_LIVENESS'

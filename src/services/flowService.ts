@@ -10,6 +10,7 @@
 //   POST /flows/{id}/default           setDefault → 200 Project | 422 VALIDATION
 //   POST /flows/{id}/preview           preview    → 200 ImpactSummary (what-if, read-only; MOCK-10)
 import { canInProject } from '@/domain/access'
+import { caseInputOf } from '@/domain/telemetry'
 import { flowImpact, type ImpactSummary } from '@/domain/flowImpact'
 import { hasRisk } from '@/domain/registryRules'
 import { activate, activateError, duplicateFlow, IN_FLIGHT_STATUSES, retire, retireError, setDefaultFlowError, settleRetiring } from '@/domain/flowRules'
@@ -147,8 +148,8 @@ export const mockFlowService: FlowService = {
     await simulateNetwork('save flow')
     requireActive(actor)
     const { flow, project } = loadFlow(actor, flowId, 'editFlows')
-    // REQ: DEC-70 — thresholds, retries allowed and risk level need Change verification level and retries.
-    const levelChanged = JSON.stringify(flow.settings.checks) !== JSON.stringify(next.settings.checks) || JSON.stringify(flow.settings.risk) !== JSON.stringify(next.settings.risk)
+    // REQ: DEC-70 / DEC-108 — thresholds, retries per phase and risk minimums need Change verification level and retries.
+    const levelChanged = (['checks', 'retries', 'risk'] as const).some((k) => JSON.stringify(flow.settings[k]) !== JSON.stringify(next.settings[k]))
     if (levelChanged) requireInProject(actor, 'changeVerificationLevel', project, 'change the verification level and retries')
     const canSetAdvanced = canInProject(accountOf(actor), 'setAdvancedThresholds', project)
     const at = now()
@@ -220,7 +221,7 @@ export const mockFlowService: FlowService = {
     const since = new Date(now().getTime() - days * 86_400_000).toISOString()
     const finished = db.state().verifications.filter((v) => v.flowId === flowId && v.status !== 'PROCESSING' && v.createdAt >= since)
     const ctx = { checks: entry.configurableChecks, faceMatchMethod: entry.faceMatchMethod, hasRisk: hasRisk(entry) }
-    return wire({ ...flowImpact(finished, ctx, flow.settings, settings), days })
+    return wire({ ...flowImpact(finished.map(caseInputOf), ctx, flow.settings, settings), days })
   },
 }
 

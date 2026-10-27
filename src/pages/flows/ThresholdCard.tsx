@@ -1,8 +1,6 @@
-import { Minus, Plus } from 'lucide-react'
 import { OpenQuestionTag } from '@/components/common/OpenQuestionTag'
-import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { RETRY_LIMITS, THRESHOLD_PRESETS } from '@/domain/openQuestions'
+import { THRESHOLD_PRESETS } from '@/domain/openQuestions'
 import { bandSegments, describeBands, PRESET_LABELS, resolveThreshold, RETRY_NOTE, type Band } from '@/domain/thresholds'
 import { PHASE_LABELS, THRESHOLD_PRESETS_ORDER, type Check, type CheckSettings, type ThresholdChoice } from '@/domain/types'
 import { cn } from '@/lib/utils'
@@ -137,27 +135,7 @@ export function ThresholdCard({
 
         <BandBar check={check} choice={choice} />
 
-        <div>
-          <div className="mb-1 flex items-center gap-2 text-xs font-medium text-muted-foreground">
-            Retries allowed <OpenQuestionTag id="OQ-03" />
-          </div>
-          <div className="flex items-center gap-2">
-            <Button type="button" variant="outline" size="icon-sm" aria-label={`Fewer ${PHASE_LABELS[check]} retries`} disabled={value.retriesAllowed <= RETRY_LIMITS.min} onClick={() => onChange({ ...value, retriesAllowed: value.retriesAllowed - 1 })}>
-              <Minus aria-hidden />
-            </Button>
-            <output aria-label={`${PHASE_LABELS[check]} retries allowed`} className="w-8 text-center text-sm font-medium tabular-nums">
-              {value.retriesAllowed}
-            </output>
-            <Button type="button" variant="outline" size="icon-sm" aria-label={`More ${PHASE_LABELS[check]} retries`} disabled={value.retriesAllowed >= RETRY_LIMITS.max} onClick={() => onChange({ ...value, retriesAllowed: value.retriesAllowed + 1 })}>
-              <Plus aria-hidden />
-            </Button>
-            <span className="text-xs text-muted-foreground">
-              retries after the first submission · up to {value.retriesAllowed + 1} submissions
-            </span>
-          </div>
-          {errors[f('retriesAllowed')] && <p className="mt-1 text-xs text-destructive">{errors[f('retriesAllowed')]}</p>}
-          <p className="mt-1 text-xs text-muted-foreground">{RETRY_NOTE}</p>
-        </div>
+        <p className="text-xs text-muted-foreground">{RETRY_NOTE}</p>
       </fieldset>
     </section>
   )

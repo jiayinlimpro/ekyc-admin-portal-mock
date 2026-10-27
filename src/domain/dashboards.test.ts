@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { ALI, NOW, at, minutes, verification } from '@/test/factories'
-import { evaluateCheck } from './checkRules'
+import { evaluateCase } from './checkRules'
 import { billingBy, billingLine, billingTotals, intelligenceStats, monthRange, overviewStats, presetRange, type CaseContext } from './dashboards'
 import type { Verification } from './types'
 import { fx } from '@/lib/ids'
@@ -51,11 +51,12 @@ describe('overviewStats (DEC-14, DEC-20, DEC-86)', () => {
 })
 
 describe('intelligenceStats (DEC-18, DEC-86)', () => {
-  const settings = { threshold: { preset: 'STANDARD' as const }, retriesAllowed: 3 }
-  const ctx = (v: Verification): CaseContext => ({
-    checks: (['FACE_MATCH', 'LIVENESS'] as const).map((c) => evaluateCheck(c, v.submissions[c] ?? [], settings)),
-    hasSelfie: v.workflowVersion === 'V1',
-  })
+  const ctx = (v: Verification): CaseContext => {
+    const v1 = v.workflowVersion === 'V1'
+    const flow = { checks: ['FACE_MATCH', 'LIVENESS'] as const, faceMatchMethod: v1 ? ('ID_VS_SELFIE' as const) : ('ID_VS_LIVENESS' as const), hasRisk: false, settings: { checks: { FACE_MATCH: { threshold: { preset: 'STANDARD' as const } }, LIVENESS: { threshold: { preset: 'STANDARD' as const } } }, retries: { DOCUMENT: 3, SELFIE: 3, LIVENESS: 3 } } }
+    const ev = evaluateCase({ submissions: v.submissions, document: { failed: v.idCaptureSoftRejects } }, flow)
+    return { checks: ev.checks, phases: ev.phases, exhaustedPhase: ev.exhaustedPhase, hasSelfie: v1 }
+  }
   const rows = [
     verification({ referenceNo: 'clean', status: 'APPROVED', submissions: { FACE_MATCH: [96], LIVENESS: [90] } }),
     verification({ referenceNo: 'retried', status: 'APPROVED', submissions: { FACE_MATCH: [96, 96], LIVENESS: [60, 90] } }),
@@ -65,9 +66,9 @@ describe('intelligenceStats (DEC-18, DEC-86)', () => {
   ]
   const s = intelligenceStats(rows, range.current, ctx)
 
-  it('counts face match and liveness retries only, first-attempt passes and retries used up', () => {
-    expect(s).toMatchObject({ sessions: 5, submitted: 4, firstAttemptPass: 1, retriedSessions: 2, retries: 2 + 6, retriesExhausted: 1 })
-    expect(s.retriesByCheck).toEqual({ FACE_MATCH: 4, LIVENESS: 4 })
+  it('counts retries per phase (face match and liveness share one liveness submission on V3/V4), first-attempt passes and retries used up (DEC-108)', () => {
+    expect(s).toMatchObject({ sessions: 5, submitted: 4, firstAttemptPass: 1, retriedSessions: 2, retries: 1 + 3, retriesExhausted: 1 })
+    expect(s.retriesByPhase).toEqual({ DOCUMENT: 0, SELFIE: 0, LIVENESS: 4 })
   })
 
   it('reports unfinished sessions by the last phase reached, per flow; selfie only for flows with a selfie step', () => {

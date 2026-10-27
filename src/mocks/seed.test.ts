@@ -6,7 +6,7 @@ import { inCooldown, revisionLabel, validateProjectName } from '@/domain/flowRul
 import { validateFlow } from '@/domain/flowSettings'
 import { evaluateRisk } from '@/domain/checkRules'
 import { hasRisk, validateRegistryInput } from '@/domain/registryRules'
-import { ENGINE_THRESHOLDS, idCaptureMetrics, selfiePasses } from '@/domain/telemetry'
+import { caseInputOf, ENGINE_THRESHOLDS, idCaptureMetrics, selfiePasses } from '@/domain/telemetry'
 import { grantsOf, SYSTEM_ROLE_IDS } from '@/domain/roles'
 import { VERIFICATION_STATUSES, type UserAccount } from '@/domain/types'
 import { NOW } from '@/test/factories'
@@ -39,7 +39,7 @@ describe('seedDatabase', () => {
       const rev = revisionOf(v.flowId, v.configRevision)
       expect(rev, v.referenceNo).toBeDefined()
       const ev = evaluateCase(
-        { submissions: v.submissions, riskScores: v.riskScores },
+        caseInputOf(v), // REQ: DEC-108 — failed document and selfie submissions count too
         { checks: entry.configurableChecks, faceMatchMethod: entry.faceMatchMethod, hasRisk: hasRisk(entry), settings: rev.settings },
       )
       expect(v.status, v.referenceNo).toBe(ev.status)
@@ -224,6 +224,21 @@ describe('telemetry, duplicate user and risk categories (DEC-105)', () => {
       expect(v.riskResult, v.referenceNo).toBe(evaluateRisk(v.riskScores!, revisionOf(v.flowId, v.configRevision).settings.risk).result)
     }
     expect(db.verifications.filter((v) => !v.riskScores).every((v) => v.riskResult === undefined)).toBe(true)
+  })
+
+  it('S25 used its 3 Document retries: the 4th ID image is still too small, so REJECTED by SYSTEM (DEC-108)', () => {
+    const v = byRef('KYC-260901-900025')
+    expect(v).toMatchObject({ status: 'REJECTED', statusReason: 'ID image smaller than 320x320 (Retry Not Allowed)', idCaptureSoftRejects: 3, lastUpdatedBy: { kind: 'SYSTEM' } })
+    expect(v.attempts).toMatchObject([{ phase: 'DOCUMENT', outcome: 'COMPLETED' }])
+  })
+
+  it('Given any case, then no phase has more submissions than its retries allow (DEC-108)', () => {
+    for (const v of db.verifications) {
+      const rev = revisionOf(v.flowId, v.configRevision)
+      const entry = entryOf(v.workflowVersion)
+      const ev = evaluateCase(caseInputOf(v), { checks: entry.configurableChecks, faceMatchMethod: entry.faceMatchMethod, hasRisk: hasRisk(entry), settings: rev.settings })
+      for (const p of ev.phases) expect(p.retriesUsed, `${v.referenceNo} ${p.phase}`).toBeLessThanOrEqual(p.retriesAllowed)
+    }
   })
 
   it('S02 is High risk in every category; S23 (V5) by its own OSINT minimum; S24 (V5) Low risk with EXIF 45 under its minimum 40', () => {

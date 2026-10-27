@@ -4,7 +4,7 @@ import { DateRangePresets } from '@/components/charts/DateRangePresets'
 import { ScoreHistogram } from '@/components/charts/ScoreHistogram'
 import { ErrorState } from '@/components/common/States'
 import { HISTOGRAM_BIN } from '@/domain/dashboards'
-import { CHECKS, PHASE_LABELS, RISK_RESULTS } from '@/domain/types'
+import { CHECKS, PHASE_LABELS, RETRY_PHASE_LABELS, RETRY_PHASES, RISK_RESULTS } from '@/domain/types'
 import { useLoad } from '@/hooks/useLoad'
 import { RANGE_PRESETS, useRangeDays } from '@/hooks/useRangeDays'
 import { RISK_RESULT_LABELS } from '@/lib/labels'
@@ -13,7 +13,7 @@ import { useDashboardScope } from './dashboardScope'
 
 const avg = (n: number, of: number) => (of ? (n / of).toFixed(2) : '—')
 
-// REQ: DEC-18 / DEC-86 — retry KPIs count similarity and liveness retries only; drop-off by phase and retries by flow.
+// REQ: DEC-108 / DEC-86 — retry KPIs count retries in every phase (document, selfie, liveness); drop-off by phase and retries by flow.
 export function IntelligencePage() {
   const d = useDashboardScope()
   const [days, setDays] = useRangeDays()
@@ -41,7 +41,7 @@ export function IntelligencePage() {
 
       <div className={`grid gap-4 sm:grid-cols-3 transition-opacity ${loading && s ? 'opacity-60' : ''}`} aria-busy={loading}>
         <StatTile label="First-attempt pass rate" value={s ? fmtPct(pct(s.firstAttemptPass, s.submitted)) : '—'} note={s ? `${fmtInt(s.firstAttemptPass)} of ${fmtInt(s.submitted)} submitted sessions passed every check first time` : undefined} />
-        <StatTile label="Average retries" value={s ? avg(s.retries, s.submitted) : '—'} note={s ? `${fmtInt(s.retries)} similarity and liveness retries · ID capture and selfie retakes are free and not counted` : undefined} />
+        <StatTile label="Average retries" value={s ? avg(s.retries, s.submitted) : '—'} note={s ? `${fmtInt(s.retries)} retries across document, selfie and liveness · retakes before submitting are free` : undefined} />
         <StatTile label="Retries used up" value={s ? fmtInt(s.retriesExhausted) : '—'} note="The last attempt decided: Pending Review or Rejected" />
       </div>
 
@@ -73,12 +73,12 @@ export function IntelligencePage() {
 
           <div className="grid gap-4 lg:grid-cols-2">
             <ChartCard
-              title="Retries by check"
-              subtitle="Submissions after the first (DEC-18)"
+              title="Retries by phase"
+              subtitle="Submissions after the first (DEC-108)"
               busy={loading}
-              table={<DataTable caption="Retries by check" columns={['Check', 'Retries']} rows={CHECKS.map((c) => [PHASE_LABELS[c], s.retriesByCheck[c]])} />}
+              table={<DataTable caption="Retries by phase" columns={['Phase', 'Retries']} rows={RETRY_PHASES.map((p) => [RETRY_PHASE_LABELS[p], s.retriesByPhase[p]])} />}
             >
-              <BarList unit="retries" rows={CHECKS.map((c) => ({ label: PHASE_LABELS[c], value: s.retriesByCheck[c] }))} />
+              <BarList unit="retries" rows={RETRY_PHASES.map((p) => ({ label: RETRY_PHASE_LABELS[p], value: s.retriesByPhase[p] }))} />
             </ChartCard>
             <ChartCard
               title="Risk result (V4/V5)"

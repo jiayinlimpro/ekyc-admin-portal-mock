@@ -3,7 +3,8 @@
 // the engine. "Face match" = the flow band on the similarity of the face with the ID photo (compareFaces Similarity);
 // "Face detection confidence" = a face is clearly detected (FaceMatchThreshold on Face.Confidence). Never mix the two.
 import type { Thresholds } from './thresholds'
-import type { Attempt, DocumentType, DuplicateUserCheck, IdCaptureTelemetry, SelfieTelemetry } from './types'
+import type { CaseInput } from './checkRules'
+import type { Attempt, DocumentType, DuplicateUserCheck, IdCaptureTelemetry, SelfieTelemetry, Verification } from './types'
 
 /** Fixed by the engine (DEC-105). Not configurable by anyone. */
 export const ENGINE_THRESHOLDS = {
@@ -104,3 +105,30 @@ export function duplicateUserText(d: DuplicateUserCheck | undefined): string {
 
 /** The last attempt with a face image: the evidence shown next to the document. */
 export const lastFaceAttempt = (c: { attempts: readonly Attempt[] }): Attempt | undefined => c.attempts.findLast((a) => a.faceImage)
+
+/** REQ: DEC-35 / DEC-108 — the condition of a failing ID image, in the engine's words (the first check that fails). */
+export function idCaptureCondition(t: IdCaptureTelemetry, documentType: DocumentType): string | undefined {
+  if (t.facesFound !== T.facesFound || t.faceConfidence < T.faceMatchMin || !t.eyesOpen || t.occluded) return 'No valid face in ID detected'
+  if (t.imageWidth < T.imageMinPx || t.imageHeight < T.imageMinPx) return 'ID image smaller than 320x320'
+  const missing = OCR_FIELDS[documentType].find((f) => t.ocrFieldsMissing.includes(f))
+  if (!missing) return undefined
+  if (documentType === 'PASSPORT') return 'Unable to detect the 2 lines MRZ field in passport image'
+  return `${missing === 'Validity date' ? 'Validity Data' : missing} field not detected`
+}
+
+/** REQ: DEC-35 — the condition of a V1 selfie that fails its quality check. */
+export const SELFIE_FAILED_CONDITION = 'No valid face in Selfie detected'
+
+/** REQ: DEC-108 — what the status rules need from a stored case: scores, risk, and the failed document and selfie submissions. */
+export function caseInputOf(v: Pick<Verification, 'submissions' | 'riskScores' | 'idCapture' | 'idCaptureSoftRejects' | 'attempts' | 'documentType'>): CaseInput {
+  const idFailed = v.idCapture ? idCaptureCondition(v.idCapture, v.documentType) : undefined
+  const rejectedSelfies = v.attempts.reduce((n, a) => n + (a.telemetry?.selfieRetakes?.length ?? 0), 0)
+  const last = v.attempts.at(-1)
+  const selfieLast = !!last?.telemetry?.selfieRetakes?.length && last.phaseScores.FACE_MATCH === undefined
+  return {
+    submissions: v.submissions,
+    riskScores: v.riskScores,
+    document: v.idCapture ? { failed: v.idCaptureSoftRejects + (idFailed ? 1 : 0), lastFailed: idFailed } : undefined,
+    selfie: rejectedSelfies ? { failed: rejectedSelfies, lastFailed: selfieLast ? SELFIE_FAILED_CONDITION : undefined } : undefined,
+  }
+}

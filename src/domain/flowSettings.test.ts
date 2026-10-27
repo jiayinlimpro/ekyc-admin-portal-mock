@@ -17,7 +17,8 @@ describe('new flow (DEC-50, OQ-19)', () => {
   it('Given a new V4 flow, then Draft, no revision, Standard presets, 3 retries, no cooldown and risk on', () => {
     const f = draft()
     expect(f).toMatchObject({ name: 'Malaysian onboarding', status: 'DRAFT', revision: 0, workflowVersion: 'V4', routing: { kind: 'NONE' } })
-    expect(f.settings.checks.LIVENESS).toEqual({ threshold: { preset: 'STANDARD' }, retriesAllowed: 3 })
+    expect(f.settings.checks.LIVENESS).toEqual({ threshold: { preset: 'STANDARD' } })
+    expect(f.settings.retries).toEqual({ DOCUMENT: 3, SELFIE: 3, LIVENESS: 3 }) // DEC-108
     expect(f.settings.cooldownMin).toBe(0)
     expect(f.settings.risk).toEqual({ enabled: true, minimums: { EXIF: 50, NOISE: 50, EMAIL_VALIDITY: 50, OSINT: 50 } }) // DEC-107, OQ-34
     expect(newFlowSettings(V1).risk).toBeUndefined()
@@ -40,12 +41,12 @@ describe('validation (DEC-53)', () => {
     ])
   })
 
-  it('Given retries outside 1–5 or a negative cooldown, then errors (OQ-03)', () => {
+  it('Given retries outside 1–5 or a negative cooldown, then errors per phase; Selfie only for V1 (OQ-03, DEC-108)', () => {
     const s = complete(draft().settings)
-    s.checks.FACE_MATCH.retriesAllowed = 0
-    s.checks.LIVENESS.retriesAllowed = 6
+    s.retries = { DOCUMENT: 0, SELFIE: 9, LIVENESS: 6 }
     s.cooldownMin = -1
-    expect(fields(validateFlow({ name: 'x', settings: s }, V4))).toEqual(['checks.FACE_MATCH.retriesAllowed', 'checks.LIVENESS.retriesAllowed', 'cooldownMin'])
+    expect(fields(validateFlow({ name: 'x', settings: s }, V4))).toEqual(['retries.DOCUMENT', 'retries.LIVENESS', 'cooldownMin']) // V4 has no selfie step
+    expect(fields(validateFlow({ name: 'x', settings: s }, V1))).toEqual(['retries.DOCUMENT', 'retries.SELFIE', 'retries.LIVENESS', 'cooldownMin'])
   })
 })
 
@@ -77,7 +78,7 @@ describe('risk minimums (DEC-107)', () => {
 
 describe('Advanced is Super admin only (DEC-19)', () => {
   const base = complete(draft().settings)
-  const adv = (autoReject: number, autoPass: number): FlowSettings => ({ ...base, checks: { ...base.checks, FACE_MATCH: { threshold: { preset: 'ADVANCED', autoReject, autoPass }, retriesAllowed: 3 } } })
+  const adv = (autoReject: number, autoPass: number): FlowSettings => ({ ...base, checks: { ...base.checks, FACE_MATCH: { threshold: { preset: 'ADVANCED', autoReject, autoPass } } } })
 
   it('Given a merchant user, when choosing Advanced, then refused; Super admin may', () => {
     expect(advancedErrors(base, adv(80, 92), false)[0]).toEqual({ field: 'checks.FACE_MATCH.threshold', message: 'Only Super admin can set Advanced thresholds' })
@@ -110,13 +111,13 @@ describe('save with revision (DEC-51, DEC-52)', () => {
 
   it('Given an Active flow with a reason, then the next revision and old → new changes', () => {
     const f = active()
-    const settings = { ...f.settings, checks: { ...f.settings.checks, LIVENESS: { threshold: { preset: 'HIGH' as const }, retriesAllowed: 2 } } }
+    const settings = { ...f.settings, checks: { ...f.settings.checks, LIVENESS: { threshold: { preset: 'HIGH' as const } } }, retries: { ...f.settings.retries, DOCUMENT: 2 } }
     const r = saveFlow(f, { ...f, settings }, { ...ctx, reason: 'Tighten liveness after spoof attempts' }, NOW, OWNER)
     if (!('flow' in r)) throw new Error(JSON.stringify(r.errors))
     expect(r.flow.revision).toBe(3)
     expect(r.changes).toEqual([
       { field: 'checks.LIVENESS.threshold', from: 'Standard (reject < 70, approve ≥ 85)', to: 'High (reject < 80, approve ≥ 92)' },
-      { field: 'checks.LIVENESS.retriesAllowed', from: '3', to: '2' },
+      { field: 'retries.DOCUMENT', from: '3', to: '2' },
     ])
   })
 
