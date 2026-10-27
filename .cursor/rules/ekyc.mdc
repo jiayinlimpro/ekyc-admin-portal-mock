@@ -119,7 +119,7 @@ docs/           DECISIONS.md, OPEN_QUESTIONS.md, SCENARIOS.md
 - Pages fetch through services with `useLoad` keyed on the actor (switching user must refetch). Use `useNow()` for
   anything time-based (claim countdowns) so the time warp applies.
 - Hide what the user can never do with their access; disable with a tooltip what the current state blocks (DEC-78).
-  Access is always shown as a `Role · Scope` chip (DEC-74).
+  Access is shown as a `Role · Scope` chip (DEC-74), except the Users list: merchant role name only, no scope.
 - Every screen declares an access rule in `nav.ts` (project or platform action from `src/domain/access.ts`); the menu and
   `Guarded` use it, and the service checks again. Settings pages work on the header's project (`RequireProject`).
 - List filters live in the URL (see `src/pages/verifications/listQuery.ts`); apply on Search, not per keystroke.

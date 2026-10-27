@@ -30,11 +30,13 @@ afterEach(() => {
 })
 
 describe('Users (DEC-74, DEC-104)', () => {
-  it('Given the Owner, then the FRS columns with Access (merchant role first); no Merchant column; status filter applies on Search', async () => {
+  it('Given the Owner, then the FRS columns with the merchant role only (no scope, no project roles); no Merchant column; status filter applies on Search', async () => {
     renderAt(atoz('users', '&q=Ali'))
-    expect((await row('Ali Bin Ahmad')).textContent).toContain('MemberReviewer · DefaultViewer · SME app')
+    const ali = await row('Ali Bin Ahmad')
+    expect(ali.textContent).toContain('Member')
+    expect(ali.textContent).not.toMatch(/Reviewer|Default|SME app|All projects/)
     const headers = within(screen.getByRole('region', { name: 'User list' })).getAllByRole('columnheader').map((h) => h.textContent)
-    expect(headers).toEqual(['Full Name', 'Email', 'Access', 'Status', 'Created At'])
+    expect(headers).toEqual(['Full Name', 'Email', 'Merchant role', 'Status', 'Created At'])
     cleanup()
     renderAt(atoz('users', '&status=PENDING'))
     expect(await screen.findByRole('rowheader', { name: 'Chong Pei Shan' })).toBeTruthy()
@@ -64,7 +66,8 @@ describe('Users (DEC-74, DEC-104)', () => {
     cleanup()
     renderAt(atoz('users', '&q=Aishah'))
     const r = await row('Aishah Binti Omar')
-    expect(r.textContent).toContain('Auditor · All projects')
+    expect(r.textContent).toContain('Auditor')
+    expect(r.textContent).not.toContain('All projects')
     expect(r.textContent).toContain('Pending')
   })
 

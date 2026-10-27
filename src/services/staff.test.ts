@@ -77,7 +77,7 @@ describe('platform staff: merchant users, roles, projects and members, as their 
   it('Given Platform Admin, then Vantage’s users: invite with a merchant role, change a role; Support may not', async () => {
     expect((await users.list(RIZAL, fx('MER-0002'))).map((r) => r.fullName)).toEqual(expect.arrayContaining(['Kavitha A/P Subramaniam']))
     const row = await users.invite(fx('MER-0002'), { fullName: 'Vantage Billing', email: 'billing@vantage.example', roleId: SYSTEM_ROLE_IDS.BILLING }, RIZAL)
-    expect(row.access.map((c) => c.label)).toEqual(['Billing · All projects'])
+    expect(row.merchantRoleName).toBe('Billing')
     expect((await users.setRole(KAVITHA, SYSTEM_ROLE_IDS.MEMBER, RIZAL)).merchantRole?.roleName).toBe('Member')
     expect(await lastAudit('USER_ACCESS_CHANGED')).toMatchObject({ actorRole: 'Platform Admin', merchantId: fx('MER-0002') })
     await expect(users.list(DANIEL)).rejects.toMatchObject({ code: 'FORBIDDEN' })

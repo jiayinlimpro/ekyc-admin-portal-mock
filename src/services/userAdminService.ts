@@ -12,7 +12,7 @@
 import { canInMerchant, canInProject, hasProject, isInternal } from '@/domain/access'
 import { makeAudit } from '@/domain/audit'
 import { CLEARED_CLAIM, isClaimActive } from '@/domain/claimRules'
-import { allArchived, canGrant, chipLabel, covers, DEFAULT_MERCHANT_ROLE_ID, effectivePermissions, isStaffEmail, GRANT_TOO_POWERFUL, grantsOf, lastOwnerError, SYSTEM_ROLE_IDS, validateAssignment, type AccessChip } from '@/domain/roles'
+import { canGrant, chipLabel, covers, DEFAULT_MERCHANT_ROLE_ID, effectivePermissions, isStaffEmail, GRANT_TOO_POWERFUL, grantsOf, lastOwnerError, SYSTEM_ROLE_IDS, validateAssignment } from '@/domain/roles'
 import { MERCHANT_PERMISSIONS, type Actor, type AssignmentScope, type AuditAction, type Permission, type Project, type Role, type RoleAssignment, type RuleError, type UserAccount, type UserStatus } from '@/domain/types'
 import { now } from '@/lib/clock'
 import { db } from '@/mocks/mockDb'
@@ -39,7 +39,8 @@ export interface UserRow {
   email: string
   merchantId: string
   merchantName: string
-  access: AccessChip[] // "Owner · All projects", "Reviewer · Default" (DEC-74)
+  /** REQ: DEC-74 (2026-10-27) — the merchant role's name only ("Member" by default); project roles are in the details. */
+  merchantRoleName: string
   status: UserStatus
   createdAt: string
 }
@@ -100,7 +101,6 @@ export interface UserAdminService {
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 const projectOf = (id: string) => db.state().projects.find((p) => p.projectId === id)
-const isArchived = (id: string) => projectOf(id)?.status === 'ARCHIVED'
 // REQ: DEC-74 — an archived project is labelled wherever access is shown.
 const projectName = (id: string) => {
   const p = projectOf(id)
@@ -228,17 +228,6 @@ export function releaseLostClaims(actor: Actor, userIds: readonly string[], reas
   }
 }
 
-/** REQ: DEC-74 / DEC-104 — the merchant role first, then one chip per project role; grey when the project is archived. */
-function chipsOf(assignments: readonly RoleAssignment[]): AccessChip[] {
-  return [...assignments]
-    .sort((x, y) => Number(y.scope.kind === 'ALL_PROJECTS') - Number(x.scope.kind === 'ALL_PROJECTS'))
-    .flatMap((x) => {
-      const role = roleOf(x.roleId)
-      if (!role || role.status !== 'ACTIVE') return []
-      return [{ label: label(x), archived: allArchived(x.scope, isArchived) }]
-    })
-}
-
 function rowOf(a: UserAccount & { merchantId: string }): UserRow {
   return {
     userId: a.userId,
@@ -246,7 +235,7 @@ function rowOf(a: UserAccount & { merchantId: string }): UserRow {
     email: a.email,
     merchantId: a.merchantId,
     merchantName: merchantName(a.merchantId),
-    access: chipsOf(a.assignments),
+    merchantRoleName: roleNameOf(merchantRoleOfUser(a)?.roleId ?? DEFAULT_MERCHANT_ROLE_ID),
     status: a.status,
     createdAt: a.invitedAt,
   }

@@ -424,6 +424,10 @@ Rules changed on 2026-10-20 (Projects & Flows restructure) are marked **(changed
   merchant (Platform Admin only) and the first assignment; the user starts **Pending** and gets an invitation (Resend while
   Pending). Statuses `Pending`, `Active`, `Suspended`; users are never deleted (Suspend). **User detail**: an Access table
   (Role | Scope | Added by | Date) with Add / Edit / Remove. Rules [PO 2026-10-20]:
+  - **(changed 2026-10-27)** The list's Access column is now **Merchant role**: the role name only (e.g. "Auditor",
+    "Member"), no scope (a merchant role always covers every project) and no project roles (a merchant can have many
+    projects). Project roles show in the user's details (Project access) and on each project's Members tab. On Platform
+    staff the column is **Platform role**. [PO 2026-10-27]
   - Only users with the Users permissions (DEC-102: View, Invite, Change access, Suspend) or a super admin manage users; on a project's Members tab, users with Manage
     project members add or remove assignments **for that project**.
   - Nobody grants permissions they don't have themselves (for All projects: held in every project). Platform Admin is

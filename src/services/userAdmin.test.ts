@@ -32,9 +32,9 @@ describe('userAdminService: the Users screen (DEC-74, DEC-104)', () => {
     const rows = await users.list(OWNER)
     expect(rows.every((r) => r.merchantId === fx('MER-0001'))).toBe(true)
     expect(rows.map((r) => r.createdAt)).toEqual([...rows.map((r) => r.createdAt)].sort().reverse())
-    expect(rows.find((r) => r.userId === ALI.userId)!.access.map((c) => c.label)).toEqual(['Member', 'Reviewer · Default', 'Viewer · SME app'])
-    expect(rows.find((r) => r.userId === OWNER.userId)!.access.map((c) => c.label)).toEqual(['Owner · All projects'])
-    expect(rows.find((r) => r.userId === JIAHUI.userId)!.access.map((c) => c.label)).toEqual(['Admin · All projects'])
+    expect(rows.find((r) => r.userId === ALI.userId)!.merchantRoleName).toBe('Member') // project roles are in the details
+    expect(rows.find((r) => r.userId === OWNER.userId)!.merchantRoleName).toBe('Owner')
+    expect(rows.find((r) => r.userId === JIAHUI.userId)!.merchantRoleName).toBe('Admin')
     expect(rows.some((r) => r.userId === ADMIN.userId)).toBe(false)
   })
 
@@ -46,7 +46,7 @@ describe('userAdminService: the Users screen (DEC-74, DEC-104)', () => {
 
   it('Given an invitation without a role, then the user is Pending as Member (no access until added to a project), audited', async () => {
     const row = await users.invite(fx('MER-0001'), { fullName: 'Aishah Binti Omar', email: 'Aishah@atoz.example' }, OWNER)
-    expect(row).toMatchObject({ status: 'PENDING', email: 'aishah@atoz.example', access: [{ label: 'Member', archived: false }] })
+    expect(row).toMatchObject({ status: 'PENDING', email: 'aishah@atoz.example', merchantRoleName: 'Member' })
     expect(await lastAudit('USER_INVITED')).toMatchObject({ actorRole: 'Owner', details: { access: 'Member' } })
     expect(mayInProject({ userId: row.userId }, 'viewCases', fx('PRJ-0001'))).toBe(false)
     await expect(users.invite(fx('MER-0001'), { fullName: 'Aishah Again', email: 'aishah@atoz.example' }, OWNER)).rejects.toMatchObject({ code: 'VALIDATION', message: 'A user with this email already exists' })
@@ -55,7 +55,7 @@ describe('userAdminService: the Users screen (DEC-74, DEC-104)', () => {
   it('Given New user, then merchant roles only: a project role is refused; Auditor applies in all projects (DEC-104)', async () => {
     await expect(users.invite(fx('MER-0001'), { fullName: 'Wide Reviewer', email: 'wide@atoz.example', roleId: REVIEWER }, OWNER)).rejects.toMatchObject({ message: PROJECT_ROLE_ON_USERS })
     const row = await users.invite(fx('MER-0001'), { fullName: 'New Auditor', email: 'auditor@atoz.example', roleId: AUDITOR }, OWNER)
-    expect(row.access.map((c) => c.label)).toEqual(['Auditor · All projects'])
+    expect(row.merchantRoleName).toBe('Auditor')
     for (const p of [fx('PRJ-0001'), fx('PRJ-0002')]) {
       expect(mayInProject({ userId: row.userId }, 'viewCases', p)).toBe(true)
       expect(mayInProject({ userId: row.userId }, 'viewCaseDetails', p)).toBe(false)
@@ -67,7 +67,9 @@ describe('userAdminService: the Users screen (DEC-74, DEC-104)', () => {
     expect(mayInProject(grace, 'viewCases', fx('PRJ-0001'))).toBe(true)
     expect(mayInProject(grace, 'viewCaseDetails', fx('PRJ-0001'))).toBe(false)
     expect(mayInProject(grace, 'viewCaseDetails', fx('PRJ-0002'))).toBe(true)
-    expect((await users.get(grace.userId, OWNER)).access.map((c) => c.label)).toEqual(['Auditor · All projects', 'Viewer · SME app'])
+    const detail = await users.get(grace.userId, OWNER)
+    expect(detail.merchantRoleName).toBe('Auditor')
+    expect(detail.projectRoles.map((r) => `${r.roleName} · ${r.projectName}`)).toEqual(['Viewer · SME app'])
   })
 
   it('Given the form’s drafted User ID, then the new user keeps it; a used one is never reused (DEC-97)', async () => {
@@ -135,7 +137,7 @@ describe('userAdminService: the Users screen (DEC-74, DEC-104)', () => {
     await users.setRole(SITI.userId, desk.roleId, OWNER)
     // Siti reviews in Default only (a project role), so she can't give the Auditor's case list for the whole merchant.
     await expect(users.invite(fx('MER-0001'), { fullName: 'New Auditor', email: 'r1@atoz.example', roleId: AUDITOR }, SITI)).rejects.toMatchObject({ code: 'FORBIDDEN', message: GRANT_TOO_POWERFUL })
-    expect((await users.invite(fx('MER-0001'), { fullName: 'New Member', email: 'm1@atoz.example' }, SITI)).access[0].label).toBe('Member')
+    expect((await users.invite(fx('MER-0001'), { fullName: 'New Member', email: 'm1@atoz.example' }, SITI)).merchantRoleName).toBe('Member')
     expect((await roleService.assignable(fx('MER-0001'), SITI)).map((r) => r.name)).toEqual(['Member', 'User desk'])
   })
 

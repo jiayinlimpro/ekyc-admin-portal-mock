@@ -359,7 +359,7 @@ export function UsersPage({ scope }: { scope: UsersScope }) {
   const [open, setOpen] = useState<{ userId: string; type: AccountKind } | undefined>(sp.get('user') ? { userId: sp.get('user')!, type: platform ? 'PLATFORM' : 'MERCHANT' } : undefined)
   // REQ: DEC-99 / DEC-109 — a merchant's users, or (super admins) the platform staff; never both on one list.
   const rows = useLoad(async (): Promise<ListRow[]> => {
-    if (platform) return (await staffService.list(actor)).map((r): ListRow => ({ ...r, merchantId: '', merchantName: '—', type: 'PLATFORM' }))
+    if (platform) return (await staffService.list(actor)).map(({ access, ...r }): ListRow => ({ ...r, merchantRoleName: access[0]?.label ?? '', merchantId: '', merchantName: '—', type: 'PLATFORM' }))
     return (await userAdminService.list(actor, merchantId)).map((r): ListRow => ({ ...r, type: 'MERCHANT' }))
   }, [actor.userId, platform, merchantId])
   const merchants = useLoad(() => merchantService.list(actor), [actor.userId])
@@ -378,7 +378,8 @@ export function UsersPage({ scope }: { scope: UsersScope }) {
   }
   const filtered = (rows.data ?? []).filter((r) => matches(r, applied))
   const shown = filtered.slice((page - 1) * pageSize, page * pageSize)
-  const headers = ['Full Name', 'Email', 'Access', 'Status', 'Created At']
+  // REQ: DEC-74 (2026-10-27) — the role only: a merchant role covers every project; project roles are in the details.
+  const headers = ['Full Name', 'Email', platform ? 'Platform role' : 'Merchant role', 'Status', 'Created At']
 
   if (rows.error && !rows.data) return <ErrorState message={rows.error} onRetry={rows.reload} />
   return (
@@ -444,17 +445,7 @@ export function UsersPage({ scope }: { scope: UsersScope }) {
                   </button>
                 </th>
                 <td className="px-3 py-2">{r.email}</td>
-                <td className="px-3 py-2">
-                  {r.access.length ? (
-                    <span className="flex flex-wrap gap-1">
-                      {r.access.map((c) => (
-                        <AccessChip key={c.label} label={c.label} archived={c.archived} />
-                      ))}
-                    </span>
-                  ) : (
-                    <span className="text-muted-foreground">No access</span>
-                  )}
-                </td>
+                <td className="px-3 py-2">{r.merchantRoleName || <span className="text-muted-foreground">No role</span>}</td>
                 <td className="px-3 py-2">
                   <UserStatusBadge status={r.status} />
                 </td>

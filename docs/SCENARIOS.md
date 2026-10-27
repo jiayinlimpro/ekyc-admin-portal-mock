@@ -25,8 +25,8 @@ Settings, dashboards) open after **Go to project** on a project card.
 
 | # | As | Do | Expected |
 |---|---|---|---|
-| A1 | Tan Mei Ling (`?as=meiling.tan@atoz.example`) | Users › New user | Merchant role list: Owner, Admin, Billing, Auditor, Member, User Coordinator (no project roles); Member by default with the help text; listed as Pending, Access "Member" |
-| A2 | Tan Mei Ling | New user, merchant role Auditor | Preview: the case list and audit log "in every project (including new ones)", merchant reports for the whole merchant; Access "Auditor · All projects" |
+| A1 | Tan Mei Ling (`?as=meiling.tan@atoz.example`) | Users › New user | Merchant role list: Owner, Admin, Billing, Auditor, Member, User Coordinator (no project roles); Member by default with the help text; listed as Pending, Merchant role "Member" |
+| A2 | Tan Mei Ling | New user, merchant role Auditor | Preview: the case list and audit log "in every project (including new ones)", merchant reports for the whole merchant; Merchant role "Auditor" (no scope) |
 | A3 | Tan Mei Ling | Project Settings › Members (Default): remove Ali's Reviewer | Ali's claim on S07 is released (audited); Default leaves his project switcher |
 | A4 | Lim Wei Jie (`?as=weijie.lim@ekyc-platform.example`) | Users › Tan Mei Ling: Change role, or Suspend | Both disabled: at least one active Owner is required |
 | A5 | Hafiz (`?as=hafiz.rahman@atoz.example`) | Project Settings › Members (SME app): add Siti as Reviewer | Project role list: Project Admin, Reviewer, Developer, Viewer, Release Tester (SME app's roles only); Tan Mei Ling and Lee Jia Hui listed inherited · read-only |
