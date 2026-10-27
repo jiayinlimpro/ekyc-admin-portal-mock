@@ -115,7 +115,7 @@ describe('seedDatabase', () => {
         expect(db.verifications.some((v) => v.status === status && v.lastUpdatedBy.kind === kind), `${status} × ${kind}`).toBe(true)
       }
     }
-    for (const r of ['CLEAR', 'FLAGGED']) expect(db.verifications.some((v) => v.riskResult === r), r).toBe(true)
+    for (const r of ['NORMAL', 'ELEVATED']) expect(db.verifications.some((v) => v.riskResult === r), r).toBe(true)
   })
 
   it('every record is charged (DEC-60)', () => {
@@ -226,11 +226,11 @@ describe('telemetry, duplicate user and risk categories (DEC-105)', () => {
     expect(db.verifications.filter((v) => !v.riskScores).every((v) => v.riskResult === undefined)).toBe(true)
   })
 
-  it('S02 is Flagged in every category; S23 (V5) by its own OSINT minimum; S24 (V5) Clear with EXIF 45 under its minimum 40', () => {
-    expect(byRef('KYC-260901-900002')).toMatchObject({ riskResult: 'FLAGGED', statusDetail: 'EXIF Score 32 < 50 · Noise Score 18 < 50 · Email Validity Score 20 < 50 · OSINT Score 10 < 50' })
-    expect(byRef('KYC-260901-900023')).toMatchObject({ riskResult: 'FLAGGED', status: 'PENDING_REVIEW', statusDetail: 'OSINT Score 22 < 30' })
-    expect(byRef('KYC-260901-900024')).toMatchObject({ riskResult: 'CLEAR', status: 'APPROVED' })
-    expect(evaluateRisk(byRef('KYC-260901-900024').riskScores!, { enabled: true, minimums: { EXIF: 50, NOISE: 50, EMAIL_VALIDITY: 50, OSINT: 50 } }).result).toBe('FLAGGED') // V4's fixed minimums would flag it
+  it('S02 is Elevated in every category; S23 (V5) by its own OSINT minimum; S24 (V5) Normal with EXIF 45 under its minimum 40', () => {
+    expect(byRef('KYC-260901-900002')).toMatchObject({ riskResult: 'ELEVATED', statusDetail: 'EXIF Score 32 < 50 · Noise Score 18 < 50 · Email Validity Score 20 < 50 · OSINT Score 10 < 50' })
+    expect(byRef('KYC-260901-900023')).toMatchObject({ riskResult: 'ELEVATED', status: 'PENDING_REVIEW', statusDetail: 'OSINT Score 22 < 30' })
+    expect(byRef('KYC-260901-900024')).toMatchObject({ riskResult: 'NORMAL', status: 'APPROVED' })
+    expect(evaluateRisk(byRef('KYC-260901-900024').riskScores!, { enabled: true, minimums: { EXIF: 50, NOISE: 50, EMAIL_VALIDITY: 50, OSINT: 50 } }).result).toBe('ELEVATED') // V4's fixed minimums would flag it
   })
 
   it('S05 shows why the user stopped at ID capture; S21 found an existing user but is in review only for its face match', () => {
@@ -297,7 +297,7 @@ describe('named scenarios (docs/SCENARIOS.md)', () => {
   it('S01 (V1) has no risk result; S02 (V4) does', () => {
     const risk = (ref: string) => db.verifications.find((v) => v.referenceNo === ref)!.riskResult
     expect(risk('KYC-260901-900001')).toBeUndefined()
-    expect(risk('KYC-260901-900002')).toBe('FLAGGED')
+    expect(risk('KYC-260901-900002')).toBe('ELEVATED')
   })
 })
 

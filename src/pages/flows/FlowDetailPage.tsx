@@ -185,7 +185,7 @@ function Editor({ detail, onSaved }: { detail: FlowDetail; onSaved: () => void }
       {hasRisk(entry) && s.risk && (
         <Card title="Risk Assessment" aside={<OpenQuestionTag id="OQ-34" />}>
           <p className="mb-3 text-sm text-muted-foreground">
-            {entry.riskMinimumsPerFlow ? 'One minimum per category.' : `Fixed by the platform for ${entry.code}.`} A category below its minimum makes the risk result Flagged: a case that
+            {entry.riskMinimumsPerFlow ? 'One minimum per category.' : `Fixed by the platform for ${entry.code}.`} A category below its minimum makes the risk result Elevated: a case that
             passed every check goes to Pending Review. Risk never rejects.
           </p>
           <fieldset disabled={!editable || !canChangeLevel || !entry.riskMinimumsPerFlow} className="grid max-w-3xl gap-3 sm:grid-cols-4">

@@ -41,7 +41,7 @@ export interface VerificationQuery {
   claim?: 'UNCLAIMED' | 'MINE' | 'OTHERS' // active claims only
   createdFrom?: string // ISO, inclusive
   createdTo?: string // ISO, inclusive
-  riskResults?: RiskResult[] // REQ: DEC-107 — Clear / Flagged
+  riskResults?: RiskResult[] // REQ: DEC-107 — Normal / Elevated
   lastUpdatedBy?: 'SYSTEM' | 'MANUAL'
   /** A column sort (DEC-100). Omitted = the default: Last updated, oldest first (the case waiting longest, DEC-43). */
   sort?: VerificationSort
@@ -49,7 +49,7 @@ export interface VerificationQuery {
   pageSize?: number
 }
 
-// REQ: DEC-100 / DEC-107 — status in lifecycle order, risk Clear → Flagged; a case without a risk result is last either way.
+// REQ: DEC-100 / DEC-107 — status in lifecycle order, risk Normal → Elevated; a case without a risk result is last either way.
 const STATUS_ORDER = (s: VerificationStatus) => VERIFICATION_STATUSES.indexOf(s)
 const RISK_ORDER = (r?: RiskResult) => (r ? RISK_RESULTS.indexOf(r) : undefined)
 

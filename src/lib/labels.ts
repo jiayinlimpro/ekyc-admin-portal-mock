@@ -113,8 +113,8 @@ export const DOCUMENT_TYPE_LABELS: Record<DocumentType, string> = {
 
 // REQ: DEC-107 — never "Pass / Fail": that would read like the case status.
 export const RISK_RESULT_LABELS: Record<RiskResult, string> = {
-  CLEAR: 'Clear',
-  FLAGGED: 'Flagged',
+  NORMAL: 'Normal',
+  ELEVATED: 'Elevated',
 }
 
 export const OUTCOME_LABELS: Record<AttemptOutcome, string> = {

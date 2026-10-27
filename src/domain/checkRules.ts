@@ -63,11 +63,11 @@ export interface RiskEvaluation {
   below: { category: (typeof RISK_CATEGORIES)[number]; score: number; minimum: number }[]
 }
 
-// REQ: DEC-107 / MOCK-02 — Clear when every category is at or above its minimum; otherwise Flagged. Risk never rejects.
+// REQ: DEC-107 / MOCK-02 — Normal when every category is at or above its minimum; otherwise Elevated. Risk never rejects.
 export function evaluateRisk(scores: RiskScores, risk: RiskConfig | undefined): RiskEvaluation {
-  if (!risk?.enabled) return { result: 'CLEAR', below: [] }
+  if (!risk?.enabled) return { result: 'NORMAL', below: [] }
   const below = RISK_CATEGORIES.filter((c) => scores[c] < risk.minimums[c]).map((c) => ({ category: c, score: scores[c], minimum: risk.minimums[c] }))
-  return { result: below.length ? 'FLAGGED' : 'CLEAR', below }
+  return { result: below.length ? 'ELEVATED' : 'NORMAL', below }
 }
 
 /** "OSINT Score 22 < 30 · EXIF Score 40 < 50" */
@@ -99,9 +99,9 @@ export function evaluateCase(input: CaseInput, flow: FlowContext, combination: P
 
   if (flow.hasRisk) {
     if (!input.riskScores) return { status: 'PROCESSING', checks } // risk has not run yet
-    // REQ: DEC-107 — biometrics approve + Flagged → PENDING_REVIEW (a biometric reject or review is decided above).
+    // REQ: DEC-107 — biometrics approve + Elevated → PENDING_REVIEW (a biometric reject or review is decided above).
     const risk = evaluateRisk(input.riskScores, flow.settings.risk)
-    if (risk.result === 'FLAGGED') return { status: 'PENDING_REVIEW', reason: RISK_NOT_PASSED, detail: riskDetail(risk), checks }
+    if (risk.result === 'ELEVATED') return { status: 'PENDING_REVIEW', reason: RISK_NOT_PASSED, detail: riskDetail(risk), checks }
   }
   return { status: 'APPROVED', checks } // REQ: DEC-14 — lastUpdatedBy = SYSTEM
 }

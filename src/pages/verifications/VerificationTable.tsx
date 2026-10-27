@@ -86,7 +86,7 @@ const TwoLines = ({ top, sub }: { top: React.ReactNode; sub?: React.ReactNode })
 
 /**
  * REQ: DEC-40 — Project only when more than one project is in view (with the merchant when rows span merchants); Risk
- * (Clear / Flagged, DEC-107) only when a flow in view runs risk. No PII beyond Full Name, no client metadata, no duplicate-user information.
+ * (Normal / Elevated, DEC-107) only when a flow in view runs risk. No PII beyond Full Name, no client metadata, no duplicate-user information.
  */
 export function VerificationTable({
   rows,

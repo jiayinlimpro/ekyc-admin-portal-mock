@@ -4,8 +4,8 @@ import { cn } from '@/lib/utils'
 
 // REQ: DEC-107 — outlined, so it never reads as a status badge. Text + colour.
 const STYLES: Record<RiskResult, string> = {
-  CLEAR: 'text-green-700 border-green-300 dark:text-green-300 dark:border-green-500/40',
-  FLAGGED: 'text-amber-700 border-amber-300 dark:text-amber-300 dark:border-amber-500/40',
+  NORMAL: 'text-green-700 border-green-300 dark:text-green-300 dark:border-green-500/40',
+  ELEVATED: 'text-amber-700 border-amber-300 dark:text-amber-300 dark:border-amber-500/40',
 }
 
 /** Cases without a risk result (V1/V3, or risk not run yet): an em dash with an accessible "Not applicable". */

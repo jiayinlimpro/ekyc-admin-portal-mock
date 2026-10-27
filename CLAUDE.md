@@ -42,7 +42,7 @@ UAT scenarios: `docs/SCENARIOS.md`.
 - Only FACE_MATCH (shown as **Similarity**: face vs ID) and LIVENESS have thresholds: autoReject/autoPass, chosen as a Low/Standard/High preset, or Advanced
   (custom, super admin or staff with Calibrate). Never per individual metric. Every engine metric is shown on the case page with its fixed threshold (DEC-105).
   "Face match" = the engine's fixed face-detected confidence, never configurable. Risk for V4/V5 only (DEC-107): four
-  category scores 0–100 (EXIF / Noise / Email Validity / OSINT), Clear when each ≥ its minimum, else Flagged → review;
+  category scores 0–100 (EXIF / Noise / Email Validity / OSINT), Normal when each ≥ its minimum, else Elevated → review;
   minimums fixed for V4, per flow for V5; risk never rejects. No risk levels.
 - `>= autoPass` → pass; `< autoReject` → reject; between → review. Below autoPass with retries left → retry, case stays
   PROCESSING. Retries used up → the last attempt decides. V4/V5: APPROVED also requires risk pass, else PENDING_REVIEW.

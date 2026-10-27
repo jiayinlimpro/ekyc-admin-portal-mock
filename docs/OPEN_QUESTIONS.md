@@ -39,7 +39,7 @@ Each question is a **parameter**, not a fact. The mock uses the default below. I
 | OQ-08 | Can Platform Admin claim and decide? | Yes, changed 2026-10-21 (DEC-75); was No (DEC-70) |
 | OQ-20 | Can internal staff (Platform Admin) view merchant cases for support? (MS OQ-7) | Yes; every open is audited (DEC-75) |
 | OQ-05 | V4 risk by level or by scores? V5 per component? Can risk reject? | Four category scores with a minimum each; V4 fixed, V5 per flow; risk never rejects (DEC-107) |
-| OQ-06 | Risk score → level bands | No levels any more: Clear / Flagged (DEC-107) |
+| OQ-06 | Risk score → level bands | No levels any more: Normal / Elevated (DEC-107) |
 | OQ-10 | Decision reason code list | Changed 2026-10-23: per-project decision reasons, Reject one or more, Approve exactly one (DEC-106); was DEC-35 conditions, no approve code |
 | OQ-26 | Which reason rejects a case in review only for risk (DEC-13)? | "Risk not acceptable after review" (DEC-106) |
 | OQ-15 | Which 3 KPIs does the Overview show? | Total Submissions, Auto-Clear Rate, Active Review Queue ([FRS], DEC-85) |

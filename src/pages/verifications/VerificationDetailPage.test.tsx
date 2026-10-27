@@ -161,14 +161,14 @@ describe('Verification Detail', () => {
     expect(screen.getByText(/^New case allowed from .* MYT \(cooldown\)$/)).toBeTruthy()
   })
 
-  it('Given V4 S02, then Flagged with the four scores against the fixed minimums, and the banner lists the categories below (DEC-107)', async () => {
+  it('Given V4 S02, then Elevated with the four scores against the fixed minimums, and the banner lists the categories below (DEC-107)', async () => {
     await open(S(2))
     const risk = region('Risk Assessment')
-    expect(risk.getByText('Flagged')).toBeTruthy()
+    expect(within(risk.getByRole('heading', { name: 'Risk Assessment' }).parentElement!).getByText('Elevated')).toBeTruthy() // overall, in the section header
     const table = risk.getByRole('table', { name: 'Risk categories' })
     expect(column(table, 'Score')).toEqual(['32', '18', '20', '10'])
     expect(column(table, 'Minimum')).toEqual(['50', '50', '50', '50'])
-    expect(column(table, 'Result')).toEqual(['Below minimum', 'Below minimum', 'Below minimum', 'Below minimum'])
+    expect(column(table, 'Result')).toEqual(['Elevated', 'Elevated', 'Elevated', 'Elevated'])
     expect(risk.getByText(/Minimums fixed by the platform/)).toBeTruthy()
     expect(screen.queryByRole('region', { name: 'Risk signals' })).toBeNull() // no breakdown
     expect(screen.getByText('Risk Assessment not passed')).toBeTruthy()
@@ -176,11 +176,11 @@ describe('Verification Detail', () => {
     expect(region('Checks').queryByText('Selfie')).toBeNull() // V4 has no selfie phase
   })
 
-  it('Given V5 S23, then the flow’s own minimums apply: Flagged by OSINT 22 < 30 only (DEC-107)', async () => {
+  it('Given V5 S23, then the flow’s own minimums apply: Elevated by OSINT 22 < 30 only (DEC-107)', async () => {
     await open(S(23))
     const table = region('Risk Assessment').getByRole('table', { name: 'Risk categories' })
     expect(column(table, 'Minimum')).toEqual(['40', '60', '50', '30'])
-    expect(column(table, 'Result')).toEqual(['OK', 'OK', 'OK', 'Below minimum'])
+    expect(column(table, 'Result')).toEqual(['Normal', 'Normal', 'Normal', 'Elevated'])
     expect(region('Risk Assessment').getByText(/Minimums set by this flow/)).toBeTruthy()
     expect(screen.getByText('OSINT Score 22 < 30')).toBeTruthy()
   })

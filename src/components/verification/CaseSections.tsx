@@ -136,7 +136,7 @@ export function ChecksSection({ v }: { v: VerificationDetail }) {
   )
 }
 
-/** REQ: DEC-107 — V4/V5: Clear / Flagged, and each category's 0–100 score against its minimum (higher = more genuine). */
+/** REQ: DEC-107 — V4/V5: Normal / Elevated, and each category's 0–100 score against its minimum (higher = more genuine). */
 export function RiskSection({ v }: { v: VerificationDetail }) {
   if (!v.steps.runsRisk) return null
   const minimums = v.rulesApplied.risk?.minimums
@@ -160,10 +160,13 @@ export function RiskSection({ v }: { v: VerificationDetail }) {
                 const below = v.riskScores![c] < minimums[c]
                 return (
                   <tr key={c} className="border-b last:border-0">
-                    <th scope="row" className="py-1.5 pr-2 text-left font-normal whitespace-nowrap">{RISK_CATEGORY_LABELS[c]}</th>
+                    <th scope="row" className="py-1.5 pr-2 text-left font-normal">{RISK_CATEGORY_LABELS[c]}</th>
                     <td className="py-1.5 pr-2 text-right tabular-nums">{v.riskScores![c]}</td>
                     <td className="py-1.5 pr-2 text-right text-muted-foreground tabular-nums">{minimums[c]}</td>
-                    <td className="py-1.5">{below ? <span className="font-medium text-amber-700 dark:text-amber-300">Below minimum</span> : <span className={PASS_TONE}>OK</span>}</td>
+                    <td className="py-1.5">
+                      {/* REQ: DEC-107 — the same words as the list: Normal / Elevated. */}
+                      <RiskBadge result={below ? 'ELEVATED' : 'NORMAL'} />
+                    </td>
                   </tr>
                 )
               })}
