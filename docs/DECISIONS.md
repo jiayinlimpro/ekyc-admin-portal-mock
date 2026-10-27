@@ -697,8 +697,7 @@ These keep the mock runnable. They are not signed-off requirements; change them 
   (Draft) and a Merchant Owner user, each audited. Demo registration numbers and phone numbers are made up (Malaysian ones
   follow the SSM format but belong to no company); the mock has no sandbox / live API, so Onboarding is a label on the
   API keys.
-- **MOCK-10** **(changed)** Flow Detail's what-if preview re-runs the status rules over the flow's finished sessions. It is
-  read-only and never changes decided records.
+- **MOCK-10** **(removed 2026-10-27)** Flow Detail had a what-if preview; it was removed as not needed [PO 2026-10-27].
 - **MOCK-11** **(new)** Login, portal login security and webhook delivery are simulated; no real auth or HTTP calls.
 - **MOCK-12** **(new)** A new project (DEC-93) starts with one Draft flow, "Default flow", on the registry's default version
   (DEC-57) as its default flow. The project takes sessions once that flow is completed and activated. A new merchant

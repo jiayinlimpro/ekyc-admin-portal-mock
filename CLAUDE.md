@@ -70,7 +70,7 @@ UAT scenarios: `docs/SCENARIOS.md`.
 ```
 src/domain/     types, openQuestions, roles (permissions, assignments, grant rules), access (actions → permissions),
                 checkRules (status), claimRules, conditions (engine), decisionReasons (reviewer), telemetry,
-                thresholds, flowSettings, flowRules, flowImpact (what-if), registryRules, projectSettings, dashboards, audit
+                thresholds, flowSettings, flowRules, registryRules, projectSettings, dashboards, audit
 src/mocks/      malaysia.ts, builders.ts, seed.ts, mockDb.ts, fixtures/ (catalog: registry/projects/flows, merchants,
                 users: accounts, edgeCases: S01–S20)
 src/services/   verification, project, flow, registry, integration, userAdmin (Users, project Members), role, admin (Admins), merchantAdmin,
@@ -88,7 +88,7 @@ docs/           DECISIONS.md, OPEN_QUESTIONS.md, SCENARIOS.md
 ## Build status
 - **Projects & Flows restructure done** (DEC-85 screens): Overview, System Intelligence, Billing (every role, scoped),
   Verifications List + Detail, Projects, Project Settings (General, Integration, Review operations, Routing, Members),
-  Flows List, Flow Detail (presets, band bar, retries, Advanced thresholds, what-if, history), Users, Roles (both with
+  Flows List, Flow Detail (presets, band bar, retries, Advanced thresholds, history), Users, Roles (both with
   Type = Platform / Merchant), Audit Log; Platform: Merchants, Super admins, Workflow Registry. Header: project switcher + roles in the current project.
   Mock Login.
   No Home page: `/` opens Overview; UAT scenario links and data coverage are on the mock-only `/uat` page (Dev menu).

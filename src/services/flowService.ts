@@ -8,11 +8,7 @@
 //   POST /flows/{id}/activate          activate   → 200 Flow | 422 VALIDATION
 //   POST /flows/{id}/retire            retire     → 200 Flow | 422 VALIDATION
 //   POST /flows/{id}/default           setDefault → 200 Project | 422 VALIDATION
-//   POST /flows/{id}/preview           preview    → 200 ImpactSummary (what-if, read-only; MOCK-10)
 import { canInProject } from '@/domain/access'
-import { caseInputOf } from '@/domain/telemetry'
-import { flowImpact, type ImpactSummary } from '@/domain/flowImpact'
-import { hasRisk } from '@/domain/registryRules'
 import { activate, activateError, duplicateFlow, IN_FLIGHT_STATUSES, retire, retireError, setDefaultFlowError, settleRetiring } from '@/domain/flowRules'
 import { createFlow, saveFlow, validateFlow } from '@/domain/flowSettings'
 import { selectableForNewFlow } from '@/domain/registryRules'
@@ -58,7 +54,6 @@ export interface FlowService {
   retire(flowId: string, actor: Actor): Promise<Flow>
   setDefault(flowId: string, actor: Actor): Promise<Project>
   /** What the edited settings would have done to this flow's finished sessions of the last `days` days. */
-  preview(flowId: string, settings: Flow['settings'], actor: Actor, days?: number): Promise<ImpactSummary & { days: number }>
 }
 
 const by = (actor: Actor) => ({ userId: actor.userId, fullName: actor.fullName })
@@ -213,16 +208,6 @@ export const mockFlowService: FlowService = {
     return wire(projectById(project.projectId)!)
   },
 
-  // REQ: MOCK-10 — read-only: re-runs the status rules; never changes a record.
-  async preview(flowId, settings, actor, days = 30) {
-    await simulateNetwork('flow preview')
-    const { flow } = loadFlow(actor, flowId, 'viewFlows')
-    const entry = entryOf(flow.workflowVersion)!
-    const since = new Date(now().getTime() - days * 86_400_000).toISOString()
-    const finished = db.state().verifications.filter((v) => v.flowId === flowId && v.status !== 'PROCESSING' && v.createdAt >= since)
-    const ctx = { checks: entry.configurableChecks, faceMatchMethod: entry.faceMatchMethod, hasRisk: hasRisk(entry) }
-    return wire({ ...flowImpact(finished.map(caseInputOf), ctx, flow.settings, settings), days })
-  },
 }
 
 /** A Retiring flow becomes Inactive once its last in-flight case is decided (called after a decision; SYSTEM change). */

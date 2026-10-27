@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router'
-import { AlertTriangle, ArrowLeft, FlaskConical } from 'lucide-react'
+import { AlertTriangle, ArrowLeft } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAccess } from '@/app/access'
 import { FormField } from '@/components/common/FormField'
@@ -10,14 +10,13 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { canInProject } from '@/domain/access'
-import type { ImpactSummary } from '@/domain/flowImpact'
 import { revisionLabel } from '@/domain/flowRules'
 import { MIN_REASON_LENGTH } from '@/domain/flowSettings'
 import { hasRisk } from '@/domain/registryRules'
-import { RETRY_PHASE_LABELS, RETRY_PHASES, RISK_CATEGORIES, RISK_CATEGORY_LABELS, VERIFICATION_STATUSES, type DocumentType, type FlowSettings } from '@/domain/types'
+import { RETRY_PHASE_LABELS, RETRY_PHASES, RISK_CATEGORIES, RISK_CATEGORY_LABELS, type DocumentType, type FlowSettings } from '@/domain/types'
 import { errorMessage, useLoad } from '@/hooks/useLoad'
 import { formatMyt } from '@/lib/format'
-import { DOCUMENT_TYPE_LABELS, STATUS_LABELS } from '@/lib/labels'
+import { DOCUMENT_TYPE_LABELS } from '@/lib/labels'
 import { isServiceError } from '@/services/errors'
 import { flowService, type FlowDetail, type FlowEdit } from '@/services/flowService'
 import { useSession } from '@/stores/sessionStore'
@@ -46,37 +45,6 @@ const FIELD_LABELS: Record<string, string> = {
 const numberOrNaN = (s: string) => (s.trim() === '' ? Number.NaN : Number(s))
 const shown = (n: number) => (Number.isFinite(n) ? String(n) : '')
 
-function Preview({ result }: { result: ImpactSummary & { days: number } }) {
-  return (
-    <div className="space-y-2">
-      <p className="text-sm">
-        {result.total === 0 ? `No finished sessions in the last ${result.days} days.` : `${result.changed} of ${result.total} finished sessions in the last ${result.days} days would end differently.`}
-      </p>
-      {result.total > 0 && (
-        <table className="text-sm">
-          <caption className="sr-only">What-if results</caption>
-          <thead className="text-left text-xs text-muted-foreground">
-            <tr>
-              <th scope="col" className="pr-6 font-medium">Result</th>
-              <th scope="col" className="pr-6 text-right font-medium">Current settings</th>
-              <th scope="col" className="text-right font-medium">Edited settings</th>
-            </tr>
-          </thead>
-          <tbody>
-            {VERIFICATION_STATUSES.map((s) => (
-              <tr key={s}>
-                <th scope="row" className="pr-6 text-left font-normal">{s === 'PROCESSING' ? 'Would still be retrying' : STATUS_LABELS[s]}</th>
-                <td className="pr-6 text-right tabular-nums">{result.before[s]}</td>
-                <td className="text-right tabular-nums">{result.after[s]}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
-    </div>
-  )
-}
-
 function Editor({ detail, onSaved }: { detail: FlowDetail; onSaved: () => void }) {
   const actor = useSession((s) => s.actor)
   const { account, projects } = useAccess()
@@ -92,7 +60,6 @@ function Editor({ detail, onSaved }: { detail: FlowDetail; onSaved: () => void }
   const [reason, setReason] = useState('')
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [busy, setBusy] = useState(false)
-  const [preview, setPreview] = useState<ImpactSummary & { days: number }>()
   const set = (s: Partial<FlowSettings>) => setDraft({ ...draft, settings: { ...draft.settings, ...s } })
   const s = draft.settings
   const dirty = JSON.stringify(draft) !== JSON.stringify({ name: flow.name, description: flow.description, settings: flow.settings })
@@ -111,14 +78,6 @@ function Editor({ detail, onSaved }: { detail: FlowDetail; onSaved: () => void }
       toast.error(errorMessage(e))
     } finally {
       setBusy(false)
-    }
-  }
-
-  const runPreview = async () => {
-    try {
-      setPreview(await flowService.preview(flow.flowId, s, actor))
-    } catch (e) {
-      toast.error(errorMessage(e))
     }
   }
 
@@ -216,14 +175,6 @@ function Editor({ detail, onSaved }: { detail: FlowDetail; onSaved: () => void }
           <p className="text-sm">Email required at session creation ({entry.code}).</p>
         </Card>
       )}
-
-      <Card title="What-if" aside={<span className="flex items-center gap-1 text-xs text-muted-foreground"><FlaskConical className="size-3.5" aria-hidden /> read-only</span>}>
-        <p className="mb-3 text-sm text-muted-foreground">Re-runs the status rules on this flow’s finished sessions with the settings above. Nothing changes.</p>
-        <Button variant="outline" size="sm" onClick={() => void runPreview()}>
-          Preview impact
-        </Button>
-        {preview && <div className="mt-3"><Preview result={preview} /></div>}
-      </Card>
 
       <Card title="Developer info">
         <p className="text-sm">

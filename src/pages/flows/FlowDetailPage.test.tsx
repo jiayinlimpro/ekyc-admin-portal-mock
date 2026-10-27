@@ -110,13 +110,6 @@ describe('Flow Detail (DEC-18, DEC-19, DEC-50, DEC-51)', () => {
     expect(screen.queryByRole('region', { name: 'Save changes' })).toBeNull()
   })
 
-  it('Given Preview impact, then the what-if counts finished sessions under current and edited settings (MOCK-10)', async () => {
-    renderAt(`/flows/${fx('FLW-0001')}`)
-    fireEvent.click((await card('Liveness')).getByRole('radio', { name: /High/ }))
-    fireEvent.click(screen.getByRole('button', { name: 'Preview impact' }))
-    expect(await screen.findByText(/finished sessions in the last 30 days would end differently/)).toBeTruthy()
-  })
-
   it('Given V4, then Risk and the email requirement show; V3 has neither (DEC-50)', async () => {
     renderAt(`/flows/${fx('FLW-0001')}`)
     expect(await card('Risk Assessment')).toBeTruthy()
