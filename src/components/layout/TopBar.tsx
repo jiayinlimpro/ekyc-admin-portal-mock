@@ -28,7 +28,7 @@ import type { MyProject } from '@/services/projectService'
 import { useSession } from '@/stores/sessionStore'
 import { useUi } from '@/stores/uiStore'
 import { DevMenu } from './DevMenu'
-import { useTabs } from '@/stores/tabsStore'
+import { usePageTitle } from '@/stores/pageTitleStore'
 
 
 function IconButton({ label, onClick, children }: { label: string; onClick?: () => void; children: React.ReactNode }) {
@@ -148,7 +148,7 @@ function ProjectCrumbs() {
 function Breadcrumb() {
   const { pathname } = useLocation()
   const meta = routeMetaFor(pathname)
-  const tabTitle = useTabs((s) => s.tabs.find((t) => t.key === pathname)?.title) // e.g. the case's Reference ID
+  const pageTitle = usePageTitle((s) => s.titles[pathname]) // e.g. the case's Reference ID
   if (!meta) return null
   const inner = meta.item.layer === 'inner'
   // REQ: DEC-109 — outer: Merchants › … ; inner: Merchant ▾ / Project ▾ › group › the screens it is opened from › this screen.
@@ -156,7 +156,7 @@ function Breadcrumb() {
     ...(!inner && meta.item.path !== '/' && !meta.item.parent ? [{ label: 'Merchants', to: '/' }] : []),
     ...(meta.item.group && meta.item.group !== meta.title ? [{ label: meta.item.group }] : []),
     ...parentsOf(meta.item).map((i) => ({ label: i.label, to: i.path })),
-    { label: tabTitle ?? meta.title },
+    { label: pageTitle ?? meta.title },
   ]
   return (
     <nav aria-label="Breadcrumb" className="min-w-0">

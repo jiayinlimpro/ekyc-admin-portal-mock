@@ -1,4 +1,4 @@
-// Single source for the sidebar, breadcrumb, tab titles, permission guard and placeholder pages.
+// Single source for the sidebar, breadcrumb, page titles, permission guard and placeholder pages.
 // Menu grouping is a best guess at the old Axure menu (minus Manual Review Queue, DEC-80) — reorder freely.
 import { matchPath } from 'react-router'
 import {
@@ -241,7 +241,7 @@ export const NAV_ITEMS: NavItem[] = [
 
 export interface RouteMeta {
   item: NavItem
-  title: string // tab title: the Reference No on the detail page
+  title: string // page title (the case page shows its Reference ID in the breadcrumb, DEC-97)
 }
 
 /** The screens above an item, top first: Flow Detail → [Projects, Flows] (breadcrumb, menu highlight). */

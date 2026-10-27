@@ -3,11 +3,9 @@ import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testi
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { createMemoryRouter } from 'react-router'
 import { RouterProvider } from 'react-router/dom'
-import { LANDING_TAB } from '@/app/tabs'
 import { ADMIN, ALI, OWNER } from '@/test/factories'
 import { devService } from '@/services/devService'
 import { useSession } from '@/stores/sessionStore'
-import { useTabs } from '@/stores/tabsStore'
 import { useUi } from '@/stores/uiStore'
 import { routes } from './routes'
 import { caseIdOf, fx } from '@/lib/ids'
@@ -19,12 +17,10 @@ function renderAt(path: string) {
 }
 
 const mainNav = () => within(screen.getByRole('navigation', { name: 'Main' }))
-const tabs = () => within(screen.getByRole('navigation', { name: 'Open pages' }))
 
 beforeEach(async () => {
   await devService.resetDemoData()
   useSession.getState().switchUser(ALI)
-  useTabs.setState({ tabs: [LANDING_TAB] })
   useUi.setState({ closedGroups: [], sidebarCollapsed: false })
 })
 afterEach(cleanup)
@@ -122,14 +118,12 @@ describe('AppShell', () => {
     await waitFor(() => expect(router.state.location.pathname).toBe('/flows'))
   })
 
-  it('Given a Billing user goes to a project, then Billing (no Overview for this role, no Overview tab), and no cases or flows (DEC-104, DEC-109)', async () => {
+  it('Given a Billing user goes to a project, then Billing (no Overview for this role), and no cases or flows (DEC-104, DEC-109)', async () => {
     useSession.getState().switchUser({ userId: fx('USR-2026-0037'), fullName: 'Muthu A/L Rajan' })
     const router = renderAt('/')
     fireEvent.click(await screen.findByRole('button', { name: 'Go to project Default' }))
     await waitFor(() => expect(router.state.location.pathname).toBe('/billing'))
-    await screen.findByRole('navigation', { name: 'Open pages' })
-    expect(tabs().queryByRole('link', { name: 'Overview' })).toBeNull()
-    for (const hidden of ['Verifications', 'Flows', 'Users']) expect(mainNav().queryByRole('link', { name: hidden })).toBeNull()
+    for (const hidden of ['Overview', 'Verifications', 'Flows', 'Users']) expect(mainNav().queryByRole('link', { name: hidden })).toBeNull()
   })
 
   it('Given a Reviewer opens the Audit Log URL directly, then "No access" (DEC-72)', async () => {
@@ -187,15 +181,14 @@ describe('AppShell', () => {
     expect(screen.queryByRole('link', { name: 'UAT scenarios' })).toBeNull()
   })
 
-  it('Given a page visit, then a tab opens; the case tab is renamed to its Reference ID; closing the active tab goes left', async () => {
+  it('Given pages inside a project, then no tab strip; the case page’s breadcrumb ends with its Reference ID', async () => {
     inProject()
     const router = renderAt('/billing')
-    expect(await tabs().findByRole('link', { name: 'Billing' })).toBeTruthy()
+    await mainNav().findByRole('link', { name: 'Billing' })
+    expect(screen.queryByRole('navigation', { name: 'Open pages' })).toBeNull()
     await act(() => router.navigate(`/verifications/${caseIdOf('KYC-260901-900003')}`))
-    expect(await tabs().findByRole('link', { name: 'KYC-260901-900003' })).toBeTruthy()
-    fireEvent.click(tabs().getByRole('button', { name: 'Close KYC-260901-900003' }))
-    await waitFor(() => expect(router.state.location.pathname).toBe('/billing'))
-    expect(tabs().queryByRole('button', { name: 'Close Overview' })).toBeNull()
+    const crumbs = within(screen.getByRole('navigation', { name: 'Breadcrumb' }))
+    await waitFor(() => expect(crumbs.getAllByRole('listitem').at(-1)!.textContent).toBe('KYC-260901-900003'))
   })
 
   it('Given ?as=<email>, then the session switches to Siti and the parameter is removed', async () => {

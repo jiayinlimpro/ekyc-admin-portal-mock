@@ -111,7 +111,7 @@ docs/           DECISIONS.md, OPEN_QUESTIONS.md, SCENARIOS.md
 - Next work comes from answered OPEN QUESTIONS (update `docs/DECISIONS.md` first) and stakeholder feedback.
 
 ## UI conventions
-- Routes, menu, breadcrumb and tab titles all come from `src/app/nav.ts`. To ship a screen: create the page, register it
+- Routes, menu, breadcrumb and page titles all come from `src/app/nav.ts` (no tab strip). To ship a screen: create the page, register it
   in `PAGES` in `src/app/routes.tsx`, set `built: true` in `nav.ts`.
 - shadcn here is the **base-nova** style on Base UI (not Radix): use the `render` prop instead of `asChild`, e.g.
   `<DropdownMenuTrigger render={<Button />} />`; `DropdownMenuLabel` must sit inside `DropdownMenuGroup`.
@@ -129,7 +129,7 @@ docs/           DECISIONS.md, OPEN_QUESTIONS.md, SCENARIOS.md
   `STATUS_STACK` order (validated for colour-blindness), every chart has a table view.
 - Screens are lazy-loaded (`src/app/routes.tsx`); tests must `await screen.findBy…` the first element.
 - Status/role labels: `src/lib/labels.ts`. Dates: `formatMyt()` in `src/lib/format.ts`. Toasts: `sonner` (bottom-right).
-- Session and tabs live in sessionStorage (per browser tab); demo data, dev flags and UI prefs in localStorage.
+- The session lives in sessionStorage (per browser tab); demo data, dev flags and UI prefs in localStorage.
 - UAT deep links: `?as=siti.yusof@atoz.example` signs in as that user (email; the internal user ID works too).
 
 ## Working style

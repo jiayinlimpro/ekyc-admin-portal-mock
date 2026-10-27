@@ -27,7 +27,7 @@ import { verificationService } from '@/services/verificationService'
 import { useDevFlags } from '@/stores/devFlagsStore'
 import { useSession } from '@/stores/sessionStore'
 import { CopyId } from '@/components/common/CopyId'
-import { useTabs } from '@/stores/tabsStore'
+import { usePageTitle } from '@/stores/pageTitleStore'
 
 type Loaded = { key: string; detail?: VerificationDetail; error?: { message: string; notFound: boolean } }
 
@@ -133,13 +133,13 @@ export function VerificationDetailPage() {
     if (projectId && me.ready && me.selected?.projectId !== projectId && me.projects.some((p) => p.projectId === projectId)) selectProject(projectId)
   }, [projectId, me.ready, me.selected?.projectId, me.projects, selectProject])
 
-  // REQ: DEC-97 — the URL holds the case ID; the tab and breadcrumb read the merchant's Reference ID.
-  const { pathname, search } = useLocation()
-  const openTab = useTabs((s) => s.open)
+  // REQ: DEC-97 — the URL holds the case ID; the breadcrumb reads the merchant's Reference ID.
+  const { pathname } = useLocation()
+  const setTitle = usePageTitle((s) => s.setTitle)
   const referenceNo = detail?.referenceNo
   useEffect(() => {
-    if (referenceNo) openTab({ key: pathname, to: pathname + search, title: referenceNo })
-  }, [referenceNo, pathname, search, openTab])
+    if (referenceNo) setTitle(pathname, referenceNo)
+  }, [referenceNo, pathname, setTitle])
   useEffect(() => {
     if (!projectId) return
     let live = true

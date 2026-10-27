@@ -35,12 +35,13 @@ describe('screens for platform staff (DEC-99, DEC-104)', () => {
     for (const hidden of ['Overview', 'Billing', 'Merchants', 'Super admins', 'Platform staff', 'Workflow Registry']) expect(mainNav().queryByRole('link', { name: hidden })).toBeNull()
   })
 
-  it('Given Support opens the portal, then the Merchants page; Go to project lands on Verifications (no Overview for this role) and there is no Overview tab (DEC-109)', async () => {
+  it('Given Support opens the portal, then the Merchants page; Go to project lands on Verifications (no Overview for this role) (DEC-109)', async () => {
     const router = renderAt('/')
     fireEvent.click(await screen.findByRole('button', { name: 'Go to project SME app' }))
     await waitFor(() => expect(router.state.location.pathname).toBe('/verifications'))
     expect(useSession.getState().projectId).toBe(fx('PRJ-0002'))
-    expect(within(await screen.findByRole('navigation', { name: 'Open pages' })).queryByRole('link', { name: 'Overview' })).toBeNull()
+    await screen.findByRole('navigation', { name: 'Main' })
+    expect(within(screen.getByRole('navigation', { name: 'Main' })).queryByRole('link', { name: 'Overview' })).toBeNull()
   })
 
   it('Given Support opens a case, then the full page, no masking; the view is logged', async () => {

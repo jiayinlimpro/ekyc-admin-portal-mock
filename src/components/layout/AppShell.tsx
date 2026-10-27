@@ -1,18 +1,15 @@
 import { useEffect } from 'react'
-import { Outlet, useLocation, useSearchParams } from 'react-router'
+import { Outlet, useSearchParams } from 'react-router'
 import { toast } from 'sonner'
 import { AccessProvider } from '@/app/access'
-import { routeMetaFor } from '@/app/nav'
 import { Toaster } from '@/components/ui/sonner'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { formatOffset } from '@/lib/format'
 import { devService } from '@/services/devService'
 import { useDevFlags } from '@/stores/devFlagsStore'
 import { useSession } from '@/stores/sessionStore'
-import { useTabs } from '@/stores/tabsStore'
 import { useUi } from '@/stores/uiStore'
 import { Sidebar } from './Sidebar'
-import { TabStrip } from './TabStrip'
 import { TopBar } from './TopBar'
 
 function MockBanner() {
@@ -23,19 +20,6 @@ function MockBanner() {
       {offset !== 0 && <span className="ml-2 rounded bg-amber-200 px-1.5 dark:bg-amber-500/25">Time warp {formatOffset(offset)}</span>}
     </div>
   )
-}
-
-/** Open (or update) a tab for every page visited. */
-function useTabTracking() {
-  const { pathname, search } = useLocation()
-  const open = useTabs((s) => s.open)
-  useEffect(() => {
-    const meta = routeMetaFor(pathname)
-    if (meta?.item.layer !== 'inner') return
-    // A page may have renamed its tab (the case page shows the Reference ID, DEC-97): keep that name.
-    const named = useTabs.getState().tabs.find((t) => t.key === pathname)?.title
-    if (meta) open({ key: pathname, to: pathname + search, title: named ?? meta.title })
-  }, [pathname, search, open])
 }
 
 /** UAT deep links: ?as=siti.yusof@atoz.example signs in as that user (the internal user ID works too), then the parameter is removed. */
@@ -94,12 +78,8 @@ export function AppShell() {
   useEffect(() => {
     document.documentElement.classList.toggle('dark', theme === 'dark')
   }, [theme])
-  useTabTracking()
   useAsParam()
   useProjectParam()
-  // REQ: DEC-109 — tabs are for the screens inside a project; the Merchants page and platform modules have none.
-  const { pathname } = useLocation()
-  const inner = routeMetaFor(pathname)?.item.layer === 'inner'
 
   return (
     <AccessProvider>
@@ -109,7 +89,6 @@ export function AppShell() {
           <div className="flex min-w-0 flex-1 flex-col">
             <MockBanner />
             <TopBar />
-            {inner && <TabStrip />}
             <main className="flex-1 overflow-auto p-6">
               <Outlet />
             </main>
