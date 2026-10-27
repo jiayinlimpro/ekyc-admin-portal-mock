@@ -136,11 +136,11 @@ describe('Project Settings (DEC-54, DEC-96)', () => {
   })
 })
 
-describe('Project Settings › Members (DEC-77)', () => {
+describe('Members, in the project sidebar (DEC-77, DEC-109)', () => {
   it('Given Hafiz (Project Admin of SME app), then inherited All projects users are marked and he adds Siti as Reviewer', async () => {
     useSession.getState().switchUser(HAFIZ)
-    renderAt('/project-settings?tab=members')
-    const p = await panel()
+    renderAt('/members')
+    const p = within(await screen.findByRole('region', { name: 'Members' }))
     const owner = (await p.findByRole('rowheader', { name: 'Tan Mei Ling' })).closest('tr')!
     expect(owner.textContent).toContain('Owner · All projectsinherited')
     expect(within(owner).queryByRole('button')).toBeNull()

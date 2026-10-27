@@ -298,9 +298,9 @@ function UserDialog({ userId, onClose, onChanged }: { userId: string; onClose: (
                     ))}
                   </tbody>
                 </table>
-                {!u.projectRoles.length && <p className="px-3 py-4 text-sm text-muted-foreground">No project roles. Add the user in a project’s Members tab.</p>}
+                {!u.projectRoles.length && <p className="px-3 py-4 text-sm text-muted-foreground">No project roles. Add the user in a project’s Members.</p>}
               </div>
-              <p className="mt-1 text-xs text-muted-foreground">Managed in Project Settings › Members of each project.</p>
+              <p className="mt-1 text-xs text-muted-foreground">Managed in each project’s Members.</p>
             </section>
             <EffectiveAccess key={u.userId} user={u} />
           </div>

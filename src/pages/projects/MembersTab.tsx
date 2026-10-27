@@ -1,4 +1,4 @@
-// REQ: DEC-77 — Project Settings › Members: everyone with access to the project, All projects users marked inherited.
+// REQ: DEC-77 — a project's Members (sidebar › User Management): everyone with access to the project, All projects users marked inherited.
 import { useState, type FormEvent } from 'react'
 import { Link } from 'react-router'
 import { Plus, X } from 'lucide-react'

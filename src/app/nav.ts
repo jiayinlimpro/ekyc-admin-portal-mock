@@ -25,15 +25,16 @@ import type { AccessRule } from './access'
 // REQ: DEC-109 — two layers, like Langfuse. Outer: the Merchants page (merchants and their projects), Merchant settings
 // and the platform modules. Inner: today's portal on ONE project (Go to project), its menu filtered by the user's role there.
 // REQ: DEC-99 — screens whose parts need different permissions open for any of them; each part checks its own.
-export const PROJECT_SETTINGS_ACTIONS = ['viewProjectSettings', 'viewIntegration', 'viewMembers', 'viewProjectRoles', 'viewRouting'] as const
+export const PROJECT_SETTINGS_ACTIONS = ['viewProjectSettings', 'viewIntegration', 'viewRouting'] as const
 
-export const NAV_GROUPS = ['Dashboards', 'eKYC', 'Governance', 'Platform'] as const
+export const NAV_GROUPS = ['Dashboards', 'eKYC', 'User Management', 'Governance', 'Platform'] as const
 export type NavGroup = (typeof NAV_GROUPS)[number]
 
 /** The icon on each group's header; a collapsed sidebar shows only these, with the group's screens in a flyout (DEC-103). */
 export const NAV_GROUP_ICONS: Record<NavGroup, LucideIcon> = {
   Dashboards: Gauge,
   eKYC: ScanFace,
+  'User Management': UsersRound,
   Governance: ScrollText,
   Platform: Settings,
 }
@@ -215,6 +216,32 @@ export const NAV_ITEMS: NavItem[] = [
     notes: ['Low / Standard / High presets with a 0–100 band bar; Advanced for Super admin only; retries per phase (DEC-19, DEC-108).'],
   },
   {
+    // REQ: DEC-77 / DEC-109 — in the project's sidebar, no longer a Project Settings tab.
+    path: '/members',
+    label: 'Members',
+    icon: UserCog,
+    layer: 'inner',
+    group: 'User Management',
+    inMenu: true,
+    access: { project: 'viewMembers' },
+    priority: 'P1',
+    built: true,
+    notes: ['Everyone with access to this project; project roles are given here (merchant-role users listed as inherited).'],
+  },
+  {
+    // REQ: DEC-104 / DEC-109 — this project's role table, in the project's sidebar.
+    path: '/project-roles',
+    label: 'Roles',
+    icon: UsersRound,
+    layer: 'inner',
+    group: 'User Management',
+    inMenu: true,
+    access: { project: 'viewProjectRoles' },
+    priority: 'P1',
+    built: true,
+    notes: ['System Default project roles and this project’s Custom roles; New role, Duplicate from another project.'],
+  },
+  {
     path: '/audit',
     label: 'Audit Logs',
     icon: ClipboardList,
@@ -235,7 +262,7 @@ export const NAV_ITEMS: NavItem[] = [
     access: { project: PROJECT_SETTINGS_ACTIONS },
     priority: 'P1',
     built: true,
-    notes: ['Tabs: General (name, rename, archive) · Integration · Review operations · Routing (read-only) · Members · Roles (DEC-54, DEC-104).'],
+    notes: ['Tabs: General (name, rename, archive) · Integration · Review operations · Routing (read-only) (DEC-54). Members and Roles are in the sidebar (DEC-109).'],
   },
 ]
 

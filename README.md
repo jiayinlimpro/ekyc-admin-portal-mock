@@ -66,7 +66,7 @@ If `npm` scripts are blocked in PowerShell: `Set-ExecutionPolicy -Scope CurrentU
 | Rajesh A/L Muthu (rajesh.muthu@emptydemo.example) | Owner (merchant still Onboarding) | Empty Demo Merchant |
 
 Access (DEC-104): two role tables. **Merchant roles** (Roles screen) are given on Users, one per user, and apply to the
-whole merchant and all its projects. **Project roles** (each project's Settings › Roles) are given in Project › Members
+whole merchant and all its projects. **Project roles** (each project's Roles screen) are given in Project › Members
 and apply in that project only. **Member** (the default merchant role) gives nothing by itself. Platform staff have one platform role, for every merchant. No masking: View list, View details,
 Claim / release, Approve / reject; every case page open is audited.
 
@@ -99,12 +99,12 @@ carry `?project=<project ID>` to open a screen in that project; case links selec
 | Project Settings | Rename, archive (create on the Merchants page); branding, API keys (shown once), webhook, claim timeout, decision reasons (DEC-106), read-only routing |
 | Flows / Flow Detail | Low / Standard / High with a 0–100 band bar, Advanced thresholds (super admin, staff with Calibrate), retries 1–5 per phase in their own card (Document, Selfie on V1, Liveness; DEC-108), revisions; read-only for Flows View |
 | Merchant settings › Users / Roles | FRS lists (Users: merchant role only; project roles in the details); invite (Pending, resend); Access table with Add / Edit / Remove and a plain-language preview; Effective access with "Comes from"; suspend; permission matrix (module × View × actions, a module box ticks the row; DEC-102), System Default roles locked, Duplicate, "Affects N users in M projects" |
-| Project Settings › Members | Project roles for this project (add / remove; roles without merchant-wide permissions); merchant-role users listed as inherited (read-only) |
+| Project › Members (sidebar) | Project roles for this project (add / remove; roles without merchant-wide permissions); merchant-role users listed as inherited (read-only) |
 | Audit Log | DEC-42 events of the project, with actor role; the whole merchant's in Merchant settings › Audit log |
 | Merchant settings › General | Details for everyone with access; super admins and staff with Merchants permissions edit, per the FRS: registration number, country, contact; Onboarding → Active → Suspended → Terminated with reasons (suspension locks the merchant's users out and stops its API keys); never deleted; a new merchant gets a Default project and owner |
 | Super admins / Workflow Registry | Super admin accounts (super admins only); versions and flows using them (read-only with Registry View); statuses Draft, Internal testing (internal users only), Limited release (ticked merchants, Merchant access in Edit), Active, Deprecated (DEC-56) |
 | Platform staff | Staff (one platform role, every merchant) and Platform roles, created by super admins; merchant users get one merchant role (Member by default) in Merchant settings |
-| Project Settings › Roles | The project's role table: System Default project roles and its own Custom roles; New role, Duplicate from another project |
+| Project › Roles (sidebar) | The project's role table: System Default project roles and its own Custom roles; New role, Duplicate from another project |
 
 Values tagged **OPEN QUESTION** are placeholders, not signed-off requirements.
 

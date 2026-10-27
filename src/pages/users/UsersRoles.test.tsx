@@ -266,10 +266,10 @@ describe('Roles: the merchant role table (DEC-76, DEC-104)', () => {
   })
 })
 
-describe('Project Settings › Roles: a project’s role table (DEC-104)', () => {
+describe('Roles, in the project sidebar: a project’s role table (DEC-104, DEC-109)', () => {
   it('Given SME app, then the System Default project roles and its own Custom role; New role shows project modules only', async () => {
     useSession.getState().selectProject(fx('PRJ-0002'))
-    renderAt('/project-settings?tab=roles')
+    renderAt('/project-roles')
     const list = await screen.findByRole('region', { name: 'Project roles' })
     await within(list).findByRole('rowheader', { name: 'Reviewer' })
     expect(within(list).getAllByRole('rowheader').map((h) => h.textContent)).toEqual(['Project Admin', 'Reviewer', 'Developer', 'Viewer', 'Release Tester'])
@@ -286,7 +286,7 @@ describe('Project Settings › Roles: a project’s role table (DEC-104)', () =>
 
   it('Given Duplicate from another project, then Default’s Fraud Checker is copied into SME app', async () => {
     useSession.getState().selectProject(fx('PRJ-0002'))
-    renderAt('/project-settings?tab=roles')
+    renderAt('/project-roles')
     await screen.findByRole('rowheader', { name: 'Release Tester' })
     fireEvent.click(screen.getByRole('button', { name: /Duplicate from another project/ }))
     const dialog = within(await screen.findByRole('dialog', { name: 'Duplicate from another project' }))
@@ -300,13 +300,14 @@ describe('Project Settings › Roles: a project’s role table (DEC-104)', () =>
     expect((await row('Copy of Fraud Checker')).textContent).toContain('Custom')
   })
 
-  it('Given Hafiz (Project Admin of SME app), then he manages SME app’s roles; a Reviewer has no Roles tab content', async () => {
+  it('Given Hafiz (Project Admin of SME app), then he manages SME app’s roles; a Reviewer gets "No access" and no Roles in the menu', async () => {
     useSession.getState().switchUser(HAFIZ)
-    renderAt('/project-settings?tab=roles')
+    renderAt('/project-roles')
     expect(await screen.findByRole('button', { name: /New role/ })).toBeTruthy()
     cleanup()
     useSession.getState().switchUser(SITI)
-    renderAt('/project-settings?tab=roles')
-    expect(await screen.findByText(/Project roles need the View project roles permission/)).toBeTruthy()
+    renderAt('/project-roles')
+    await screen.findByRole('heading', { name: 'No access' })
+    expect(within(screen.getByRole('navigation', { name: 'Main' })).queryByRole('link', { name: 'Roles' })).toBeNull()
   })
 })

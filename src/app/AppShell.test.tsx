@@ -78,15 +78,16 @@ describe('AppShell', () => {
     for (const retired of [/eKYC Workflow/, /Developers/, 'Users and Access', /Merchant Workflow Directory/]) expect(mainNav().queryByRole('link', { name: retired })).toBeNull()
   })
 
-  it('Given a Super admin in a project, then Project Settings, then the groups in order with Flows in eKYC, and no platform modules (DEC-103, DEC-109)', async () => {
+  it('Given a Super admin in a project, then Project Settings, then the groups in order with Flows in eKYC and Members, Roles in User Management, and no platform modules (DEC-103, DEC-109)', async () => {
     useSession.getState().switchUser(ADMIN)
     inProject()
     renderAt('/dashboard')
     await mainNav().findByRole('link', { name: 'Verifications' })
-    expect(mainNav().getAllByRole('heading', { level: 2 }).map((h) => h.textContent)).toEqual(['Dashboards', 'eKYC', 'Governance'])
+    expect(mainNav().getAllByRole('heading', { level: 2 }).map((h) => h.textContent)).toEqual(['Dashboards', 'eKYC', 'User Management', 'Governance'])
     const group = (name: string) => within(screen.getByRole('region', { name })).getAllByRole('link').map((l) => l.textContent)
     expect(group('Dashboards')).toEqual(['Overview', 'System Intelligence', 'Billing'])
     expect(group('eKYC')).toEqual(['Verifications', 'Flows'])
+    expect(group('User Management')).toEqual(['Members', 'Roles'])
     expect(group('Governance')).toEqual(['Audit Logs'])
     expect(mainNav().getByRole('link', { name: 'Project Settings' })).toBeTruthy()
     for (const outer of ['Merchants', 'Super admins', 'Platform staff', 'Workflow Registry']) expect(mainNav().queryByRole('link', { name: outer })).toBeNull()

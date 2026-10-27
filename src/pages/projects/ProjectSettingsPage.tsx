@@ -21,8 +21,6 @@ import { flowService } from '@/services/flowService'
 import { projectService, type MyProject } from '@/services/projectService'
 import { useSession } from '@/stores/sessionStore'
 import { IntegrationTab } from './IntegrationTab'
-import { MembersTab } from './MembersTab'
-import { ProjectRolesTab } from './ProjectRolesTab'
 import { DecisionReasonsCard } from './DecisionReasonsCard'
 import { ProjectDialog, type ProjectEditing } from './ProjectDialog'
 import { Card } from './settingsUi'
@@ -33,9 +31,7 @@ const TABS = [
   { value: 'integration', label: 'Integration' },
   { value: 'review', label: 'Review operations' },
   { value: 'routing', label: 'Routing' },
-  { value: 'members', label: 'Members' },
-  { value: 'roles', label: 'Roles' }, // REQ: DEC-104 — this project's role table
-] as const
+] as const // REQ: DEC-109 — Members and Roles are in the project's sidebar
 type Tab = (typeof TABS)[number]['value']
 
 const ReadOnlyNote = ({ children }: { children: React.ReactNode }) => <p className="rounded-md bg-muted px-3 py-2 text-sm text-muted-foreground">{children}</p>
@@ -245,8 +241,6 @@ function Settings({ selected }: { selected: MyProject }) {
               <ReadOnlyNote>Review operations need the View project settings permission.</ReadOnlyNote>
             ))}
           {tab === 'routing' && (may('viewRouting') ? <RoutingTab project={p} /> : <ReadOnlyNote>Routing is shown to users who may view flows or project settings.</ReadOnlyNote>)}
-          {tab === 'members' && (may('viewMembers') ? <MembersTab project={p} /> : <ReadOnlyNote>Members need the View project members permission (DEC-77, DEC-102).</ReadOnlyNote>)}
-          {tab === 'roles' && (may('viewProjectRoles') ? <ProjectRolesTab key={p.projectId} project={p} /> : <ReadOnlyNote>Project roles need the View project roles permission (DEC-104).</ReadOnlyNote>)}
         </div>
       )}
     </div>
@@ -294,7 +288,7 @@ function ProjectCard({ project, canRename, canArchive, onSaved }: { project: Pro
   )
 }
 
-// REQ: DEC-54 / DEC-77 / DEC-109 — the project of the inner portal; tabs General, Integration, Review operations, Routing, Members, Roles.
+// REQ: DEC-54 / DEC-109 — the project of the inner portal; tabs General, Integration, Review operations, Routing.
 export function ProjectSettingsPage() {
   return <RequireProject action={PROJECT_SETTINGS_ACTIONS} title="Project Settings">{(p) => <Settings key={p.projectId} selected={p} />}</RequireProject>
 }

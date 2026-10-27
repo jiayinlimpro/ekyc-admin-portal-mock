@@ -438,7 +438,7 @@ export const PROJECT_PERMISSIONS = [
   'MANAGE_INTEGRATION', // API keys and webhook
   'VIEW_MEMBERS',
   'MANAGE_MEMBERS',
-  // REQ: DEC-104 — the project's own role table (Project Settings › Roles).
+  // REQ: DEC-104 — the project's own role table (its Roles screen).
   'VIEW_PROJECT_ROLES',
   'CREATE_PROJECT_ROLES', // and duplicate, also from another project
   'EDIT_PROJECT_ROLES',
@@ -513,7 +513,7 @@ export type RoleStatus = 'ACTIVE' | 'INACTIVE'
 export type RoleAudience = 'PLATFORM' | 'MERCHANT'
 /**
  * REQ: DEC-104 — which role table a merchant's role is in: a **merchant role** (Roles screen, given on Users, applies to
- * the whole merchant) or a **project role** (Project Settings › Roles, given in Project › Members, that project only).
+ * the whole merchant) or a **project role** (the project's Roles screen, given in Project › Members, that project only).
  */
 export type RoleLevel = 'MERCHANT' | 'PROJECT'
 

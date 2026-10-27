@@ -1,5 +1,5 @@
 // REQ: DEC-76 / DEC-102 / DEC-104 / DEC-109 — [FRS] Roles: one merchant's roles (Merchant settings › Roles; given on Users,
-// for the whole merchant), or the platform roles (Platform staff › Roles). Project roles are on each project's Settings › Roles.
+// for the whole merchant), or the platform roles (Platform staff › Roles). Project roles are on each project's Roles screen.
 import { useState } from 'react'
 import { Plus } from 'lucide-react'
 import { toast } from 'sonner'

@@ -668,10 +668,12 @@ Rules changed on 2026-10-20 (Projects & Flows restructure) are marked **(changed
       and platform roles) and **Workflow Registry**. These platform modules no longer exist inside a project.
   - **Inner layer** (today's portal): always **one project**. Opened by Go to project (or a link to a case, which selects
     that case's project). Header breadcrumb: `Merchant ▾ / Project ▾` switchers; the logo goes back to the Merchants page.
-    Menu: Overview, System Intelligence, Billing · Verifications, Flows · Audit Logs · Project Settings, every one showing
+    Menu: Overview, System Intelligence, Billing · Verifications, Flows · Members, Roles · Audit Logs · Project Settings, every one showing
     that project's data only. No "All my projects", no cross-project or cross-merchant views (DEC-86's merchant filter is
     gone), no Projects list (the Merchants page replaces it; rename and archive are in Project Settings › General).
   - Platform-wide billing totals are dropped: billing is per merchant (Merchant settings) and per project.
+  - **Members and Roles** of the project are sidebar entries (group User Management), no longer Project Settings tabs
+    [PO 2026-10-27]. Project Settings keeps General, Integration, Review operations and Routing.
   - **No tab strip** [PO 2026-10-27]: pages don't open as tabs; the sidebar and the breadcrumb are the navigation. The case
     page's breadcrumb still ends with its Reference ID (DEC-97).
 - **DEC-84** **(superseded by DEC-109)** No Home page. Everyone lands on Overview. UAT scenario links are on a mock-only page in

@@ -28,7 +28,7 @@ UAT scenarios: `docs/SCENARIOS.md`.
   (never on claim, release or view).
 - Merchant → Project → Flow → Case. Each setting lives at exactly one level (DEC-91). Access (DEC-104): roles are a
   permission matrix (module × View × actions). **Two role tables**: merchant roles (Roles screen; one per user, given
-  on Users; applies merchant-wide and in all projects) and project roles (Project Settings › Roles, per project; given
+  on Users; applies merchant-wide and in all projects) and project roles (the project's Roles screen, per project; given
   in Project › Members, that project only). Union, no deny. **Member** = no permissions (default). Every page checks access to the
   project; a case outside the user's projects is "not found".
 - Three account types (DEC-99, DEC-104): **Super admin** (everything; outside the role system; Platform › Super admins),
@@ -64,7 +64,7 @@ UAT scenarios: `docs/SCENARIOS.md`.
 - Two layers (DEC-109): everyone lands on the outer **Merchants** page (rows = merchants, cards = projects: Go to project,
   ⚙ Project Settings; row ⚙ Merchant settings = General, Users, Roles, Billing, Audit log). Outer platform modules: Super
   admins, Platform staff, Workflow Registry. The inner portal is always ONE project (`Merchant ▾ / Project ▾` in the
-  header): Overview, System Intelligence, Billing, Verifications, Flows, Audit Logs, Project Settings. No "All my
+  header): Overview, System Intelligence, Billing, Verifications, Flows, Members, Roles, Audit Logs, Project Settings. No "All my
   projects", no cross-project or cross-merchant views. No Manual Review Queue.
 - Open questions must be parameters (`src/domain/openQuestions.ts`, or on the project/flow) with an "OPEN QUESTION" label
   in the UI, never hard-coded values in components.
@@ -90,8 +90,8 @@ docs/           DECISIONS.md, OPEN_QUESTIONS.md, SCENARIOS.md
 
 ## Build status
 - **Projects & Flows restructure done** (DEC-85 screens): Overview, System Intelligence, Billing (every role, scoped),
-  Verifications List + Detail, Project Settings (General with rename / archive, Integration, Review operations, Routing,
-  Members, Roles), Flows List, Flow Detail (presets, band bar, retries, Advanced thresholds, history), Audit Log.
+  Verifications List + Detail, Project Settings (General with rename / archive, Integration, Review operations,
+  Routing), Members, Roles (project sidebar), Flows List, Flow Detail (presets, band bar, retries, Advanced thresholds, history), Audit Log.
   Outer layer (DEC-109): Merchants page, Merchant settings (General, Users, Roles, Billing, Audit log), Platform staff
   (staff + platform roles), Super admins, Workflow Registry. Inner header: `Merchant ▾ / Project ▾` + roles in the project.
   Mock Login.

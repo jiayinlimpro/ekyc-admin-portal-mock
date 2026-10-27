@@ -38,9 +38,9 @@ export const PROJECT_ACTIONS = [
   'manageBilling',
   'viewMerchantReports',
   // Project-level.
-  'viewMembers', // Members tab of a project (DEC-77)
+  'viewMembers', // a project's Members screen (DEC-77)
   'manageMembers',
-  // REQ: DEC-104 — the project's own role table (Project Settings › Roles).
+  // REQ: DEC-104 — the project's own role table (its Roles screen).
   'viewProjectRoles',
   'createProjectRoles',
   'editProjectRoles',

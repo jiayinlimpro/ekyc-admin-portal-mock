@@ -1,5 +1,5 @@
 // REQ: DEC-76 / DEC-102 / DEC-104 — the role table and role dialog shared by the two role tables: merchant roles (Roles
-// screen) and project roles (Project Settings › Roles of one project). System Default roles are locked; Duplicate copies.
+// screen) and project roles (one project's Roles screen). System Default roles are locked; Duplicate copies.
 import { useState, type FormEvent } from 'react'
 import { MoreVertical } from 'lucide-react'
 import { toast } from 'sonner'

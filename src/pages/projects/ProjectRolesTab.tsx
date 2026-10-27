@@ -1,4 +1,4 @@
-// REQ: DEC-104 — Project Settings › Roles: this project's role table. The System Default project roles (in every
+// REQ: DEC-104 — a project's Roles (sidebar › User Management): this project's role table. The System Default project roles (in every
 // project) and the project's own Custom roles; given in Members, they apply in this project only. Duplicate from
 // another project copies a role from there.
 import { useState, type FormEvent } from 'react'

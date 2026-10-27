@@ -26,6 +26,8 @@ const PAGES: Partial<Record<string, ComponentType>> = {
   '/verifications/:caseId': page(() => import('@/pages/verifications/VerificationDetailPage'), 'VerificationDetailPage'),
   '/flows': page(() => import('@/pages/flows/FlowsListPage'), 'FlowsListPage'),
   '/flows/:flowId': page(() => import('@/pages/flows/FlowDetailPage'), 'FlowDetailPage'),
+  '/members': page(() => import('@/pages/projects/ProjectAccessPages'), 'MembersPage'),
+  '/project-roles': page(() => import('@/pages/projects/ProjectAccessPages'), 'ProjectRolesPage'),
   '/audit': page(() => import('@/pages/audit/AuditLogsPage'), 'AuditLogsPage'),
   '/project-settings': page(() => import('@/pages/projects/ProjectSettingsPage'), 'ProjectSettingsPage'),
 }
