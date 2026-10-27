@@ -4,27 +4,24 @@ import { createJSONStorage, persist } from 'zustand/middleware'
 import type { Actor } from '@/domain/types'
 import { DEFAULT_USER } from '@/mocks/fixtures/users'
 
-/** "All my projects" in the project switcher (DEC-73). */
-export const ALL_PROJECTS = 'ALL'
-
 interface SessionStore {
   actor: Actor
-  /** REQ: DEC-73 — the header's project switcher: a projectId or ALL_PROJECTS. */
-  projectId: string
+  /** REQ: DEC-109 — the project the inner portal works on (Go to project, the header's switcher); none on the Merchants page. */
+  projectId?: string
   switchUser: (actor: Actor) => void
-  selectProject: (projectId: string) => void
+  selectProject: (projectId: string | undefined) => void
 }
 
 export const useSession = create<SessionStore>()(
   persist(
     (set) => ({
       actor: DEFAULT_USER,
-      projectId: ALL_PROJECTS,
-      switchUser: (actor) => set({ actor: { userId: actor.userId, fullName: actor.fullName }, projectId: ALL_PROJECTS }),
+      projectId: undefined,
+      switchUser: (actor) => set({ actor: { userId: actor.userId, fullName: actor.fullName }, projectId: undefined }),
       selectProject: (projectId) => set({ projectId }),
     }),
     // sessionStorage: each browser tab can be a different user, so two tabs can race for a claim (S10).
-    // Version 1: internal IDs (DEC-97); an older session's user ID no longer exists, so start again as the default user.
-    { name: 'ekyc-mock-session', storage: createJSONStorage(() => sessionStorage), version: 1, migrate: () => ({ actor: DEFAULT_USER, projectId: ALL_PROJECTS }) },
+    // Version 2: no "All my projects" any more (DEC-109); an older session starts again as the default user.
+    { name: 'ekyc-mock-session', storage: createJSONStorage(() => sessionStorage), version: 2, migrate: () => ({ actor: DEFAULT_USER, projectId: undefined }) },
   ),
 )

@@ -29,6 +29,7 @@ export interface FlowUsingVersion {
   flowId: string
   name: string
   status: Flow['status']
+  projectId: string // REQ: DEC-109 — the link opens the flow inside its project
   projectName: string
   merchantName: string
 }
@@ -103,7 +104,7 @@ export const mockRegistryService: RegistryService = {
         .filter((f) => f.workflowVersion === code)
         .map((f) => {
           const p = s.projects.find((x) => x.projectId === f.projectId)
-          return { flowId: f.flowId, name: f.name, status: f.status, projectName: p?.name ?? f.projectId, merchantName: s.merchants.find((m) => m.merchantId === f.merchantId)?.name ?? f.merchantId }
+          return { flowId: f.flowId, name: f.name, status: f.status, projectId: f.projectId, projectName: p?.name ?? f.projectId, merchantName: s.merchants.find((m) => m.merchantId === f.merchantId)?.name ?? f.merchantId }
         })
         .sort((a, b) => a.merchantName.localeCompare(b.merchantName) || a.projectName.localeCompare(b.projectName) || a.name.localeCompare(b.name)),
     )

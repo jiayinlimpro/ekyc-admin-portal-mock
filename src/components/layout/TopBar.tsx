@@ -4,6 +4,7 @@ import { Bell, ChevronDown, ChevronRight, FolderKanban, Languages, Maximize, Min
 import { toast } from 'sonner'
 import { useAccess } from '@/app/access'
 import { canInProject } from '@/domain/access'
+import { projectLandingPath } from '@/app/landing'
 import { parentsOf, routeMetaFor } from '@/app/nav'
 import { Button } from '@/components/ui/button'
 import {
@@ -18,12 +19,13 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
+import { cn } from '@/lib/utils'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import type { Merchant } from '@/domain/types'
 import { merchantService } from '@/services/merchantService'
 import { verificationService } from '@/services/verificationService'
 import type { MyProject } from '@/services/projectService'
-import { ALL_PROJECTS, useSession } from '@/stores/sessionStore'
+import { useSession } from '@/stores/sessionStore'
 import { useUi } from '@/stores/uiStore'
 import { DevMenu } from './DevMenu'
 import { useTabs } from '@/stores/tabsStore'
@@ -44,40 +46,7 @@ function IconButton({ label, onClick, children }: { label: string; onClick?: () 
   )
 }
 
-function Breadcrumb() {
-  const { pathname } = useLocation()
-  const meta = routeMetaFor(pathname)
-  const tabTitle = useTabs((s) => s.tabs.find((t) => t.key === pathname)?.title) // e.g. the case's Reference ID
-  if (!meta) return null
-  // REQ: DEC-103 — group › the screens it is opened from (links) › this screen, e.g. eKYC › Projects › Flows.
-  const parts: { label: string; to?: string }[] = [
-    ...(meta.item.group && meta.item.group !== meta.title ? [{ label: meta.item.group }] : []),
-    ...parentsOf(meta.item).map((i) => ({ label: i.label, to: i.path })),
-    { label: tabTitle ?? meta.title },
-  ]
-  return (
-    <nav aria-label="Breadcrumb" className="min-w-0">
-      <ol className="flex items-center gap-1 text-sm text-muted-foreground">
-        {parts.map((p, i) => (
-          <li key={i} className="flex min-w-0 items-center gap-1">
-            {i > 0 && <ChevronRight className="size-3.5 shrink-0" aria-hidden />}
-            {p.to ? (
-              <Link to={p.to} className="hover:text-foreground">
-                {p.label}
-              </Link>
-            ) : (
-              <span className={i === parts.length - 1 ? 'truncate font-medium text-foreground' : 'truncate'} aria-current={i === parts.length - 1 ? 'page' : undefined}>
-                {p.label}
-              </span>
-            )}
-          </li>
-        ))}
-      </ol>
-    </nav>
-  )
-}
-
-/** Merchant names for grouping the switcher (Super admin sees projects of several merchants). */
+/** Merchant names (a platform user's projects span several merchants). */
 function useMerchantNames() {
   const actor = useSession((s) => s.actor)
   const [merchants, setMerchants] = useState<Merchant[]>([])
@@ -96,7 +65,7 @@ function useMerchantNames() {
   return (id: string) => merchants.find((m) => m.merchantId === id)?.name ?? id
 }
 
-/** Role names per project; not for Super admin, who has the same rights everywhere. */
+/** Role names per project; not for platform users, who have the same rights everywhere. */
 function ProjectOption({ p, showRole }: { p: MyProject; showRole: boolean }) {
   return (
     <span className="flex min-w-0 flex-1 items-center gap-2">
@@ -107,77 +76,112 @@ function ProjectOption({ p, showRole }: { p: MyProject; showRole: boolean }) {
   )
 }
 
-// REQ: DEC-73 — the user's projects plus "All my projects" (only with more than one); the current project is always visible.
-function ProjectSwitcher() {
-  const { ready, account, projects: all, selected } = useAccess()
-  // REQ: DEC-77 — archived projects leave the switcher (still on the Projects screen); the current one stays visible.
-  const projects = all.filter((p) => p.status !== 'ARCHIVED' || p.projectId === selected?.projectId)
+/**
+ * REQ: DEC-109 — inside a project the breadcrumb starts with `Merchant ▾ / Project ▾` (like Langfuse). Switching keeps the
+ * screen (a detail page goes back to its list); "All merchants" returns to the Merchants page.
+ */
+function ProjectCrumbs() {
+  const { account, projects: all, selected } = useAccess()
   const selectProject = useSession((s) => s.selectProject)
+  const navigate = useNavigate()
+  const { pathname } = useLocation()
   const merchantName = useMerchantNames()
-  if (!ready) return <span className="h-8 w-40 animate-pulse rounded-md bg-muted" aria-hidden />
-
+  if (!selected) return null
+  // REQ: DEC-77 — archived projects leave the switcher; the current one stays visible.
+  const projects = all.filter((p) => p.status !== 'ARCHIVED' || p.projectId === selected.projectId)
   const merchantIds = [...new Set(projects.map((p) => p.merchantId))]
-  const several = merchantIds.length > 1
-  const label = selected?.name ?? (projects.length ? 'All my projects' : 'No projects')
-  const sub = selected && several ? merchantName(selected.merchantId) : undefined
-  const current = (
-    <>
-      <FolderKanban className="size-4 shrink-0 text-muted-foreground" aria-hidden />
-      <span className="max-w-44 truncate">{label}</span>
-      {sub && <span className="hidden max-w-32 truncate text-xs text-muted-foreground lg:inline">{sub}</span>}
-    </>
-  )
-  if (projects.length <= 1) {
-    return (
-      <span className="flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-sm" aria-label={`Current project: ${label}`}>
-        {current}
-      </span>
-    )
+  const item = routeMetaFor(pathname)?.item
+  const open = (p: MyProject, toLanding = false) => {
+    selectProject(p.projectId)
+    if (toLanding) navigate(projectLandingPath(account, p))
+    else if (item?.parent) navigate(item.parent) // a flow or a case belongs to the project just left
   }
-  const pick = (v: unknown) => {
-    const id = String(v)
-    if (id === ALL_PROJECTS) return selectProject(ALL_PROJECTS)
-    const p = projects.find((x) => x.projectId === id)
-    if (p) selectProject(p.projectId)
-  }
-  const value = selected?.projectId ?? ALL_PROJECTS
+  const firstOf = (m: string) => projects.filter((p) => p.merchantId === m).sort((a, b) => Number(b.isDefault) - Number(a.isDefault) || a.name.localeCompare(b.name))[0]
+  const trigger = 'flex max-w-56 items-center gap-1 rounded-md px-1.5 py-1 text-sm font-medium text-foreground outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring'
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger
-        render={
-          <Button variant="outline" size="sm" aria-label={`Switch project. Current: ${label}`}>
-            {current}
-            <ChevronDown aria-hidden />
-          </Button>
-        }
-      />
-      <DropdownMenuContent className="max-h-[70vh] w-80 overflow-y-auto">
-        <DropdownMenuRadioGroup value={value} onValueChange={pick}>
-          <DropdownMenuRadioItem value={ALL_PROJECTS} closeOnClick>
-            All my projects
-          </DropdownMenuRadioItem>
-        </DropdownMenuRadioGroup>
-        {merchantIds.map((m) => (
-          <DropdownMenuGroup key={m}>
+    <>
+      <li className="flex min-w-0 items-center">
+        <DropdownMenu>
+          <DropdownMenuTrigger aria-label={`Switch merchant. Current: ${merchantName(selected.merchantId)}`} className={trigger}>
+            <span className="truncate">{merchantName(selected.merchantId)}</span>
+            <ChevronDown className="size-3.5 shrink-0 text-muted-foreground" aria-hidden />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent className="max-h-[70vh] w-64 overflow-y-auto">
+            <DropdownMenuGroup>
+              <DropdownMenuLabel>Merchants</DropdownMenuLabel>
+              {merchantIds.map((m) => (
+                <DropdownMenuItem key={m} onClick={() => m !== selected.merchantId && open(firstOf(m), true)} className={cn(m === selected.merchantId && 'font-medium')}>
+                  {merchantName(m)}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuGroup>
             <DropdownMenuSeparator />
-            {several && <DropdownMenuLabel>{merchantName(m)}</DropdownMenuLabel>}
-            <DropdownMenuRadioGroup value={value} onValueChange={pick}>
+            <DropdownMenuItem onClick={() => navigate('/')}>All merchants</DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </li>
+      <li className="flex min-w-0 items-center gap-1">
+        <span aria-hidden className="text-muted-foreground">/</span>
+        <DropdownMenu>
+          <DropdownMenuTrigger aria-label={`Switch project. Current: ${selected.name}`} className={trigger}>
+            <FolderKanban className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+            <span className="truncate">{selected.name}</span>
+            <ChevronDown className="size-3.5 shrink-0 text-muted-foreground" aria-hidden />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent className="max-h-[70vh] w-72 overflow-y-auto">
+            <DropdownMenuRadioGroup value={selected.projectId} onValueChange={(v) => { const p = projects.find((x) => x.projectId === String(v)); if (p && p.projectId !== selected.projectId) open(p) }}>
               {projects
-                .filter((p) => p.merchantId === m)
+                .filter((p) => p.merchantId === selected.merchantId)
                 .map((p) => (
                   <DropdownMenuRadioItem key={p.projectId} value={p.projectId} closeOnClick>
                     <ProjectOption p={p} showRole={account?.level === 'MERCHANT_USER'} />
                   </DropdownMenuRadioItem>
                 ))}
             </DropdownMenuRadioGroup>
-          </DropdownMenuGroup>
-        ))}
-      </DropdownMenuContent>
-    </DropdownMenu>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </li>
+    </>
   )
 }
 
-/** REQ: DEC-73 — roles in the current project; under "All my projects", the roles in each. */
+function Breadcrumb() {
+  const { pathname } = useLocation()
+  const meta = routeMetaFor(pathname)
+  const tabTitle = useTabs((s) => s.tabs.find((t) => t.key === pathname)?.title) // e.g. the case's Reference ID
+  if (!meta) return null
+  const inner = meta.item.layer === 'inner'
+  // REQ: DEC-109 — outer: Merchants › … ; inner: Merchant ▾ / Project ▾ › group › the screens it is opened from › this screen.
+  const parts: { label: string; to?: string }[] = [
+    ...(!inner && meta.item.path !== '/' && !meta.item.parent ? [{ label: 'Merchants', to: '/' }] : []),
+    ...(meta.item.group && meta.item.group !== meta.title ? [{ label: meta.item.group }] : []),
+    ...parentsOf(meta.item).map((i) => ({ label: i.label, to: i.path })),
+    { label: tabTitle ?? meta.title },
+  ]
+  return (
+    <nav aria-label="Breadcrumb" className="min-w-0">
+      <ol className="flex items-center gap-1 text-sm text-muted-foreground">
+        {inner && <ProjectCrumbs />}
+        {parts.map((p, i) => (
+          <li key={i} className="flex min-w-0 items-center gap-1">
+            {(i > 0 || inner) && <ChevronRight className="size-3.5 shrink-0" aria-hidden />}
+            {p.to ? (
+              <Link to={p.to} className="hover:text-foreground">
+                {p.label}
+              </Link>
+            ) : (
+              <span className={i === parts.length - 1 ? 'truncate font-medium text-foreground' : 'truncate'} aria-current={i === parts.length - 1 ? 'page' : undefined}>
+                {p.label}
+              </span>
+            )}
+          </li>
+        ))}
+      </ol>
+    </nav>
+  )
+}
+
+/** REQ: DEC-73 — roles in the current project; on the Merchants page, the roles in each project. */
 function RoleLines() {
   const { account, projects, selected } = useAccess()
   if (!account) return null
@@ -241,6 +245,8 @@ export function TopBar() {
   const actor = useSession((s) => s.actor)
   const { account } = useAccess()
   const fullscreen = useFullscreen()
+  const { pathname } = useLocation()
+  const inner = routeMetaFor(pathname)?.item.layer === 'inner'
   const mock = (what: string) => () => toast.info(`${what} is not part of the mock.`)
 
   return (
@@ -251,8 +257,7 @@ export function TopBar() {
       <div className="min-w-0 flex-1">
         <Breadcrumb />
       </div>
-      <ProjectSwitcher />
-      <RefSearch />
+      {inner && <RefSearch />}
       <IconButton label="Notifications (mock)" onClick={mock('Notifications')}>
         <Bell aria-hidden />
       </IconButton>

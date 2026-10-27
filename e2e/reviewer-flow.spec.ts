@@ -2,7 +2,10 @@ import { expect, test } from '@playwright/test'
 
 // List filter → open detail → claim → approve → audit entry exists (seen by the Merchant Owner).
 test('reviewer finds an unclaimed pending record, claims it, approves it, and the decision is audited', async ({ page }) => {
-  await page.goto('/verifications?as=ali.ahmad@atoz.example')
+  // REQ: DEC-109 — sign in, then Go to project on the Merchants page (the inner portal works on one project).
+  await page.goto('/?as=ali.ahmad@atoz.example')
+  await page.getByRole('button', { name: 'Go to project Default' }).click()
+  await page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: 'Verifications' }).click()
   // The default view is Pending Review, oldest first (DEC-43); narrow it to unclaimed cases.
   await page.getByLabel('Claim', { exact: true }).selectOption('UNCLAIMED')
   await page.getByRole('button', { name: 'Search' }).click()
@@ -27,15 +30,17 @@ test('reviewer finds an unclaimed pending record, claims it, approves it, and th
 
   // Reviewers have no Audit Log (DEC-70): the Merchant Owner checks the trail.
   await expect(page.getByRole('link', { name: 'Audit trail' })).toHaveCount(0)
-  await page.goto('/audit?ref=KYC-260901-900003&as=meiling.tan@atoz.example')
+  await page.goto('/?as=meiling.tan@atoz.example')
+  await page.getByRole('button', { name: 'Go to project Default' }).click()
+  await page.goto('/audit?ref=KYC-260901-900003') // the session (and its project) stays in this tab
   const rows = page.locator('section[aria-label="Audit entries"] tbody tr')
   await expect(rows.first()).toContainText('CASE_DECISION_APPROVED')
   await expect(rows.first()).toContainText('E2E: selfie matches MyKad photo.')
   await expect(page.locator('section[aria-label="Audit entries"]')).toContainText('SENSITIVE_PII_VIEW')
 })
 
-test('reviewer cannot open admin screens: no Users in the menu and "No access" on the URL (DEC-104)', async ({ page }) => {
-  await page.goto('/users?as=ali.ahmad@atoz.example')
+test('reviewer cannot open platform screens: no Platform staff in the menu and "No access" on the URL (DEC-104, DEC-109)', async ({ page }) => {
+  await page.goto('/platform-staff?as=ali.ahmad@atoz.example')
   await expect(page.getByRole('heading', { name: 'No access' })).toBeVisible()
-  await expect(page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: 'Users' })).toHaveCount(0)
+  await expect(page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: 'Platform staff' })).toHaveCount(0)
 })

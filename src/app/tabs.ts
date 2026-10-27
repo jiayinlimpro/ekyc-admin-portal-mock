@@ -5,7 +5,7 @@ export interface Tab {
   title: string
 }
 
-/** Where the portal opens. There is no Home page. */
+/** REQ: DEC-109 — the first tab of the inner portal (the outer Merchants page has no tabs). */
 export const LANDING_PATH = '/dashboard'
 export const LANDING_TAB: Tab = { key: LANDING_PATH, to: LANDING_PATH, title: 'Overview' }
 export const MAX_TABS = 10

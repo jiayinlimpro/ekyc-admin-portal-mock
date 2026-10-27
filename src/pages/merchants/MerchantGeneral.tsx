@@ -1,29 +1,25 @@
 // REQ: DEC-98 — [FRS] Merchant Management, Super admin only (DEC-70). DEC-92: a new merchant also gets its Default
 // project, default flow and first owner.
 import { useState, type FormEvent, type ReactNode } from 'react'
-import { useSearchParams } from 'react-router'
-import { MoreVertical, Plus, RotateCcw, Search } from 'lucide-react'
 import { toast } from 'sonner'
 import { FormField } from '@/components/common/FormField'
 import { NativeSelect } from '@/components/common/NativeSelect'
-import { Pagination } from '@/components/common/Pagination'
-import { EmptyState, ErrorState } from '@/components/common/States'
+import { ErrorState } from '@/components/common/States'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
-import { MERCHANT_STATUSES, type MerchantStatus } from '@/domain/types'
+import type { MerchantStatus } from '@/domain/types'
 import { errorMessage, fieldErrors, useLoad } from '@/hooks/useLoad'
 import { COUNTRIES } from '@/lib/countries'
 import { formatMyt } from '@/lib/format'
 import { MERCHANT_STATUS_LABELS, USER_STATUS_LABELS } from '@/lib/labels'
 import { cn } from '@/lib/utils'
 import { merchantAdminService, type MerchantInput, type MerchantRow } from '@/services/merchantAdminService'
+import { merchantService } from '@/services/merchantService'
 import { useSession } from '@/stores/sessionStore'
 import { useAccess } from '@/app/access'
 
-const PAGE_SIZES = [10, 20, 50] as const
 
 const STATUS_TONE: Record<MerchantStatus, string> = {
   ONBOARDING: 'bg-blue-100 text-blue-800 dark:bg-blue-500/20 dark:text-blue-200',
@@ -31,7 +27,7 @@ const STATUS_TONE: Record<MerchantStatus, string> = {
   SUSPENDED: 'bg-amber-100 text-amber-800 dark:bg-amber-500/20 dark:text-amber-200',
   TERMINATED: 'bg-muted text-muted-foreground',
 }
-const MerchantStatusBadge = ({ status }: { status: MerchantStatus }) => <span className={cn('rounded px-1.5 py-0.5 text-xs font-medium whitespace-nowrap', STATUS_TONE[status])}>{MERCHANT_STATUS_LABELS[status]}</span>
+export const MerchantStatusBadge = ({ status }: { status: MerchantStatus }) => <span className={cn('rounded px-1.5 py-0.5 text-xs font-medium whitespace-nowrap', STATUS_TONE[status])}>{MERCHANT_STATUS_LABELS[status]}</span>
 
 /** What each status change does, shown before it is confirmed (DEC-98). */
 const STATUS_EFFECT: Record<MerchantStatus, string> = {
@@ -43,7 +39,7 @@ const STATUS_EFFECT: Record<MerchantStatus, string> = {
 
 const EMPTY: MerchantInput = { name: '', registrationNo: '', country: '', contactName: '', contactEmail: '', contactPhone: '' }
 
-function CreateDialog({ onClose, onSaved }: { onClose: () => void; onSaved: () => void }) {
+export function CreateMerchantDialog({ onClose, onSaved }: { onClose: () => void; onSaved: () => void }) {
   const actor = useSession((s) => s.actor)
   const [f, setF] = useState<MerchantInput>(EMPTY)
   const [errors, setErrors] = useState<Record<string, string>>({})
@@ -233,183 +229,86 @@ function StatusDialog({ row, onClose, onSaved }: { row: MerchantRow; onClose: ()
   )
 }
 
-/** Read-only detail panel (FRS ViewDetails). */
-function DetailDialog({ row, onClose }: { row: MerchantRow; onClose: () => void }) {
-  const items: [string, ReactNode][] = [
-    ['Merchant ID', <span key="id" className="font-mono text-xs">{row.merchantId}</span>],
-    ['Status', <MerchantStatusBadge key="s" status={row.status} />],
-    ['Business Registration No', row.registrationNo],
-    ['Country of incorporation', row.countryName],
-    ['Primary contact', `${row.primaryContact.fullName} · ${row.primaryContact.email}`],
-    ['Contact phone', row.primaryContact.phone ?? '—'],
-    ['Owner', row.owner ? `${row.owner.fullName} · ${USER_STATUS_LABELS[row.owner.status]}` : '—'],
-    ['Projects / users / cases', `${row.projects} / ${row.users} / ${row.cases}`],
-    ['Created', `${formatMyt(row.createdAt)} MYT · ${row.createdBy}`],
-  ]
-  return (
-    <Dialog open onOpenChange={(o) => !o && onClose()}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>{row.name}</DialogTitle>
-          <DialogDescription>Merchant details</DialogDescription>
-        </DialogHeader>
-        <dl className="grid grid-cols-[minmax(0,11rem)_1fr] gap-x-4 gap-y-2 text-sm">
-          {items.map(([k, v]) => (
-            <div key={k} className="contents">
-              <dt className="text-muted-foreground">{k}</dt>
-              <dd className="min-w-0 break-words">{v}</dd>
-            </div>
-          ))}
-        </dl>
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose}>
-            Close
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  )
-}
-
-type Open = { kind: 'create' } | { kind: 'edit' | 'status' | 'detail'; row: MerchantRow }
-type Filters = { q: string; status: '' | MerchantStatus }
-
-export function MerchantsPage() {
+/** REQ: DEC-98 / DEC-109 — Merchant settings › General: the merchant's details; platform users also edit, change status, resend. */
+export function MerchantGeneral({ merchantId }: { merchantId: string }) {
   const actor = useSession((s) => s.actor)
-  // REQ: DEC-99 — Merchants View is read-only; Create adds and edits; Suspend changes status.
   const access = useAccess()
+  // REQ: DEC-99 — Merchants View reads the platform record; Create edits; Suspend changes status. Merchant users see their own.
+  const platform = access.allows({ platform: 'viewMerchants' })
   const canCreate = access.allows({ platform: 'createMerchants' })
   const canChangeStatus = access.allows({ platform: 'changeMerchantStatus' })
-  const rows = useLoad(() => merchantAdminService.list(actor), [actor.userId])
-  const [sp, setSp] = useSearchParams()
-  const applied: Filters = { q: sp.get('q') ?? '', status: (sp.get('status') ?? '') as Filters['status'] }
-  const [form, setForm] = useState<Filters>(applied)
-  const [page, setPage] = useState(1)
-  const [pageSize, setPageSize] = useState<number>(PAGE_SIZES[0])
-  const [open, setOpen] = useState<Open>()
-
-  const apply = (f: Filters) => {
-    setSp(Object.fromEntries(Object.entries(f).filter(([, v]) => v)), { replace: true })
-    setPage(1)
-  }
-  const q = applied.q.trim().toLowerCase()
-  const filtered = (rows.data ?? []).filter((r) => (!q || r.name.toLowerCase().includes(q) || r.merchantId.toLowerCase().includes(q)) && (!applied.status || r.status === applied.status))
-  const shown = filtered.slice((page - 1) * pageSize, page * pageSize)
+  const rows = useLoad(() => (platform ? merchantAdminService.list(actor) : Promise.resolve([])), [actor.userId, platform])
+  const own = useLoad(() => (platform ? Promise.resolve(undefined) : merchantService.get(merchantId, actor)), [actor.userId, platform, merchantId])
+  const [open, setOpen] = useState<'edit' | 'status'>()
+  const row = rows.data?.find((r) => r.merchantId === merchantId)
+  const m = row ?? own.data
+  const error = rows.error ?? own.error
+  if (error && !m) return <ErrorState message={error} onRetry={() => (platform ? rows.reload() : own.reload())} />
+  if (!m) return <div className="h-40 animate-pulse rounded-lg bg-muted" aria-busy />
   const saved = () => {
     setOpen(undefined)
     rows.reload()
   }
-  const resend = async (r: MerchantRow) => {
+  const resend = async () => {
     try {
-      await merchantAdminService.resendInvitation(r.merchantId, actor)
-      toast.success(`Invitation resent to ${r.primaryContact.email}`)
+      await merchantAdminService.resendInvitation(merchantId, actor)
+      toast.success(`Invitation resent to ${m.primaryContact.email}`)
       rows.reload()
     } catch (e) {
       toast.error(errorMessage(e))
     }
   }
-
-  if (rows.error && !rows.data) return <ErrorState message={rows.error} onRetry={rows.reload} />
+  const items: [string, ReactNode][] = [
+    ['Merchant ID', <span key="id" className="font-mono text-xs">{m.merchantId}</span>],
+    ['Status', <MerchantStatusBadge key="s" status={m.status} />],
+    ['Business Registration No', m.registrationNo],
+    ['Country of incorporation', row?.countryName ?? COUNTRIES.find((c) => c.code === m.country)?.name ?? m.country],
+    ['Primary contact', `${m.primaryContact.fullName} · ${m.primaryContact.email}`],
+    ['Contact phone', m.primaryContact.phone ?? '—'],
+    ...(row
+      ? ([
+          ['Owner', row.owner ? `${row.owner.fullName} · ${USER_STATUS_LABELS[row.owner.status]}` : '—'],
+          ['Projects / users / cases', `${row.projects} / ${row.users} / ${row.cases}`],
+        ] as [string, ReactNode][])
+      : []),
+    ['Created', `${formatMyt(m.createdAt)} MYT · ${m.createdBy}`],
+  ]
   return (
-    <div className="mx-auto max-w-[1200px] space-y-4">
-      <header className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold">Merchants</h1>
-          <p className="text-sm text-muted-foreground">Business clients using the eKYC service. Merchants are never deleted: Terminated keeps their records.</p>
-        </div>
-        {canCreate && (
-          <Button onClick={() => setOpen({ kind: 'create' })}>
-            <Plus aria-hidden /> Add Merchant
-          </Button>
+    <section aria-labelledby="mg-title" className="rounded-lg border bg-card">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b px-4 py-2.5">
+        <h2 id="mg-title" className="text-sm font-semibold">
+          General
+        </h2>
+        {row && (
+          <div className="flex gap-2">
+            {canCreate && row.status !== 'TERMINATED' && (
+              <Button size="sm" variant="outline" onClick={() => setOpen('edit')}>
+                Edit
+              </Button>
+            )}
+            {canChangeStatus && row.nextStatuses.length > 0 && (
+              <Button size="sm" variant="outline" onClick={() => setOpen('status')}>
+                Change status
+              </Button>
+            )}
+            {canCreate && row.canResendInvitation && (
+              <Button size="sm" variant="outline" onClick={() => void resend()}>
+                Resend invitation
+              </Button>
+            )}
+          </div>
         )}
-      </header>
-      <form
-        noValidate
-        className="flex flex-wrap items-end gap-3 rounded-lg border bg-card p-3"
-        onSubmit={(e) => {
-          e.preventDefault()
-          apply(form)
-        }}
-      >
-        <FormField id="mf-q" label="Merchant" className="w-64">
-          <Input id="mf-q" value={form.q} onChange={(e) => setForm({ ...form, q: e.target.value })} placeholder="Enter name or ID…" />
-        </FormField>
-        <FormField id="mf-status" label="Status" className="w-44">
-          <NativeSelect id="mf-status" value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value as Filters['status'] })}>
-            <option value="">All</option>
-            {MERCHANT_STATUSES.map((s) => (
-              <option key={s} value={s}>
-                {MERCHANT_STATUS_LABELS[s]}
-              </option>
-            ))}
-          </NativeSelect>
-        </FormField>
-        <div className="ml-auto flex gap-2">
-          <Button type="button" variant="outline" onClick={() => { const empty: Filters = { q: '', status: '' }; setForm(empty); apply(empty) }}>
-            <RotateCcw aria-hidden /> Reset
-          </Button>
-          <Button type="submit">
-            <Search aria-hidden /> Search
-          </Button>
-        </div>
-      </form>
-      <section aria-label="Merchant list" className="overflow-x-auto rounded-lg border bg-card">
-        <table className={cn('w-full text-sm', rows.loading && rows.data && 'opacity-60')} aria-busy={rows.loading}>
-          <thead className="bg-muted/50 text-left text-xs text-muted-foreground">
-            <tr>
-              {['Merchant ID', 'Merchant Name', 'Country', 'Status', 'Created At'].map((h) => (
-                <th key={h} scope="col" className="px-4 py-2 font-medium whitespace-nowrap">
-                  {h}
-                </th>
-              ))}
-              <th scope="col" className="px-4 py-2 font-medium">
-                Actions
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {shown.map((r) => (
-              <tr key={r.merchantId} className="border-t">
-                <td className="px-4 py-2 font-mono text-xs whitespace-nowrap">{r.merchantId}</td>
-                <th scope="row" className="max-w-80 px-4 py-2 text-left font-normal">
-                  {/* REQ: DEC-98 — long names truncate with a tooltip. */}
-                  <button type="button" className="block max-w-full truncate font-medium text-blue-700 hover:underline dark:text-blue-400" title={r.name} onClick={() => setOpen({ kind: 'detail', row: r })}>
-                    {r.name}
-                  </button>
-                </th>
-                <td className="px-4 py-2 whitespace-nowrap">{r.countryName}</td>
-                <td className="px-4 py-2">
-                  <MerchantStatusBadge status={r.status} />
-                </td>
-                <td className="px-4 py-2 whitespace-nowrap">{formatMyt(r.createdAt)}</td>
-                <td className="px-4 py-2">
-                  <DropdownMenu>
-                    <DropdownMenuTrigger
-                      render={
-                        <Button variant="ghost" size="icon-sm" aria-label={`Actions for ${r.name}`}>
-                          <MoreVertical aria-hidden />
-                        </Button>
-                      }
-                    />
-                    <DropdownMenuContent align="end" className="w-48">
-                      <DropdownMenuItem onClick={() => setOpen({ kind: 'detail', row: r })}>View details</DropdownMenuItem>
-                      {canCreate && r.status !== 'TERMINATED' && <DropdownMenuItem onClick={() => setOpen({ kind: 'edit', row: r })}>Edit</DropdownMenuItem>}
-                      {canChangeStatus && r.nextStatuses.length > 0 && <DropdownMenuItem onClick={() => setOpen({ kind: 'status', row: r })}>Change status</DropdownMenuItem>}
-                      {canCreate && r.canResendInvitation && <DropdownMenuItem onClick={() => void resend(r)}>Resend invitation</DropdownMenuItem>}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        {rows.data && !filtered.length && <EmptyState title="No Records Found" />}
-        <Pagination page={page} pageSize={pageSize} total={filtered.length} pageSizes={PAGE_SIZES} onPage={setPage} onPageSize={(s) => { setPageSize(s); setPage(1) }} />
-      </section>
-      {open?.kind === 'create' && <CreateDialog onClose={() => setOpen(undefined)} onSaved={saved} />}
-      {open?.kind === 'edit' && <EditDialog row={open.row} onClose={() => setOpen(undefined)} onSaved={saved} />}
-      {open?.kind === 'status' && <StatusDialog row={open.row} onClose={() => setOpen(undefined)} onSaved={saved} />}
-      {open?.kind === 'detail' && <DetailDialog row={open.row} onClose={() => setOpen(undefined)} />}
-    </div>
+      </div>
+      <dl className="grid grid-cols-[minmax(0,13rem)_1fr] gap-x-4 gap-y-2 p-4 text-sm">
+        {items.map(([k, v]) => (
+          <div key={k} className="contents">
+            <dt className="text-muted-foreground">{k}</dt>
+            <dd className="min-w-0 break-words">{v}</dd>
+          </div>
+        ))}
+      </dl>
+      {open === 'edit' && row && <EditDialog row={row} onClose={() => setOpen(undefined)} onSaved={saved} />}
+      {open === 'status' && row && <StatusDialog row={row} onClose={() => setOpen(undefined)} onSaved={saved} />}
+    </section>
   )
 }

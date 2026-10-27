@@ -30,11 +30,18 @@ afterEach(() => {
 })
 
 describe('Project Settings (DEC-54, DEC-96)', () => {
-  it('Given "All my projects", then it asks for a project; picking one sets the header and opens General', async () => {
-    renderAt('/project-settings')
-    fireEvent.click(within(await screen.findByRole('list', { name: 'Choose a project' })).getByRole('button', { name: /SME app/ }))
-    expect(((await panel()).getByLabelText('Project name') as HTMLInputElement).value).toBe('SME app')
-    expect(useSession.getState().projectId).toBe(fx('PRJ-0002'))
+  it('Given the Owner on SME app, when renamed, then the header follows; when archived, then back to the Merchants page (DEC-109)', async () => {
+    useSession.getState().selectProject(fx('PRJ-0002'))
+    const router = renderAt('/project-settings')
+    const project = within(await screen.findByRole('region', { name: 'Project' }))
+    fireEvent.click(project.getByRole('button', { name: /Rename/ }))
+    fireEvent.change(await screen.findByLabelText(/^Project name/, { selector: '#p-name' }), { target: { value: 'SME portal' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+    expect(await screen.findByRole('button', { name: 'Switch project. Current: SME portal' })).toBeTruthy()
+    fireEvent.click(within(screen.getByRole('region', { name: 'Project' })).getByRole('button', { name: /Archive/ }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Archive project' }))
+    await waitFor(() => expect(router.state.location.pathname).toBe('/'))
+    expect(db.state().projects.find((p) => p.projectId === fx('PRJ-0002'))!.status).toBe('ARCHIVED')
   })
 
   it('Given the Project Admin changes the language, then it saves and is audited', async () => {

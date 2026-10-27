@@ -13,7 +13,8 @@ import { addDays, formatRange, mytToday } from '@/lib/dateRange'
 
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
 
-function renderAt(path: string) {
+function renderAt(path: string, projectId = fx('PRJ-0001')) {
+  useSession.getState().selectProject(projectId) // REQ: DEC-109 — the inner portal works on one project
   const router = createMemoryRouter(routes, { initialEntries: [path] })
   render(<RouterProvider router={router} />)
   return router
@@ -39,7 +40,7 @@ describe('Verifications List', () => {
     const rows = await dataRows()
     expect(rows.length).toBeGreaterThan(0)
     for (const r of rows) expect(r.textContent).toContain('Pending Review')
-    expect(screen.getByText(/Pending Review cases in your projects, oldest first/)).toBeTruthy()
+    expect(screen.getByText(/Pending Review cases in this project, oldest first/)).toBeTruthy()
   })
 
   it('Given clicks on the Status column name, then ascending, descending, then the default order; unsaved filters stay (DEC-100)', async () => {
@@ -77,29 +78,24 @@ describe('Verifications List', () => {
     expect(screen.queryByLabelText(/^Merchant/)).toBeNull() // no merchant filter
   })
 
-  it('Given Ali sees two projects, then Project and Risk columns, with version under Flow and no Actions column; Project disappears with one project in the header (DEC-40)', async () => {
+  it('Given Atoz Default in the header, then the Risk column, version under Flow, no Project column or filter and no Actions column; SME app (V3) has no Risk (DEC-40, DEC-109)', async () => {
     renderAt('/verifications?status=ALL')
     await dataRows()
     const headers = within(table()).getAllByRole('columnheader').map((h) => h.textContent)
-    expect(headers).toEqual(['Reference ID', 'Full Name', 'Project', 'Flow', 'Document', 'Status', 'Risk', 'Claimed By', 'Created (MYT)', 'Last updated (MYT)'])
+    expect(headers).toEqual(['Reference ID', 'Full Name', 'Flow', 'Document', 'Status', 'Risk', 'Claimed By', 'Created (MYT)', 'Last updated (MYT)'])
+    expect(screen.queryByLabelText('Project')).toBeNull()
     cleanup()
     useSession.getState().switchUser(HAFIZ) // one project (SME app, V3: no risk)
-    renderAt('/verifications?status=ALL')
+    renderAt('/verifications?status=ALL', fx('PRJ-0002'))
     await dataRows()
-    const one = within(table()).getAllByRole('columnheader').map((h) => h.textContent)
-    expect(one).not.toContain('Project')
-    expect(one).not.toContain('Risk')
-    expect(screen.queryByLabelText('Project')).toBeNull()
+    expect(within(table()).getAllByRole('columnheader').map((h) => h.textContent)).not.toContain('Risk')
   })
 
-  it('Given Project = SME app, then every row is from that project and the Flow filter lists only its flows', async () => {
-    const router = renderAt('/verifications?status=ALL')
-    await dataRows()
-    fireEvent.change(screen.getByLabelText('Project'), { target: { value: fx('PRJ-0002') } })
+  it('Given SME app in the header, then every row is from that project and the Flow filter lists only its flows (DEC-109)', async () => {
+    renderAt('/verifications?status=ALL', fx('PRJ-0002'))
+    const rows = await dataRows()
     expect(within(screen.getByLabelText('Flow')).getAllByRole('option').map((o) => o.textContent)).toEqual(['All flows', 'SME director check (V3)'])
-    search()
-    await waitFor(() => expect(router.state.location.search).toBe(`?status=ALL&project=${fx('PRJ-0002')}`))
-    for (const r of await dataRows()) expect(r.textContent).toContain('SME app')
+    for (const r of rows) expect(r.textContent).toContain('SME director check')
   })
 
   it('Given Status = Processing, when Search, then the URL carries the filter and every row is Processing', async () => {
@@ -145,11 +141,12 @@ describe('Verifications List', () => {
     await screen.findByText('No verifications match these filters')
   })
 
-  it('Given the Super admin, then cases of every merchant are listed (DEC-75)', async () => {
+  it('Given the Super admin in Vantage Default, then its cases are listed (DEC-75, DEC-109)', async () => {
     useSession.getState().switchUser(ADMIN)
-    renderAt('/verifications?status=ALL&referenceNo=KYC-260901-900013')
+    renderAt('/verifications?status=ALL&referenceNo=KYC-260901-900013', fx('PRJ-0003'))
     const row = (await screen.findByRole('rowheader', { name: 'KYC-260901-900013' })).closest('tr')!
-    expect(row.textContent).toContain('Vantage') // across merchants, the merchant shows under the project
+    expect(row.textContent).toContain('Standard onboarding')
+    expect(row.textContent).not.toContain('Vantage') // one project: no merchant line
   })
 
   it('Given the service fails, then an error with Try again; when it recovers, then rows load', async () => {

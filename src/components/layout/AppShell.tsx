@@ -31,6 +31,7 @@ function useTabTracking() {
   const open = useTabs((s) => s.open)
   useEffect(() => {
     const meta = routeMetaFor(pathname)
+    if (meta?.item.layer !== 'inner') return
     // A page may have renamed its tab (the case page shows the Reference ID, DEC-97): keep that name.
     const named = useTabs.getState().tabs.find((t) => t.key === pathname)?.title
     if (meta) open({ key: pathname, to: pathname + search, title: named ?? meta.title })
@@ -70,6 +71,24 @@ function useAsParam() {
   }, [as, switchUser, setParams])
 }
 
+/** REQ: DEC-109 — links can name the project: ?project=<projectId> selects it (UAT links into a project), then is removed. */
+function useProjectParam() {
+  const [params, setParams] = useSearchParams()
+  const project = params.get('project')
+  const selectProject = useSession((s) => s.selectProject)
+  useEffect(() => {
+    if (!project || params.get('as')) return // sign in first (?as=), then choose the project
+    selectProject(project)
+    setParams(
+      (p) => {
+        p.delete('project')
+        return p
+      },
+      { replace: true },
+    )
+  }, [project, params, selectProject, setParams])
+}
+
 export function AppShell() {
   const theme = useUi((s) => s.theme)
   useEffect(() => {
@@ -77,6 +96,10 @@ export function AppShell() {
   }, [theme])
   useTabTracking()
   useAsParam()
+  useProjectParam()
+  // REQ: DEC-109 — tabs are for the screens inside a project; the Merchants page and platform modules have none.
+  const { pathname } = useLocation()
+  const inner = routeMetaFor(pathname)?.item.layer === 'inner'
 
   return (
     <AccessProvider>
@@ -86,7 +109,7 @@ export function AppShell() {
           <div className="flex min-w-0 flex-1 flex-col">
             <MockBanner />
             <TopBar />
-            <TabStrip />
+            {inner && <TabStrip />}
             <main className="flex-1 overflow-auto p-6">
               <Outlet />
             </main>

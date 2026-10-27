@@ -11,12 +11,14 @@ import { useSession } from '@/stores/sessionStore'
 import { ADMIN, ALI, OWNER } from '@/test/factories'
 import { fx } from '@/lib/ids'
 
-function renderAt(path: string) {
+function renderAt(path: string, projectId = fx('PRJ-0001')) {
+  useSession.getState().selectProject(projectId) // REQ: DEC-109 — the inner portal works on one project
   const router = createMemoryRouter(routes, { initialEntries: [path] })
   render(<RouterProvider router={router} />)
   return router
 }
 const tile = (label: string) => screen.getByText(label, { selector: 'div' }).parentElement!
+const ATOZ_DEFAULT = { projectIds: [fx('PRJ-0001')] }
 
 beforeEach(async () => {
   useDevFlags.setState({ ...DEFAULT_DEV_FLAGS, simulateLatency: false })
@@ -27,7 +29,7 @@ afterEach(cleanup)
 
 describe('Overview', () => {
   it('Given a reviewer and the last 30 days, then the three KPIs match the service and there is no Drop-off KPI (DEC-81)', async () => {
-    const expected = await analyticsService.overview({ days: 30 }, ALI)
+    const expected = await analyticsService.overview({ days: 30, ...ATOZ_DEFAULT }, ALI)
     renderAt('/dashboard')
     await screen.findByRole('heading', { name: 'Overview' }, { timeout: 15000 }) // the first test loads the lazy page; slow under a full parallel run
     await waitFor(() => expect(tile('Total verifications').textContent).toContain(String(expected.total)))
@@ -54,29 +56,33 @@ describe('Overview', () => {
     await waitFor(() => expect(card.getAllByRole('row')).toHaveLength(8))
   })
 
-  it('Given an admin on all merchants, then a by-merchant table', async () => {
+  it('Given the Super admin in Vantage Default, then only that project: no By merchant or By project table (DEC-109)', async () => {
     useSession.getState().switchUser(ADMIN)
-    renderAt('/dashboard')
-    const table = within(await screen.findByRole('region', { name: 'By merchant' }))
-    expect(table.getByText('Atoz Software Tech')).toBeTruthy()
+    renderAt('/dashboard?days=90', fx('PRJ-0003'))
+    await screen.findByRole('region', { name: 'Status split' })
+    expect(screen.getByText(/^Default · verifications created/)).toBeTruthy()
+    expect(screen.queryByRole('region', { name: 'By merchant' })).toBeNull()
+    expect(screen.queryByRole('region', { name: 'By project' })).toBeNull()
   })
 })
 
 describe('Overview by project and flow (DEC-86)', () => {
-  it('Given the Owner, then By project shows both Atoz projects with pass rate and waiting time', async () => {
+  it('Given the Owner in Atoz Default, then By flow shows its flows with pass rate and waiting time, and nothing from SME app (DEC-109)', async () => {
     useSession.getState().switchUser(OWNER)
     renderAt('/dashboard?days=90')
-    const table = within(await screen.findByRole('region', { name: 'By project' }))
-    expect(table.getByText('SME app')).toBeTruthy()
+    const table = within(await screen.findByRole('region', { name: 'By flow' }))
+    expect(table.getByText('Malaysian onboarding')).toBeTruthy()
+    expect(table.queryByText('SME director check')).toBeNull()
     expect(table.getAllByRole('columnheader').map((h) => h.textContent)).toEqual(expect.arrayContaining(['Pass rate', 'Oldest waiting']))
+    expect(screen.queryByRole('region', { name: 'By project' })).toBeNull()
   })
 
   it('Given a flow is picked, then the URL carries it and the totals narrow to that flow', async () => {
     useSession.getState().switchUser(OWNER)
     const router = renderAt('/dashboard?days=90')
     await screen.findByRole('region', { name: 'By flow' })
-    const all = await analyticsService.overview({ days: 90 }, OWNER)
-    const one = await analyticsService.overview({ days: 90, flowId: fx('FLW-0002') }, OWNER)
+    const all = await analyticsService.overview({ days: 90, ...ATOZ_DEFAULT }, OWNER)
+    const one = await analyticsService.overview({ days: 90, ...ATOZ_DEFAULT, flowId: fx('FLW-0002') }, OWNER)
     fireEvent.change(await screen.findByLabelText('Flow'), { target: { value: fx('FLW-0002') } })
     await waitFor(() => expect(router.state.location.search).toContain(`flow=${fx('FLW-0002')}`))
     await waitFor(() => expect(tile('Total verifications').textContent).toContain(String(one.total)))
@@ -91,13 +97,13 @@ describe('System Intelligence (DEC-18, DEC-86)', () => {
     const card = within(await screen.findByRole('region', { name: 'Score distribution' }))
     await waitFor(() => expect(card.getByText('Reject < 85')).toBeTruthy()) // face match, Standard
     expect(card.getByText('Reject < 70')).toBeTruthy() // liveness, Standard
-    const stats = await analyticsService.intelligence({ days: 90, flowId: fx('FLW-0001') }, ALI)
+    const stats = await analyticsService.intelligence({ days: 90, ...ATOZ_DEFAULT, flowId: fx('FLW-0001') }, ALI)
     expect(tile('Average retries').textContent).toContain(`${stats.retries} retries across document, selfie and liveness`)
   })
 
   it('Given all flows, then no threshold lines (they differ per flow) and a By flow table with drop-off', async () => {
     useSession.getState().switchUser(ADMIN)
-    renderAt('/intelligence?days=90')
+    renderAt('/intelligence?days=90', fx('PRJ-0005')) // The Boring Company: a V1 and a V3 flow
     const card = within(await screen.findByRole('region', { name: 'Score distribution' }))
     expect(card.getByText(/pick one flow/)).toBeTruthy()
     expect(card.queryByText(/Reject </)).toBeNull()
@@ -107,11 +113,11 @@ describe('System Intelligence (DEC-18, DEC-86)', () => {
 })
 
 describe('Billing (DEC-60, DEC-86)', () => {
-  it('Given the Super admin, then tokens per document and liveness submission (DEC-60), cost of retries, and tables by project and flow', async () => {
+  it('Given the Super admin in Merchant settings › Billing, then tokens per document and liveness submission (DEC-60), cost of retries, and tables by project and flow (DEC-109)', async () => {
     useSession.getState().switchUser(ADMIN)
-    renderAt('/billing')
+    renderAt(`/merchants/${fx('MER-0001')}?tab=billing`)
     const periods = await analyticsService.billingPeriods(ADMIN)
-    const report = await analyticsService.billing({ period: periods[0] }, ADMIN)
+    const report = await analyticsService.billing({ period: periods[0], merchantId: fx('MER-0001'), projectIds: [fx('PRJ-0001'), fx('PRJ-0002')] }, ADMIN)
     await waitFor(() => expect(tile('Tokens').textContent).toContain(report.totals.tokens.toLocaleString('en-MY')))
     expect(tile('Cost of Retries').textContent).toContain('submissions after the first in a phase')
     expect(tile('Tokens').textContent).toContain('Document and liveness submissions')
@@ -121,9 +127,11 @@ describe('Billing (DEC-60, DEC-86)', () => {
     expect(lines.getAllByRole('columnheader').map((h) => h.textContent)).toEqual(['Reference ID', 'Project', 'Flow', 'Created (MYT)', 'Verification Status', 'Tokens', 'Retry tokens', 'Cost'])
   })
 
-  it('Given a Reviewer, then Billing opens with their own projects only (DEC-86)', async () => {
+  it('Given a Reviewer, then Billing opens on the project in the header (DEC-86, DEC-109)', async () => {
     renderAt('/billing')
-    await screen.findByRole('region', { name: 'Line items' })
+    const lines = within(await screen.findByRole('region', { name: 'Line items' }))
     expect(screen.queryByRole('heading', { name: 'No access' })).toBeNull()
+    await waitFor(() => expect(lines.getAllByRole('row').length).toBeGreaterThan(1))
+    for (const r of lines.getAllByRole('row').slice(1)) expect(r.textContent).not.toContain('SME app')
   })
 })

@@ -9,6 +9,7 @@ import { devService } from '@/services/devService'
 import { DEFAULT_DEV_FLAGS, useDevFlags } from '@/stores/devFlagsStore'
 import { useSession } from '@/stores/sessionStore'
 import { ADMIN, OWNER } from '@/test/factories'
+import { fx } from '@/lib/ids'
 
 function renderAt(path: string) {
   const router = createMemoryRouter(routes, { initialEntries: [path] })
@@ -58,6 +59,15 @@ describe('Workflow Registry (DEC-56 … DEC-58)', () => {
     fireEvent.click(within(await row('V3')).getByRole('button', { name: /^V3 ·/ }))
     const list = within(await screen.findByRole('list', { name: 'Flows using V3' }))
     expect(list.getByText(/Atoz Software Tech › SME app ›/)).toBeTruthy()
+  })
+
+  it('Given a flow under a version, when its link is clicked, then the flow opens inside its project (DEC-109)', async () => {
+    const router = renderAt('/registry')
+    fireEvent.click(within(await row('V3')).getByRole('button', { name: /^V3 ·/ }))
+    fireEvent.click(within(await screen.findByRole('list', { name: 'Flows using V3' })).getByRole('link', { name: 'SME director check' }))
+    await waitFor(() => expect(router.state.location.pathname).toBe(`/flows/${fx('FLW-0004')}`))
+    expect(useSession.getState().projectId).toBe(fx('PRJ-0002'))
+    expect(await screen.findByRole('button', { name: 'Switch project. Current: SME app' })).toBeTruthy()
   })
 
   it('Given a new version, then it is registered as Draft; a used code is refused', async () => {

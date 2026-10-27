@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type FormEvent } from 'react'
+import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
 import { Link, useSearchParams } from 'react-router'
 import { Download, RotateCcw, Search } from 'lucide-react'
 import { toast } from 'sonner'
@@ -135,14 +135,16 @@ function DetailsCell({ e }: { e: AuditEntry }) {
 // REQ: DEC-42 / DEC-70 — Super admin: everything; Merchant Owner: the merchant; Project Admin: their projects.
 export function AuditLogsPage() {
   const actor = useSession((s) => s.actor)
-  const { selected, projects, account } = useAccess()
+  const { selected, projects, account, merchantScope } = useAccess()
   const [sp, setSp] = useSearchParams()
   const key = sp.toString()
   const params = useMemo(() => parseAuditParams(new URLSearchParams(key)), [key])
   const scope = selected?.projectId
   const isAdmin = !!account && isInternal(account) // super admins and platform staff see several merchants (DEC-99)
   const [retry, setRetry] = useState(0)
-  const request = JSON.stringify([key, scope, actor.userId, retry])
+  const request = JSON.stringify([key, scope, merchantScope, actor.userId, retry])
+  // REQ: DEC-109 — in a project, its entries; in Merchant settings › Audit log, the whole merchant.
+  const query = useCallback((p: AuditParams) => ({ ...toAuditQuery(p, scope), ...(merchantScope ? { merchantId: merchantScope } : {}) }), [scope, merchantScope])
   const [result, setResult] = useState<Result>({ request: '' })
   const [lastData, setLastData] = useState<Paged<AuditEntry>>()
   const [merchants, setMerchants] = useState<Merchant[]>([])
@@ -160,7 +162,7 @@ export function AuditLogsPage() {
 
   useEffect(() => {
     let live = true
-    auditService.list(toAuditQuery(params, scope), actor).then(
+    auditService.list(query(params), actor).then(
       (data) => {
         if (!live) return
         setResult({ request, data })
@@ -171,12 +173,16 @@ export function AuditLogsPage() {
     return () => {
       live = false
     }
-  }, [request, params, scope, actor])
+  }, [request, params, query, actor])
 
   const loading = result.request !== request
   const error = loading ? undefined : result.error
   const data = loading || error ? lastData : result.data
-  const go = (p: AuditParams) => setSp(toAuditSearch(p))
+  const go = (p: AuditParams) => {
+    const next = toAuditSearch(p)
+    if (sp.get('tab')) next.set('tab', sp.get('tab')!) // REQ: DEC-109 — stay on Merchant settings › Audit log
+    setSp(next)
+  }
   const merchantName = (id?: string) => (id ? (merchants.find((m) => m.merchantId === id)?.name ?? id) : '—')
   const projectName = (id?: string) => (id ? (projects.find((p) => p.projectId === id)?.name ?? id) : '—')
   const filtersKey = JSON.stringify(params.filters)
@@ -184,7 +190,7 @@ export function AuditLogsPage() {
   const exportCsv = async () => {
     setExporting(true)
     try {
-      const all = await auditService.list({ ...toAuditQuery(params, scope), page: 1, pageSize: 100_000 }, actor)
+      const all = await auditService.list({ ...query(params), page: 1, pageSize: 100_000 }, actor)
       const blob = new Blob([`﻿${auditCsv(all.items, merchantName)}`], { type: 'text/csv;charset=utf-8' })
       const a = document.createElement('a')
       a.href = URL.createObjectURL(blob)
@@ -211,7 +217,7 @@ export function AuditLogsPage() {
         </Button>
       </header>
 
-      <Filters key={filtersKey} initial={params.filters} onSearch={(filters) => go({ filters, page: 1, pageSize: params.pageSize })} onReset={() => go({ filters: EMPTY_AUDIT_FILTERS, page: 1, pageSize: params.pageSize })} merchants={merchants} users={users} showMerchant={isAdmin && !scope} />
+      <Filters key={filtersKey} initial={params.filters} onSearch={(filters) => go({ filters, page: 1, pageSize: params.pageSize })} onReset={() => go({ filters: EMPTY_AUDIT_FILTERS, page: 1, pageSize: params.pageSize })} merchants={merchants} users={users} showMerchant={isAdmin && !scope && !merchantScope} />
 
       <section aria-label="Audit entries" className="rounded-lg border bg-card">
         {error && !data ? (

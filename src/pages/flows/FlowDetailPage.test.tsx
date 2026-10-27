@@ -15,6 +15,8 @@ import { fx } from '@/lib/ids'
 const VANTAGE_OWNER: Actor = { userId: fx('USR-2026-0045'), fullName: 'Ahmad Faiz Bin Zulkifli' }
 
 function renderAt(path: string) {
+  // REQ: DEC-109 — the inner portal works on one project: the flow's.
+  useSession.getState().selectProject(flow(path.split('/').pop()!).projectId)
   const router = createMemoryRouter(routes, { initialEntries: [path] })
   render(<RouterProvider router={router} />)
   return router

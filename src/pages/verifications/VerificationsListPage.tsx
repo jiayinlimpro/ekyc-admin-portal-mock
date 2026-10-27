@@ -18,7 +18,7 @@ type Result = { request: string; data?: Paged<VerificationSummary>; error?: stri
 
 const NO_OPTIONS: FilterOptions = { projects: [], flows: [] }
 
-// REQ: DEC-40 / DEC-43 / DEC-96 — cases across the projects in the header's view ("All my projects" or one project).
+// REQ: DEC-40 / DEC-43 / DEC-96 / DEC-109 — the cases of the header's project (the inner portal is always one project).
 export function VerificationsListPage() {
   const actor = useSession((s) => s.actor)
   const { inView, account } = useAccess()
@@ -86,7 +86,7 @@ export function VerificationsListPage() {
       <header>
         <h1 className="text-2xl font-semibold">Verifications</h1>
         <p className="text-sm text-muted-foreground">
-          {!filtered ? `Pending Review cases in your projects${params.sort ? '' : ', oldest first'}. ` : ''}Open a case to review it. Claiming happens on the detail page; claim is not a status.
+          {!filtered ? `Pending Review cases in this project${params.sort ? '' : ', oldest first'}. ` : ''}Open a case to review it. Claiming happens on the detail page; claim is not a status.
         </p>
       </header>
 
@@ -120,7 +120,7 @@ export function VerificationsListPage() {
                   </Button>
                 }
               >
-                {!filtered && 'No Pending Review cases in the projects in view.'}
+                {!filtered && 'No Pending Review cases in this project.'}
               </EmptyState>
             ) : (
               <VerificationTable

@@ -127,6 +127,12 @@ export function VerificationDetailPage() {
   const detail = loaded.key === key ? loaded.detail : undefined
   const projectId = detail?.projectId
 
+  // REQ: DEC-109 — a link to a case works from anywhere: the inner portal moves to the case's project.
+  const selectProject = useSession((s) => s.selectProject)
+  useEffect(() => {
+    if (projectId && me.ready && me.selected?.projectId !== projectId && me.projects.some((p) => p.projectId === projectId)) selectProject(projectId)
+  }, [projectId, me.ready, me.selected?.projectId, me.projects, selectProject])
+
   // REQ: DEC-97 — the URL holds the case ID; the tab and breadcrumb read the merchant's Reference ID.
   const { pathname, search } = useLocation()
   const openTab = useTabs((s) => s.open)

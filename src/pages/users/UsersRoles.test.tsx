@@ -15,6 +15,8 @@ import { fx } from '@/lib/ids'
 function renderAt(path: string) {
   render(<RouterProvider router={createMemoryRouter(routes, { initialEntries: [path] })} />)
 }
+// REQ: DEC-109 — a merchant's Users and Roles are tabs of its Merchant settings; staff and platform roles are on Platform staff.
+const atoz = (tab: 'users' | 'roles', query = '') => `/merchants/${fx('MER-0001')}?tab=${tab}${query}`
 const row = async (name: string) => (await screen.findByRole('rowheader', { name })).closest('tr')!
 
 beforeEach(async () => {
@@ -29,18 +31,18 @@ afterEach(() => {
 
 describe('Users (DEC-74, DEC-104)', () => {
   it('Given the Owner, then the FRS columns with Access (merchant role first); no Merchant column; status filter applies on Search', async () => {
-    renderAt('/users?q=Ali')
+    renderAt(atoz('users', '&q=Ali'))
     expect((await row('Ali Bin Ahmad')).textContent).toContain('MemberReviewer · DefaultViewer · SME app')
     const headers = within(screen.getByRole('region', { name: 'User list' })).getAllByRole('columnheader').map((h) => h.textContent)
     expect(headers).toEqual(['Full Name', 'Email', 'Access', 'Status', 'Created At'])
     cleanup()
-    renderAt('/users?status=PENDING')
+    renderAt(atoz('users', '&status=PENDING'))
     expect(await screen.findByRole('rowheader', { name: 'Chong Pei Shan' })).toBeTruthy()
     expect(screen.queryByRole('rowheader', { name: 'Ali Bin Ahmad' })).toBeNull()
   })
 
   it('Given New user, then Type, User ID, then the merchant role (merchant roles only, Member by default) with the help text', async () => {
-    renderAt('/users')
+    renderAt(atoz('users'))
     fireEvent.click(await screen.findByRole('button', { name: /New user/ }))
     const id = (await screen.findByLabelText('User ID')) as HTMLInputElement
     await waitFor(() => expect(id.value).toMatch(/^usr_[a-z0-9]{24}$/))
@@ -60,14 +62,14 @@ describe('Users (DEC-74, DEC-104)', () => {
     expect(screen.getByRole('status').textContent).toBe('Aishah Binti Omar will be able to view the case list, view audit log in every project (including new ones); and view merchant-wide reports, export merchant-wide reports for the whole merchant.')
     fireEvent.click(screen.getByRole('button', { name: 'Invite user' }))
     cleanup()
-    renderAt('/users?q=Aishah')
+    renderAt(atoz('users', '&q=Aishah'))
     const r = await row('Aishah Binti Omar')
     expect(r.textContent).toContain('Auditor · All projects')
     expect(r.textContent).toContain('Pending')
   })
 
   it('Given Ali’s details, then his merchant role with Change role (merchant roles only), and his project roles from Members (read-only)', async () => {
-    renderAt(`/users?user=${fx('USR-2026-0012')}`)
+    renderAt(atoz('users', `&user=${fx('USR-2026-0012')}`))
     const mine = await screen.findByRole('region', { name: 'Merchant role' })
     expect(mine.textContent).toContain('Member')
     const projects = screen.getByRole('region', { name: 'Project access' })
@@ -84,7 +86,7 @@ describe('Users (DEC-74, DEC-104)', () => {
   })
 
   it('Given Ali’s details, when SME app is chosen under Effective access, then only Viewer permissions, from Viewer · SME app', async () => {
-    renderAt(`/users?user=${fx('USR-2026-0012')}`)
+    renderAt(atoz('users', `&user=${fx('USR-2026-0012')}`))
     const ea = await screen.findByRole('region', { name: 'Effective access' })
     expect(within(ea).getByRole('rowheader', { name: 'Claim / release cases' }).closest('tr')!.textContent).toContain('Reviewer · Default')
     fireEvent.change(within(ea).getByLabelText('Project'), { target: { value: fx('PRJ-0002') } })
@@ -93,19 +95,20 @@ describe('Users (DEC-74, DEC-104)', () => {
   })
 
   it('Given an Owner, then no platform staff in the list', async () => {
-    renderAt('/users?q=Tan')
+    renderAt(atoz('users', '&q=Tan'))
     await row('Tan Mei Ling')
     expect(screen.queryByRole('rowheader', { name: 'Daniel Tan' })).toBeNull()
     expect(screen.queryByLabelText('Type', { selector: 'select' })).toBeNull()
   })
 
-  it('Given a super admin, when New user is Platform, then name, company email and one staff role (no merchant scope); listed as Platform (DEC-104)', async () => {
+  it('Given a super admin on Platform staff, when New staff member, then Type is Platform, name, company email and one staff role (no merchant scope) (DEC-104, DEC-109)', async () => {
     useSession.getState().switchUser(ADMIN)
-    renderAt('/users?q=Daniel')
-    expect((await row('Daniel Tan')).textContent).toContain('Platform (internal)')
-    fireEvent.click(screen.getByRole('button', { name: /New user/ }))
+    renderAt('/platform-staff?q=Daniel')
+    expect((await row('Daniel Tan')).textContent).toContain('Support')
+    expect(screen.queryByRole('rowheader', { name: 'Tan Mei Ling' })).toBeNull() // merchant users are in Merchant settings
+    fireEvent.click(screen.getByRole('button', { name: /New staff member/ }))
     const dialog = within(await screen.findByRole('dialog'))
-    fireEvent.change(dialog.getByLabelText('Type'), { target: { value: 'PLATFORM' } })
+    expect((dialog.getByLabelText('Type') as HTMLInputElement).value).toBe('Platform (internal)')
     expect(dialog.queryByLabelText('Merchant')).toBeNull()
     fireEvent.change(screen.getByLabelText('Full name'), { target: { value: 'Mira Chen' } })
     fireEvent.change(screen.getByLabelText('Work email'), { target: { value: 'mira.chen@ekyc-platform.example' } })
@@ -115,21 +118,23 @@ describe('Users (DEC-74, DEC-104)', () => {
     fireEvent.change(role, { target: { value: fx('ROL-2026-0102') } }) // Support
     fireEvent.click(screen.getByRole('button', { name: 'Invite user' }))
     cleanup()
-    renderAt('/users?q=Mira')
-    const r = await row('Mira Chen')
-    expect(r.textContent).toContain('Support')
-    expect(r.textContent).toContain('Platform (internal)')
+    renderAt('/platform-staff?q=Mira')
+    expect((await row('Mira Chen')).textContent).toContain('Support')
   })
 
-  it('Given a Reviewer, then Users is "No access"', async () => {
+  it('Given a Reviewer, then Platform staff is "No access" and Merchant settings has no Users tab', async () => {
     useSession.getState().switchUser(ALI)
-    renderAt('/users')
+    renderAt('/platform-staff')
     await screen.findByRole('heading', { name: 'No access' })
+    cleanup()
+    renderAt(atoz('users'))
+    await screen.findByRole('region', { name: 'General' })
+    expect(screen.queryByRole('tab', { name: 'Users' })).toBeNull()
   })
 
   it('Given the only Owner, then Change role and Suspend are shown disabled with the reason (DEC-78)', async () => {
     useSession.getState().switchUser(ADMIN)
-    renderAt(`/users?user=${fx('USR-2026-0002')}`)
+    renderAt(atoz('users', `&user=${fx('USR-2026-0002')}`))
     const change = await screen.findByRole('button', { name: /Change role/ })
     expect((change as HTMLButtonElement).disabled).toBe(true)
     expect(change.parentElement!.getAttribute('title')).toBe(LAST_OWNER)
@@ -139,7 +144,7 @@ describe('Users (DEC-74, DEC-104)', () => {
 
 describe('Roles: the merchant role table (DEC-76, DEC-104)', () => {
   it('Given the Owner, then merchant roles only (System Default read-only) and their Custom merchant role', async () => {
-    renderAt('/roles')
+    renderAt(atoz('roles'))
     const list = await screen.findByRole('region', { name: 'Role list' })
     await within(list).findByRole('rowheader', { name: 'Owner' })
     expect(within(list).getAllByRole('rowheader').map((h) => h.textContent)).toEqual(['Owner', 'Admin', 'Billing', 'Auditor', 'Member', 'User Coordinator'])
@@ -150,7 +155,7 @@ describe('Roles: the merchant role table (DEC-76, DEC-104)', () => {
   })
 
   it('Given a new merchant role, then every module; Approve ticks Claim, View details and View list; unticking View list clears them; no permission shows the FRS message', async () => {
-    renderAt('/roles')
+    renderAt(atoz('roles'))
     await row('Owner')
     fireEvent.click(screen.getByRole('button', { name: /New role/ }))
     fireEvent.change(await screen.findByLabelText('Role name'), { target: { value: 'Claimer' } })
@@ -168,7 +173,7 @@ describe('Roles: the merchant role table (DEC-76, DEC-104)', () => {
   })
 
   it('Given the permission matrix, then one table of modules with View and Actions (no sections); the module box ticks the whole row and shows "mixed" (DEC-102, DEC-104)', async () => {
-    renderAt('/roles')
+    renderAt(atoz('roles'))
     await row('Owner')
     fireEvent.click(screen.getByRole('button', { name: /New role/ }))
     await screen.findByLabelText('Role name')
@@ -188,7 +193,7 @@ describe('Roles: the merchant role table (DEC-76, DEC-104)', () => {
   })
 
   it('Given New role as an Owner, then Type is locked to their merchant, then the generated Role ID, read-only (DEC-76, DEC-99)', async () => {
-    renderAt('/roles')
+    renderAt(atoz('roles'))
     await row('Owner')
     fireEvent.click(screen.getByRole('button', { name: /New role/ }))
     const id = (await screen.findByLabelText('Role ID')) as HTMLInputElement
@@ -209,46 +214,46 @@ describe('Roles: the merchant role table (DEC-76, DEC-104)', () => {
   it('Given the Actions menu, then a Custom role nobody holds can be deactivated; Owner can’t, with the reason', async () => {
     vi.spyOn(window, 'confirm').mockReturnValue(true)
     await roleService.create(fx('MER-0001'), { name: 'Spare desk', permissions: ['VIEW_USERS'] }, OWNER)
-    renderAt('/roles')
+    renderAt(atoz('roles'))
     fireEvent.click(within(await row('Owner')).getByRole('button', { name: 'Actions for Owner' }))
     const item = await screen.findByRole('menuitem', { name: /Deactivate/ })
     expect(item.getAttribute('aria-disabled') ?? item.getAttribute('data-disabled')).toBeTruthy()
     expect(item.textContent).toContain('can’t be deactivated')
     fireEvent.keyDown(item, { key: 'Escape' })
     cleanup()
-    renderAt('/roles')
+    renderAt(atoz('roles'))
     fireEvent.click(within(await row('Spare desk')).getByRole('button', { name: 'Actions for Spare desk' }))
     fireEvent.click(await screen.findByRole('menuitem', { name: 'Deactivate' }))
     await waitFor(async () => expect((await row('Spare desk')).textContent).toContain('Inactive'))
   })
 
-  it('Given a super admin, when New role is Platform, then one table (no sections); Approve ticks Claim and View details; it lists as Platform', async () => {
+  it('Given a super admin on Platform staff › Platform roles, when New role, then Type is Platform, one table (no sections); Approve ticks Claim and View details (DEC-109)', async () => {
     useSession.getState().switchUser(ADMIN)
-    renderAt('/roles')
-    expect((await row('Support')).textContent).toContain('Platform (internal)')
+    renderAt('/platform-staff?tab=roles')
+    await row('Support')
+    expect(screen.queryByRole('rowheader', { name: 'Owner' })).toBeNull() // merchant roles are in Merchant settings
     fireEvent.click(screen.getByRole('button', { name: /New role/ }))
-    const type = (await screen.findByLabelText('Type')) as HTMLSelectElement
-    fireEvent.change(type, { target: { value: 'PLATFORM' } })
+    expect(((await screen.findByLabelText('Type')) as HTMLInputElement).value).toBe('Platform (internal)')
     expect(screen.queryByLabelText('Merchant')).toBeNull()
     expect(screen.getByRole('rowheader', { name: /Merchants/ })).toBeTruthy()
     fireEvent.change(screen.getByLabelText('Role name'), { target: { value: 'Night reviewer' } })
     fireEvent.click(screen.getByRole('checkbox', { name: 'Verifications · Approve / reject' }))
     for (const p of ['Verifications · View list', 'Verifications · View details', 'Verifications · Claim / release']) expect((screen.getByRole('checkbox', { name: p }) as HTMLInputElement).checked).toBe(true)
     fireEvent.click(screen.getByRole('button', { name: 'Create role' }))
-    expect((await row('Night reviewer')).textContent).toContain('Platform (internal)')
+    expect((await row('Night reviewer')).textContent).toContain('Custom')
   })
 
-  it('Given a Custom merchant role held by a user, then the Merchant column (super admin) and "Affects N users" before saving', async () => {
+  it('Given a Custom merchant role held by a user, then the super admin sees it in Atoz’s roles and "Affects N users" before saving', async () => {
     useSession.getState().switchUser(ADMIN)
-    renderAt('/roles')
+    renderAt(atoz('roles'))
     const r = await row('User Coordinator')
-    expect(r.textContent).toContain('Atoz Software Tech')
+    expect(screen.queryByRole('rowheader', { name: 'Support' })).toBeNull() // platform roles are on Platform staff
     fireEvent.click(within(r).getByRole('button', { name: 'User Coordinator' }))
     expect((await screen.findByRole('status')).textContent).toContain('Affects 1 user in 2 projects')
   })
 
   it('Given a System Default role, when duplicated, then a Custom copy with its permissions is created', async () => {
-    renderAt('/roles')
+    renderAt(atoz('roles'))
     fireEvent.click(within(await row('Auditor')).getByRole('button', { name: 'Auditor' }))
     fireEvent.click(await screen.findByRole('button', { name: 'Duplicate' }))
     expect(((await screen.findByLabelText('Role name')) as HTMLInputElement).value).toBe('Copy of Auditor')

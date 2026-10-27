@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen, waitFor, within } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { createMemoryRouter } from 'react-router'
 import { RouterProvider } from 'react-router/dom'
@@ -23,21 +23,24 @@ beforeEach(async () => {
   useDevFlags.setState({ ...DEFAULT_DEV_FLAGS, simulateLatency: false })
   await devService.resetDemoData()
   useSession.getState().switchUser(DANIEL)
+  useSession.getState().selectProject(fx('PRJ-0001')) // REQ: DEC-109 — the inner portal works on one project
 })
 afterEach(cleanup)
 
 describe('screens for platform staff (DEC-99, DEC-104)', () => {
-  it('Given Support, then the menu has what the role allows: cases, projects (flows, keys) and the audit log; no dashboards or admin', async () => {
+  it('Given Support in a project, then the menu has what the role allows: cases, flows, settings (keys) and the audit log; no dashboards or platform modules', async () => {
     renderAt('/verifications')
     await mainNav().findByRole('link', { name: 'Verifications' })
-    for (const shown of ['Verifications', 'Projects', 'Audit Logs']) expect(mainNav().getByRole('link', { name: shown })).toBeTruthy()
-    for (const hidden of ['Overview', 'Merchants', 'Users', 'Roles', 'Super admins', 'Workflow Registry', 'Billing']) expect(mainNav().queryByRole('link', { name: hidden })).toBeNull()
+    for (const shown of ['Verifications', 'Flows', 'Project Settings', 'Audit Logs']) expect(mainNav().getByRole('link', { name: shown })).toBeTruthy()
+    for (const hidden of ['Overview', 'Billing', 'Merchants', 'Super admins', 'Platform staff', 'Workflow Registry']) expect(mainNav().queryByRole('link', { name: hidden })).toBeNull()
   })
 
-  it('Given Support opens the portal, then it lands on Verifications (no Overview for this role) and there is no Overview tab', async () => {
+  it('Given Support opens the portal, then the Merchants page; Go to project lands on Verifications (no Overview for this role) and there is no Overview tab (DEC-109)', async () => {
     const router = renderAt('/')
+    fireEvent.click(await screen.findByRole('button', { name: 'Go to project SME app' }))
     await waitFor(() => expect(router.state.location.pathname).toBe('/verifications'))
-    expect(within(screen.getByRole('navigation', { name: 'Open pages' })).queryByRole('link', { name: 'Overview' })).toBeNull()
+    expect(useSession.getState().projectId).toBe(fx('PRJ-0002'))
+    expect(within(await screen.findByRole('navigation', { name: 'Open pages' })).queryByRole('link', { name: 'Overview' })).toBeNull()
   })
 
   it('Given Support opens a case, then the full page, no masking; the view is logged', async () => {
@@ -46,15 +49,14 @@ describe('screens for platform staff (DEC-99, DEC-104)', () => {
     expect(screen.getByRole('img', { name: /front \(sample image/ })).toBeTruthy()
   })
 
-  it('Given Implementation on Merchants, then Add Merchant', async () => {
+  it('Given Implementation on Merchants, then every merchant and New merchant (DEC-109)', async () => {
     useSession.getState().switchUser(MARCUS)
-    renderAt('/merchants')
-    await screen.findByRole('rowheader', { name: 'Tesla' })
-    expect(screen.getByRole('button', { name: /Add Merchant/ })).toBeTruthy()
+    renderAt('/')
+    expect(await screen.findByRole('heading', { name: 'Tesla' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: /New merchant/ })).toBeTruthy()
   })
 
   it('Given Support on Flows, then the flows read-only: no New flow, and the detail says read-only', async () => {
-    useSession.getState().selectProject(fx('PRJ-0001'))
     renderAt('/flows')
     await screen.findByRole('link', { name: 'Malaysian onboarding' })
     expect(screen.queryByRole('button', { name: /New flow/ })).toBeNull()
@@ -64,7 +66,6 @@ describe('screens for platform staff (DEC-99, DEC-104)', () => {
   })
 
   it('Given Support on Project Settings › Integration, then keys read-only (View, not Manage)', async () => {
-    useSession.getState().selectProject(fx('PRJ-0001'))
     renderAt('/project-settings?tab=integration')
     expect(await screen.findByText(/Read-only: you can view API keys/)).toBeTruthy()
     expect(screen.queryByRole('button', { name: /Create key/ })).toBeNull()
@@ -72,6 +73,7 @@ describe('screens for platform staff (DEC-99, DEC-104)', () => {
 
   it('Given Finance, then Billing with Export, but no Verifications', async () => {
     useSession.getState().switchUser(HANNAH)
+    useSession.getState().selectProject(fx('PRJ-0001'))
     renderAt('/billing')
     expect(await screen.findByRole('button', { name: /Export CSV/ })).toBeTruthy()
     expect(mainNav().queryByRole('link', { name: 'Verifications' })).toBeNull()

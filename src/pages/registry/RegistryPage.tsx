@@ -224,7 +224,7 @@ function FlowsUsing({ code }: { code: string }) {
     <ul className="space-y-1 text-sm" aria-label={`Flows using ${code}`}>
       {flows.data.map((f) => (
         <li key={f.flowId}>
-          {f.merchantName} › {f.projectName} › <Link to={`/flows/${f.flowId}`} className="text-blue-700 hover:underline dark:text-blue-400">{f.name}</Link>{' '}
+          {f.merchantName} › {f.projectName} › <Link to={`/flows/${f.flowId}?project=${f.projectId}`} className="text-blue-700 hover:underline dark:text-blue-400">{f.name}</Link>{' '}
           <span className="text-xs text-muted-foreground">({FLOW_STATUS_LABELS[f.status]})</span>
         </li>
       ))}

@@ -4,20 +4,18 @@ import { NativeSelect } from '@/components/common/NativeSelect'
 import { useLoad } from '@/hooks/useLoad'
 import { analyticsService, type DashboardScope } from '@/services/analyticsService'
 import { useSession } from '@/stores/sessionStore'
-import { isInternal } from '@/domain/access'
 
 /**
- * REQ: DEC-86 — what Overview, System Intelligence and Billing show: the header's projects ("All my projects" or one),
- * an optional flow, and (Super admin under "All my projects") an optional merchant. Flow and merchant live in the URL.
+ * REQ: DEC-86 / DEC-109 — what Overview, System Intelligence and Billing show: the project of the inner portal and an
+ * optional flow (in the URL); in Merchant settings › Billing, every project of that merchant.
  */
 export function useDashboardScope() {
   const actor = useSession((s) => s.actor)
-  const { inView, selected, account } = useAccess()
+  const { inView, selected, merchantScope } = useAccess()
   const [sp, setSp] = useSearchParams()
   const filters = useLoad(() => analyticsService.filters(actor), [actor.userId])
   const f = filters.data
-  const isAdmin = !!account && isInternal(account) // super admins and platform staff see several merchants (DEC-99)
-  const merchantId = isAdmin && !selected && f?.merchants.some((m) => m.merchantId === sp.get('merchant')) ? sp.get('merchant')! : ''
+  const merchantId = merchantScope ?? ''
   const inViewIds = inView.map((p) => p.projectId)
   const projects = (f?.projects ?? []).filter((p) => inViewIds.includes(p.projectId) && (!merchantId || p.merchantId === merchantId))
   const flows = (f?.flows ?? []).filter((x) => projects.some((p) => p.projectId === x.projectId))
@@ -29,18 +27,17 @@ export function useDashboardScope() {
   const flowName = (id: string) => f?.flows.find((x) => x.flowId === id)?.name ?? id
   const flow = flows.find((x) => x.flowId === flowId)
   const label = [
-    selected ? selected.name : merchantId ? merchantName(merchantId) : isAdmin ? 'All merchants' : inView.length > 1 ? 'All my projects' : (inView[0]?.name ?? ''),
+    selected ? selected.name : merchantId ? merchantName(merchantId) : (inView[0]?.name ?? ''),
     flow && flow.name,
   ]
     .filter(Boolean)
     .join(' › ')
 
-  const set = (k: 'merchant' | 'flow', v: string) =>
+  const set = (k: 'flow', v: string) =>
     setSp(
       (p) => {
         if (v) p.set(k, v)
         else p.delete(k)
-        if (k === 'merchant') p.delete('flow')
         return p
       },
       { replace: true },
@@ -56,22 +53,9 @@ export function useDashboardScope() {
     names: { merchantName, projectName, flowName },
     bar: (
       <div className="flex flex-wrap items-end gap-3" role="group" aria-label="Dashboard filters">
-        {isAdmin && !selected && (
-          <label className="text-xs font-medium text-muted-foreground">
-            Merchant
-            <NativeSelect className="mt-1 w-56" value={merchantId} onChange={(e) => set('merchant', e.target.value)}>
-              <option value="">All merchants</option>
-              {(f?.merchants ?? []).map((m) => (
-                <option key={m.merchantId} value={m.merchantId}>
-                  {m.name}
-                </option>
-              ))}
-            </NativeSelect>
-          </label>
-        )}
         <div className="text-xs font-medium text-muted-foreground">
-          Project
-          <div className="mt-1 flex h-8 items-center rounded-lg border px-2.5 text-sm text-foreground">{selected ? selected.name : inView.length > 1 ? 'All my projects' : (inView[0]?.name ?? '—')}</div>
+          {selected ? 'Project' : 'Merchant'}
+          <div className="mt-1 flex h-8 items-center rounded-lg border px-2.5 text-sm text-foreground">{selected ? selected.name : merchantId ? `${merchantName(merchantId)} · ${inView.length} project(s)` : '—'}</div>
         </div>
         <label className="text-xs font-medium text-muted-foreground">
           Flow
@@ -85,7 +69,7 @@ export function useDashboardScope() {
             ))}
           </NativeSelect>
         </label>
-        <p className="pb-2 text-xs text-muted-foreground">Change the project in the header.</p>
+        {selected && <p className="pb-2 text-xs text-muted-foreground">Change the project in the header.</p>}
       </div>
     ),
   }

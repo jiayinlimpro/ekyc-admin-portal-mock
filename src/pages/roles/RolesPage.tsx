@@ -1,10 +1,9 @@
-// REQ: DEC-76 / DEC-102 / DEC-104 — [FRS] User Management › Roles: the merchant role table (given on Users; the whole
-// merchant). Project roles are on each project's Settings › Roles. Super admins also see the platform roles.
+// REQ: DEC-76 / DEC-102 / DEC-104 / DEC-109 — [FRS] Roles: one merchant's roles (Merchant settings › Roles; given on Users,
+// for the whole merchant), or the platform roles (Platform staff › Roles). Project roles are on each project's Settings › Roles.
 import { useState } from 'react'
 import { Plus } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAccess } from '@/app/access'
-import { isInternal } from '@/domain/access'
 import { ErrorState } from '@/components/common/States'
 import { Button } from '@/components/ui/button'
 import { errorMessage, useLoad } from '@/hooks/useLoad'
@@ -13,15 +12,17 @@ import { roleService, type RoleRow } from '@/services/roleService'
 import { useSession } from '@/stores/sessionStore'
 import { RoleDialog, RoleTable, type Editing } from './RoleTable'
 
-export function RolesPage() {
+export type RolesScope = { merchantId: string } | 'PLATFORM'
+
+export function RolesPage({ scope }: { scope: RolesScope }) {
   const actor = useSession((s) => s.actor)
   const { account, allows } = useAccess()
+  const platform = scope === 'PLATFORM'
+  const merchantId = platform ? undefined : scope.merchantId
   const isAdmin = account?.level === 'SUPER_ADMIN'
-  // REQ: DEC-104 — super admins and staff with Roles permissions work across merchants; only super admins choose Platform.
-  const internal = !!account && isInternal(account)
-  // REQ: DEC-102 / DEC-78 — hide what the user's permissions never allow.
-  const can = { create: allows({ project: 'createRoles' }), edit: allows({ project: 'editRoles' }), changeStatus: allows({ project: 'changeRoleStatus' }) }
-  const rows = useLoad(() => roleService.list(actor), [actor.userId])
+  // REQ: DEC-102 / DEC-78 — hide what the user's permissions never allow. Platform roles: super admins only (DEC-99).
+  const can = platform ? { create: isAdmin, edit: isAdmin, changeStatus: isAdmin } : { create: allows({ project: 'createRoles' }), edit: allows({ project: 'editRoles' }), changeStatus: allows({ project: 'changeRoleStatus' }) }
+  const rows = useLoad(async () => (await roleService.list(actor, merchantId)).filter((r) => (platform ? r.audience === 'PLATFORM' : r.audience !== 'PLATFORM' && (!r.merchantId || r.merchantId === merchantId))), [actor.userId, merchantId, platform])
   const merchants = useLoad(() => merchantService.list(actor), [actor.userId])
   const [editing, setEditing] = useState<Editing>()
   const toggle = async (r: RoleRow) => {
@@ -41,9 +42,9 @@ export function RolesPage() {
     <div className="mx-auto max-w-[1200px] space-y-4">
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold">Roles</h1>
+          <h1 className="text-2xl font-semibold">{platform ? 'Platform roles' : 'Roles'}</h1>
           <p className="text-sm text-muted-foreground">
-            Merchant roles: given on Users, they apply to the whole merchant and all its projects. Project roles are on each project’s Settings › Roles.
+            {platform ? 'Given to platform staff; a platform role applies to every merchant.' : 'Merchant roles: given on Users, they apply to the whole merchant and all its projects. Project roles are on each project’s Settings › Roles.'}
           </p>
         </div>
         {can.create && (
@@ -57,7 +58,6 @@ export function RolesPage() {
         rows={rows.data ?? []}
         loading={rows.loading}
         can={can}
-        showTypeAndMerchant={internal}
         onOpen={(row) => setEditing({ mode: 'edit', row })}
         onDuplicate={(from) => setEditing({ mode: 'create', from })}
         onToggle={(r) => void toggle(r)}
@@ -68,10 +68,10 @@ export function RolesPage() {
           editing={editing}
           onDuplicate={(from) => setEditing({ mode: 'create', from })}
           can={can}
-          merchants={internal ? (merchants.data ?? []) : []}
-          defaultMerchantId={internal ? undefined : account?.merchantId}
-          isSuper={isAdmin}
-          ownMerchantName={(merchants.data ?? []).find((m) => m.merchantId === account?.merchantId)?.name}
+          merchants={[]}
+          defaultMerchantId={merchantId}
+          audienceFixed={platform ? 'PLATFORM' : 'MERCHANT'}
+          ownMerchantName={(merchants.data ?? []).find((m) => m.merchantId === merchantId)?.name}
           onClose={() => setEditing(undefined)}
           onSaved={() => {
             setEditing(undefined)

@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { useSearchParams } from 'react-router'
+import { useNavigate, useSearchParams } from 'react-router'
+import { Archive, Pencil } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAccess } from '@/app/access'
 import { FormField } from '@/components/common/FormField'
@@ -23,6 +24,7 @@ import { IntegrationTab } from './IntegrationTab'
 import { MembersTab } from './MembersTab'
 import { ProjectRolesTab } from './ProjectRolesTab'
 import { DecisionReasonsCard } from './DecisionReasonsCard'
+import { ProjectDialog, type ProjectEditing } from './ProjectDialog'
 import { Card } from './settingsUi'
 import { PROJECT_SETTINGS_ACTIONS } from '@/app/nav'
 
@@ -60,7 +62,7 @@ function GeneralTab({ project, canEdit, onSaved }: { project: Project; canEdit: 
     <Card title="General">
       <fieldset disabled={!canEdit} className="grid max-w-2xl gap-4 sm:grid-cols-2">
         <legend className="sr-only">General settings</legend>
-        <FormField id="g-name" label="Project name" hint="Renamed on the Projects screen.">
+        <FormField id="g-name" label="Project name" hint="Rename it in the Project card above.">
           <Input id="g-name" value={project.name} readOnly />
         </FormField>
         <FormField id="g-language" label="Language" hint="Blank uses the merchant default.">
@@ -193,7 +195,7 @@ function RoutingTab({ project }: { project: Project }) {
 
 function Settings({ selected }: { selected: MyProject }) {
   const actor = useSession((s) => s.actor)
-  const { account } = useAccess()
+  const { account, retry } = useAccess()
   const [sp, setSp] = useSearchParams()
   const tab = (TABS.some((t) => t.value === sp.get('tab')) ? sp.get('tab') : 'general') as Tab
   const project = useLoad(() => projectService.get(selected.projectId, actor), [selected.projectId, actor.userId])
@@ -215,12 +217,21 @@ function Settings({ selected }: { selected: MyProject }) {
       ) : (
         <div {...tabPanelProps(tab)}>
           {/* REQ: DEC-102 — View project settings is read-only; Edit changes them. */}
-          {tab === 'general' &&
-            (may('viewProjectSettings') ? (
-              <GeneralTab key={p.projectId} project={p} canEdit={may('manageProjectSettings')} onSaved={project.reload} />
-            ) : (
-              <ReadOnlyNote>General settings need the View project settings permission.</ReadOnlyNote>
-            ))}
+          {tab === 'general' && (
+            <div className="space-y-4">
+              <ProjectCard key={`${p.projectId}-${p.name}`} project={p} canRename={may('renameProjects')} canArchive={may('archiveProjects')}
+                onSaved={() => {
+                  project.reload()
+                  retry() // the header and the Merchants page show the new name
+                }}
+              />
+              {may('viewProjectSettings') ? (
+                <GeneralTab key={p.projectId} project={p} canEdit={may('manageProjectSettings')} onSaved={project.reload} />
+              ) : (
+                <ReadOnlyNote>General settings need the View project settings permission.</ReadOnlyNote>
+              )}
+            </div>
+          )}
           {tab === 'integration' &&
             (may('viewIntegration') ? (
               <IntegrationTab project={p} />
@@ -242,7 +253,48 @@ function Settings({ selected }: { selected: MyProject }) {
   )
 }
 
-// REQ: DEC-54 / DEC-77 / DEC-96 — one selected project; tabs General, Integration, Review operations, Routing, Members.
+/** REQ: DEC-93 / DEC-109 — rename and archive, here now that there is no Projects list (each needs its own permission). */
+function ProjectCard({ project, canRename, canArchive, onSaved }: { project: Project; canRename: boolean; canArchive: boolean; onSaved: () => void }) {
+  const [editing, setEditing] = useState<ProjectEditing>()
+  const navigate = useNavigate()
+  const archived = project.status === 'ARCHIVED'
+  if (!canRename && !canArchive) return null
+  return (
+    <Card title="Project">
+      <div className="flex flex-wrap items-center gap-3">
+        <span className="text-sm font-medium">{project.name}</span>
+        {archived && <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium tracking-wide text-muted-foreground uppercase">Archived</span>}
+        {project.isDefault && <span className="text-xs text-muted-foreground">Default project</span>}
+        <div className="ml-auto flex gap-2">
+          {canRename && (
+            <Button size="sm" variant="outline" onClick={() => setEditing({ mode: 'rename', row: project })}>
+              <Pencil aria-hidden /> Rename
+            </Button>
+          )}
+          {canArchive && !archived && (
+            <Button size="sm" variant="outline" onClick={() => setEditing({ mode: 'archive', row: project })}>
+              <Archive aria-hidden /> Archive
+            </Button>
+          )}
+        </div>
+      </div>
+      {editing && (
+        <ProjectDialog
+          editing={editing}
+          onClose={() => setEditing(undefined)}
+          onSaved={() => {
+            const wasArchive = editing.mode === 'archive'
+            setEditing(undefined)
+            onSaved()
+            if (wasArchive) navigate('/') // archived: no new sessions; back to the Merchants page
+          }}
+        />
+      )}
+    </Card>
+  )
+}
+
+// REQ: DEC-54 / DEC-77 / DEC-109 — the project of the inner portal; tabs General, Integration, Review operations, Routing, Members, Roles.
 export function ProjectSettingsPage() {
   return <RequireProject action={PROJECT_SETTINGS_ACTIONS} title="Project Settings">{(p) => <Settings key={p.projectId} selected={p} />}</RequireProject>
 }

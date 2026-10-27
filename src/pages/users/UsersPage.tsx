@@ -1,9 +1,9 @@
-// REQ: DEC-74 / DEC-104 — [FRS] User Management › Users: one merchant role per user; project roles come from Members.
+// REQ: DEC-74 / DEC-104 / DEC-109 — [FRS] Users: one merchant role per user (Merchant settings › Users); project roles come
+// from Members. The same screen lists platform staff (Platform staff).
 import { useState, type FormEvent } from 'react'
 import { useSearchParams } from 'react-router'
 import { Pencil, Plus, RotateCcw, Search } from 'lucide-react'
 import { toast } from 'sonner'
-import { useAccess } from '@/app/access'
 import { FormField } from '@/components/common/FormField'
 import { NativeSelect } from '@/components/common/NativeSelect'
 import { Pagination } from '@/components/common/Pagination'
@@ -20,7 +20,6 @@ import { merchantService } from '@/services/merchantService'
 import { roleService } from '@/services/roleService'
 import { userAdminService, type UserDetail, type UserRow } from '@/services/userAdminService'
 import { useSession } from '@/stores/sessionStore'
-import { isInternal } from '@/domain/access'
 import { DEFAULT_MERCHANT_ROLE_ID } from '@/domain/roles'
 import { AccessChip, AccessPreview, ChangeRoleDialog, MERCHANT_ROLE_HINT, RoleSelect, UserStatusBadge, type MerchantOption } from './AccessFields'
 import { StaffDialog } from './StaffDialog'
@@ -36,13 +35,13 @@ type AccountKind = 'PLATFORM' | 'MERCHANT'
  * merchant), then the generated User ID, then: Platform = name, email, staff role; Merchant = merchant, name, email,
  * merchant role (Member by default, with the help text).
  */
-function InviteDialog({ merchants, isSuper, internal, ownMerchant, onClose, onSaved }: { merchants: MerchantOption[]; isSuper: boolean; /** REQ: DEC-104 — super admins and staff pick the merchant. */ internal: boolean; ownMerchant?: MerchantOption; onClose: () => void; onSaved: () => void }) {
+function InviteDialog({ merchants, isSuper, internal, ownMerchant, fixedKind, onClose, onSaved }: { merchants: MerchantOption[]; isSuper: boolean; /** REQ: DEC-104 — super admins and staff pick the merchant. */ internal: boolean; ownMerchant?: MerchantOption; /** REQ: DEC-109 — the page decides: a merchant's users or platform staff. */ fixedKind?: AccountKind; onClose: () => void; onSaved: () => void }) {
   const actor = useSession((s) => s.actor)
-  const [kind, setKind] = useState<AccountKind>('MERCHANT')
+  const [kind, setKind] = useState<AccountKind>(fixedKind ?? 'MERCHANT')
   const [merchantId, setMerchantId] = useState(ownMerchant?.merchantId ?? '')
   const [fullName, setFullName] = useState('')
   const [email, setEmail] = useState('')
-  const [roleId, setRoleId] = useState<string>(DEFAULT_MERCHANT_ROLE_ID)
+  const [roleId, setRoleId] = useState<string>(fixedKind === 'PLATFORM' ? '' : DEFAULT_MERCHANT_ROLE_ID)
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [busy, setBusy] = useState(false)
   const platform = kind === 'PLATFORM'
@@ -92,7 +91,9 @@ function InviteDialog({ merchants, isSuper, internal, ownMerchant, onClose, onSa
             <DialogDescription>The user is Pending until they accept the emailed invitation.</DialogDescription>
           </DialogHeader>
           <FormField id="nu-type" label="Type" hint="Can’t be changed after creation.">
-            {isSuper ? (
+            {fixedKind === 'PLATFORM' ? (
+              <Input id="nu-type" value="Platform (internal)" readOnly disabled />
+            ) : isSuper && !fixedKind ? (
               <NativeSelect id="nu-type" value={kind} onChange={(e) => changeKind(e.target.value as AccountKind)}>
                 <option value="PLATFORM">Platform (internal)</option>
                 <option value="MERCHANT">Merchant</option>
@@ -341,47 +342,56 @@ const matches = (r: ListRow, f: Filters) => {
   return (!q || [r.fullName, r.email].some((x) => x.toLowerCase().includes(q))) && (!f.status || r.status === f.status) && (!f.merchantId || r.merchantId === f.merchantId) && (!f.type || r.type === f.type)
 }
 
-export function UsersPage() {
+/** REQ: DEC-109 — where the list lives: one merchant's users (Merchant settings › Users) or platform staff (Platform staff). */
+export type UsersScope = { merchantId: string } | 'PLATFORM'
+
+export function UsersPage({ scope }: { scope: UsersScope }) {
   const actor = useSession((s) => s.actor)
-  const { account } = useAccess()
-  const isAdmin = account?.level === 'SUPER_ADMIN'
-  // REQ: DEC-104 — super admins and staff with Users permissions work across merchants; only super admins see staff.
-  const internal = !!account && isInternal(account)
+  const platform = scope === 'PLATFORM'
+  const merchantId = platform ? undefined : scope.merchantId
   const [sp, setSp] = useSearchParams()
-  const applied: Filters = { q: sp.get('q') ?? '', status: (sp.get('status') ?? '') as Filters['status'], merchantId: sp.get('merchantId') ?? '', type: (sp.get('type') ?? '') as Filters['type'] }
+  const applied: Filters = { q: sp.get('q') ?? '', status: (sp.get('status') ?? '') as Filters['status'], merchantId: '', type: '' }
   const [form, setForm] = useState<Filters>(applied)
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState<number>(PAGE_SIZES[0])
   const [inviting, setInviting] = useState(false)
   // ?user=<id> opens a merchant user's details (linked from the Members tab, DEC-77).
-  const [open, setOpen] = useState<{ userId: string; type: AccountKind } | undefined>(sp.get('user') ? { userId: sp.get('user')!, type: 'MERCHANT' } : undefined)
-  // REQ: DEC-99 — super admins see platform staff and merchant users together; merchant admins only their users.
+  const [open, setOpen] = useState<{ userId: string; type: AccountKind } | undefined>(sp.get('user') ? { userId: sp.get('user')!, type: platform ? 'PLATFORM' : 'MERCHANT' } : undefined)
+  // REQ: DEC-99 / DEC-109 — a merchant's users, or (super admins) the platform staff; never both on one list.
   const rows = useLoad(async (): Promise<ListRow[]> => {
-    const merchantUsers = (await userAdminService.list(actor)).map((r): ListRow => ({ ...r, type: 'MERCHANT' }))
-    if (!isAdmin) return merchantUsers
-    const staff = (await staffService.list(actor)).map((r): ListRow => ({ ...r, merchantId: '', merchantName: '—', type: 'PLATFORM' }))
-    return [...staff, ...merchantUsers].sort((a, b) => b.createdAt.localeCompare(a.createdAt))
-  }, [actor.userId, isAdmin])
+    if (platform) return (await staffService.list(actor)).map((r): ListRow => ({ ...r, merchantId: '', merchantName: '—', type: 'PLATFORM' }))
+    return (await userAdminService.list(actor, merchantId)).map((r): ListRow => ({ ...r, type: 'MERCHANT' }))
+  }, [actor.userId, platform, merchantId])
   const merchants = useLoad(() => merchantService.list(actor), [actor.userId])
+  const ownMerchant = merchantId ? { merchantId, name: (merchants.data ?? []).find((m) => m.merchantId === merchantId)?.name ?? '' } : undefined
 
   const apply = (f: Filters) => {
-    setSp(Object.fromEntries(Object.entries(f).filter(([, v]) => v)), { replace: true })
+    const { q, status } = f
+    setSp((p) => {
+      for (const [k, v] of Object.entries({ q, status })) {
+        if (v) p.set(k, v)
+        else p.delete(k)
+      }
+      return p
+    }, { replace: true })
     setPage(1)
   }
   const filtered = (rows.data ?? []).filter((r) => matches(r, applied))
   const shown = filtered.slice((page - 1) * pageSize, page * pageSize)
-  const headers = ['Full Name', 'Email', ...(isAdmin ? ['Type'] : []), ...(internal ? ['Merchant'] : []), 'Access', 'Status', 'Created At']
+  const headers = ['Full Name', 'Email', 'Access', 'Status', 'Created At']
 
   if (rows.error && !rows.data) return <ErrorState message={rows.error} onRetry={rows.reload} />
   return (
     <div className="mx-auto max-w-[1400px] space-y-4">
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold">Users</h1>
-          <p className="text-sm text-muted-foreground">Each user has one merchant role (all projects); project roles are added in Project › Members.</p>
+          <h1 className="text-2xl font-semibold">{platform ? 'Platform staff' : 'Users'}</h1>
+          <p className="text-sm text-muted-foreground">
+            {platform ? 'Each staff member has one platform role; it applies to every merchant.' : 'Each user has one merchant role (all projects); project roles are added in Project › Members.'}
+          </p>
         </div>
         <Button onClick={() => setInviting(true)}>
-          <Plus aria-hidden /> New user
+          <Plus aria-hidden /> {platform ? 'New staff member' : 'New user'}
         </Button>
       </header>
       <form
@@ -405,27 +415,6 @@ export function UsersPage() {
             ))}
           </NativeSelect>
         </FormField>
-        {isAdmin && (
-          <FormField id="uf-type" label="Type" className="w-44">
-            <NativeSelect id="uf-type" value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value as Filters['type'] })}>
-              <option value="">All</option>
-              <option value="PLATFORM">Platform (internal)</option>
-              <option value="MERCHANT">Merchant</option>
-            </NativeSelect>
-          </FormField>
-        )}
-        {internal && (
-          <FormField id="uf-merchant" label="Merchant" className="w-48">
-            <NativeSelect id="uf-merchant" value={form.merchantId} onChange={(e) => setForm({ ...form, merchantId: e.target.value })}>
-              <option value="">All</option>
-              {(merchants.data ?? []).map((m) => (
-                <option key={m.merchantId} value={m.merchantId}>
-                  {m.name}
-                </option>
-              ))}
-            </NativeSelect>
-          </FormField>
-        )}
         <div className="ml-auto flex gap-2">
           <Button type="button" variant="outline" onClick={() => { const empty: Filters = { q: '', status: '', merchantId: '', type: '' }; setForm(empty); apply(empty) }}>
             <RotateCcw aria-hidden /> Reset
@@ -455,8 +444,6 @@ export function UsersPage() {
                   </button>
                 </th>
                 <td className="px-3 py-2">{r.email}</td>
-                {isAdmin && <td className="px-3 py-2 whitespace-nowrap">{r.type === 'PLATFORM' ? 'Platform (internal)' : 'Merchant'}</td>}
-                {internal && <td className="px-3 py-2 whitespace-nowrap">{r.merchantName}</td>}
                 <td className="px-3 py-2">
                   {r.access.length ? (
                     <span className="flex flex-wrap gap-1">
@@ -482,9 +469,10 @@ export function UsersPage() {
       {inviting && (
         <InviteDialog
           merchants={merchants.data ?? []}
-          isSuper={isAdmin}
-          internal={internal}
-          ownMerchant={internal || !account?.merchantId ? undefined : { merchantId: account.merchantId, name: (merchants.data ?? []).find((m) => m.merchantId === account.merchantId)?.name ?? '' }}
+          isSuper={false}
+          internal={false}
+          fixedKind={platform ? 'PLATFORM' : 'MERCHANT'}
+          ownMerchant={ownMerchant}
           onClose={() => setInviting(false)}
           onSaved={() => {
             setInviting(false)

@@ -132,7 +132,7 @@ export function MembersTab({ project }: { project: Project }) {
                 <tr key={m.userId} className="border-t">
                   <th scope="row" className="px-3 py-2 text-left font-medium">
                     {canOpenUsers ? (
-                      <Link to={`/users?user=${m.userId}`} className="text-blue-700 hover:underline dark:text-blue-400">
+                      <Link to={`/merchants/${project.merchantId}?tab=users&user=${m.userId}`} className="text-blue-700 hover:underline dark:text-blue-400">
                         {m.fullName}
                       </Link>
                     ) : (

@@ -25,17 +25,19 @@ async function rows(regionName: string) {
 beforeEach(async () => {
   useDevFlags.setState({ ...DEFAULT_DEV_FLAGS, simulateLatency: false })
   useSession.getState().switchUser(OWNER)
+  useSession.getState().selectProject(fx('PRJ-0001')) // REQ: DEC-109 — the inner portal works on one project
   await devService.resetDemoData()
 })
 afterEach(cleanup)
 
 describe('Audit Logs', () => {
-  it('Given the Owner, then only Atoz entries, with project and actor role and no Merchant column', async () => {
-    renderAt('/audit?size=100')
+  it('Given the Owner in Merchant settings › Audit log, then only Atoz entries (every project), with project and actor role and no Merchant column (DEC-109)', async () => {
+    renderAt(`/merchants/${fx('MER-0001')}?tab=audit&size=100`)
     const r = await rows('Audit entries')
     expect(r.length).toBeGreaterThan(0)
     expect(screen.queryByRole('columnheader', { name: 'Merchant' })).toBeNull()
     for (const row of r) expect(['Default', 'SME app', '—']).toContain(within(row).getAllByRole('cell')[3].textContent)
+    expect(r.some((x) => within(x).getAllByRole('cell')[3].textContent === 'SME app')).toBe(true)
     expect(r.some((x) => /Ali Bin AhmadReviewer|Siti Aminah Binti YusofReviewer/.test(x.textContent!))).toBe(true) // name, then role
   })
 

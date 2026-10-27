@@ -7,16 +7,13 @@ import {
   ClipboardList,
   FileSearch,
   FlaskConical,
-  FolderKanban,
   Gauge,
   GitBranch,
   Library,
   ScrollText,
   Settings,
   Settings2,
-  ShieldCheck,
   UserCog,
-  Users,
   UsersRound,
   LayoutDashboard,
   ReceiptText,
@@ -25,30 +22,31 @@ import {
 } from 'lucide-react'
 import type { AccessRule } from './access'
 
-// Most-used first: dashboards (everyone), eKYC (case review and the projects that configure it), then admin groups.
-// REQ: DEC-103 — User Management = who may do what (Users, Roles); Governance = the record of what they did (Audit Logs).
-// Project Settings and Flows are opened from a project on the Projects screen, not from the menu.
+// REQ: DEC-109 — two layers, like Langfuse. Outer: the Merchants page (merchants and their projects), Merchant settings
+// and the platform modules. Inner: today's portal on ONE project (Go to project), its menu filtered by the user's role there.
 // REQ: DEC-99 — screens whose parts need different permissions open for any of them; each part checks its own.
 export const PROJECT_SETTINGS_ACTIONS = ['viewProjectSettings', 'viewIntegration', 'viewMembers', 'viewProjectRoles', 'viewRouting'] as const
-export const PROJECTS_ACTIONS = ['createProjects', 'renameProjects', 'archiveProjects', 'viewProjectSettings', 'viewFlows', 'viewIntegration', 'viewMembers', 'viewProjectRoles'] as const
 
-export const NAV_GROUPS = ['Dashboards', 'eKYC', 'User Management', 'Governance', 'Platform'] as const
+export const NAV_GROUPS = ['Dashboards', 'eKYC', 'Governance', 'Platform'] as const
 export type NavGroup = (typeof NAV_GROUPS)[number]
 
 /** The icon on each group's header; a collapsed sidebar shows only these, with the group's screens in a flyout (DEC-103). */
 export const NAV_GROUP_ICONS: Record<NavGroup, LucideIcon> = {
   Dashboards: Gauge,
   eKYC: ScanFace,
-  'User Management': UsersRound,
   Governance: ScrollText,
   Platform: Settings,
 }
+
+/** REQ: DEC-109 — outer = the Merchants page and the platform modules; inner = inside one project. */
+export type NavLayer = 'outer' | 'inner'
 
 export interface NavItem {
   path: string // route pattern
   label: string
   icon: LucideIcon
-  group?: NavGroup // undefined = not in a menu group (mock-only pages)
+  layer: NavLayer
+  group?: NavGroup // undefined = top-level (Merchants) or not in a menu group (mock-only pages)
   inMenu: boolean
   /** The screen it is opened from (path): the breadcrumb shows it, and its menu entry stays highlighted. */
   parent?: string
@@ -61,12 +59,71 @@ export interface NavItem {
 }
 
 export const NAV_ITEMS: NavItem[] = [
-  // No Home page: `/` redirects to LANDING_PATH (src/app/tabs.ts). /uat is mock-only, opened from the Dev menu.
-  { path: '/uat', label: 'UAT scenarios', icon: FlaskConical, inMenu: false, priority: 'P0', built: true, notes: ['Mock only. Not part of the real portal.'] },
+  // REQ: DEC-109 — outer layer. `/` is the Merchants page; /uat is mock-only, opened from the Dev menu.
+  {
+    path: '/',
+    label: 'Merchants',
+    icon: Building2,
+    layer: 'outer',
+    inMenu: true,
+    priority: 'P0',
+    built: true,
+    notes: ['One row per merchant, its projects as cards: Go to project, ⚙ Project Settings; row: Merchant settings, Users, New project (DEC-109).'],
+  },
+  {
+    path: '/merchants/:merchantId',
+    label: 'Merchant settings',
+    icon: Building2,
+    layer: 'outer',
+    inMenu: false,
+    parent: '/',
+    priority: 'P1',
+    built: true,
+    notes: ['Tabs: General (details, edit, status) · Users · Roles · Billing · Audit log, for the whole merchant (DEC-109).'],
+  },
+  {
+    path: '/admins',
+    label: 'Super admins',
+    icon: UserCog,
+    layer: 'outer',
+    group: 'Platform',
+    inMenu: true,
+    access: { platform: 'manageAdmins' },
+    priority: 'P2',
+    built: true,
+    notes: ['Super admin accounts only (DEC-79): invite (Pending), resend, suspend / reactivate; no roles; one active admin must remain.'],
+  },
+  {
+    path: '/platform-staff',
+    label: 'Platform staff',
+    icon: UsersRound,
+    layer: 'outer',
+    group: 'Platform',
+    inMenu: true,
+    access: { platform: 'manageStaff' },
+    priority: 'P2',
+    built: true,
+    notes: ['Platform staff (one platform role each, every merchant) and the platform roles (DEC-99, DEC-104).'],
+  },
+  {
+    path: '/registry',
+    label: 'Workflow Registry',
+    icon: Library,
+    layer: 'outer',
+    group: 'Platform',
+    inMenu: true,
+    access: { platform: 'viewRegistry' },
+    priority: 'P1',
+    built: true,
+    notes: ['Draft, Internal testing, Limited release, Active, Deprecated; default for new merchants; flows using each version (DEC-56 … DEC-58).'],
+  },
+  { path: '/uat', label: 'UAT scenarios', icon: FlaskConical, layer: 'outer', inMenu: false, priority: 'P0', built: true, notes: ['Mock only. Not part of the real portal.'] },
+  // REQ: DEC-109 — inner layer: one project, every screen shows its data only.
   {
     path: '/dashboard',
     label: 'Overview',
     icon: LayoutDashboard,
+    layer: 'inner',
     group: 'Dashboards',
     inMenu: true,
     access: { project: 'viewDashboards' },
@@ -78,36 +135,39 @@ export const NAV_ITEMS: NavItem[] = [
     path: '/intelligence',
     label: 'System Intelligence',
     icon: Activity,
+    layer: 'inner',
     group: 'Dashboards',
     inMenu: true,
     access: { project: 'viewDashboards' },
     priority: 'P2',
     built: true,
-    notes: ['Retry KPI counts user retakes only (DEC-18).', 'Charts show two threshold lines: Auto-Pass and Auto-Reject (DEC-11).'],
+    notes: ['Retries per phase (DEC-108).', 'Charts show two threshold lines: Auto-Pass and Auto-Reject (DEC-11).'],
   },
   {
     path: '/billing',
     label: 'Billing',
     icon: ReceiptText,
+    layer: 'inner',
     group: 'Dashboards',
     inMenu: true,
     access: { project: 'viewBilling' }, // every role, data scoped (DEC-86)
     priority: 'P2',
     built: true,
-    notes: ['Every verification is charged on entry; column "Verification Status" (DEC-60).', '"Cost of Retries" depends on OQ-07 (per-attempt charging).'],
+    notes: ['Tokens per document and liveness submission (DEC-60); this project only (DEC-109).'],
   },
   {
     path: '/verifications',
     label: 'Verifications',
     icon: ScanFace,
+    layer: 'inner',
     group: 'eKYC',
     inMenu: true,
     access: { project: 'viewCases' },
     priority: 'P0',
     built: true,
     notes: [
-      'Filters: project, flow, workflow version, status, claim state, risk level, created range, Last Updated By; search Reference ID and Full Name (DEC-43).',
-      'Default view: Pending Review in the user projects, oldest first. Columns per DEC-40; claim is not a status (DEC-20).',
+      'Filters: flow, workflow version, status, claim state, risk, created range, Last Updated By; search Reference ID and Full Name (DEC-43).',
+      'Default view: Pending Review, oldest first. Columns per DEC-40; claim is not a status (DEC-20).',
       'No NRIC, no client metadata, no duplicate-user information in the list (DEC-40).',
     ],
   },
@@ -115,6 +175,7 @@ export const NAV_ITEMS: NavItem[] = [
     path: '/verifications/:caseId',
     label: 'Verification Detail',
     icon: FileSearch,
+    layer: 'inner',
     group: 'eKYC',
     inMenu: false,
     parent: '/verifications',
@@ -124,42 +185,17 @@ export const NAV_ITEMS: NavItem[] = [
     notes: [
       'Needs View details (DEC-104). Opening writes a SENSITIVE_PII_VIEW audit entry; full PII + client metadata (DEC-41).',
       'Claim bar: Assign to me / Cancel / countdown. Viewing is never blocked (DEC-25).',
-      'Decision only for the claim owner on PENDING_REVIEW: Confirm Manual Pass, or Reject with catalogue reasons; note optional (DEC-30, DEC-31).',
+      'Decision only for the claim owner on PENDING_REVIEW (DEC-30, DEC-31, DEC-106).',
       'Sections per DEC-105: evidence, extracted data, checks (face match, liveness, duplicate user), risk, telemetry, attempts, rules applied.',
     ],
-  },
-  // REQ: DEC-85 / DEC-103 — Projects, Project Settings, Flows List, Flow Detail, in eKYC; only Projects is in the menu.
-  // Settings pages work on the header's project (DEC-96).
-  {
-    path: '/projects',
-    label: 'Projects',
-    icon: FolderKanban,
-    group: 'eKYC',
-    inMenu: true,
-    access: { project: PROJECTS_ACTIONS },
-    priority: 'P1',
-    built: true,
-    notes: ['Create, rename, archive (Super admin, Merchant Owner; DEC-93). Archived = no new sessions; cases stay reviewable.'],
-  },
-  {
-    path: '/project-settings',
-    label: 'Project Settings',
-    icon: Settings2,
-    group: 'eKYC',
-    inMenu: false,
-    parent: '/projects',
-    access: { project: PROJECT_SETTINGS_ACTIONS },
-    priority: 'P1',
-    built: true,
-    notes: ['Tabs: General · Integration (API keys, webhook, redirect URLs, origins, IP allowlist) · Review operations (claim timeout) · Routing (read-only) · Members · Roles (project roles, DEC-104) (DEC-54).'],
   },
   {
     path: '/flows',
     label: 'Flows',
     icon: GitBranch,
+    layer: 'inner',
     group: 'eKYC',
-    inMenu: false,
-    parent: '/projects',
+    inMenu: true,
     access: { project: 'viewFlows' },
     priority: 'P0',
     built: true,
@@ -169,82 +205,37 @@ export const NAV_ITEMS: NavItem[] = [
     path: '/flows/:flowId',
     label: 'Flow Detail',
     icon: GitBranch,
+    layer: 'inner',
     group: 'eKYC',
     inMenu: false,
     parent: '/flows',
     access: { project: 'viewFlows' },
     priority: 'P0',
     built: true,
-    notes: ['Low / Standard / High presets with a 0–100 band bar; Advanced for Super admin only; retries allowed 1–5 (DEC-18, DEC-19, DEC-50).'],
-  },
-  {
-    path: '/merchants',
-    label: 'Merchants',
-    icon: Building2,
-    group: 'Platform',
-    inMenu: true,
-    access: { platform: 'viewMerchants' },
-    priority: 'P3',
-    built: true,
-    notes: ['[FRS] Merchant ID, Name, Country, Status, Created At; Onboarding → Active → Suspended → Terminated with reasons; never deleted (DEC-98). Creating one adds its Default project, default flow and first owner (DEC-92).'],
-  },
-  {
-    path: '/admins',
-    label: 'Super admins',
-    icon: UserCog,
-    group: 'Platform',
-    inMenu: true,
-    access: { platform: 'manageAdmins' },
-    priority: 'P2',
-    built: true,
-    notes: ['Super admin accounts only (DEC-79): invite (Pending), resend, suspend / reactivate; no roles; one active admin must remain.'],
-  },
-  {
-    path: '/users',
-    label: 'Users',
-    icon: Users,
-    group: 'User Management',
-    inMenu: true,
-    access: { project: 'viewUsers' }, // REQ: DEC-102 — each button needs its own action
-    priority: 'P1',
-    built: true,
-    notes: [
-      '[FRS] Users: User ID, Full Name, Email, Merchant (Super admin), Access, Status, Created At (DEC-74).',
-      'Invite (Pending, Resend invitation), Suspend / Reactivate, never delete. Access table: Role | Scope | Added by | Date.',
-    ],
-  },
-  {
-    path: '/roles',
-    label: 'Roles',
-    icon: ShieldCheck,
-    group: 'User Management',
-    inMenu: true,
-    access: { project: 'viewRoles' },
-    priority: 'P1',
-    built: true,
-    notes: ['[FRS] Roles: permission matrix (module × View × actions, DEC-102); System Default roles locked; "Affects N users" before saving (DEC-76).'],
+    notes: ['Low / Standard / High presets with a 0–100 band bar; Advanced for Super admin only; retries per phase (DEC-19, DEC-108).'],
   },
   {
     path: '/audit',
     label: 'Audit Logs',
     icon: ClipboardList,
+    layer: 'inner',
     group: 'Governance',
     inMenu: true,
     access: { project: 'viewAudit' },
     priority: 'P1',
     built: true,
-    notes: ['Events: DEC-42 names (cases, flows, projects, integration, users, registry, merchants), with the actor role and project.'],
+    notes: ['Events: DEC-42 names, with the actor role; this project only (the whole merchant is in Merchant settings, DEC-109).'],
   },
   {
-    path: '/registry',
-    label: 'Workflow Registry',
-    icon: Library,
-    group: 'Platform',
+    path: '/project-settings',
+    label: 'Project Settings',
+    icon: Settings2,
+    layer: 'inner',
     inMenu: true,
-    access: { platform: 'viewRegistry' },
+    access: { project: PROJECT_SETTINGS_ACTIONS },
     priority: 'P1',
     built: true,
-    notes: ['Draft → Active → Deprecated; default for new merchants; flows using each version (DEC-56 … DEC-58).'],
+    notes: ['Tabs: General (name, rename, archive) · Integration · Review operations · Routing (read-only) · Members · Roles (DEC-54, DEC-104).'],
   },
 ]
 

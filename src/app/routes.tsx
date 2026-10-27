@@ -5,29 +5,29 @@ import { LoginPage } from '@/pages/LoginPage'
 import { NotFoundPage, RouteErrorPage } from '@/pages/StatusPages'
 import { Guarded } from './Guarded'
 import { NAV_ITEMS } from './nav'
-import { Landing } from './Landing'
 
 // Route-level code splitting: each screen (and Recharts, for the dashboards) loads when first opened.
 const page = <K extends string>(load: () => Promise<Record<K, ComponentType>>, name: K) => lazy(() => load().then((m) => ({ default: m[name] })))
 
 /** Built screens by route pattern. Anything missing here renders its placeholder. */
 const PAGES: Partial<Record<string, ComponentType>> = {
-  '/projects': page(() => import('@/pages/projects/ProjectsPage'), 'ProjectsPage'),
-  '/project-settings': page(() => import('@/pages/projects/ProjectSettingsPage'), 'ProjectSettingsPage'),
-  '/flows': page(() => import('@/pages/flows/FlowsListPage'), 'FlowsListPage'),
-  '/flows/:flowId': page(() => import('@/pages/flows/FlowDetailPage'), 'FlowDetailPage'),
+  // REQ: DEC-109 — outer layer.
+  '/': page(() => import('@/pages/home/MerchantsHomePage'), 'MerchantsHomePage'),
+  '/merchants/:merchantId': page(() => import('@/pages/merchants/MerchantSettingsPage'), 'MerchantSettingsPage'),
   '/admins': page(() => import('@/pages/admins/AdminsPage'), 'AdminsPage'),
-  '/users': page(() => import('@/pages/users/UsersPage'), 'UsersPage'),
-  '/roles': page(() => import('@/pages/roles/RolesPage'), 'RolesPage'),
+  '/platform-staff': page(() => import('@/pages/platform/PlatformStaffPage'), 'PlatformStaffPage'),
   '/registry': page(() => import('@/pages/registry/RegistryPage'), 'RegistryPage'),
-  '/verifications': page(() => import('@/pages/verifications/VerificationsListPage'), 'VerificationsListPage'),
-  '/verifications/:caseId': page(() => import('@/pages/verifications/VerificationDetailPage'), 'VerificationDetailPage'),
-  '/audit': page(() => import('@/pages/audit/AuditLogsPage'), 'AuditLogsPage'),
+  '/uat': page(() => import('@/pages/dev/UatPage'), 'UatPage'),
+  // Inner layer: one project.
   '/dashboard': page(() => import('@/pages/dashboard/OverviewPage'), 'OverviewPage'),
   '/intelligence': page(() => import('@/pages/dashboard/IntelligencePage'), 'IntelligencePage'),
   '/billing': page(() => import('@/pages/billing/BillingPage'), 'BillingPage'),
-  '/merchants': page(() => import('@/pages/merchants/MerchantsPage'), 'MerchantsPage'),
-  '/uat': page(() => import('@/pages/dev/UatPage'), 'UatPage'),
+  '/verifications': page(() => import('@/pages/verifications/VerificationsListPage'), 'VerificationsListPage'),
+  '/verifications/:caseId': page(() => import('@/pages/verifications/VerificationDetailPage'), 'VerificationDetailPage'),
+  '/flows': page(() => import('@/pages/flows/FlowsListPage'), 'FlowsListPage'),
+  '/flows/:flowId': page(() => import('@/pages/flows/FlowDetailPage'), 'FlowDetailPage'),
+  '/audit': page(() => import('@/pages/audit/AuditLogsPage'), 'AuditLogsPage'),
+  '/project-settings': page(() => import('@/pages/projects/ProjectSettingsPage'), 'ProjectSettingsPage'),
 }
 
 export const routes: RouteObject[] = [
@@ -37,8 +37,7 @@ export const routes: RouteObject[] = [
     element: <AppShell />,
     errorElement: <RouteErrorPage />,
     children: [
-      { index: true, element: <Landing /> }, // REQ: DEC-84 / DEC-104
-      ...NAV_ITEMS.map((item) => ({ path: item.path.slice(1), element: <Guarded item={item} page={PAGES[item.path]} /> })),
+      ...NAV_ITEMS.map((item) => (item.path === '/' ? { index: true, element: <Guarded item={item} page={PAGES[item.path]} /> } : { path: item.path.slice(1), element: <Guarded item={item} page={PAGES[item.path]} /> })),
       { path: '*', element: <NotFoundPage /> },
     ],
   },

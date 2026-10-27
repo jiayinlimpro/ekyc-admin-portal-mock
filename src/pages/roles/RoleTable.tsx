@@ -36,6 +36,7 @@ export function RoleDialog({
   merchants = [],
   defaultMerchantId,
   isSuper = false,
+  audienceFixed,
   ownMerchantName,
   onClose,
   onSaved,
@@ -49,6 +50,8 @@ export function RoleDialog({
   defaultMerchantId?: string
   /** REQ: DEC-99 — only super admins choose the Type; merchant admins see it locked to their merchant. */
   isSuper?: boolean
+  /** REQ: DEC-109 — the page decides the Type: Platform staff › Roles makes platform roles, Merchant settings merchant roles. */
+  audienceFixed?: RoleAudience
   ownMerchantName?: string
   onClose: () => void
   onSaved: () => void
@@ -63,7 +66,7 @@ export function RoleDialog({
   const [merchantId, setMerchantId] = useState(project?.merchantId ?? row?.merchantId ?? from?.merchantId ?? defaultMerchantId ?? '')
   const [name, setName] = useState(row?.name ?? (from ? `Copy of ${from.name}` : ''))
   const [permissions, setPermissions] = useState<Permission[]>(row?.permissions ?? from?.permissions ?? [])
-  const [audience, setAudience] = useState<RoleAudience>(project ? 'MERCHANT' : (row?.audience ?? from?.audience ?? 'MERCHANT'))
+  const [audience, setAudience] = useState<RoleAudience>(project ? 'MERCHANT' : (row?.audience ?? from?.audience ?? audienceFixed ?? 'MERCHANT'))
   const platform = audience === 'PLATFORM'
   const level = project ? 'PROJECT' : 'MERCHANT'
   const [status, setStatus] = useState<RoleStatus>(row?.status ?? 'ACTIVE')
@@ -122,7 +125,7 @@ export function RoleDialog({
           </DialogHeader>
           {/* REQ: DEC-99 — Type first: chosen by super admins on create; locked afterwards, for merchant admins and for project roles. */}
           <FormField id="r-type" label="Type" hint={row ? 'Can’t be changed after creation.' : undefined}>
-            {isSuper && !row && !project ? (
+            {isSuper && !audienceFixed && !row && !project ? (
               <NativeSelect id="r-type" value={audience} onChange={(e) => { setAudience(e.target.value as RoleAudience); setPermissions([]) }}>
                 <option value="PLATFORM">Platform (internal)</option>
                 <option value="MERCHANT">Merchant role</option>

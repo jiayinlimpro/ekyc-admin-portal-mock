@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { NavLink, useLocation } from 'react-router'
+import { Link, NavLink, useLocation } from 'react-router'
 import { ChevronDown, ChevronUp, ShieldCheck } from 'lucide-react'
 import { useAccess } from '@/app/access'
 import { NAV_GROUP_ICONS, NAV_GROUPS, NAV_ITEMS, parentsOf, routeMetaFor, type NavGroup, type NavItem } from '@/app/nav'
@@ -90,13 +90,14 @@ function GroupFlyout({ group, items, current }: { group: NavGroup; items: NavIte
 export function Sidebar() {
   const access = useAccess()
   const collapsed = useUi((s) => s.sidebarCollapsed)
-  // REQ: DEC-73 — the menu follows the user's role in the selected project (UI only — DEC-71).
-  const visible = NAV_ITEMS.filter((i) => i.inMenu && access.allows(i.access))
+  const { pathname } = useLocation()
+  // REQ: DEC-109 — the outer layer's menu (Merchants, platform modules) or the project's (DEC-73: the user's role in it).
+  const layer = routeMetaFor(pathname)?.item.layer ?? 'outer'
+  const visible = NAV_ITEMS.filter((i) => i.inMenu && i.layer === layer && access.allows(i.access))
   const top = visible.filter((i) => !i.group)
   const closed = useUi((s) => s.closedGroups)
   const toggleGroup = useUi((s) => s.toggleGroup)
   const openGroup = useUi((s) => s.openGroup)
-  const { pathname } = useLocation()
   const current = useCurrentPaths()
   const activeGroup = routeMetaFor(pathname)?.item.group
   // Opening a screen (link, tab, deep link) opens its group, so the current page is always visible in the menu.
@@ -107,7 +108,8 @@ export function Sidebar() {
 
   return (
     <aside className={cn('flex shrink-0 flex-col border-r border-sidebar-border bg-sidebar transition-[width] duration-200', collapsed ? 'w-16' : 'w-60')}>
-      <div className={cn('flex h-14 items-center gap-2 border-b border-sidebar-border px-4', collapsed && 'justify-center px-0')}>
+      {/* REQ: DEC-109 — the logo goes back to the Merchants page. */}
+      <Link to="/" aria-label="eKYC Admin: Merchants" className={cn('flex h-14 items-center gap-2 border-b border-sidebar-border px-4 outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring', collapsed && 'justify-center px-0')}>
         <ShieldCheck className="size-6 shrink-0 text-blue-600 dark:text-blue-400" aria-hidden />
         {!collapsed && (
           <div className="leading-tight">
@@ -115,7 +117,7 @@ export function Sidebar() {
             <div className="text-[11px] text-muted-foreground">Portal · mock</div>
           </div>
         )}
-      </div>
+      </Link>
       <nav aria-label="Main" className="flex-1 overflow-y-auto p-2">
         {collapsed ? (
           <ul className="space-y-1">

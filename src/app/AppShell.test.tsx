@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { createMemoryRouter } from 'react-router'
 import { RouterProvider } from 'react-router/dom'
 import { LANDING_TAB } from '@/app/tabs'
-import { ADMIN, ALI, HAFIZ, OWNER } from '@/test/factories'
+import { ADMIN, ALI, OWNER } from '@/test/factories'
 import { devService } from '@/services/devService'
 import { useSession } from '@/stores/sessionStore'
 import { useTabs } from '@/stores/tabsStore'
@@ -30,16 +30,21 @@ beforeEach(async () => {
 afterEach(cleanup)
 
 describe('AppShell', () => {
-  it('Given a Reviewer, then the menu has the dashboards, Billing and Verifications, but no Audit Log, admin screens or Manual Review Queue (DEC-70, DEC-73, DEC-80)', async () => {
-    renderAt('/')
+  // REQ: DEC-109 — inner screens work on one project; outer screens (Merchants, platform modules) don't.
+  const inProject = (projectId = fx('PRJ-0001')) => useSession.getState().selectProject(projectId)
+
+  it('Given a Reviewer in a project, then the menu has the dashboards, Billing and Verifications, but no Audit Log, platform modules or Manual Review Queue (DEC-70, DEC-80)', async () => {
+    inProject()
+    renderAt('/dashboard')
     await mainNav().findByRole('link', { name: 'Verifications' })
     for (const shown of ['Overview', 'System Intelligence', 'Billing']) expect(mainNav().getByRole('link', { name: shown })).toBeTruthy()
-    for (const hidden of [/Audit Logs/, /eKYC Workflow/, /Users/, /Developers/, /Merchants/, /Manual Review/]) {
+    for (const hidden of [/Audit Logs/, /eKYC Workflow/, /Users/, /Developers/, /Merchants/, /Super admins/, /Workflow Registry/, /Manual Review/]) {
       expect(mainNav().queryByRole('link', { name: hidden })).toBeNull()
     }
   })
 
   it('Given a group header, then it is not a link: it opens and closes its screens, and the choice is kept', async () => {
+    inProject()
     renderAt('/verifications')
     const header = await mainNav().findByRole('button', { name: 'Dashboards' })
     expect(header.getAttribute('aria-expanded')).toBe('true')
@@ -53,82 +58,93 @@ describe('AppShell', () => {
   })
 
   it('Given the current screen’s group was closed, then opening the screen opens its group', async () => {
+    inProject()
     useUi.setState({ closedGroups: ['eKYC'] })
     renderAt('/verifications')
     await mainNav().findByRole('link', { name: 'Verifications' })
     expect(useUi.getState().closedGroups).toEqual([])
   })
 
-  it('Given the Owner, then the Audit Log is in the menu', async () => {
+  it('Given the Owner in a project, then the Audit Log is in the menu', async () => {
     useSession.getState().switchUser(OWNER)
-    renderAt('/')
+    inProject()
+    renderAt('/dashboard')
     await mainNav().findByRole('link', { name: /Audit Logs/ })
   })
 
-  it('Given a Super admin, then admin screens and Verifications are in the menu (DEC-75)', async () => {
+  it('Given a Super admin on the Merchants page, then only the outer menu: Merchants and the platform modules (DEC-109)', async () => {
     useSession.getState().switchUser(ADMIN)
     renderAt('/')
-    await mainNav().findByRole('link', { name: /Merchants/ })
-    for (const shown of ['Users', 'Roles', /Billing/, /Audit Logs/, 'Workflow Registry', 'Projects', 'Merchants', 'Super admins', 'Verifications']) expect(mainNav().getByRole('link', { name: shown })).toBeTruthy()
+    await mainNav().findByRole('link', { name: 'Merchants' })
+    expect(mainNav().getAllByRole('heading', { level: 2 }).map((h) => h.textContent)).toEqual(['Platform'])
+    expect(within(screen.getByRole('region', { name: 'Platform' })).getAllByRole('link').map((l) => l.textContent)).toEqual(['Super admins', 'Platform staff', 'Workflow Registry'])
+    for (const inner of ['Overview', 'Verifications', 'Flows', 'Billing', 'Audit Logs', 'Project Settings', 'Users', 'Roles', 'Projects']) expect(mainNav().queryByRole('link', { name: inner })).toBeNull()
     for (const retired of [/eKYC Workflow/, /Developers/, 'Users and Access', /Merchant Workflow Directory/]) expect(mainNav().queryByRole('link', { name: retired })).toBeNull()
   })
 
-  it('Given a Super admin, then the groups in order, Users and Roles under User Management, Audit Logs under Governance, Projects in eKYC, and no Flows or Project Settings entries (DEC-103)', async () => {
+  it('Given a Super admin in a project, then Project Settings, then the groups in order with Flows in eKYC, and no platform modules (DEC-103, DEC-109)', async () => {
     useSession.getState().switchUser(ADMIN)
-    renderAt('/')
-    await mainNav().findByRole('link', { name: /Merchants/ })
-    expect(mainNav().getAllByRole('heading', { level: 2 }).map((h) => h.textContent)).toEqual(['Dashboards', 'eKYC', 'User Management', 'Governance', 'Platform'])
+    inProject()
+    renderAt('/dashboard')
+    await mainNav().findByRole('link', { name: 'Verifications' })
+    expect(mainNav().getAllByRole('heading', { level: 2 }).map((h) => h.textContent)).toEqual(['Dashboards', 'eKYC', 'Governance'])
     const group = (name: string) => within(screen.getByRole('region', { name })).getAllByRole('link').map((l) => l.textContent)
-    expect(group('eKYC')).toEqual(['Verifications', 'Projects'])
-    expect(group('User Management')).toEqual(['Users', 'Roles'])
+    expect(group('Dashboards')).toEqual(['Overview', 'System Intelligence', 'Billing'])
+    expect(group('eKYC')).toEqual(['Verifications', 'Flows'])
     expect(group('Governance')).toEqual(['Audit Logs'])
-    for (const gone of ['Flows', 'Project Settings']) expect(mainNav().queryByRole('link', { name: gone })).toBeNull()
+    expect(mainNav().getByRole('link', { name: 'Project Settings' })).toBeTruthy()
+    for (const outer of ['Merchants', 'Super admins', 'Platform staff', 'Workflow Registry']) expect(mainNav().queryByRole('link', { name: outer })).toBeNull()
   })
 
-  it('Given Flows (opened from a project), then the breadcrumb reads eKYC › Projects › Flows and Projects stays highlighted in the menu (DEC-103)', async () => {
+  it('Given a flow, then the breadcrumb reads Merchant / Project › eKYC › Flows › the flow, and Flows stays highlighted in the menu (DEC-103, DEC-109)', async () => {
     useSession.getState().switchUser(OWNER)
-    useSession.getState().selectProject(fx('PRJ-0001'))
-    renderAt('/flows')
+    inProject()
+    renderAt(`/flows/${fx('FLW-0001')}`)
     const crumbs = await screen.findByRole('navigation', { name: 'Breadcrumb' })
-    await waitFor(() => expect(within(crumbs).getAllByRole('listitem').map((l) => l.textContent)).toEqual(['eKYC', 'Projects', 'Flows']))
-    expect(within(crumbs).getByRole('link', { name: 'Projects' }).getAttribute('href')).toBe('/projects')
-    expect(mainNav().getByRole('link', { name: 'Projects' }).className).toContain('font-medium')
+    await waitFor(() => expect(within(crumbs).getAllByRole('listitem').map((l) => l.textContent)).toEqual(['Atoz Software Tech', '/Default', 'eKYC', 'Flows', 'Flow Detail']))
+    expect(within(crumbs).getByRole('link', { name: 'Flows' }).getAttribute('href')).toBe('/flows')
+    expect(mainNav().getByRole('link', { name: 'Flows' }).className).toContain('font-medium')
   })
 
   it('Given a collapsed sidebar, then only group icons; opening one shows a flyout with the group name and its screens (DEC-103)', async () => {
     useSession.getState().switchUser(OWNER)
+    inProject()
     useUi.setState({ sidebarCollapsed: true })
     const router = renderAt('/dashboard')
-    const group = await mainNav().findByRole('button', { name: 'User Management' })
-    expect(mainNav().queryByRole('link', { name: 'Users' })).toBeNull() // no item links in the narrow sidebar
+    const group = await mainNav().findByRole('button', { name: 'eKYC' })
+    expect(mainNav().queryByRole('link', { name: 'Verifications' })).toBeNull() // no item links in the narrow sidebar
     expect(mainNav().getByRole('button', { name: 'Dashboards' }).className).toContain('font-medium') // the current group
     fireEvent.click(group)
     const flyout = await screen.findByRole('menu')
-    expect(within(flyout).getByText('User Management')).toBeTruthy()
-    expect(within(flyout).getAllByRole('menuitem').map((m) => m.textContent)).toEqual(['Users', 'Roles'])
-    fireEvent.click(within(flyout).getByRole('menuitem', { name: 'Roles' }))
-    await waitFor(() => expect(router.state.location.pathname).toBe('/roles'))
+    expect(within(flyout).getByText('eKYC')).toBeTruthy()
+    expect(within(flyout).getAllByRole('menuitem').map((m) => m.textContent)).toEqual(['Verifications', 'Flows'])
+    fireEvent.click(within(flyout).getByRole('menuitem', { name: 'Flows' }))
+    await waitFor(() => expect(router.state.location.pathname).toBe('/flows'))
   })
 
-  it('Given a Billing user opens the portal, then Billing (no Overview for this role, no Overview tab), and no cases or projects (DEC-104)', async () => {
+  it('Given a Billing user goes to a project, then Billing (no Overview for this role, no Overview tab), and no cases or flows (DEC-104, DEC-109)', async () => {
     useSession.getState().switchUser({ userId: fx('USR-2026-0037'), fullName: 'Muthu A/L Rajan' })
     const router = renderAt('/')
+    fireEvent.click(await screen.findByRole('button', { name: 'Go to project Default' }))
     await waitFor(() => expect(router.state.location.pathname).toBe('/billing'))
+    await screen.findByRole('navigation', { name: 'Open pages' })
     expect(tabs().queryByRole('link', { name: 'Overview' })).toBeNull()
-    for (const hidden of ['Verifications', 'Projects', 'Users']) expect(mainNav().queryByRole('link', { name: hidden })).toBeNull()
+    for (const hidden of ['Verifications', 'Flows', 'Users']) expect(mainNav().queryByRole('link', { name: hidden })).toBeNull()
   })
 
   it('Given a Reviewer opens the Audit Log URL directly, then "No access" (DEC-72)', async () => {
+    inProject()
     renderAt('/audit')
     await screen.findByRole('heading', { name: 'No access' })
   })
 
-  it('Given Ali (two projects), then the switcher offers "All my projects" and his projects with his role in each; picking one shows it and his role there (DEC-73)', async () => {
+  it('Given Ali in Default, then the project switcher offers his Atoz projects with his role in each (no "All my projects"); picking one shows it and his role there (DEC-73, DEC-109)', async () => {
+    inProject()
     renderAt('/dashboard')
-    fireEvent.click(await screen.findByRole('button', { name: 'Switch project. Current: All my projects' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Switch project. Current: Default' }))
     const options = await screen.findAllByRole('menuitemradio')
-    expect(options.map((o) => o.textContent)).toEqual(['All my projects', 'DefaultReviewer', 'SME appViewer'])
-    fireEvent.click(options[2])
+    expect(options.map((o) => o.textContent)).toEqual(['DefaultReviewer', 'SME appViewer'])
+    fireEvent.click(options[1])
     await screen.findByRole('button', { name: 'Switch project. Current: SME app' })
     expect(useSession.getState()).toMatchObject({ projectId: fx('PRJ-0002') })
     fireEvent.click(screen.getByRole('button', { name: 'Account: Ali Bin Ahmad' }))
@@ -136,34 +152,45 @@ describe('AppShell', () => {
     expect(screen.getByText('ali.ahmad@atoz.example')).toBeTruthy()
   })
 
-  it('Given a user with one project, then it is shown without a switcher', async () => {
-    useSession.getState().switchUser(HAFIZ)
-    renderAt('/dashboard')
-    await screen.findByLabelText('Current project: SME app')
-    expect(screen.queryByRole('button', { name: /Switch project/ })).toBeNull()
+  it('Given the merchant switcher, when All merchants, then back to the Merchants page', async () => {
+    inProject()
+    const router = renderAt('/verifications')
+    fireEvent.click(await screen.findByRole('button', { name: 'Switch merchant. Current: Atoz Software Tech' }))
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'All merchants' }))
+    await waitFor(() => expect(router.state.location.pathname).toBe('/'))
+    expect(await screen.findByRole('heading', { name: 'Merchants', level: 1 })).toBeTruthy()
   })
 
-  it('Given the Super admin, then projects are grouped by merchant and picking one selects it', async () => {
+  it('Given the Super admin, when Vantage is picked in the merchant switcher, then its Default project opens on its landing page', async () => {
     useSession.getState().switchUser(ADMIN)
-    renderAt('/dashboard')
-    fireEvent.click(await screen.findByRole('button', { name: /Switch project/ }))
-    const vantage = within((await screen.findByText('Vantage')).closest('[role="group"]') as HTMLElement)
-    fireEvent.click(vantage.getByRole('menuitemradio', { name: /Default/ }))
+    inProject()
+    const router = renderAt('/verifications')
+    fireEvent.click(await screen.findByRole('button', { name: /Switch merchant/ }))
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'Vantage' }))
     await waitFor(() => expect(useSession.getState()).toMatchObject({ projectId: fx('PRJ-0003') }))
+    await waitFor(() => expect(router.state.location.pathname).toBe('/dashboard'))
   })
 
-  it('Given I open the portal root, then I land on Overview and there is no Home page, tab or menu item', async () => {
+  it('Given a case link from another project, then that project is selected (DEC-109)', async () => {
+    inProject(fx('PRJ-0002'))
+    renderAt(`/verifications/${caseIdOf('KYC-260901-900003')}`)
+    await waitFor(() => expect(useSession.getState().projectId).toBe(fx('PRJ-0001')))
+    expect(await screen.findByRole('button', { name: 'Switch project. Current: Default' })).toBeTruthy()
+  })
+
+  it('Given I open the portal root, then the Merchants page, with no tab strip, Home or UAT link (DEC-109)', async () => {
     const router = renderAt('/')
-    await waitFor(() => expect(router.state.location.pathname).toBe('/dashboard'))
-    expect(tabs().getByRole('link', { name: 'Overview' })).toBeTruthy()
-    expect(tabs().queryByRole('button', { name: 'Close Overview' })).toBeNull()
+    expect(await screen.findByRole('heading', { name: 'Merchants', level: 1 })).toBeTruthy()
+    expect(router.state.location.pathname).toBe('/')
+    expect(screen.queryByRole('navigation', { name: 'Open pages' })).toBeNull()
     expect(mainNav().queryByRole('link', { name: 'Home' })).toBeNull()
     expect(screen.queryByRole('link', { name: 'UAT scenarios' })).toBeNull()
   })
 
   it('Given a page visit, then a tab opens; the case tab is renamed to its Reference ID; closing the active tab goes left', async () => {
+    inProject()
     const router = renderAt('/billing')
-    expect(tabs().getByRole('link', { name: 'Billing' })).toBeTruthy()
+    expect(await tabs().findByRole('link', { name: 'Billing' })).toBeTruthy()
     await act(() => router.navigate(`/verifications/${caseIdOf('KYC-260901-900003')}`))
     expect(await tabs().findByRole('link', { name: 'KYC-260901-900003' })).toBeTruthy()
     fireEvent.click(tabs().getByRole('button', { name: 'Close KYC-260901-900003' }))
