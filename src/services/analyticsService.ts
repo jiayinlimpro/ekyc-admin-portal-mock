@@ -15,7 +15,7 @@ import { resolveThreshold, type Thresholds } from '@/domain/thresholds'
 import type { Actor, Check, Flow, Project, Verification } from '@/domain/types'
 import { now } from '@/lib/clock'
 import { db } from '@/mocks/mockDb'
-import { projectIdsWhere, requireMerchantInScope } from './accessGuard'
+import { internalTestsFilter, projectIdsWhere, requireMerchantInScope } from './accessGuard'
 import { sweepExpiredClaims } from './claimSweep'
 import { simulateNetwork, wire } from './network'
 
@@ -64,9 +64,10 @@ function scoped(actor: Actor, q: DashboardScope, action: 'viewDashboards' | 'vie
   if (q.merchantId) requireMerchantInScope(actor, q.merchantId)
   const allowed = projectIdsWhere(actor, action)
   const asked = q.projectIds ? new Set(q.projectIds) : undefined
+  const visible = internalTestsFilter(actor).session // REQ: DEC-56
   return db
     .state()
-    .verifications.filter((v) => allowed.has(v.projectId) && (!asked || asked.has(v.projectId)) && (!q.merchantId || v.merchantId === q.merchantId) && (!q.flowId || v.flowId === q.flowId))
+    .verifications.filter((v) => allowed.has(v.projectId) && (!asked || asked.has(v.projectId)) && (!q.merchantId || v.merchantId === q.merchantId) && (!q.flowId || v.flowId === q.flowId) && visible(v))
 }
 
 /** Each case evaluated with the flow revision it started on (DEC-52). */
@@ -84,10 +85,11 @@ export const mockAnalyticsService: AnalyticsService = {
     const allowed = new Set([...projectIdsWhere(actor, 'viewDashboards'), ...projectIdsWhere(actor, 'viewBilling')])
     const s = db.state()
     const projects = s.projects.filter((p) => allowed.has(p.projectId))
+    const visible = internalTestsFilter(actor).flow // REQ: DEC-56
     return wire({
       merchants: s.merchants.filter((m) => projects.some((p) => p.merchantId === m.merchantId)).map(({ merchantId, name }) => ({ merchantId, name })),
       projects: projects.map(({ projectId, merchantId, name }) => ({ projectId, merchantId, name })),
-      flows: s.flows.filter((f) => allowed.has(f.projectId) && f.status !== 'DRAFT').map(({ flowId, projectId, name, workflowVersion }) => ({ flowId, projectId, name, workflowVersion })),
+      flows: s.flows.filter((f) => allowed.has(f.projectId) && f.status !== 'DRAFT' && visible(f)).map(({ flowId, projectId, name, workflowVersion }) => ({ flowId, projectId, name, workflowVersion })),
     })
   },
 

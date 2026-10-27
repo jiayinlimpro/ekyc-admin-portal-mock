@@ -2,7 +2,8 @@
 // account, its role assignments and the roles' current permissions, as the real backend would.
 import { canInProject, isInternal, projectsWhere, roleNamesInProject, type ProjectAction } from '@/domain/access'
 import { grantsOf } from '@/domain/roles'
-import type { Actor, Project, UserAccess, UserAccount } from '@/domain/types'
+import { internalOnlyFlow, internalOnlySession } from '@/domain/registryRules'
+import type { Actor, Flow, Project, UserAccess, UserAccount, Verification } from '@/domain/types'
 import { newId } from '@/lib/ids'
 import { db } from '@/mocks/mockDb'
 import { ServiceError } from './errors'
@@ -57,6 +58,19 @@ export function requireMerchantInScope(actor: Pick<Actor, 'userId'>, merchantId:
   const exists = db.state().merchants.some((m) => m.merchantId === merchantId)
   // Internal accounts work across merchants; what they see inside is limited by their permissions (DEC-99).
   if (!exists || (!isInternal(a) && a.merchantId !== merchantId)) throw new ServiceError('NOT_FOUND', `Merchant ${merchantId} not found.`)
+}
+
+/**
+ * REQ: DEC-56 — what a merchant user never sees: flows on an Internal testing version and the test sessions run on one.
+ * Internal users (super admins, platform staff) see both. Callers treat a hidden flow or case as "not found".
+ */
+export function internalTestsFilter(actor: Pick<Actor, 'userId'>): { flow: (f: Pick<Flow, 'workflowVersion'>) => boolean; session: (v: Pick<Verification, 'charged'>) => boolean } {
+  if (isInternal(accountOf(actor))) return { flow: () => true, session: () => true }
+  const registry = db.state().registry
+  return {
+    flow: (f) => !internalOnlyFlow(registry.find((e) => e.code === f.workflowVersion)?.status),
+    session: (v) => !internalOnlySession(v),
+  }
 }
 
 /** Ids of the projects where the user may do `action` (case lists, dashboard and audit scope; DEC-72, DEC-86). */

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { defaultVersion, isLocked, selectableForNewFlow, setDefaultError, statusChangeError, validateRegistryInput, withDefault, type RegistryInput } from './registryRules'
+import { defaultVersion, internalOnlyFlow, internalOnlySession, isLocked, selectableForNewFlow, setDefaultError, statusChangeError, validateRegistryInput, withDefault, type RegistryInput } from './registryRules'
 import type { RegistryEntry, RegistryStatus } from './types'
 
 const ARN = 'arn:aws:states:ap-southeast-1:123456789012:stateMachine:ekyc_v5'
@@ -110,5 +110,17 @@ describe('registry: default for new merchants (DEC-57)', () => {
     expect(codes({ internal: false, merchantId: 'mer_b' })).toEqual(['V1', 'V3', 'V4'])
     expect(codes({ internal: false, merchantId: 'mer_a' })).toEqual(['V1', 'V3', 'V4', 'V7'])
     expect(codes({ internal: true })).toEqual(['V1', 'V3', 'V4', 'V6', 'V7'])
+  })
+})
+
+describe('registry: Internal testing is hidden from merchants (DEC-56)', () => {
+  it('Given a flow on an Internal testing version, then internal only; on any other status (or an unknown version), not', () => {
+    expect(internalOnlyFlow('INTERNAL_TESTING')).toBe(true)
+    for (const s of ['DRAFT', 'LIMITED_RELEASE', 'ACTIVE', 'DEPRECATED', undefined] as const) expect(internalOnlyFlow(s)).toBe(false)
+  })
+
+  it('Given a session that was not charged (run on Internal testing), then internal only; a charged one is not', () => {
+    expect(internalOnlySession({ charged: false })).toBe(true)
+    expect(internalOnlySession({ charged: true })).toBe(false)
   })
 })

@@ -16,7 +16,7 @@ import { hasRisk } from '@/domain/registryRules'
 import { RISK_RESULTS, VERIFICATION_STATUSES, type Actor, type Decision, type Flow, type Paged, type Project, type RiskResult, type Verification, type VerificationDetail, type VerificationStatus, type VerificationSummary } from '@/domain/types'
 import { now } from '@/lib/clock'
 import { db } from '@/mocks/mockDb'
-import { mayInProject, projectById, projectIdsWhere, requireActive, roleIn } from './accessGuard'
+import { internalTestsFilter, mayInProject, projectById, projectIdsWhere, requireActive, roleIn } from './accessGuard'
 import { sweepExpiredClaims } from './claimSweep'
 import { settleRetiringFlow } from './flowService'
 import { ServiceError } from './errors'
@@ -140,7 +140,7 @@ function toDetail(v: Verification): VerificationDetail {
 // REQ: DEC-72 — the same response for "not found" and "not in your projects", so references can't be probed.
 function load(caseId: string, actor: Actor): Verification {
   const v = db.findVerification(caseId)
-  if (!v || !mayInProject(actor, 'viewCases', v.projectId)) throw new ServiceError('NOT_FOUND', `Verification ${caseId} not found.`)
+  if (!v || !mayInProject(actor, 'viewCases', v.projectId) || !internalTestsFilter(actor).session(v)) throw new ServiceError('NOT_FOUND', `Verification ${caseId} not found.`)
   return v
 }
 
@@ -162,11 +162,12 @@ export const mockVerificationService: VerificationService = {
     sweepExpiredClaims(at)
     // REQ: DEC-72 — only cases in projects where the user may view cases (Super admin: every project, DEC-75).
     const scope = projectIdsWhere(actor, 'viewCases')
+    const visible = internalTestsFilter(actor).session // REQ: DEC-56
     const asked = q.projectIds ? new Set(q.projectIds) : undefined
     const rows = db
       .state()
       .verifications.filter((v) => {
-        if (!scope.has(v.projectId) || (asked && !asked.has(v.projectId))) return false
+        if (!scope.has(v.projectId) || (asked && !asked.has(v.projectId)) || !visible(v)) return false
         if (q.flowId && v.flowId !== q.flowId) return false
         if (q.workflowVersion && v.workflowVersion !== q.workflowVersion) return false
         if (!includes(v.referenceNo, q.referenceNo) || !includes(v.pii.fullName, q.fullName)) return false
@@ -197,11 +198,12 @@ export const mockVerificationService: VerificationService = {
   async filterOptions(actor) {
     await simulateNetwork('verification filters')
     const scope = projectIdsWhere(actor, 'viewCases')
+    const visible = internalTestsFilter(actor).flow // REQ: DEC-56
     const s = db.state()
     return wire({
       projects: s.projects.filter((p) => scope.has(p.projectId)).map(({ projectId, merchantId, name, status }) => ({ projectId, merchantId, name, status })),
       flows: s.flows
-        .filter((f) => scope.has(f.projectId) && f.status !== 'DRAFT') // Draft flows never have cases
+        .filter((f) => scope.has(f.projectId) && f.status !== 'DRAFT' && visible(f)) // Draft flows never have cases
         .map(({ flowId, projectId, name, workflowVersion, status }) => {
           const entry = s.registry.find((e) => e.code === workflowVersion)
           return { flowId, projectId, name, workflowVersion, status, runsRisk: !!entry && hasRisk(entry) }

@@ -22,7 +22,7 @@ import { coversProject, grantsOf } from '@/domain/roles'
 import type { Actor, AuditAction, DecisionReason, Project, ProjectDecisionReasons, RuleError } from '@/domain/types'
 import { now } from '@/lib/clock'
 import { db } from '@/mocks/mockDb'
-import { accountOf, projectById, requireActive, roleIn } from './accessGuard'
+import { accountOf, internalTestsFilter, projectById, requireActive, roleIn } from './accessGuard'
 import { ServiceError } from './errors'
 import { clientIpFor, simulateNetwork, wire } from './network'
 import { newId } from '@/lib/ids'
@@ -137,11 +137,12 @@ export const mockProjectService: ProjectService = {
   async listRows(actor) {
     await simulateNetwork('list projects')
     const me = accountOf(actor)
+    const visible = internalTestsFilter(actor).flow // REQ: DEC-56
     const s = db.state()
     const rows = s.projects
       .filter((p) => hasProject(me, p))
       .map((p): ProjectRow => {
-        const flows = s.flows.filter((f) => f.projectId === p.projectId)
+        const flows = s.flows.filter((f) => f.projectId === p.projectId && visible(f))
         return {
           ...p,
           roles: roleNamesInProject(me, p),

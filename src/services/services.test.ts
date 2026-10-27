@@ -5,6 +5,7 @@ import { ADMIN, ALI, EMPTY_OWNER, HAFIZ, NOW, NURUL, OTHER_MERCHANT_REVIEWER, OW
 import { analyticsService } from './analyticsService'
 import { auditService } from './auditService'
 import { devService } from './devService'
+import { flowService } from './flowService'
 import { isServiceError } from './errors'
 import { merchantService } from './merchantService'
 import { verificationService as svc } from './verificationService'
@@ -346,5 +347,33 @@ describe('analyticsService scoping (DEC-86)', () => {
   it("Given another merchant's id, then NOT_FOUND for merchant users; Super admin may filter any merchant", async () => {
     await expectError(analyticsService.overview({ days: 30, merchantId: fx('MER-0002') }, OWNER), 'NOT_FOUND')
     expect(await total(ADMIN, fx('MER-0006'))).toBe(0)
+  })
+})
+
+describe('Internal testing is hidden from merchant users (DEC-56)', () => {
+  const TRIAL = fx('FLW-0015') // Atoz Default, V6 (Internal testing); S26 is its test session
+  const month = NOW.toISOString().slice(0, 7)
+
+  it('Given the Atoz Owner, when listing or opening, then the V6 flow and its session are "not found" everywhere', async () => {
+    expect((await flowService.list(fx('PRJ-0001'), OWNER)).map((f) => f.flowId)).not.toContain(TRIAL)
+    expect((await flowService.listRows(fx('PRJ-0001'), OWNER)).map((f) => f.flowId)).not.toContain(TRIAL)
+    await expectError(flowService.get(TRIAL, OWNER), 'NOT_FOUND')
+    expect((await svc.list({ pageSize: 1000, statuses: ['APPROVED'] }, OWNER)).items.map((r) => r.referenceNo)).not.toContain(S(26))
+    await expectError(svc.get(C(26), OWNER), 'NOT_FOUND', `Verification ${C(26)} not found.`)
+    expect((await svc.filterOptions(OWNER)).flows.map((f) => f.flowId)).not.toContain(TRIAL)
+    expect((await analyticsService.filters(OWNER)).flows.map((f) => f.flowId)).not.toContain(TRIAL)
+    expect((await analyticsService.billing({ period: month }, OWNER)).lines.map((l) => l.referenceNo)).not.toContain(S(26))
+  })
+
+  it('Given the super admin, then he sees both; the test session costs no tokens (DEC-60)', async () => {
+    expect((await flowService.list(fx('PRJ-0001'), ADMIN)).map((f) => f.flowId)).toContain(TRIAL)
+    expect((await svc.get(C(26), ADMIN)).referenceNo).toBe(S(26))
+    expect((await analyticsService.billing({ period: month }, ADMIN)).lines.find((l) => l.referenceNo === S(26))).toMatchObject({ tokens: 0, cost: 0 })
+  })
+
+  it('Given the overview, then the Owner’s totals leave the test session out', async () => {
+    const owner = await analyticsService.overview({ days: 90, projectIds: [fx('PRJ-0001')] }, OWNER)
+    const admin = await analyticsService.overview({ days: 90, projectIds: [fx('PRJ-0001')] }, ADMIN)
+    expect(admin.total - owner.total).toBe(1)
   })
 })

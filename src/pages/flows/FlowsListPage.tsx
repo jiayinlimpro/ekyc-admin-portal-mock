@@ -179,6 +179,12 @@ function Flows({ project }: { project: MyProject }) {
                       <AlertTriangle className="size-3" aria-hidden /> deprecated
                     </span>
                   )}
+                  {/* REQ: DEC-56 — only internal users get these rows; say that the merchant's users don't see it. */}
+                  {f.versionStatus === 'INTERNAL_TESTING' && (
+                    <span className="ml-1 rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium tracking-wide text-muted-foreground uppercase" title="Internal testing version: hidden from the merchant’s users.">
+                      Internal only
+                    </span>
+                  )}
                 </td>
                 <td className="px-3 py-2 font-mono text-xs">{revisionLabel(f) ?? '—'}</td>
                 <td className="px-3 py-2">

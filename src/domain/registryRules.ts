@@ -10,6 +10,16 @@ export type RegistryInput = Pick<
   'code' | 'name' | 'description' | 'phases' | 'faceMatchMethod' | 'requiredInputs' | 'configurableChecks' | 'riskMinimumsPerFlow' | 'accessMerchantIds' | 'stateMachineSandbox' | 'stateMachineProduction'
 > & { releaseNote: string }
 
+/** REQ: DEC-56 — a flow on an Internal testing version is for internal users only (super admins, platform staff). */
+export function internalOnlyFlow(versionStatus: RegistryStatus | undefined): boolean {
+  return versionStatus === 'INTERNAL_TESTING'
+}
+
+/** REQ: DEC-56 / DEC-60 — a session run on an Internal testing version (not charged) is for internal users only. */
+export function internalOnlySession(v: { charged: boolean }): boolean {
+  return !v.charged
+}
+
 export function hasRisk(e: Pick<RegistryEntry, 'phases'>): boolean {
   return e.phases.includes('RISK_ASSESSMENT')
 }

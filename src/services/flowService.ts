@@ -15,7 +15,7 @@ import { selectableForNewFlow } from '@/domain/registryRules'
 import type { Actor, Flow, FlowRevision, Project, RegistryEntry, RegistryStatus } from '@/domain/types'
 import { now } from '@/lib/clock'
 import { db } from '@/mocks/mockDb'
-import { accountOf, projectById, requireActive } from './accessGuard'
+import { accountOf, internalTestsFilter, projectById, requireActive } from './accessGuard'
 import { ServiceError } from './errors'
 import { simulateNetwork, wire } from './network'
 import { auditProject, loadProject, requireInProject, validation } from './projectService'
@@ -66,7 +66,7 @@ const FLOW_ACTION_TEXT = { viewFlows: 'view flows', createFlows: 'create flows',
 function loadFlow(actor: Actor, flowId: string, action: keyof typeof FLOW_ACTION_TEXT): { flow: Flow; project: Project } {
   const flow = db.state().flows.find((f) => f.flowId === flowId)
   const project = flow && projectById(flow.projectId)
-  if (!flow || !project) throw new ServiceError('NOT_FOUND', `Flow ${flowId} not found.`)
+  if (!flow || !project || !internalTestsFilter(actor).flow(flow)) throw new ServiceError('NOT_FOUND', `Flow ${flowId} not found.`)
   loadProject(actor, project.projectId) // "not found" outside the user's projects
   requireInProject(actor, action, project, FLOW_ACTION_TEXT[action])
   return { flow, project }
@@ -81,7 +81,8 @@ export const mockFlowService: FlowService = {
     await simulateNetwork('list flows')
     const project = loadProject(actor, projectId)
     requireInProject(actor, 'viewFlows', project, 'view flows') // REQ: DEC-99 — read-only for Flows View
-    return wire(db.state().flows.filter((f) => f.projectId === projectId))
+    const visible = internalTestsFilter(actor).flow // REQ: DEC-56
+    return wire(db.state().flows.filter((f) => f.projectId === projectId && visible(f)))
   },
 
   async listRows(projectId, actor) {
@@ -89,9 +90,10 @@ export const mockFlowService: FlowService = {
     const project = loadProject(actor, projectId)
     requireInProject(actor, 'viewFlows', project, 'view flows') // REQ: DEC-99 — read-only for Flows View
     const order = { ACTIVE: 0, DRAFT: 1, RETIRING: 2, INACTIVE: 3 } as const
+    const visible = internalTestsFilter(actor).flow // REQ: DEC-56
     const rows = db
       .state()
-      .flows.filter((f) => f.projectId === projectId)
+      .flows.filter((f) => f.projectId === projectId && visible(f))
       .map((f) => ({ ...f, isDefault: project.defaultFlowId === f.flowId, inFlightCases: inFlight(f.flowId), versionStatus: entryOf(f.workflowVersion)?.status ?? 'DEPRECATED' }))
       .sort((a, b) => Number(b.isDefault) - Number(a.isDefault) || order[a.status] - order[b.status] || a.name.localeCompare(b.name))
     return wire(rows)

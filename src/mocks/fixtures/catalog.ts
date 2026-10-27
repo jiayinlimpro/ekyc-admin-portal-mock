@@ -47,7 +47,7 @@ interface FlowSpec {
   projectId: string
   name: string
   description: string
-  version: 'V1' | 'V3' | 'V4' | 'V5'
+  version: 'V1' | 'V3' | 'V4' | 'V5' | 'V6'
   status: FlowStatus
   routing?: FlowRouting
   createdDaysAgo: number
@@ -169,6 +169,11 @@ const FLOWS: FlowSpec[] = [
   {
     flowId: fx('FLW-0012'), projectId: fx('PRJ-0009'), name: 'Default flow', description: 'Created with the merchant', version: 'V1', status: 'ACTIVE', createdDaysAgo: 20,
     revisions: [{ hoursAgo: 20 * 24, reason: 'Flow activated', settings: settings({}) }],
+  },
+  {
+    // REQ: DEC-56 — built by the platform on the Internal testing V6: internal users see it; Atoz's own users never do.
+    flowId: fx('FLW-0015'), projectId: fx('PRJ-0001'), name: 'Next engine trial', description: 'Platform test of V6 (internal only)', version: 'V6', status: 'ACTIVE', createdDaysAgo: 5,
+    revisions: [{ hoursAgo: 5 * 24, by: ADMIN, reason: 'Internal test of the next engine build', settings: settings({}) }],
   },
 ]
 

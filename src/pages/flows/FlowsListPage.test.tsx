@@ -79,4 +79,17 @@ describe('Flows List (DEC-94)', () => {
     expect(await row('Standard onboarding')).toBeTruthy()
     expect(screen.getByRole('button', { name: /New flow/ })).toBeTruthy()
   })
+
+  it('Given Atoz Default, then the super admin sees the V6 trial marked Internal only; the Owner doesn’t see it (DEC-56)', async () => {
+    useSession.getState().switchUser(ADMIN)
+    useSession.getState().selectProject(fx('PRJ-0001'))
+    renderAt('/flows')
+    expect((await row('Next engine trial')).textContent).toContain('Internal only')
+    cleanup()
+    useSession.getState().switchUser(OWNER)
+    useSession.getState().selectProject(fx('PRJ-0001'))
+    renderAt('/flows')
+    await row('Malaysian onboarding')
+    expect(screen.queryByRole('link', { name: 'Next engine trial' })).toBeNull()
+  })
 })

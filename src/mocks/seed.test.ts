@@ -118,8 +118,8 @@ describe('seedDatabase', () => {
     for (const r of ['LOW', 'HIGH']) expect(db.verifications.some((v) => v.riskResult === r), r).toBe(true)
   })
 
-  it('every record is charged (DEC-60)', () => {
-    expect(db.verifications.every((v) => v.charged === true)).toBe(true)
+  it('every record is charged except the Internal testing session S26 (DEC-60, DEC-56)', () => {
+    expect(db.verifications.filter((v) => !v.charged).map((v) => v.referenceNo)).toEqual(['KYC-260901-900026'])
   })
 
   it('audit entries have unique event IDs and are in time order (DEC-97)', () => {

@@ -321,6 +321,10 @@ Rules changed on 2026-10-20 (Projects & Flows restructure) are marked **(changed
     default for new merchants must stay Active (DEC-57), and Internal testing, Limited release and Active need both state
     machine references.
   - A status decides only who can **create new flows** on the version; existing flows keep running whatever it becomes.
+  - **Hidden from merchants** [PO 2026-10-27]: a flow whose version is Internal testing, and every session run on an
+    Internal testing version (the uncharged test sessions), are seen by internal users only. Merchant users don't see them
+    anywhere: Flows, Flow Detail ("not found"), flow filters, Verifications (the case is "not found"), dashboards and
+    Billing. If the version moves on (e.g. to Limited release), the flow shows; its earlier test sessions stay internal.
   - Fields lock once the version has been Limited release or Active (merchants may have built on it); Internal testing can
     still be edited.
   - No hard delete. Once a version has been Active, only name, description, state machine references and release notes can be
