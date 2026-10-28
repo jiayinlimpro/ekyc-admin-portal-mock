@@ -2,12 +2,13 @@
 // from Members. The same screen lists platform staff (Platform staff).
 import { useState, type FormEvent } from 'react'
 import { useSearchParams } from 'react-router'
-import { Pencil, Plus, RotateCcw, Search } from 'lucide-react'
+import { Lock, Pencil, Plus, RotateCcw, Search } from 'lucide-react'
 import { toast } from 'sonner'
 import { FormField } from '@/components/common/FormField'
 import { NativeSelect } from '@/components/common/NativeSelect'
 import { Pagination } from '@/components/common/Pagination'
 import { EmptyState, ErrorState } from '@/components/common/States'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
@@ -335,7 +336,7 @@ function UserDialog({ userId, onClose, onChanged }: { userId: string; onClose: (
 
 type Filters = { q: string; status: '' | UserStatus; merchantId: string; type: '' | AccountKind }
 /** A row on the Users list: a merchant user, or (super admins only) a platform staff member (DEC-99). */
-type ListRow = UserRow & { type: AccountKind }
+type ListRow = UserRow & { type: AccountKind; /** REQ: DEC-110 — the super admin: shown, never opened or changed. */ fixed?: true }
 
 const matches = (r: ListRow, f: Filters) => {
   const q = f.q.trim().toLowerCase()
@@ -359,7 +360,7 @@ export function UsersPage({ scope }: { scope: UsersScope }) {
   const [open, setOpen] = useState<{ userId: string; type: AccountKind } | undefined>(sp.get('user') ? { userId: sp.get('user')!, type: platform ? 'PLATFORM' : 'MERCHANT' } : undefined)
   // REQ: DEC-99 / DEC-109 — a merchant's users, or (super admins) the platform staff; never both on one list.
   const rows = useLoad(async (): Promise<ListRow[]> => {
-    if (platform) return (await staffService.list(actor)).map(({ access, ...r }): ListRow => ({ ...r, merchantRoleName: access[0]?.label ?? '', merchantId: '', merchantName: '—', type: 'PLATFORM' }))
+    if (platform) return (await staffService.list(actor)).map(({ access, ...r }): ListRow => ({ ...r, merchantRoleName: access[0]?.label ?? '', merchantId: '', merchantName: '—', type: 'PLATFORM', fixed: r.fixed }))
     return (await userAdminService.list(actor, merchantId)).map((r): ListRow => ({ ...r, type: 'MERCHANT' }))
   }, [actor.userId, platform, merchantId])
   const merchants = useLoad(() => merchantService.list(actor), [actor.userId])
@@ -388,7 +389,7 @@ export function UsersPage({ scope }: { scope: UsersScope }) {
         <div>
           <h1 className="text-2xl font-semibold">{platform ? 'Platform staff' : 'Users'}</h1>
           <p className="text-sm text-muted-foreground">
-            {platform ? 'Each staff member has one platform role; it applies to every merchant.' : 'Each user has one merchant role (all projects); project roles are added in Project › Members.'}
+            {platform ? 'Each staff member has one platform role; it applies to every merchant. The super admin is created at setup and can’t be changed.' : 'Each user has one merchant role (all projects); project roles are added in Project › Members.'}
           </p>
         </div>
         <Button onClick={() => setInviting(true)}>
@@ -440,9 +441,18 @@ export function UsersPage({ scope }: { scope: UsersScope }) {
             {shown.map((r) => (
               <tr key={r.userId} className="border-t">
                 <th scope="row" className="px-3 py-2 text-left font-normal">
-                  <button type="button" className="font-medium text-blue-700 hover:underline dark:text-blue-400" onClick={() => setOpen({ userId: r.userId, type: r.type })}>
-                    {r.fullName}
-                  </button>
+                  {r.fixed ? (
+                    <span className="inline-flex flex-wrap items-center gap-2">
+                      <span className="font-medium">{r.fullName}</span>
+                      <Badge variant="outline" className="gap-1 font-normal text-muted-foreground">
+                        <Lock aria-hidden className="size-3" /> Created at setup · can’t be changed
+                      </Badge>
+                    </span>
+                  ) : (
+                    <button type="button" className="font-medium text-blue-700 hover:underline dark:text-blue-400" onClick={() => setOpen({ userId: r.userId, type: r.type })}>
+                      {r.fullName}
+                    </button>
+                  )}
                 </th>
                 <td className="px-3 py-2">{r.email}</td>
                 <td className="px-3 py-2">{r.merchantRoleName || <span className="text-muted-foreground">No role</span>}</td>

@@ -125,6 +125,17 @@ describe('Users (DEC-74, DEC-104)', () => {
     expect((await row('Mira Chen')).textContent).toContain('Support')
   })
 
+  it('Given a super admin on Platform staff, then the super admin is the first row, marked and not clickable (DEC-110)', async () => {
+    useSession.getState().switchUser(ADMIN)
+    renderAt('/platform-staff')
+    const lim = await screen.findByRole('rowheader', { name: /Lim Wei Jie/ })
+    const tr = lim.closest('tr')!
+    expect(tr.textContent).toContain('Super admin')
+    expect(tr.textContent).toContain('Created at setup · can’t be changed')
+    expect(within(tr).queryByRole('button')).toBeNull()
+    expect(within(screen.getByRole('region', { name: 'User list' })).getAllByRole('rowheader')[0]).toBe(lim)
+  })
+
   it('Given a Reviewer, then Platform staff is "No access" and Merchant settings has no Users tab', async () => {
     useSession.getState().switchUser(ALI)
     renderAt('/platform-staff')

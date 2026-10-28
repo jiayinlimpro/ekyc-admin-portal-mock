@@ -12,7 +12,7 @@ import { flowService } from './flowService'
 import { merchantAdminService } from './merchantAdminService'
 import { registryService } from './registryService'
 import { roleService } from './roleService'
-import { staffService as staff } from './staffService'
+import { SUPER_ADMIN_FIXED, staffService as staff } from './staffService'
 import { userAdminService as users } from './userAdminService'
 import { verificationService } from './verificationService'
 
@@ -103,6 +103,18 @@ describe('platform staff: managed only by super admins (DEC-99)', () => {
     await expect(staff.get(DANIEL.userId, OWNER)).rejects.toMatchObject({ code: 'NOT_FOUND' })
     await expect(users.get(DANIEL.userId, OWNER)).rejects.toMatchObject({ code: 'NOT_FOUND' })
     await expect(staff.list(DANIEL)).rejects.toMatchObject({ code: 'NOT_FOUND' }) // staff never manage staff
+  })
+
+  it('Given the list, then the one super admin comes first, read-only; any change to it is refused (DEC-110)', async () => {
+    const rows = await staff.list(ADMIN)
+    expect(rows.filter((r) => r.fixed).map((r) => [r.fullName, r.access[0].label])).toEqual([['Lim Wei Jie', 'Super admin']])
+    expect(rows[0].fixed).toBe(true)
+    const lim = rows[0].userId
+    await expect(staff.get(lim, ADMIN)).rejects.toMatchObject({ code: 'VALIDATION', message: SUPER_ADMIN_FIXED })
+    await expect(staff.suspend(lim, ADMIN)).rejects.toMatchObject({ code: 'VALIDATION', message: SUPER_ADMIN_FIXED })
+    await expect(staff.setRole(lim, PLATFORM_ROLE_IDS.SUPPORT, ADMIN)).rejects.toMatchObject({ code: 'VALIDATION', message: SUPER_ADMIN_FIXED })
+    await expect(staff.resendInvitation(lim, ADMIN)).rejects.toMatchObject({ code: 'VALIDATION', message: SUPER_ADMIN_FIXED })
+    expect(db.state().accounts.find((a) => a.userId === lim)).toMatchObject({ status: 'ACTIVE', assignments: [] })
   })
 
   it('Given a new staff member, then the company domain and a platform role (no scope to choose)', async () => {

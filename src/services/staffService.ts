@@ -1,11 +1,12 @@
 // Platform staff API (mock): internal accounts with one platform role and no scope (DEC-99, DEC-104). Super admin only;
-// merchant admins never see them ("not found"). The Users screen lists them next to merchant users, with Type = Platform.
-//   GET    /staff                       list               → 200 StaffRow[]
+// merchant admins never see them ("not found"). The list also shows the one super admin, read-only (DEC-110).
+//   GET    /staff                       list               → 200 StaffRow[] (the super admin first)
 //   GET    /staff/{id}                  get                → 200 StaffDetail | 404
 //   POST   /staff                       invite             → 201 StaffRow (Pending) | 422
 //   POST   /staff/{id}/invitation       resendInvitation   → 200 | 422 (not Pending)
 //   PUT    /staff/{id}/role             setRole            → 200 StaffDetail | 422
 //   POST   /staff/{id}/suspend | reactivate
+//   Any change to the super admin                          → 422 (created by the seed, never changed)
 import { canOnPlatform } from '@/domain/access'
 import { STAFF_EMAIL_DOMAIN } from '@/domain/openQuestions'
 import { validateAssignment, withImpliedPermissions, type AccessChip } from '@/domain/roles'
@@ -28,6 +29,8 @@ export interface StaffRow {
   roleId?: string
   status: UserStatus
   createdAt: string
+  /** REQ: DEC-110 — the super admin: created by the seed, nothing can be changed. */
+  fixed?: true
 }
 
 export interface StaffDetail extends StaffRow {
@@ -59,9 +62,13 @@ function requireSuper(actor: Actor) {
 const roleOf = (roleId: string) => db.state().roles.find((r) => r.roleId === roleId)
 const by = (actor: Actor): Actor => ({ userId: actor.userId, fullName: actor.fullName })
 
+export const SUPER_ADMIN_FIXED = 'The super admin is created at setup and can’t be changed.'
+
 function loadStaff(userId: string): UserAccount {
-  const a = db.state().accounts.find((x) => x.userId === userId && x.level === 'PLATFORM_STAFF')
+  const a = db.state().accounts.find((x) => x.userId === userId && x.level !== 'MERCHANT_USER')
   if (!a) throw new ServiceError('NOT_FOUND', `User ${userId} not found.`)
+  // REQ: DEC-110 — the super admin is listed, but nothing about it can be opened or changed here.
+  if (a.level === 'SUPER_ADMIN') throw validation([{ field: 'userId', message: SUPER_ADMIN_FIXED }])
   return a
 }
 
@@ -84,6 +91,7 @@ function audit(actor: Actor, action: AuditAction, details: Record<string, unknow
 }
 
 function rowOf(a: UserAccount): StaffRow {
+  if (a.level === 'SUPER_ADMIN') return { userId: a.userId, fullName: a.fullName, email: a.email, access: [{ label: 'Super admin', archived: false }], status: a.status, createdAt: a.invitedAt, fixed: true }
   const name = roleName(a)
   return { userId: a.userId, fullName: a.fullName, email: a.email, access: name ? [{ label: name, archived: false }] : [], roleId: a.assignments[0]?.roleId, status: a.status, createdAt: a.invitedAt }
 }
@@ -94,7 +102,9 @@ export const mockStaffService: StaffService = {
   async list(actor) {
     await simulateNetwork('list staff')
     requireSuper(actor)
-    return wire(db.state().accounts.filter((a) => a.level === 'PLATFORM_STAFF').map(rowOf).sort((a, b) => b.createdAt.localeCompare(a.createdAt)))
+    // REQ: DEC-110 — the super admin first, then staff, newest first.
+    const internal = db.state().accounts.filter((a) => a.level !== 'MERCHANT_USER').map(rowOf)
+    return wire(internal.sort((a, b) => Number(!!b.fixed) - Number(!!a.fixed) || b.createdAt.localeCompare(a.createdAt)))
   },
 
   async get(userId, actor) {
