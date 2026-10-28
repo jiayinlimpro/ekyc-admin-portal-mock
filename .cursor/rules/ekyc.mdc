@@ -39,7 +39,7 @@ UAT scenarios: `docs/SCENARIOS.md`.
   on Users; applies merchant-wide and in all projects) and project roles (the project's Roles screen, per project; given
   in Project › Members, that project only). Union, no deny. **Member** = no permissions (default). Every page checks access to the
   project; a case outside the user's projects is "not found".
-- Three account types (DEC-99, DEC-104): **Super admin** (everything; outside the role system; Platform › Super admins),
+- Three account types (DEC-99, DEC-104): **Super admin** (exactly one, created by the seed, never changed (DEC-110); everything; outside the role system),
   **Platform staff** (no merchant; one platform role, no scope: applies to every merchant), **Merchant user**. Roles and
   users have a Type (Platform / Merchant), set by super admins and never changed; merchant admins never see platform
   roles or staff. No access end dates. **No masking**: Verifications = View list → View details → Claim / release →
@@ -70,8 +70,8 @@ UAT scenarios: `docs/SCENARIOS.md`.
 - Every mutation writes an audit entry (DEC-42 event names).
 - Config lives on each flow; saving an active flow needs a reason and creates a revision; applies to new sessions only.
 - Two layers (DEC-109): everyone lands on the outer **Merchants** page (rows = merchants, cards = projects: Go to project,
-  ⚙ Project Settings; row ⚙ Merchant settings = General, Users, Roles, Billing, Audit log). Outer platform modules: Super
-  admins, Platform staff, Workflow Registry. The inner portal is always ONE project (`Merchant ▾ / Project ▾` in the
+  ⚙ Project Settings; row ⚙ Merchant settings = General, Users, Roles, Billing, Audit log). Outer platform modules:
+  Platform staff (lists the super admin read-only), Workflow Registry. The inner portal is always ONE project (`Merchant ▾ / Project ▾` in the
   header): Overview, System Intelligence, Billing, Verifications, Flows, Members, Roles, Audit Logs, Project Settings. No "All my
   projects", no cross-project or cross-merchant views. No Manual Review Queue.
 - Open questions must be parameters (`src/domain/openQuestions.ts`, or on the project/flow) with an "OPEN QUESTION" label
@@ -101,7 +101,7 @@ docs/           DECISIONS.md, OPEN_QUESTIONS.md, SCENARIOS.md
   Verifications List + Detail, Project Settings (General with rename / archive, Integration, Review operations,
   Routing), Members, Roles (project sidebar), Flows List, Flow Detail (presets, band bar, retries, Advanced thresholds, history), Audit Log.
   Outer layer (DEC-109): Merchants page, Merchant settings (General, Users, Roles, Billing, Audit log), Platform staff
-  (staff + platform roles), Super admins, Workflow Registry. Inner header: `Merchant ▾ / Project ▾` + roles in the project.
+  (staff + platform roles; the super admin read-only), Workflow Registry. Inner header: `Merchant ▾ / Project ▾` + roles in the project.
   Mock Login.
   `/` is the Merchants page (no separate Home); UAT scenario links and data coverage are on the mock-only `/uat` page (Dev menu).
 - Retired (DEC-85): eKYC Workflow, Developers, Merchant Workflow Directory, the merchant-level config, the two-role
