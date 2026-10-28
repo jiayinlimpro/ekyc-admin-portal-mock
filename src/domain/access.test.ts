@@ -259,13 +259,12 @@ describe('access: platform staff, one role and no scope (DEC-99, DEC-104)', () =
     }
   })
 
-  it('Given Support, Implementation or Finance, then no Users, Roles or merchant settings; nobody on staff manages staff or super admins', () => {
+  it('Given Support, Implementation or Finance, then no Users, Roles or merchant settings; nobody on staff manages staff', () => {
     for (const s of [SUPPORT, IMPLEMENTATION, FINANCE]) {
       for (const a of ['changeUserRole', 'manageMembers', 'createProjects', 'manageProjectSettings'] as const) expect(can(s, a)).toBe(false)
     }
     for (const s of [SUPPORT, IMPLEMENTATION, FINANCE, PLATFORM_ADMIN]) {
       expect(canOnPlatform(s, 'manageStaff')).toBe(false)
-      expect(canOnPlatform(s, 'manageAdmins')).toBe(false)
     }
   })
 })

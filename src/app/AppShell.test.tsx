@@ -34,7 +34,7 @@ describe('AppShell', () => {
     renderAt('/dashboard')
     await mainNav().findByRole('link', { name: 'Verifications' })
     for (const shown of ['Overview', 'System Intelligence', 'Billing']) expect(mainNav().getByRole('link', { name: shown })).toBeTruthy()
-    for (const hidden of [/Audit Logs/, /eKYC Workflow/, /Users/, /Developers/, /Merchants/, /Super admins/, /Workflow Registry/, /Manual Review/]) {
+    for (const hidden of [/Audit Logs/, /eKYC Workflow/, /Users/, /Developers/, /Merchants/, /Platform staff/, /Workflow Registry/, /Manual Review/]) {
       expect(mainNav().queryByRole('link', { name: hidden })).toBeNull()
     }
   })
@@ -73,9 +73,16 @@ describe('AppShell', () => {
     renderAt('/')
     await mainNav().findByRole('link', { name: 'Merchants' })
     expect(mainNav().getAllByRole('heading', { level: 2 }).map((h) => h.textContent)).toEqual(['Platform'])
-    expect(within(screen.getByRole('region', { name: 'Platform' })).getAllByRole('link').map((l) => l.textContent)).toEqual(['Super admins', 'Platform staff', 'Workflow Registry'])
+    expect(within(screen.getByRole('region', { name: 'Platform' })).getAllByRole('link').map((l) => l.textContent)).toEqual(['Platform staff', 'Workflow Registry'])
     for (const inner of ['Overview', 'Verifications', 'Flows', 'Billing', 'Audit Logs', 'Project Settings', 'Users', 'Roles', 'Projects']) expect(mainNav().queryByRole('link', { name: inner })).toBeNull()
     for (const retired of [/eKYC Workflow/, /Developers/, 'Users and Access', /Merchant Workflow Directory/]) expect(mainNav().queryByRole('link', { name: retired })).toBeNull()
+  })
+
+  it('Given an old link to the Super admins screen, then it lands on Platform staff (DEC-110)', async () => {
+    useSession.getState().switchUser(ADMIN)
+    const router = renderAt('/admins')
+    await waitFor(() => expect(router.state.location.pathname).toBe('/platform-staff'))
+    expect(await screen.findByRole('heading', { name: 'Platform staff', level: 1 })).toBeTruthy()
   })
 
   it('Given a Super admin in a project, then Project Settings, then the groups in order with Flows in eKYC and Members, Roles in User Management, and no platform modules (DEC-103, DEC-109)', async () => {
@@ -90,7 +97,7 @@ describe('AppShell', () => {
     expect(group('User Management')).toEqual(['Members', 'Roles'])
     expect(group('Governance')).toEqual(['Audit Logs'])
     expect(mainNav().getByRole('link', { name: 'Project Settings' })).toBeTruthy()
-    for (const outer of ['Merchants', 'Super admins', 'Platform staff', 'Workflow Registry']) expect(mainNav().queryByRole('link', { name: outer })).toBeNull()
+    for (const outer of ['Merchants', 'Platform staff', 'Workflow Registry']) expect(mainNav().queryByRole('link', { name: outer })).toBeNull()
   })
 
   it('Given a flow, then the breadcrumb reads Merchant / Project › eKYC › Flows › the flow, and Flows stays highlighted in the menu (DEC-103, DEC-109)', async () => {

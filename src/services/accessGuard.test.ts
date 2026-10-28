@@ -43,9 +43,9 @@ describe('accessGuard (DEC-71, DEC-72)', () => {
 
 describe('userService', () => {
   it('Given Ali, then reviewers are the active users who may claim in his projects', async () => {
-    // Lim and Nor Aisyah (Super admins, DEC-75), Rizal (Platform Admin), Tan Mei Ling (Owner), Lee Jia Hui (Admin), Hafiz
+    // Lim (the super admin, DEC-75), Rizal (Platform Admin), Tan Mei Ling (Owner), Lee Jia Hui (Admin), Hafiz
     // (Project Admin SME app), Siti and Nurul. Not Yap (suspended), not Support or the Developer.
-    const everywhere = [fx('USR-2026-0001'), fx('USR-2026-0002'), fx('USR-2026-0005'), fx('USR-2026-0010'), fx('USR-2026-0036')]
+    const everywhere = [fx('USR-2026-0001'), fx('USR-2026-0002'), fx('USR-2026-0010'), fx('USR-2026-0036')]
     expect(ids(await userService.listReviewers(ALI))).toEqual([...everywhere, fx('USR-2026-0012'), fx('USR-2026-0020'), fx('USR-2026-0031'), fx('USR-2026-0033')].sort())
     expect(ids(await userService.listReviewers(ALI, fx('PRJ-0001')))).toEqual([...everywhere, fx('USR-2026-0012'), fx('USR-2026-0031')].sort())
   })

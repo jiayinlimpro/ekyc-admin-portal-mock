@@ -41,7 +41,7 @@ describe('Merchants page — the outer layer (DEC-109)', () => {
     expect(screen.getByRole('button', { name: /New merchant/ })).toBeTruthy()
     expect(atoz.getByRole('link', { name: 'Merchant settings of Atoz Software Tech' })).toBeTruthy()
     expect(atoz.getByRole('button', { name: 'New project in Atoz Software Tech' })).toBeTruthy()
-    for (const m of ['Merchants', 'Super admins', 'Platform staff', 'Workflow Registry']) expect(mainNav().getByRole('link', { name: m })).toBeTruthy()
+    for (const m of ['Merchants', 'Platform staff', 'Workflow Registry']) expect(mainNav().getByRole('link', { name: m })).toBeTruthy()
     for (const inner of ['Overview', 'Verifications', 'Flows', 'Project Settings']) expect(mainNav().queryByRole('link', { name: inner })).toBeNull()
   })
 
@@ -54,7 +54,7 @@ describe('Merchants page — the outer layer (DEC-109)', () => {
     expect(screen.queryByRole('button', { name: /New merchant/ })).toBeNull()
     expect(atoz.queryByRole('button', { name: /New project/ })).toBeNull()
     expect(atoz.queryByRole('link', { name: /Merchant settings/ })).toBeNull()
-    expect(mainNav().queryByRole('link', { name: 'Super admins' })).toBeNull()
+    expect(mainNav().queryByRole('link', { name: 'Platform staff' })).toBeNull()
   })
 
   it('Given Go to project, then the inner portal on that project: Merchant / Project in the header and only project modules in the menu', async () => {
@@ -66,7 +66,7 @@ describe('Merchants page — the outer layer (DEC-109)', () => {
     expect(await screen.findByRole('button', { name: 'Switch merchant. Current: Atoz Software Tech' })).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Switch project. Current: SME app' })).toBeTruthy()
     await mainNav().findByRole('link', { name: 'Verifications' })
-    for (const outer of ['Merchants', 'Super admins', 'Workflow Registry']) expect(mainNav().queryByRole('link', { name: outer })).toBeNull()
+    for (const outer of ['Merchants', 'Platform staff', 'Workflow Registry']) expect(mainNav().queryByRole('link', { name: outer })).toBeNull()
   })
 
   it('Given a project’s ⚙, then Project Settings of that project', async () => {

@@ -83,18 +83,6 @@ export const NAV_ITEMS: NavItem[] = [
     notes: ['Tabs: General (details, edit, status) · Users · Roles · Billing · Audit log, for the whole merchant (DEC-109).'],
   },
   {
-    path: '/admins',
-    label: 'Super admins',
-    icon: UserCog,
-    layer: 'outer',
-    group: 'Platform',
-    inMenu: true,
-    access: { platform: 'manageAdmins' },
-    priority: 'P2',
-    built: true,
-    notes: ['Super admin accounts only (DEC-79): invite (Pending), resend, suspend / reactivate; no roles; one active admin must remain.'],
-  },
-  {
     path: '/platform-staff',
     label: 'Platform staff',
     icon: UsersRound,
@@ -104,7 +92,7 @@ export const NAV_ITEMS: NavItem[] = [
     access: { platform: 'manageStaff' },
     priority: 'P2',
     built: true,
-    notes: ['Platform staff (one platform role each, every merchant) and the platform roles (DEC-99, DEC-104).'],
+    notes: ['Platform staff (one platform role each, every merchant) and the platform roles (DEC-99, DEC-104); the one super admin is listed read-only (DEC-110).'],
   },
   {
     path: '/registry',

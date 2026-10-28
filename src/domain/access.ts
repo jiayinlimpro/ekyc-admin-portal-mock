@@ -13,7 +13,6 @@ export const PLATFORM_ACTIONS = [
   'changeMerchantStatus', // go live, suspend, terminate (DEC-98)
   'viewRegistry',
   'manageRegistry',
-  'manageAdmins', // Super admins screen: super admin only
   'manageStaff', // platform roles and platform staff: super admin only (DEC-99)
 ] as const
 export type PlatformAction = (typeof PLATFORM_ACTIONS)[number]

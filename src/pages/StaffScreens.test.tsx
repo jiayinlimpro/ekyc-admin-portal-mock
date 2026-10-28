@@ -32,7 +32,7 @@ describe('screens for platform staff (DEC-99, DEC-104)', () => {
     renderAt('/verifications')
     await mainNav().findByRole('link', { name: 'Verifications' })
     for (const shown of ['Verifications', 'Flows', 'Project Settings', 'Audit Logs']) expect(mainNav().getByRole('link', { name: shown })).toBeTruthy()
-    for (const hidden of ['Overview', 'Billing', 'Merchants', 'Super admins', 'Platform staff', 'Workflow Registry']) expect(mainNav().queryByRole('link', { name: hidden })).toBeNull()
+    for (const hidden of ['Overview', 'Billing', 'Merchants', 'Platform staff', 'Workflow Registry']) expect(mainNav().queryByRole('link', { name: hidden })).toBeNull()
   })
 
   it('Given Support opens the portal, then the Merchants page; Go to project lands on Verifications (no Overview for this role) (DEC-109)', async () => {

@@ -37,9 +37,8 @@ const ATOZ = { level: 'MERCHANT_USER', merchantId: fx('MER-0001') } as const
 const STAFF = { level: 'PLATFORM_STAFF', addedBy: SUPER_ADMIN } as const
 
 const ACCOUNT_SPECS: AccountSpec[] = [
+  // REQ: DEC-110 — the one super admin, created by the seed and never changed.
   { ...SUPER_ADMIN, email: 'weijie.lim@ekyc-platform.example', level: 'SUPER_ADMIN', addedBy: SUPER_ADMIN, status: 'ACTIVE', invitedDaysAgo: 400, lastActiveHoursAgo: 1 },
-  // A second Super admin, so the Super admins screen (DEC-79) can show Suspend without hitting "at least one".
-  { userId: fx('USR-2026-0005'), fullName: 'Nor Aisyah Binti Hamid', email: 'aisyah.hamid@ekyc-platform.example', level: 'SUPER_ADMIN', addedBy: SUPER_ADMIN, status: 'ACTIVE', invitedDaysAgo: 120, lastActiveHoursAgo: 26 },
   // REQ: DEC-104 — platform staff: one platform role, every merchant.
   { ...STAFF, userId: fx('USR-2026-0006'), fullName: 'Daniel Tan', email: 'daniel.tan@ekyc-platform.example', role: 'SUPPORT', status: 'ACTIVE', invitedDaysAgo: 90, lastActiveHoursAgo: 3 },
   { ...STAFF, userId: fx('USR-2026-0007'), fullName: 'Priya Nair', email: 'priya.nair@ekyc-platform.example', role: 'SUPPORT', status: 'ACTIVE', invitedDaysAgo: 30, lastActiveHoursAgo: 5 },
