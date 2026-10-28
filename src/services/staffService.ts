@@ -43,7 +43,7 @@ export interface StaffDetail extends StaffRow {
 export interface StaffService {
   list(actor: Actor): Promise<StaffRow[]>
   get(userId: string, actor: Actor): Promise<StaffDetail>
-  /** Active platform roles, for the Staff role picker. */
+  /** Active platform roles, for the Platform role picker. */
   assignableRoles(actor: Actor): Promise<Role[]>
   draftUserId(actor: Actor): Promise<string>
   invite(input: { userId?: string; fullName: string; email: string; roleId: string }, actor: Actor): Promise<StaffRow>
@@ -77,7 +77,7 @@ const putAccount = (a: UserAccount) => db.setState((st) => ({ accounts: st.accou
 /** REQ: DEC-104 — a platform role, for every merchant. */
 function checkRole(roleId: string): Role {
   const role = roleOf(roleId)
-  if (!role) throw validation([{ field: 'roleId', message: 'Choose a staff role.' }])
+  if (!role) throw validation([{ field: 'roleId', message: 'Choose a platform role.' }])
   const errors = validateAssignment(role, { kind: 'ALL_MERCHANTS' }, [])
   if (errors.length) throw validation(errors)
   return role

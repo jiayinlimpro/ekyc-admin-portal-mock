@@ -59,7 +59,7 @@ function InviteDialog({ merchants, isSuper, internal, ownMerchant, fixedKind, on
   const submit = async (e: FormEvent) => {
     e.preventDefault()
     if (!platform && !merchantId) return setErrors({ merchantId: 'Choose a merchant.' })
-    if (!roleId) return setErrors({ roleId: platform ? 'Choose a staff role.' : 'Choose a role.' })
+    if (!roleId) return setErrors({ roleId: platform ? 'Choose a platform role.' : 'Choose a role.' })
     setBusy(true)
     setErrors({})
     try {
@@ -110,7 +110,7 @@ function InviteDialog({ merchants, isSuper, internal, ownMerchant, fixedKind, on
             <>
               {nameField}
               {emailField}
-              <RoleSelect id="nu-role" label="Staff role" roles={roles.data ?? []} value={roleId} onChange={setRoleId} error={errors.roleId} hint="Applies to every merchant." />
+              <RoleSelect id="nu-role" label="Platform role" roles={roles.data ?? []} value={roleId} onChange={setRoleId} error={errors.roleId} hint="Applies to every merchant." />
             </>
           ) : (
             <>
@@ -343,7 +343,7 @@ const matches = (r: ListRow, f: Filters) => {
   return (!q || [r.fullName, r.email].some((x) => x.toLowerCase().includes(q))) && (!f.status || r.status === f.status) && (!f.merchantId || r.merchantId === f.merchantId) && (!f.type || r.type === f.type)
 }
 
-/** REQ: DEC-109 — where the list lives: one merchant's users (Merchant settings › Users) or platform staff (Platform staff). */
+/** REQ: DEC-109 — where the list lives: one merchant's users (Merchant settings › Users) or platform staff (Platform Users › Users). */
 export type UsersScope = { merchantId: string } | 'PLATFORM'
 
 export function UsersPage({ scope }: { scope: UsersScope }) {
@@ -387,13 +387,13 @@ export function UsersPage({ scope }: { scope: UsersScope }) {
     <div className="mx-auto max-w-[1400px] space-y-4">
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold">{platform ? 'Platform staff' : 'Users'}</h1>
+          <h1 className="text-2xl font-semibold">{platform ? 'Platform users' : 'Users'}</h1>
           <p className="text-sm text-muted-foreground">
-            {platform ? 'Each staff member has one platform role; it applies to every merchant. The super admin is created at setup and can’t be changed.' : 'Each user has one merchant role (all projects); project roles are added in Project › Members.'}
+            {platform ? 'Each platform user has one platform role; it applies to every merchant. The super admin is created at setup and can’t be changed.' : 'Each user has one merchant role (all projects); project roles are added in Project › Members.'}
           </p>
         </div>
         <Button onClick={() => setInviting(true)}>
-          <Plus aria-hidden /> {platform ? 'New staff member' : 'New user'}
+          <Plus aria-hidden /> {platform ? 'New platform user' : 'New user'}
         </Button>
       </header>
       <form

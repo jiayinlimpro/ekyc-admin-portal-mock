@@ -73,7 +73,7 @@ Claim / release, Approve / reject; every case page open is audited.
 merchant, merchant users their own), its projects as cards. **Go to project** opens the project portal: every screen there
 shows that one project, the header reads `Merchant ▾ / Project ▾` to switch, and the menu follows your permissions in it.
 A card's ⚙ opens Project Settings; a row's ⚙ opens **Merchant settings** (General, Users, Roles, Billing and Audit log for
-the whole merchant). Platform staff and Workflow Registry are in the Merchants page's menu only. Links can
+the whole merchant). Platform Users and Workflow Registry are in the Merchants page's menu only. Links can
 carry `?project=<project ID>` to open a screen in that project; case links select the case's project themselves.
 
 **The Dev menu** (top right, amber) is mock-only:
@@ -102,7 +102,7 @@ carry `?project=<project ID>` to open a screen in that project; case links selec
 | Audit Log | DEC-42 events of the project, with actor role; the whole merchant's in Merchant settings › Audit log |
 | Merchant settings › General | Details for everyone with access; super admins and staff with Merchants permissions edit, per the FRS: registration number, country, contact; Onboarding → Active → Suspended → Terminated with reasons (suspension locks the merchant's users out and stops its API keys); never deleted; a new merchant gets a Default project and owner |
 | Workflow Registry | Versions and flows using them (read-only with Registry View); statuses Draft, Internal testing (internal users only), Limited release (ticked merchants, Merchant access in Edit), Active, Deprecated (DEC-56) |
-| Platform staff | Staff (one platform role, every merchant) and Platform roles, created by super admins; the one super admin is listed first, read-only (created at setup, never changed, DEC-110); merchant users get one merchant role (Member by default) in Merchant settings |
+| Platform Users | Users (platform staff: one platform role, every merchant) and Roles (platform roles), created by super admins; the one super admin is listed first, read-only (created at setup, never changed, DEC-110); merchant users get one merchant role (Member by default) in Merchant settings |
 | Project › Roles (sidebar) | The project's role table: System Default project roles and its own Custom roles; New role, Duplicate from another project |
 
 Values tagged **OPEN QUESTION** are placeholders, not signed-off requirements.

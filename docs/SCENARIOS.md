@@ -19,7 +19,7 @@ data** before a UAT run.
 ## Access scenarios (DEC-74, DEC-76, DEC-77, DEC-104, DEC-109)
 
 Where things are (DEC-109): **Users** and **Roles** (and the merchant's Billing and Audit log) are tabs of **Merchant
-settings**, the ⚙ on the merchant's row of the Merchants page. **Platform staff** (staff, platform roles and the
+settings**, the ⚙ on the merchant's row of the Merchants page. **Platform Users** (platform staff, platform roles and the
 super admin, read-only) and **Workflow Registry** are in the Merchants page's menu. Project screens (Verifications, Flows, Project
 Settings, dashboards) open after **Go to project** on a project card.
 
@@ -34,14 +34,14 @@ Settings, dashboards) open after **Go to project** on a project card.
 | A7 | Tan Mei Ling | Roles; then New role | Merchant roles only (Owner … Member, User Coordinator), System Default read-only; New role shows every module; ticking Approve / reject ticks Claim / release, View details and View list |
 | A8 | Tan Mei Ling | Users › Ali › Effective access, choose SME app | View list, View details, Flows View and reports, each "Comes from" Viewer · SME app |
 | A9 | Muthu (`?as=muthu.rajan@atoz.example`) | Go to project Default | Billing role: lands on Billing (no Overview tab); no Verifications or Flows in the menu |
-| A10 | Lim Wei Jie | Platform › Platform staff | Lim is the first row, "Super admin", marked Created at setup · can’t be changed; his row opens nothing; there is no Super admins screen (`/admins` goes to Platform staff) (DEC-110) |
+| A10 | Lim Wei Jie | Platform › Platform Users | Lim is the first row, "Super admin", marked Created at setup · can’t be changed; his row opens nothing; there is no Super admins screen (`/admins` and `/platform-staff` go to Platform Users) (DEC-110) |
 | A11 | Lim Wei Jie | Merchants › New merchant: Malaysia, registration no `1312525-A` | "Malaysian registration numbers have 12 digits"; with `202101012345` it is created as Onboarding, with its Default project and a Pending Owner |
 | A12 | Lim Wei Jie | Merchants › Tesla ⚙ › General › Change status › Suspended, with a reason | Tesla shows Suspended; Wong Kah Heng can no longer be picked in Switch user; its API keys show "Stopped"; the audit log has the reason |
 | A13 | Tan Mei Ling | Roles › New role (save it); then ⋮ on Reviewer and on the new role | The dialog opens with a generated Role ID (read-only), one Permissions table (no sections) and a Status field; Reviewer's Deactivate is disabled with the reason; the new role (nobody holds it) can be deactivated and activated again |
-| A14 | Lim Wei Jie | Platform staff › Platform roles › New role | Type Platform (internal); no Merchant field; one Permissions table of 15 rows: the platform modules plus every merchant module (Projects, Users, Roles … Project roles) with the same wording |
-| A15 | Lim Wei Jie | Platform staff › New staff member | Type Platform; name, company email and one Staff role (Platform Admin, Support, Implementation, Finance); no merchant scope; a non-company email is refused |
+| A14 | Lim Wei Jie | Platform Users › Roles › New role | Type Platform (internal); no Merchant field; one Permissions table of 15 rows: the platform modules plus every merchant module (Projects, Users, Roles … Project roles) with the same wording |
+| A15 | Lim Wei Jie | Platform Users › New platform user | Type Platform; name, company email and one Platform role (Platform Admin, Support, Implementation, Finance); no merchant scope; a non-company email is refused |
 | A16 | Daniel Tan (`?as=daniel.tan@ekyc-platform.example`) | Go to project on any card; open any case; Flows; Project Settings › Integration | Lands on Verifications (Support has no dashboards); the full case page, no masking, audited; flows and keys read-only; no Platform staff or New merchant |
-| A17 | Tan Mei Ling | Merchant settings › Users; Roles; try `/platform-staff` | No platform staff or platform roles anywhere; Platform staff is "No access" |
+| A17 | Tan Mei Ling | Merchant settings › Users; Roles; try `/platform-users` | No platform users or platform roles anywhere; Platform Users is "No access" |
 | A18 | Tan Mei Ling | SME app › Roles; then Default › Roles | SME app: Project Admin, Reviewer, Developer, Viewer, Release Tester; Default has Fraud Checker instead. New role shows project modules only (no Users, Roles, Billing) |
 | A19 | Tan Mei Ling | SME app › Roles › Duplicate from another project › Default › Fraud Checker | "Copy of Fraud Checker" opens with its permissions; saved, it exists in SME app only |
 | A20 | Grace Lim (`?as=grace.lim@atoz.example`) | Verifications in Default, then in SME app | Auditor + Viewer in SME app: both lists show the project's cases; Reference IDs link only in SME app |

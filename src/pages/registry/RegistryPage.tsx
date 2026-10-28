@@ -27,7 +27,7 @@ const METHOD_TEXT: Record<FaceMatchMethod, string> = { ID_VS_SELFIE: 'ID vs self
 const STATUS_TEXT: Record<RegistryStatus, string> = { DRAFT: 'Draft', INTERNAL_TESTING: 'Internal testing', LIMITED_RELEASE: 'Limited release', ACTIVE: 'Active', DEPRECATED: 'Deprecated' }
 const STATUS_HINT: Record<RegistryStatus, string> = {
   DRAFT: 'Nobody can choose it for a new flow.',
-  INTERNAL_TESTING: 'Only super admins and platform staff can build flows on it. Sessions are not charged.',
+  INTERNAL_TESTING: 'Only super admins and platform users can build flows on it. Sessions are not charged.',
   LIMITED_RELEASE: 'Internal users and the merchants ticked under Merchant access (Edit) can choose it.',
   ACTIVE: 'Everyone who may create flows can choose it.',
   DEPRECATED: 'Nobody can choose it for a new flow; existing flows keep running.',

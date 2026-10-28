@@ -8,8 +8,8 @@ export function LoginPage() {
   const users = useUsers().filter((u) => u.status === 'ACTIVE' && !u.signInBlocked)
   // Super admin first, then one group per merchant.
   // Super admins, then platform staff, then one group per merchant (DEC-99).
-  const groupOf = (u: (typeof users)[number]) => u.merchantName ?? (u.level === 'PLATFORM_STAFF' ? 'Platform staff' : 'Super admin')
-  const rank = (g: string) => (g === 'Super admin' ? 0 : g === 'Platform staff' ? 1 : 2)
+  const groupOf = (u: (typeof users)[number]) => u.merchantName ?? (u.level === 'PLATFORM_STAFF' ? 'Platform users' : 'Super admin')
+  const rank = (g: string) => (g === 'Super admin' ? 0 : g === 'Platform users' ? 1 : 2)
   const groups = [...new Set(users.map(groupOf))].sort((a, b) => rank(a) - rank(b))
   const switchUser = useSession((s) => s.switchUser)
   const navigate = useNavigate()

@@ -664,7 +664,7 @@ Rules changed on 2026-10-20 (Projects & Flows restructure) are marked **(changed
     - Row header: ⚙ **Merchant settings** · 👥 **Users** · **+ New project** (each shown only with the permission).
     - **Merchant settings** (outer): General (merchant details; edit and status for platform users) · Users · Roles
       (merchant roles) · Billing (every project of the merchant) · Audit log (the whole merchant).
-    - Outer sidebar: Merchants; for platform users with the permission, **Platform staff** (staff users
+    - Outer sidebar: Merchants; for platform users with the permission, **Platform Users** (DEC-110; staff users
       and platform roles) and **Workflow Registry**. These platform modules no longer exist inside a project.
   - **Inner layer** (today's portal): always **one project**. Opened by Go to project (or a link to a case, which selects
     that case's project). Header breadcrumb: `Merchant ▾ / Project ▾` switchers; the logo goes back to the Merchants page.
@@ -682,12 +682,15 @@ Rules changed on 2026-10-20 (Projects & Flows restructure) are marked **(changed
   - There is exactly **one** super admin. It is created when the platform is first set up (the seed) and **nothing about
     it can be changed** in the portal: no invite, rename, email change, suspend, reactivate or delete, and no second
     super admin. Its rights stay fixed and outside the role system (DEC-104).
-  - The **Super admins** screen and its API are removed. **Platform › Platform staff** (Staff tab) lists the super admin
+  - The **Super admins** screen and its API are removed. **Platform › Platform Users** (Users tab) lists the super admin
     as the first row, role "Super admin", marked **Created at setup · can't be changed**; the row opens nothing and the
     staff API refuses any change to it (422).
   - The super admin still manages platform staff, platform roles and everything else it did; only the management of
     super admins is gone ("at least one active super admin" and "nobody suspends themselves" no longer apply to it).
   - Recovering the super admin account (lost access, a person leaving) is an operations procedure outside the portal.
+  - The module **Platform staff** is renamed **Platform Users** (`/platform-users`; old links redirect) [PO 2026-10-28].
+    Tabs **Users** (page title "Platform users", **New platform user**, field **Platform role**) and **Roles** (page
+    title "Platform roles"). The account type is still Platform staff (DEC-99); on screens it reads "platform user".
 - **DEC-84** **(superseded by DEC-109)** No Home page. Everyone lands on Overview. UAT scenario links are on a mock-only page in
   the Dev menu (still true). [PO 2026-10-20]
 - **DEC-85** **(new)** Screens: Overview, System Intelligence, Billing (all roles, DEC-86), Verifications List, Verification

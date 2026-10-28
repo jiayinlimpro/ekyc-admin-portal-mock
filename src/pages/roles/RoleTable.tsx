@@ -50,7 +50,7 @@ export function RoleDialog({
   defaultMerchantId?: string
   /** REQ: DEC-99 — only super admins choose the Type; merchant admins see it locked to their merchant. */
   isSuper?: boolean
-  /** REQ: DEC-109 — the page decides the Type: Platform staff › Roles makes platform roles, Merchant settings merchant roles. */
+  /** REQ: DEC-109 — the page decides the Type: Platform Users › Roles makes platform roles, Merchant settings merchant roles. */
   audienceFixed?: RoleAudience
   ownMerchantName?: string
   onClose: () => void

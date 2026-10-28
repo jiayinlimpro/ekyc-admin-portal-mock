@@ -14,7 +14,7 @@ const PAGES: Partial<Record<string, ComponentType>> = {
   // REQ: DEC-109 — outer layer.
   '/': page(() => import('@/pages/home/MerchantsHomePage'), 'MerchantsHomePage'),
   '/merchants/:merchantId': page(() => import('@/pages/merchants/MerchantSettingsPage'), 'MerchantSettingsPage'),
-  '/platform-staff': page(() => import('@/pages/platform/PlatformStaffPage'), 'PlatformStaffPage'),
+  '/platform-users': page(() => import('@/pages/platform/PlatformUsersPage'), 'PlatformUsersPage'),
   '/registry': page(() => import('@/pages/registry/RegistryPage'), 'RegistryPage'),
   '/uat': page(() => import('@/pages/dev/UatPage'), 'UatPage'),
   // Inner layer: one project.
@@ -39,8 +39,9 @@ export const routes: RouteObject[] = [
     errorElement: <RouteErrorPage />,
     children: [
       ...NAV_ITEMS.map((item) => (item.path === '/' ? { index: true, element: <Guarded item={item} page={PAGES[item.path]} /> } : { path: item.path.slice(1), element: <Guarded item={item} page={PAGES[item.path]} /> })),
-      // REQ: DEC-110 — the Super admins screen is gone; old links land on Platform staff.
-      { path: 'admins', element: <Navigate to="/platform-staff" replace /> },
+      // REQ: DEC-110 — the Super admins screen is gone and Platform staff is now Platform Users; old links land there.
+      { path: 'admins', element: <Navigate to="/platform-users" replace /> },
+      { path: 'platform-staff', element: <Navigate to="/platform-users" replace /> },
       { path: '*', element: <NotFoundPage /> },
     ],
   },

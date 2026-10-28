@@ -39,8 +39,8 @@ test('reviewer finds an unclaimed pending record, claims it, approves it, and th
   await expect(page.locator('section[aria-label="Audit entries"]')).toContainText('SENSITIVE_PII_VIEW')
 })
 
-test('reviewer cannot open platform screens: no Platform staff in the menu and "No access" on the URL (DEC-104, DEC-109)', async ({ page }) => {
-  await page.goto('/platform-staff?as=ali.ahmad@atoz.example')
+test('reviewer cannot open platform screens: no Platform Users in the menu and "No access" on the URL (DEC-104, DEC-109)', async ({ page }) => {
+  await page.goto('/platform-users?as=ali.ahmad@atoz.example')
   await expect(page.getByRole('heading', { name: 'No access' })).toBeVisible()
-  await expect(page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: 'Platform staff' })).toHaveCount(0)
+  await expect(page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: 'Platform Users' })).toHaveCount(0)
 })

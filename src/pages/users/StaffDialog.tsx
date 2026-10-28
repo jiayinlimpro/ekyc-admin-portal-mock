@@ -63,10 +63,10 @@ export function StaffDialog({ userId, onClose, onChanged }: { userId: string; on
                 <dd>{u.lastActiveAt ? formatMyt(u.lastActiveAt) : '—'}</dd>
               </div>
             </dl>
-            <section aria-label="Staff role" className="rounded-md border p-3">
+            <section aria-label="Platform role" className="rounded-md border p-3">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div>
-                  <h3 className="text-xs font-medium text-muted-foreground">Staff role</h3>
+                  <h3 className="text-xs font-medium text-muted-foreground">Platform role</h3>
                   <p className="text-sm font-medium">{u.roleName ?? '—'}</p>
                   <p className="text-xs text-muted-foreground">Applies to every merchant.</p>
                 </div>

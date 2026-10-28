@@ -44,7 +44,7 @@ export function RolesPage({ scope }: { scope: RolesScope }) {
         <div>
           <h1 className="text-2xl font-semibold">{platform ? 'Platform roles' : 'Roles'}</h1>
           <p className="text-sm text-muted-foreground">
-            {platform ? 'Given to platform staff; a platform role applies to every merchant.' : 'Merchant roles: given on Users, they apply to the whole merchant and all its projects. Project roles are on each project’s Settings › Roles.'}
+            {platform ? 'Given to platform users; a platform role applies to every merchant.' : 'Merchant roles: given on Users, they apply to the whole merchant and all its projects. Project roles are on each project’s Settings › Roles.'}
           </p>
         </div>
         {can.create && (

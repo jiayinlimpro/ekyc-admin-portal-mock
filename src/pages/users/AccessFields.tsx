@@ -113,9 +113,9 @@ export function ChangeRoleDialog({
         <form onSubmit={submit} noValidate className="space-y-4">
           <DialogHeader>
             <DialogTitle>Change role for {who}</DialogTitle>
-            <DialogDescription>{merchant ? 'The role applies to the whole merchant. Project roles are set in Project › Members.' : 'Platform staff have one role; it applies to every merchant.'}</DialogDescription>
+            <DialogDescription>{merchant ? 'The role applies to the whole merchant. Project roles are set in Project › Members.' : 'Platform users have one role; it applies to every merchant.'}</DialogDescription>
           </DialogHeader>
-          <RoleSelect id="cr-role" label={merchant ? 'Merchant role' : 'Staff role'} roles={roles} value={roleId} onChange={setRoleId} error={errors.roleId} hint={merchant ? MERCHANT_ROLE_HINT : undefined} />
+          <RoleSelect id="cr-role" label={merchant ? 'Merchant role' : 'Platform role'} roles={roles} value={roleId} onChange={setRoleId} error={errors.roleId} hint={merchant ? MERCHANT_ROLE_HINT : undefined} />
           {merchant && role && <AccessPreview who={who} permissions={role.permissions} where="every project (including new ones)" />}
           {errors.form && (
             <p role="alert" className="text-sm text-destructive">

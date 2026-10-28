@@ -83,8 +83,8 @@ export const NAV_ITEMS: NavItem[] = [
     notes: ['Tabs: General (details, edit, status) · Users · Roles · Billing · Audit log, for the whole merchant (DEC-109).'],
   },
   {
-    path: '/platform-staff',
-    label: 'Platform staff',
+    path: '/platform-users',
+    label: 'Platform Users',
     icon: UsersRound,
     layer: 'outer',
     group: 'Platform',
@@ -92,7 +92,7 @@ export const NAV_ITEMS: NavItem[] = [
     access: { platform: 'manageStaff' },
     priority: 'P2',
     built: true,
-    notes: ['Platform staff (one platform role each, every merchant) and the platform roles (DEC-99, DEC-104); the one super admin is listed read-only (DEC-110).'],
+    notes: ['Tabs Users (platform staff: one platform role each, every merchant; the one super admin read-only, DEC-110) and Roles (platform roles) (DEC-99, DEC-104).'],
   },
   {
     path: '/registry',

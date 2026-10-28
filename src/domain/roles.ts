@@ -232,7 +232,7 @@ export const MERCHANT_LEVEL_SCOPE = 'Merchant roles are given on Users, not in P
 export const PROJECT_ROLE_ON_USERS = 'Project roles are given in Project › Members, not on Users.'
 export const OTHER_PROJECT_ROLE = 'This role belongs to another project.'
 
-export const WRONG_ROLE_TYPE = 'Platform roles are for platform staff; merchant roles are for that merchant’s users.'
+export const WRONG_ROLE_TYPE = 'Platform roles are for platform users; merchant roles are for that merchant’s users.'
 
 /**
  * REQ: DEC-104 — rules for giving a role. Platform roles: platform staff only, for every merchant (`ALL_MERCHANTS`).
