@@ -476,7 +476,7 @@ Rules changed on 2026-10-20 (Projects & Flows restructure) are marked **(changed
     Merchant Owner: "At least one Merchant Owner (All projects) is required").
   - Services check every action anyway (DEC-71). Screens a user can't open show "No access"; a case or project outside
     their access is "not found" (DEC-72).
-- **DEC-79** **(new; renamed Super admins, DEC-99)** **Admins** (Platform menu, Platform Admin only): the internal Platform Admin accounts, kept apart from
+- **DEC-79** **(superseded by DEC-110: one seeded super admin, no Super admins screen)** **Admins** (Platform menu, Platform Admin only): the internal Platform Admin accounts, kept apart from
   merchant users. Columns Full Name, Email, Status, Created At, Last active; sorted by Created At, newest first. New admin = full
   name and work email; starts Pending (Resend invitation); Suspend / Reactivate; never deleted. No roles or scopes: Platform
   Admin rights are fixed (DEC-70). At least one active Platform Admin must remain; nobody suspends themselves. Audited with
@@ -560,8 +560,8 @@ Rules changed on 2026-10-20 (Projects & Flows restructure) are marked **(changed
 
 - **DEC-104** **(new; replaces the access parts of DEC-70, DEC-74, DEC-77, DEC-99 and DEC-102)** Roles and users,
   the agreed model [PO 2026-10-23]:
-  - **Account types.** **Super admin**: 2–3 people (break-glass), no merchant, fixed full access, outside the role system,
-    managed in Platform › Super admins; manages staff, platform roles and super admins. **Platform staff**: internal, no
+  - **Account types.** **Super admin**: **one**, created by the seed and never changed (DEC-110), no merchant, fixed full
+    access, outside the role system; manages staff and platform roles. **Platform staff**: internal, no
     merchant, **one platform role and no scope**: it applies to every merchant. **Merchant user**: exactly one merchant;
     one merchant role on New / Edit user, plus project access in **Project › Members**.
   - **Role Type** (Platform (internal) / Merchant) is the first field of the role and user forms; only super admins choose
@@ -615,7 +615,7 @@ Rules changed on 2026-10-20 (Projects & Flows restructure) are marked **(changed
     Project settings, API keys and webhook, Members, Project roles, Audit log. Billing and contract is covered by
     Platform billing, and Merchant / Project reports by Usage reports (both already span every merchant).
     - This replaces DEC-99's "platform staff never manage users or roles": staff may manage merchants' users, roles,
-      projects and members when their role allows it. Still super admin only: staff, platform roles, super admins.
+      projects and members when their role allows it. Still super admin only: staff and platform roles (DEC-110).
     - "Give only what you hold" (DEC-74) compares merchant permissions; staff hold platform permissions, so like super
       admins they are not limited by it when they have the Users / Roles / Members permission. Nobody changes their own
       access.
@@ -664,7 +664,7 @@ Rules changed on 2026-10-20 (Projects & Flows restructure) are marked **(changed
     - Row header: ⚙ **Merchant settings** · 👥 **Users** · **+ New project** (each shown only with the permission).
     - **Merchant settings** (outer): General (merchant details; edit and status for platform users) · Users · Roles
       (merchant roles) · Billing (every project of the merchant) · Audit log (the whole merchant).
-    - Outer sidebar: Merchants; for platform users with the permission, **Super admins**, **Platform staff** (staff users
+    - Outer sidebar: Merchants; for platform users with the permission, **Platform staff** (staff users
       and platform roles) and **Workflow Registry**. These platform modules no longer exist inside a project.
   - **Inner layer** (today's portal): always **one project**. Opened by Go to project (or a link to a case, which selects
     that case's project). Header breadcrumb: `Merchant ▾ / Project ▾` switchers; the logo goes back to the Merchants page.
@@ -676,6 +676,18 @@ Rules changed on 2026-10-20 (Projects & Flows restructure) are marked **(changed
     [PO 2026-10-27]. Project Settings keeps General, Integration, Review operations and Routing.
   - **No tab strip** [PO 2026-10-27]: pages don't open as tabs; the sidebar and the breadcrumb are the navigation. The case
     page's breadcrumb still ends with its Reference ID (DEC-97).
+  - The outer **Super admins** module is gone (DEC-110): Platform staff lists the super admin too.
+- **DEC-110** **(new; replaces DEC-79 and the super admin management of DEC-99 / DEC-104)** One super admin, created by
+  the seed [PO 2026-10-28]:
+  - There is exactly **one** super admin. It is created when the platform is first set up (the seed) and **nothing about
+    it can be changed** in the portal: no invite, rename, email change, suspend, reactivate or delete, and no second
+    super admin. Its rights stay fixed and outside the role system (DEC-104).
+  - The **Super admins** screen and its API are removed. **Platform › Platform staff** (Staff tab) lists the super admin
+    as the first row, role "Super admin", marked **Created at setup · can't be changed**; the row opens nothing and the
+    staff API refuses any change to it (422).
+  - The super admin still manages platform staff, platform roles and everything else it did; only the management of
+    super admins is gone ("at least one active super admin" and "nobody suspends themselves" no longer apply to it).
+  - Recovering the super admin account (lost access, a person leaving) is an operations procedure outside the portal.
 - **DEC-84** **(superseded by DEC-109)** No Home page. Everyone lands on Overview. UAT scenario links are on a mock-only page in
   the Dev menu (still true). [PO 2026-10-20]
 - **DEC-85** **(new)** Screens: Overview, System Intelligence, Billing (all roles, DEC-86), Verifications List, Verification
