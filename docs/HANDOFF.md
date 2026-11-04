@@ -7,6 +7,8 @@ What the mock gives engineering, and what the real backend must do that a mock c
 - **Types:** `src/domain/types.ts`. Merchant → Project → Flow (FlowSettings, FlowRevision) → Verification
   (VerificationSummary for lists: no PII; VerificationDetail), UserAccount (level + RoleAssignment[]), Role, RegistryEntry,
   ProjectApiKey, ProjectWebhook, AuditEntry, Decision, Paged. Treat it as a first draft of the API/DB schema.
+- **Access control:** the full model for engineers (account types, permissions, roles, scopes, the check algorithm,
+  every endpoint's check, invariants, a suggested schema and test accounts) is in **`docs/ACCESS_CONTROL.md`**.
 - **Account types (DEC-99, DEC-104):** super admin (outside the role system); platform staff (one platform role, no
   scope: every merchant); merchant user (one merchant role for the whole merchant, plus project roles from Members).
   No masking: View list (no personal data) and View details are separate permissions, enforced by the API; log every
@@ -37,7 +39,7 @@ What the mock gives engineering, and what the real backend must do that a mock c
 | Platform Users (platform staff) | `GET /staff`, `GET /staff/{id}`, `POST /staff`, `POST /staff/{id}/invitation`, `PUT /staff/{id}/role`, `POST /staff/{id}/suspend | reactivate` | Super admin only, "not found" otherwise; one platform role, no scope; company staff domain (OQ-31). The list includes the one super admin (`fixed: true`), and any change to it is 422: created by the seed, never changed (DEC-110). A platform role holds every merchant module too (users, roles, projects, members… in every merchant) (DEC-99, DEC-104) |
 | Roles | `GET /roles`, `GET /projects/{id}/roles`, `GET /merchants/{id}/roles/assignable[?projectId=]`, `POST /merchants/{id}/roles` (with `projectId`: a project role), `PUT /roles/{id}`, `POST /roles/{id}/status` | Two tables (DEC-104): merchant roles (level MERCHANT; Users) and project roles (level PROJECT; one project's Members; System Default ones in every project, Custom ones in their project). System Default locked; edits apply to every holder at once; a role still held can't be deactivated (DEC-76) |
 | Merchants | `GET/POST /merchants`, `PATCH /merchants/{id}`, `POST /merchants/{id}/status`, `POST /merchants/{id}/invitation` | Super admin, or staff with Merchants View / Create / Suspend; FRS fields, registration number unique per country (SSM 12-digit for Malaysia); status changes need a reason; Suspended / Terminated must revoke the merchant's sessions and API keys at once; no delete (DEC-98); a new merchant gets a Default project, default flow and owner (DEC-92) |
-| Audit | `GET /audit?…` | Append-only; super admin all, staff with Audit log View, the Owner the merchant, Project Admin own projects (DEC-70, DEC-99) |
+| Audit | `GET /audit?…` | Append-only; project entries for whoever has Audit log in that project, merchant-level entries for Audit log through the merchant role (or staff), platform entries for the super admin only (`docs/ACCESS_CONTROL.md` §9) |
 | Analytics | `GET /analytics/filters`, `/analytics/overview`, `/analytics/intelligence`, `GET /billing` | Every role, data scoped (DEC-86); tokens per liveness submission (DEC-60) |
 
 ## 2. Executable business rules

@@ -9,6 +9,7 @@ a draft API contract.
 - Placeholder values still to confirm: [docs/OPEN_QUESTIONS.md](docs/OPEN_QUESTIONS.md)
 - UAT scenarios S01–S15: [docs/SCENARIOS.md](docs/SCENARIOS.md)
 - Engineering handoff: [docs/HANDOFF.md](docs/HANDOFF.md)
+- Access control (users, roles, permissions) for engineers: [docs/ACCESS_CONTROL.md](docs/ACCESS_CONTROL.md)
 
 ## Run it (Windows)
 
