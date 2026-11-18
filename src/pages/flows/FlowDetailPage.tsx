@@ -182,12 +182,17 @@ function Editor({ detail, onSaved }: { detail: FlowDetail; onSaved: () => void }
         </p>
         <pre className="mt-2 overflow-x-auto rounded-md bg-muted p-3 font-mono text-xs" aria-label="Sample create-session request">
           {`POST /v1/sessions   (sample, mock)
+Authorization: Bearer <your project's secret key>
 {
   "flowId": "${flow.flowId}",
   "referenceId": "your-own-reference-for-this-user",${entry.requiredInputs.includes('EMAIL') ? '\n  "email": "user@mail.example",' : ''}
   "redirectUrl": "https://app.example/kyc/done"
 }`}
         </pre>
+        {/* REQ: DEC-111 — the secret goes in the header, from the merchant's server only. */}
+        <p className="mt-2 text-xs text-muted-foreground">
+          Call from your server only, never from an app or web page. Keys and allowed redirect URLs are in Project Settings › Integration; redirectUrl is optional and must match one of them exactly.
+        </p>
       </Card>
 
       <Card title="History">

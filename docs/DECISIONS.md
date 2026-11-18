@@ -312,6 +312,17 @@ Rules changed on 2026-10-20 (Projects & Flows restructure) are marked **(changed
   (`WebhookEvent`, `src/domain/webhook.ts`). IDs only, no personal data. The Reference ID is the merchant's own value; the
   integration guide tells merchants to keep personal data (IC, phone, email) out of it. In the portal, the Verifications
   list's Flow filter does the same job. [PO 2026-11-18]
+- **DEC-111** **(new)** Calling the API (industry practice; agreed 2026-11-18, PO to confirm):
+  - **Authentication:** the merchant's **server** sends the API key's secret on every call over HTTPS:
+    `Authorization: Bearer <secret>`. The Key ID (`key_…`) only names the key on screen and in logs. The secret is never
+    put in an app or web page; the user's browser only gets the session link. Shown once; Rotate / Revoke if it leaks.
+  - **Redirect:** `redirectUrl` in create-session is optional. If sent, it must **exactly** match one of the project's
+    Redirect URLs (no wildcards, no prefix match; as in the OAuth 2.0 security guidance, RFC 9700), else the request is
+    refused. If not sent, the user ends on the platform's own "Verification complete" page. An empty list allows no
+    redirect.
+  - **The redirect is not the result:** a user can open that URL themselves, so the merchant reads the outcome from the
+    webhook (DEC-55) or by asking the API for the case.
+  - Test and live keys (sandbox): OQ-36.
 
 ## Workflow Registry
 - **DEC-56** **(changed again 2026-10-27)** Statuses [FRS][PO 2026-10-20][PO 2026-10-27]:

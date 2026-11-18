@@ -105,6 +105,13 @@ describe('Flow Detail (DEC-18, DEC-19, DEC-50, DEC-51)', () => {
     await waitFor(() => expect(flow(fx('FLW-0003'))).toMatchObject({ status: 'ACTIVE', revision: 1 }))
   })
 
+  it('Given Developer info, then the sample request carries the secret in the header and the flow ID in the body (DEC-111)', async () => {
+    renderAt(`/flows/${fx('FLW-0001')}`)
+    const sample = (await screen.findByLabelText('Sample create-session request')).textContent!
+    expect(sample).toContain('Authorization: Bearer <your project\'s secret key>')
+    expect(sample).toContain(`"flowId": "${fx('FLW-0001')}"`)
+  })
+
   it('Given a Retiring flow, then it is read-only', async () => {
     useSession.getState().switchUser(ADMIN)
     renderAt(`/flows/${fx('FLW-0008')}`)

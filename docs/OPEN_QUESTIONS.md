@@ -30,6 +30,7 @@ Each question is a **parameter**, not a fact. The mock uses the default below. I
 | OQ-33 | EXIF edge cases: (a) the modern-maker list has no Samsung, Xiaomi, Huawei or Realme, so their photos get 0 for the maker; (b) a missing Megapixels value; (c) a missing DateTimeOriginal or FileModifyDate | (a) 0 points as listed; (b) 0 points; (c) counts as "differ" (−4) | `exifScore` in `src/domain/riskSignals.ts` |
 | OQ-34 | Default minimum per risk category: V4's fixed minimums and V5's starting values (DEC-107) | 50 for each category | `DEFAULT_RISK_MINIMUMS` in `src/domain/openQuestions.ts` |
 | OQ-32 | The engine sets FacePixelSizeThreshold = 50, but its Selfie Quality Check doesn't apply it. Should a selfie face smaller than 50 px fail? | Not checked; shown as information | `selfieMetrics` in `src/domain/telemetry.ts` |
+| OQ-36 | Test and live API keys (sandbox). An Onboarding merchant is "sandbox only" (DEC-98), but nothing says how a sandbox works. Separate test keys (`sk_test_…`) whose sessions use no tokens, aren't billed, are kept apart from real cases and get simulated results? Or a separate sandbox environment? (DEC-111) | Not modelled: one kind of key; Onboarding is a label only (MOCK) | Project Settings › Integration (not built) |
 | OQ-31 | The company staff email domain (DEC-99): platform staff and super admins must use it; merchant users may not | `ekyc-platform.example` | `STAFF_EMAIL_DOMAIN` in `src/domain/openQuestions.ts` |
 
 ## Answered (kept for traceability)

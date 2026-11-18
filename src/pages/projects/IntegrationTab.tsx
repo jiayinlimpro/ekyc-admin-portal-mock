@@ -207,7 +207,7 @@ export function IntegrationTab({ project }: { project: Project }) {
 
       <Card title="Redirect URLs, web origins and IP allowlist">
         <div className="grid gap-4 md:grid-cols-3">
-          <FormField id="l-redirect" label="Redirect URLs" hint="One per line, HTTPS." error={errors.redirectUrls}>
+          <FormField id="l-redirect" label="Redirect URLs" hint="One per line, HTTPS. A session’s redirectUrl must match one exactly (DEC-111)." error={errors.redirectUrls}>
             <Textarea id="l-redirect" rows={4} value={l.redirectUrls} onChange={(e) => setLists({ ...l, redirectUrls: e.target.value })} />
           </FormField>
           <FormField id="l-origins" label="Allowed web origins" hint="One per line, https://host[:port]." error={errors.allowedOrigins}>
