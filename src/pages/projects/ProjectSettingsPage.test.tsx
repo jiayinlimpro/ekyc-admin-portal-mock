@@ -73,6 +73,13 @@ describe('Project Settings (DEC-54, DEC-96)', () => {
     expect((await p.findByRole('alert')).textContent).toBe('Webhook URL must start with https://')
   })
 
+  it('Given Integration, then the sample webhook delivery names the case and the flow, with no personal data (DEC-55)', async () => {
+    useSession.getState().selectProject(fx('PRJ-0001'))
+    renderAt('/project-settings?tab=integration')
+    const sample = JSON.parse((await (await panel()).findByLabelText('Sample webhook delivery')).textContent!)
+    expect(Object.keys(sample)).toEqual(['event', 'caseId', 'flowId', 'referenceId', 'status', 'lastUpdatedBy', 'occurredAt'])
+  })
+
   it('Given the Super admin, then Integration and General are open to them (DEC-75)', async () => {
     useSession.getState().switchUser(ADMIN)
     useSession.getState().selectProject(fx('PRJ-0003'))

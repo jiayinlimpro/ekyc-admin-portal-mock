@@ -307,6 +307,11 @@ Rules changed on 2026-10-20 (Projects & Flows restructure) are marked **(changed
 - **DEC-55** **(new)** Webhook delivery: on a change to `PENDING_REVIEW`, `APPROVED` or `REJECTED`, POST
   `verification.status_changed` (Reference ID, new status, Last Updated By, timestamp), signed with the project's signing
   secret; non-2xx → up to 3 retries at increasing intervals, each attempt audited. Mock: deliveries are simulated only. [FRS]
+  **(changed)** One webhook serves all the project's flows, so the body also names the **case ID** and the **flow ID**:
+  `event, caseId, flowId, referenceId, status, lastUpdatedBy (SYSTEM, or the reviewer's name; no user ID), occurredAt`
+  (`WebhookEvent`, `src/domain/webhook.ts`). IDs only, no personal data. The Reference ID is the merchant's own value; the
+  integration guide tells merchants to keep personal data (IC, phone, email) out of it. In the portal, the Verifications
+  list's Flow filter does the same job. [PO 2026-11-18]
 
 ## Workflow Registry
 - **DEC-56** **(changed again 2026-10-27)** Statuses [FRS][PO 2026-10-20][PO 2026-10-27]:

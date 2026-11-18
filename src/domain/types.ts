@@ -358,6 +358,20 @@ export interface ProjectWebhook {
   updatedBy: string
 }
 
+/**
+ * REQ: DEC-55 — the body of a `verification.status_changed` delivery. One webhook serves every flow of the project, so it
+ * names the case and the flow. IDs only: no personal data, no flow name (names change; IDs don't).
+ */
+export interface WebhookEvent {
+  event: 'verification.status_changed'
+  caseId: string // ver_…
+  flowId: string // flw_… — the flow the session ran on
+  referenceId: string // the merchant's own Reference ID, as they sent it
+  status: Exclude<VerificationStatus, 'PROCESSING'>
+  lastUpdatedBy: { kind: 'SYSTEM' } | { kind: 'USER'; fullName: string } // no user ID (DEC-97)
+  occurredAt: string // ISO time of the status change
+}
+
 // REQ: DEC-94
 export const FLOW_STATUSES = ['DRAFT', 'ACTIVE', 'RETIRING', 'INACTIVE'] as const
 export type FlowStatus = (typeof FLOW_STATUSES)[number]

@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
-import type { Project, ProjectApiKey } from '@/domain/types'
+import type { Project, ProjectApiKey, WebhookEvent } from '@/domain/types'
 import { errorMessage, useLoad } from '@/hooks/useLoad'
 import { formatMyt } from '@/lib/format'
 import { integrationService } from '@/services/integrationService'
@@ -40,6 +40,17 @@ function SecretDialog({ title, secret, onClose }: { title: string; secret: strin
 
 /** REQ: DEC-97 — an API key's ID is shown masked: key_…a91f. */
 const maskId = (id: string) => `${id.slice(0, id.indexOf('_') + 1)}…${id.slice(-4)}`
+
+// Typed, so the sample follows the contract in types.ts.
+const SAMPLE_EVENT: WebhookEvent = {
+  event: 'verification.status_changed',
+  caseId: 'ver_q8m2x7c1v9b4n6k3j5h0t2ra',
+  flowId: 'flw_fvnn406j99wwk86pomyjx67a',
+  referenceId: 'your-own-reference-for-this-user',
+  status: 'APPROVED',
+  lastUpdatedBy: { kind: 'SYSTEM' },
+  occurredAt: '2026-11-18T02:15:00.000Z',
+}
 
 const lines = (s: string) => s.split('\n').map((x) => x.trim()).filter(Boolean)
 
@@ -177,6 +188,12 @@ export function IntegrationTab({ project }: { project: Project }) {
             <span className="text-muted-foreground">Signing secret:</span> <span className="font-mono text-xs">{d.webhook?.secretHint ?? 'created with the first save'}</span>
           </p>
           <p className="text-xs text-muted-foreground">Non-2xx responses are retried up to 3 times at increasing intervals. Deliveries are simulated in the mock (MOCK-11).</p>
+          {/* REQ: DEC-55 — one webhook for all the project's flows: each delivery names the case and the flow. */}
+          <details className="text-sm">
+            <summary className="cursor-pointer text-muted-foreground">Sample delivery</summary>
+            <pre className="mt-2 overflow-x-auto rounded-md bg-muted p-3 font-mono text-xs" aria-label="Sample webhook delivery">{JSON.stringify(SAMPLE_EVENT, null, 2)}</pre>
+            <p className="mt-1 text-xs text-muted-foreground">IDs only, no personal data. Keep personal data (IC, phone, email) out of your Reference ID.</p>
+          </details>
           <div className={cn('flex flex-wrap gap-2', !d.canManage && 'hidden')}>
             <Button size="sm" disabled={busy} onClick={() => void saveWebhook()}>Save webhook</Button>
             {d.webhook && (
