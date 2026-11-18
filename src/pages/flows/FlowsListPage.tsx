@@ -33,12 +33,6 @@ const STATUS_TONE: Record<FlowStatus, string> = {
 }
 export const FlowStatusBadge = ({ status }: { status: FlowStatus }) => <span className={cn('rounded px-1.5 py-0.5 text-xs font-medium', STATUS_TONE[status])}>{FLOW_STATUS_LABELS[status]}</span>
 
-export function routingLabel(f: Pick<FlowRow, 'routing' | 'isDefault'>): string {
-  if (f.routing.kind === 'RULE') return `Rule P${f.routing.priority} · ${f.routing.summary}`
-  if (f.routing.kind === 'SHARE') return `${f.routing.percent}% share`
-  return f.isDefault ? 'Default' : '—'
-}
-
 // REQ: DEC-56 / DEC-94 — create on a version this user may choose for this merchant; then fill it in on Flow Detail.
 function NewFlowDialog({ project, onClose }: { project: MyProject; onClose: () => void }) {
   const actor = useSession((s) => s.actor)
@@ -150,7 +144,8 @@ function Flows({ project }: { project: MyProject }) {
         <table className={cn('w-full text-sm', rows.loading && rows.data && 'opacity-60')} aria-busy={rows.loading}>
           <thead className="bg-muted/50 text-left text-xs text-muted-foreground">
             <tr>
-              {['Flow', 'Version', 'Rules applied', 'Status', 'Routing', 'Open cases', 'Updated'].map((h) => (
+              {/* REQ: DEC-95 — no Routing column [PO 2026-11-18]: routing is shown in Project Settings › Routing only. */}
+              {['Flow', 'Version', 'Rules applied', 'Status', 'Open cases', 'Updated'].map((h) => (
                 <th key={h} scope="col" className="px-3 py-2 font-medium whitespace-nowrap">
                   {h}
                 </th>
@@ -190,7 +185,6 @@ function Flows({ project }: { project: MyProject }) {
                 <td className="px-3 py-2">
                   <FlowStatusBadge status={f.status} />
                 </td>
-                <td className="px-3 py-2">{routingLabel(f)}</td>
                 <td className="px-3 py-2 tabular-nums">{f.inFlightCases}</td>
                 <td className="px-3 py-2 whitespace-nowrap">
                   {formatMyt(f.updatedAt).split(', ')[0]}

@@ -31,6 +31,8 @@ Rules changed on 2026-10-20 (Projects & Flows restructure) are marked **(changed
   version is locked once a flow is active; to change version, create a new flow. [MS]
 - **DEC-95** Routing (which flow a new session uses) is set by the merchant through the API. The portal shows the routing
   method, rules (priority, conditions, target flow) and percentage shares **read-only** (OQ-18). [MS]
+  **(changed)** Only in Project Settings › Routing: the Flows List has no Routing column; the Default badge stays next to
+  the flow name [PO 2026-11-18].
 - **DEC-96** **(superseded by DEC-109: always one project)** Case lists may span all of a user's projects ("All my projects"). Settings pages always work on one selected
   project. [MS]
 

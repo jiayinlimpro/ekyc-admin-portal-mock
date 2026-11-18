@@ -31,12 +31,13 @@ beforeEach(async () => {
 afterEach(cleanup)
 
 describe('Flows List (DEC-94)', () => {
-  it('Given Atoz Default, then the default flow first with its revision, routing and open cases; the draft has no revision', async () => {
+  it('Given Atoz Default, then the default flow first with its revision and open cases, no Routing column; the draft has no revision', async () => {
     renderAt('/flows')
     const malaysian = await row('Malaysian onboarding')
     expect(malaysian.textContent).toContain('Default')
     expect(malaysian.textContent).toContain('V4-R2')
-    expect((await row('Foreigner onboarding')).textContent).toContain('Rule P1 · Document type is Passport')
+    expect((await row('Foreigner onboarding')).textContent).not.toContain('Rule P1')
+    expect(screen.queryByRole('columnheader', { name: 'Routing' })).toBeNull() // REQ: DEC-95 — Project Settings › Routing only
     const draft = await row('Tourist onboarding')
     expect(draft.textContent).toContain('Draft')
     expect(within(draft).getAllByRole('cell')[1].textContent).toBe('—')
