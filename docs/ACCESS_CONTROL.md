@@ -315,7 +315,6 @@ listed permissions. "Checked with" says which function: P = `canInProject`, M = 
 | createFlows / editFlows / activateFlows | P | CREATE_FLOWS / EDIT_FLOWS / ACTIVATE_FLOWS | P_FLOWS_CREATE / _EDIT / _ACTIVATE |
 | changeVerificationLevel | P | CHANGE_VERIFICATION_LEVEL | P_FLOWS_LEVEL |
 | **setAdvancedThresholds** (custom thresholds) | P | **never** (merchant users can't) | P_LEVELS_CALIBRATE |
-| viewRouting | P | any Flows or Project settings permission | any P_SETTINGS_* or P_FLOWS_* |
 | viewCases (list) | P | VIEW_CASE_LIST, VIEW_CASE_DETAILS, CLAIM_CASES, DECIDE_CASES | P_CASES_* (any) |
 | viewCaseDetails | P | VIEW_CASE_DETAILS, CLAIM_CASES, DECIDE_CASES | P_CASES_DETAILS, _CLAIM, _DECIDE |
 | claimCase | P | CLAIM_CASES, DECIDE_CASES | P_CASES_CLAIM, _DECIDE |

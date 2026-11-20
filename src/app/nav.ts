@@ -25,7 +25,7 @@ import type { AccessRule } from './access'
 // REQ: DEC-109 — two layers, like Langfuse. Outer: the Merchants page (merchants and their projects), Merchant settings
 // and the platform modules. Inner: today's portal on ONE project (Go to project), its menu filtered by the user's role there.
 // REQ: DEC-99 — screens whose parts need different permissions open for any of them; each part checks its own.
-export const PROJECT_SETTINGS_ACTIONS = ['viewProjectSettings', 'viewIntegration', 'viewRouting'] as const
+export const PROJECT_SETTINGS_ACTIONS = ['viewProjectSettings', 'viewIntegration'] as const
 
 export const NAV_GROUPS = ['Dashboards', 'eKYC', 'User Management', 'Governance', 'Platform'] as const
 export type NavGroup = (typeof NAV_GROUPS)[number]
@@ -250,7 +250,7 @@ export const NAV_ITEMS: NavItem[] = [
     access: { project: PROJECT_SETTINGS_ACTIONS },
     priority: 'P1',
     built: true,
-    notes: ['Tabs: General (name, rename, archive) · Integration · Review operations · Routing (read-only) (DEC-54). Members and Roles are in the sidebar (DEC-109).'],
+    notes: ['Tabs: General (name, rename, archive) · Integration · Review operations (DEC-54). No Routing: every session names its flow (DEC-95). Members and Roles are in the sidebar (DEC-109).'],
   },
 ]
 

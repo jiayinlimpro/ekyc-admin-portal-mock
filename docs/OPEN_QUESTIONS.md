@@ -17,7 +17,6 @@ Each question is a **parameter**, not a fact. The mock uses the default below. I
 | OQ-13 | What does the page show if the claim expires while the reviewer is typing? | Buttons disable; save fails with "This case is no longer assigned to you"; typed text is kept | Detail page |
 | OQ-14 | Price per token (by contract tier) | RM 0.50 per liveness submission | `TOKEN_PRICE` |
 | OQ-17 | Is Reference ID unique per merchant or per project? (MS OQ-1) | Per project; the Project column makes duplicates across projects clear | Project setting (shown read-only) |
-| OQ-18 | Are routing rules and percentage splits set only through the API, or also edited in the portal? (MS OQ-2) | API only; portal shows them read-only | Project Settings › Routing |
 | OQ-19 | Default session expiry and accepted documents for a new flow (MS OQ-4) | Required fields with no default on a new flow; seeded flows use 30 min and MyKad + Passport | Flow Detail |
 | OQ-21 | Project data retention period | Not set; shown as a placeholder | Project Settings › General |
 | OQ-22 | Cooldown after a rejection (DEC-26): how is the "same end user" identified, and does the wait apply to this flow only or the whole project? | Same ID document number (NRIC / passport no.), same flow | Flow `cooldownMin`, `flowRules.ts` |
@@ -36,6 +35,7 @@ Each question is a **parameter**, not a fact. The mock uses the default below. I
 ## Answered (kept for traceability)
 | ID | Question | Answer |
 |---|---|---|
+| OQ-18 | Are routing rules and percentage splits set only through the API, or also edited in the portal? (MS OQ-2) | Neither: no routing. Every session names its flow (`flowId` required) (DEC-95) [PO 2026-11-20] |
 | OQ-35 | Does a submitted V1 selfie also cost a token (DEC-60)? | Yes: everything submitted costs a token, a rejected selfie included [PO 2026-10-27] |
 | OQ-07 | Are retakes charged per attempt? | Tokens per liveness submission; ID capture and selfie retakes are free (DEC-60) |
 | OQ-08 | Can Platform Admin claim and decide? | Yes, changed 2026-10-21 (DEC-75); was No (DEC-70) |

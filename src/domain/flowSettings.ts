@@ -39,7 +39,6 @@ export function createFlow(
     status: 'DRAFT',
     settings: newFlowSettings(entry),
     revision: 0,
-    routing: { kind: 'NONE' },
     createdAt: now.toISOString(),
     updatedAt: now.toISOString(),
     updatedBy: by,

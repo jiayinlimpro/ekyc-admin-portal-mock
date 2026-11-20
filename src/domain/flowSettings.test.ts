@@ -16,7 +16,7 @@ const fields = (e: { field: string }[]) => e.map((x) => x.field)
 describe('new flow (DEC-50, OQ-19)', () => {
   it('Given a new V4 flow, then Draft, no revision, Standard presets, 3 retries, no cooldown and risk on', () => {
     const f = draft()
-    expect(f).toMatchObject({ name: 'Malaysian onboarding', status: 'DRAFT', revision: 0, workflowVersion: 'V4', routing: { kind: 'NONE' } })
+    expect(f).toMatchObject({ name: 'Malaysian onboarding', status: 'DRAFT', revision: 0, workflowVersion: 'V4' })
     expect(f.settings.checks.LIVENESS).toEqual({ threshold: { preset: 'STANDARD' } })
     expect(f.settings.retries).toEqual({ DOCUMENT: 3, SELFIE: 3, LIVENESS: 3 }) // DEC-108
     expect(f.settings.cooldownMin).toBe(0)

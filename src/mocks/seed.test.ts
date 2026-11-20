@@ -354,12 +354,10 @@ describe('projects, flows and registry (DEC-56 … DEC-58, DEC-90 … DEC-95)', 
     }
   })
 
-  it('covers every flow status, Advanced thresholds by Super admin, rule and share routing, and a multi-revision flow', () => {
+  it('covers every flow status, Advanced thresholds by Super admin and a multi-revision flow', () => {
     expect(new Set(db.flows.map((f) => f.status))).toEqual(new Set(['ACTIVE', 'DRAFT', 'RETIRING', 'INACTIVE']))
     const advanced = db.flowRevisions.find((r) => r.settings.checks.FACE_MATCH.threshold.preset === 'ADVANCED')!
     expect(advanced.savedBy.userId).toBe(fx('USR-2026-0001'))
-    expect(db.flows.some((f) => f.routing.kind === 'RULE')).toBe(true)
-    expect(db.flows.some((f) => f.routing.kind === 'SHARE')).toBe(true)
     expect(revisionLabel(db.flows.find((f) => f.flowId === fx('FLW-0001'))!)).toBe('V4-R2')
     expect(db.flowRevisions.find((r) => r.flowId === fx('FLW-0001') && r.revision === 2)!.changes.length).toBeGreaterThan(0)
   })

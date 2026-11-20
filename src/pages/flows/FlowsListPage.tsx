@@ -144,7 +144,7 @@ function Flows({ project }: { project: MyProject }) {
         <table className={cn('w-full text-sm', rows.loading && rows.data && 'opacity-60')} aria-busy={rows.loading}>
           <thead className="bg-muted/50 text-left text-xs text-muted-foreground">
             <tr>
-              {/* REQ: DEC-95 — no Routing column [PO 2026-11-18]: routing is shown in Project Settings › Routing only. */}
+              {/* REQ: DEC-95 — no routing: every session names its flow by Flow ID [PO 2026-11-20]. */}
               {['Flow', 'Version', 'Rules applied', 'Status', 'Open cases', 'Updated'].map((h) => (
                 <th key={h} scope="col" className="px-3 py-2 font-medium whitespace-nowrap">
                   {h}

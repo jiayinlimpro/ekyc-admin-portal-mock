@@ -78,7 +78,7 @@ export function setDefaultFlowError(project: Pick<Project, 'projectId' | 'defaul
   return undefined
 }
 
-/** A copy starts as Draft with no revision and no routing; its version can still be changed until first activated. */
+/** A copy starts as Draft with no revision; its version can still be changed until first activated. */
 export function duplicateFlow(flow: Flow, flowId: string, now: Date, by: By): Flow {
   return {
     ...flow,
@@ -86,7 +86,6 @@ export function duplicateFlow(flow: Flow, flowId: string, now: Date, by: By): Fl
     name: `${flow.name} (copy)`,
     status: 'DRAFT',
     revision: 0,
-    routing: { kind: 'NONE' },
     settings: structuredClone(flow.settings),
     createdAt: now.toISOString(),
     updatedAt: now.toISOString(),

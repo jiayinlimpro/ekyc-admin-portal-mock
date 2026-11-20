@@ -54,7 +54,6 @@ export const PROJECT_ACTIONS = [
   'activateFlows', // activate, retire, set default
   'changeVerificationLevel', // thresholds, retries allowed, risk level
   'setAdvancedThresholds', // DEC-19: Super admin, or platform staff who may calibrate (DEC-99)
-  'viewRouting',
   'viewCases', // the Verifications list (DEC-104: View list)
   'viewCaseDetails', // the case page with personal data (View details); every open audited (DEC-41)
   'claimCase', // claim and release
@@ -101,7 +100,6 @@ const NEEDS: Record<ProjectAction, readonly Permission[]> = {
   activateFlows: ['ACTIVATE_FLOWS'],
   changeVerificationLevel: ['CHANGE_VERIFICATION_LEVEL'],
   setAdvancedThresholds: [],
-  viewRouting: [...FLOWS, ...SETTINGS],
   viewCases: ['VIEW_CASE_LIST', 'VIEW_CASE_DETAILS', 'CLAIM_CASES', 'DECIDE_CASES'],
   viewCaseDetails: ['VIEW_CASE_DETAILS', 'CLAIM_CASES', 'DECIDE_CASES'],
   claimCase: ['CLAIM_CASES', 'DECIDE_CASES'],
@@ -141,7 +139,6 @@ const STAFF_NEEDS: Partial<Record<ProjectAction, { platform?: readonly Permissio
   changeRoleStatus: { merchant: ['P_ROLES_STATUS'] },
   viewProjectSettings: { merchant: ['P_SETTINGS_VIEW', 'P_SETTINGS_EDIT'] },
   manageProjectSettings: { merchant: ['P_SETTINGS_EDIT'] },
-  viewRouting: { merchant: ['P_SETTINGS_VIEW', 'P_SETTINGS_EDIT', 'P_FLOWS_VIEW', 'P_FLOWS_CREATE', 'P_FLOWS_EDIT', 'P_FLOWS_ACTIVATE', 'P_FLOWS_LEVEL'] },
   viewMembers: { merchant: ['P_MEMBERS_VIEW', 'P_MEMBERS_MANAGE'] },
   manageMembers: { merchant: ['P_MEMBERS_MANAGE'] },
   viewProjectRoles: { merchant: ['P_PROJECT_ROLES_VIEW', 'P_PROJECT_ROLES_CREATE', 'P_PROJECT_ROLES_EDIT', 'P_PROJECT_ROLES_STATUS'] },

@@ -189,9 +189,9 @@ Authorization: Bearer <your project's secret key>
   "redirectUrl": "https://app.example/kyc/done"
 }`}
         </pre>
-        {/* REQ: DEC-111 — the secret goes in the header, from the merchant's server only. */}
+        {/* REQ: DEC-111 / DEC-95 — the secret goes in the header, from the merchant's server only; flowId is required. */}
         <p className="mt-2 text-xs text-muted-foreground">
-          Call from your server only, never from an app or web page. Keys and allowed redirect URLs are in Project Settings › Integration; redirectUrl is optional and must match one of them exactly.
+          Call from your server only, never from an app or web page. flowId is required: it picks this flow. Keys and allowed redirect URLs are in Project Settings › Integration; redirectUrl is optional and must match one of them exactly.
         </p>
       </Card>
 

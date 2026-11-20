@@ -12,12 +12,10 @@ import { Tabs, tabPanelProps } from '@/components/common/Tabs'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { canInProject } from '@/domain/access'
-import { revisionLabel } from '@/domain/flowRules'
 import { DEFAULT_CLAIM_WARNING_MIN } from '@/domain/openQuestions'
 import { claimTimeoutFromMinutes, LANGUAGES, type Language } from '@/domain/projectSettings'
-import type { Flow, Project } from '@/domain/types'
+import type { Project } from '@/domain/types'
 import { errorMessage, useLoad } from '@/hooks/useLoad'
-import { flowService } from '@/services/flowService'
 import { projectService, type MyProject } from '@/services/projectService'
 import { useSession } from '@/stores/sessionStore'
 import { IntegrationTab } from './IntegrationTab'
@@ -30,8 +28,7 @@ const TABS = [
   { value: 'general', label: 'General' },
   { value: 'integration', label: 'Integration' },
   { value: 'review', label: 'Review operations' },
-  { value: 'routing', label: 'Routing' },
-] as const // REQ: DEC-109 — Members and Roles are in the project's sidebar
+] as const // REQ: DEC-109 — Members and Roles are in the project's sidebar. DEC-95: no Routing tab (every session names its flow).
 type Tab = (typeof TABS)[number]['value']
 
 const ReadOnlyNote = ({ children }: { children: React.ReactNode }) => <p className="rounded-md bg-muted px-3 py-2 text-sm text-muted-foreground">{children}</p>
@@ -144,51 +141,6 @@ function ReviewTab({ project, canEdit, onSaved }: { project: Project; canEdit: b
   )
 }
 
-const routingText = (f: Flow, project: Project) => {
-  if (f.routing.kind === 'RULE') return `Rule · priority ${f.routing.priority} · ${f.routing.summary}`
-  if (f.routing.kind === 'SHARE') return `Share · ${f.routing.percent}% of new sessions`
-  return project.defaultFlowId === f.flowId ? 'Default: every session no rule or share sends elsewhere' : '—'
-}
-
-// REQ: DEC-95 — routing is set by the merchant through the API; read-only here (OQ-18).
-function RoutingTab({ project }: { project: Project }) {
-  const actor = useSession((s) => s.actor)
-  const flows = useLoad(() => flowService.list(project.projectId, actor), [project.projectId, actor.userId])
-  if (flows.error) return <ErrorState message={flows.error} onRetry={flows.reload} />
-  const rows = (flows.data ?? []).filter((f) => f.status !== 'DRAFT').sort((a, b) => Number(b.flowId === project.defaultFlowId) - Number(a.flowId === project.defaultFlowId))
-  return (
-    <Card title="Routing" aside={<OpenQuestionTag id="OQ-18" />}>
-      <p className="mb-3 text-sm text-muted-foreground">Which flow a new session uses is set through the API. Set the default flow on the Flows screen.</p>
-      <div className="-mx-4 overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead className="bg-muted/50 text-left text-xs text-muted-foreground">
-            <tr>
-              {['Flow', 'Status', 'Rules applied', 'Routing'].map((h) => (
-                <th key={h} scope="col" className="px-4 py-2 font-medium">
-                  {h}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((f) => (
-              <tr key={f.flowId} className="border-t">
-                <th scope="row" className="px-4 py-2 text-left font-medium">
-                  {f.name}
-                  {project.defaultFlowId === f.flowId && <span className="ml-2 rounded bg-blue-100 px-1.5 text-[10px] font-medium text-blue-800 uppercase dark:bg-blue-500/20 dark:text-blue-200">Default</span>}
-                </th>
-                <td className="px-4 py-2">{f.status.charAt(0) + f.status.slice(1).toLowerCase()}</td>
-                <td className="px-4 py-2 font-mono text-xs">{revisionLabel(f) ?? '—'}</td>
-                <td className="px-4 py-2">{routingText(f, project)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </Card>
-  )
-}
-
 function Settings({ selected }: { selected: MyProject }) {
   const actor = useSession((s) => s.actor)
   const { account, retry } = useAccess()
@@ -240,7 +192,6 @@ function Settings({ selected }: { selected: MyProject }) {
             ) : (
               <ReadOnlyNote>Review operations need the View project settings permission.</ReadOnlyNote>
             ))}
-          {tab === 'routing' && (may('viewRouting') ? <RoutingTab project={p} /> : <ReadOnlyNote>Routing is shown to users who may view flows or project settings.</ReadOnlyNote>)}
         </div>
       )}
     </div>
@@ -288,7 +239,7 @@ function ProjectCard({ project, canRename, canArchive, onSaved }: { project: Pro
   )
 }
 
-// REQ: DEC-54 / DEC-109 — the project of the inner portal; tabs General, Integration, Review operations, Routing.
+// REQ: DEC-54 / DEC-109 — the project of the inner portal; tabs General, Integration, Review operations.
 export function ProjectSettingsPage() {
   return <RequireProject action={PROJECT_SETTINGS_ACTIONS} title="Project Settings">{(p) => <Settings key={p.projectId} selected={p} />}</RequireProject>
 }

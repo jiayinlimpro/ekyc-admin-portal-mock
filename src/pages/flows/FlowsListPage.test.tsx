@@ -37,7 +37,7 @@ describe('Flows List (DEC-94)', () => {
     expect(malaysian.textContent).toContain('Default')
     expect(malaysian.textContent).toContain('V4-R2')
     expect((await row('Foreigner onboarding')).textContent).not.toContain('Rule P1')
-    expect(screen.queryByRole('columnheader', { name: 'Routing' })).toBeNull() // REQ: DEC-95 — Project Settings › Routing only
+    expect(screen.queryByRole('columnheader', { name: 'Routing' })).toBeNull() // REQ: DEC-95 — no routing
     const draft = await row('Tourist onboarding')
     expect(draft.textContent).toContain('Draft')
     expect(within(draft).getAllByRole('cell')[1].textContent).toBe('—')

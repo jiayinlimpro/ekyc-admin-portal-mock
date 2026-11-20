@@ -394,12 +394,6 @@ export interface FlowSettings {
   risk?: RiskConfig // V4 / V5 (DEC-107)
 }
 
-/**
- * How sessions reach this flow besides being the project default (DEC-95). Set by the merchant through the API; read-only
- * in the portal. "Default" is not stored here: it comes from `Project.defaultFlowId`.
- */
-export type FlowRouting = { kind: 'NONE' } | { kind: 'RULE'; priority: number; summary: string } | { kind: 'SHARE'; percent: number }
-
 export interface Flow {
   flowId: string // flw_… (DEC-97)
   projectId: string
@@ -410,7 +404,6 @@ export interface Flow {
   status: FlowStatus
   settings: FlowSettings
   revision: number // REQ: DEC-51 — 0 until first activated; shown as `${workflowVersion}-R${revision}`
-  routing: FlowRouting
   createdAt: string
   updatedAt: string
   updatedBy: ClaimHolder | { userId: 'SYSTEM'; fullName: 'SYSTEM' }

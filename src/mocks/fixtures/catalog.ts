@@ -1,10 +1,10 @@
 // Registry, projects and flows (DEC-56 … DEC-58, DEC-90 … DEC-95). Dates are relative to seeding (MOCK-05).
-// Coverage: every flow status, Advanced thresholds set by Super admin, rule and % routing, a revision history,
+// Coverage: every flow status, Advanced thresholds set by Super admin, a revision history,
 // an archived project, and a merchant with two projects.
 import { diffFlow, newFlowSettings } from '@/domain/flowSettings'
 import { DEFAULT_RISK_MINIMUMS } from '@/domain/openQuestions'
 import { PROJECT_SETTING_DEFAULTS } from '@/domain/projectSettings'
-import type { DocumentType, Flow, FlowRevision, FlowRouting, FlowSettings, FlowStatus, Project, RegistryEntry, RiskScores, ThresholdChoice } from '@/domain/types'
+import type { DocumentType, Flow, FlowRevision, FlowSettings, FlowStatus, Project, RegistryEntry, RiskScores, ThresholdChoice } from '@/domain/types'
 import { fx, stableId } from '@/lib/ids'
 
 const HOUR = 3_600_000
@@ -49,7 +49,6 @@ interface FlowSpec {
   description: string
   version: 'V1' | 'V3' | 'V4' | 'V5' | 'V6'
   status: FlowStatus
-  routing?: FlowRouting
   createdDaysAgo: number
   /** Saved revisions, oldest first: when (hours ago), who, why and the settings. Empty for a Draft. */
   revisions: { hoursAgo: number; by?: { userId: string; fullName: string }; reason: string; settings: FlowSettings }[]
@@ -113,13 +112,11 @@ const FLOWS: FlowSpec[] = [
   },
   {
     flowId: fx('FLW-0002'), projectId: fx('PRJ-0001'), name: 'Foreigner onboarding', description: 'Passport holders', version: 'V4', status: 'ACTIVE', createdDaysAgo: 200,
-    routing: { kind: 'RULE', priority: 1, summary: 'Document type is Passport' },
     revisions: [{ hoursAgo: 200 * 24, by: OWNER_ATOZ, reason: 'Flow activated', settings: settings({ fm: preset('HIGH'), cooldownMin: 120, docs: ['PASSPORT'], risk: true }) }],
   },
   {
     // REQ: DEC-107 — V5: this flow's own risk minimums (EXIF looser, Noise stricter, OSINT looser than the defaults).
     flowId: fx('FLW-0014'), projectId: fx('PRJ-0001'), name: 'Premium accounts', description: 'Premium customers, own risk minimums', version: 'V5', status: 'ACTIVE', createdDaysAgo: 9,
-    routing: { kind: 'RULE', priority: 2, summary: 'Customer segment is Premium' },
     revisions: [{ hoursAgo: 9 * 24, by: OWNER_ATOZ, reason: 'Flow activated', settings: settings({ fm: preset('HIGH'), risk: { EXIF: 40, NOISE: 60, EMAIL_VALIDITY: 50, OSINT: 30 } }) }],
   },
   {
@@ -143,7 +140,6 @@ const FLOWS: FlowSpec[] = [
   },
   {
     flowId: fx('FLW-0013'), projectId: fx('PRJ-0004'), name: 'Customer onboarding (strict)', description: 'A/B test of stricter thresholds', version: 'V4', status: 'ACTIVE', createdDaysAgo: 45,
-    routing: { kind: 'SHARE', percent: 20 },
     revisions: [{ hoursAgo: 45 * 24, by: { userId: fx('USR-2026-0052'), fullName: 'Wong Kah Heng' }, reason: 'Flow activated', settings: settings({ fm: preset('HIGH'), l: preset('HIGH'), risk: true }) }],
   },
   {
@@ -214,7 +210,6 @@ export function buildCatalog(now: Date): Catalog {
       status: s.status,
       settings: structuredClone(last?.settings ?? s.draftSettings!),
       revision: s.revisions.length,
-      routing: s.routing ?? { kind: 'NONE' },
       createdAt: at(s.createdDaysAgo * 24),
       updatedAt: at(last?.hoursAgo ?? s.createdDaysAgo * 24),
       updatedBy: last?.by ?? (last ? SYSTEM : OWNER_ATOZ),

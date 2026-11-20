@@ -55,7 +55,6 @@ const flow = (overrides: Partial<Flow> = {}): Flow => ({
     risk: { enabled: true, minimums: { EXIF: 50, NOISE: 50, EMAIL_VALIDITY: 50, OSINT: 50 } },
   },
   revision: 3,
-  routing: { kind: 'RULE', priority: 1, summary: 'nationality ≠ MYS' },
   createdAt: NOW.toISOString(),
   updatedAt: NOW.toISOString(),
   updatedBy: OWNER,
@@ -121,10 +120,10 @@ describe('flow lifecycle (DEC-94, DEC-51)', () => {
     expect(setDefaultFlowError(project(), flow({ projectId: fx('PRJ-0002') }))).toBe('This flow belongs to another project.')
   })
 
-  it('Given a duplicate, then a Draft copy with no revision, no routing and independent settings', () => {
+  it('Given a duplicate, then a Draft copy with no revision and independent settings', () => {
     const src = flow()
     const copy = duplicateFlow(src, fx('FLW-0003'), NOW, OWNER)
-    expect(copy).toMatchObject({ flowId: fx('FLW-0003'), name: 'Foreigner onboarding (copy)', status: 'DRAFT', revision: 0, routing: { kind: 'NONE' } })
+    expect(copy).toMatchObject({ flowId: fx('FLW-0003'), name: 'Foreigner onboarding (copy)', status: 'DRAFT', revision: 0 })
     copy.settings.cooldownMin = 60
     expect(src.settings.cooldownMin).toBe(0)
   })

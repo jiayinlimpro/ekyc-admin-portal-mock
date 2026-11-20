@@ -18,8 +18,8 @@ Rules changed on 2026-10-20 (Projects & Flows restructure) are marked **(changed
   | Level | Settings |
   |---|---|
   | Merchant | Contract, plan, billing · user accounts · portal login security · default branding and language |
-  | Project | Members and roles · auto-release claim timeout · API keys, webhook · redirect URLs, allowed web origins, IP allowlist · branding override, language · default flow and routing method · Reference ID scope (OQ-17) · data retention (OQ-21) |
-  | Flow | Workflow version (locked once active) · check thresholds · retries allowed, cooldown · accepted documents · risk thresholds (V4, V5) · routing rule or % share · session expiry |
+  | Project | Members and roles · auto-release claim timeout · API keys, webhook · redirect URLs, allowed web origins, IP allowlist · branding override, language · Reference ID scope (OQ-17) · data retention (OQ-21) |
+  | Flow | Workflow version (locked once active) · check thresholds · retries allowed, cooldown · accepted documents · risk thresholds (V4, V5) · session expiry |
 
 - **DEC-92** Every merchant starts with a **Default** project. Creating a merchant also creates its Default project with one
   default flow built on the registry's default version (DEC-57), and its first user as Merchant Owner (FRS "Option B"). [MS][FRS]
@@ -29,10 +29,10 @@ Rules changed on 2026-10-20 (Projects & Flows restructure) are marked **(changed
   project. Actions: create (pick a workflow version → Flow Detail), duplicate, set as default, activate, retire. Retiring the
   default flow requires choosing a new default first. Flows are never deleted, so past cases keep their flow. The workflow
   version is locked once a flow is active; to change version, create a new flow. [MS]
-- **DEC-95** Routing (which flow a new session uses) is set by the merchant through the API. The portal shows the routing
-  method, rules (priority, conditions, target flow) and percentage shares **read-only** (OQ-18). [MS]
-  **(changed)** Only in Project Settings › Routing: the Flows List has no Routing column; the Default badge stays next to
-  the flow name [PO 2026-11-18].
+- **DEC-95** **(changed 2026-11-20)** **No routing: every session names its flow.** Each create-session request must send
+  `flowId` (required; the Flow ID is on Flows and Flow Detail). It is refused when `flowId` is missing or unknown, belongs
+  to another project than the API key's, or the flow is not Active (Draft, Retiring, Inactive), or the project is
+  archived. No routing rules or percentage shares, and no Routing tab in Project Settings (answers OQ-18). [PO 2026-11-20]
 - **DEC-96** **(superseded by DEC-109: always one project)** Case lists may span all of a user's projects ("All my projects"). Settings pages always work on one selected
   project. [MS]
 
@@ -303,7 +303,7 @@ Rules changed on 2026-10-20 (Projects & Flows restructure) are marked **(changed
 - **DEC-54** **(new)** Project Settings tabs: **General** (name, branding override, language; blank branding inherits the
   merchant default) · **Integration** (API keys: name, created, last used, status, create / rotate / revoke, key shown once;
   webhook URL (HTTPS), signing secret, events; redirect URLs; allowed web origins; IP allowlist) · **Review operations**
-  (auto-release claim timeout) · **Routing** (read-only, DEC-95; default flow). Changes are audited with old and new values. [MS]
+  (auto-release claim timeout). No Routing tab (DEC-95). Changes are audited with old and new values. [MS]
 - **DEC-55** **(new)** Webhook delivery: on a change to `PENDING_REVIEW`, `APPROVED` or `REJECTED`, POST
   `verification.status_changed` (Reference ID, new status, Last Updated By, timestamp), signed with the project's signing
   secret; non-2xx → up to 3 retries at increasing intervals, each attempt audited. Mock: deliveries are simulated only. [FRS]
@@ -322,6 +322,7 @@ Rules changed on 2026-10-20 (Projects & Flows restructure) are marked **(changed
     redirect.
   - **The redirect is not the result:** a user can open that URL themselves, so the merchant reads the outcome from the
     webhook (DEC-55) or by asking the API for the case.
+  - **Which flow:** `flowId` is required in every create-session request (DEC-95).
   - Test and live keys (sandbox): OQ-36.
 
 ## Workflow Registry
@@ -691,7 +692,7 @@ Rules changed on 2026-10-20 (Projects & Flows restructure) are marked **(changed
     gone), no Projects list (the Merchants page replaces it; rename and archive are in Project Settings › General).
   - Platform-wide billing totals are dropped: billing is per merchant (Merchant settings) and per project.
   - **Members and Roles** of the project are sidebar entries (group User Management), no longer Project Settings tabs
-    [PO 2026-10-27]. Project Settings keeps General, Integration, Review operations and Routing.
+    [PO 2026-10-27]. Project Settings keeps General, Integration and Review operations (Routing removed, DEC-95).
   - **No tab strip** [PO 2026-10-27]: pages don't open as tabs; the sidebar and the breadcrumb are the navigation. The case
     page's breadcrumb still ends with its Reference ID (DEC-97).
   - The outer **Super admins** module is gone (DEC-110): Platform staff lists the super admin too.
@@ -801,6 +802,7 @@ These keep the mock runnable. They are not signed-off requirements; change them 
 | DEC-70 | Two global roles: Platform Admin, Merchant Reviewer | DEC-70 |
 | DEC-81 | Drop-off KPI removed | Drop-off by phase on System Intelligence (DEC-86) |
 | DEC-82 | Webhooks on hold | DEC-54, DEC-55 |
+| DEC-95 / OQ-18 | Routing rules and % shares set through the API, shown read-only in Project Settings › Routing | Every session names its flow (`flowId` required); no routing (DEC-95) |
 
 ## Conflict register (old FRS / Axure → latest decision)
 | Topic | Old FRS / Axure | Latest decision |

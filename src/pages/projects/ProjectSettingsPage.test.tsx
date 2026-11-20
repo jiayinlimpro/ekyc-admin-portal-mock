@@ -133,13 +133,11 @@ describe('Project Settings (DEC-54, DEC-96)', () => {
     expect(await edit.findByText('An Approve reason with this name already exists.')).toBeTruthy()
   })
 
-  it('Given Routing, then the default flow and the passport rule are shown read-only (DEC-95)', async () => {
+  it('Given an old ?tab=routing link, then General opens; there is no Routing tab (DEC-95: every session names its flow)', async () => {
     useSession.getState().selectProject(fx('PRJ-0001'))
     renderAt('/project-settings?tab=routing')
-    const p = await panel()
-    expect(await p.findByText('Rule · priority 1 · Document type is Passport')).toBeTruthy()
-    expect(p.getByText(/^Default:/)).toBeTruthy()
-    expect(p.queryByRole('button')).toBeNull()
+    await panel()
+    expect(screen.getAllByRole('tab').map((t) => t.textContent)).toEqual(['General', 'Integration', 'Review operations'])
   })
 })
 
