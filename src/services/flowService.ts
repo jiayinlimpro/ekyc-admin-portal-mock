@@ -7,9 +7,8 @@
 //   PUT  /flows/{id}                   save       → 200 Flow | 422 VALIDATION (RuleError[] in details)
 //   POST /flows/{id}/activate          activate   → 200 Flow | 422 VALIDATION
 //   POST /flows/{id}/retire            retire     → 200 Flow | 422 VALIDATION
-//   POST /flows/{id}/default           setDefault → 200 Project | 422 VALIDATION
 import { canInProject, isInternal } from '@/domain/access'
-import { activate, activateError, duplicateFlow, IN_FLIGHT_STATUSES, retire, retireError, setDefaultFlowError, settleRetiring } from '@/domain/flowRules'
+import { activate, activateError, duplicateFlow, IN_FLIGHT_STATUSES, retire, retireError, settleRetiring } from '@/domain/flowRules'
 import { createFlow, saveFlow, validateFlow } from '@/domain/flowSettings'
 import { selectableForNewFlow } from '@/domain/registryRules'
 import type { Actor, Flow, FlowRevision, Project, RegistryEntry, RegistryStatus } from '@/domain/types'
@@ -25,13 +24,11 @@ export interface FlowDetail {
   flow: Flow
   revisions: FlowRevision[] // oldest first; "History" and each case's "Rules applied" (DEC-51, DEC-52)
   entry: RegistryEntry // the flow's workflow version: decides which settings apply (DEC-50)
-  isDefault: boolean
   inFlightCases: number // PROCESSING + PENDING_REVIEW: a Retiring flow finishes these only
 }
 
 /** A row on the Flows List (DEC-94). */
 export type FlowRow = Flow & {
-  isDefault: boolean
   inFlightCases: number
   versionStatus: RegistryStatus // DEPRECATED shows a "version deprecated" warning (DEC-56)
 }
@@ -52,7 +49,6 @@ export interface FlowService {
   save(flowId: string, next: FlowEdit, reason: string, actor: Actor): Promise<Flow>
   activate(flowId: string, actor: Actor): Promise<Flow>
   retire(flowId: string, actor: Actor): Promise<Flow>
-  setDefault(flowId: string, actor: Actor): Promise<Project>
   /** What the edited settings would have done to this flow's finished sessions of the last `days` days. */
 }
 
@@ -94,19 +90,18 @@ export const mockFlowService: FlowService = {
     const rows = db
       .state()
       .flows.filter((f) => f.projectId === projectId && visible(f))
-      .map((f) => ({ ...f, isDefault: project.defaultFlowId === f.flowId, inFlightCases: inFlight(f.flowId), versionStatus: entryOf(f.workflowVersion)?.status ?? 'DEPRECATED' }))
-      .sort((a, b) => Number(b.isDefault) - Number(a.isDefault) || order[a.status] - order[b.status] || a.name.localeCompare(b.name))
+      .map((f) => ({ ...f, inFlightCases: inFlight(f.flowId), versionStatus: entryOf(f.workflowVersion)?.status ?? 'DEPRECATED' }))
+      .sort((a, b) => order[a.status] - order[b.status] || a.name.localeCompare(b.name))
     return wire(rows)
   },
 
   async get(flowId, actor) {
     await simulateNetwork('get flow')
-    const { flow, project } = loadFlow(actor, flowId, 'viewFlows')
+    const { flow } = loadFlow(actor, flowId, 'viewFlows')
     return wire({
       flow,
       revisions: db.state().flowRevisions.filter((r) => r.flowId === flowId).sort((a, b) => a.revision - b.revision),
       entry: entryOf(flow.workflowVersion)!,
-      isDefault: project.defaultFlowId === flowId,
       inFlightCases: inFlight(flowId),
     })
   },
@@ -186,12 +181,12 @@ export const mockFlowService: FlowService = {
     return wire(active)
   },
 
-  // REQ: DEC-94 — not the default; with cases in flight it goes Retiring (finishes those only), otherwise Inactive.
+  // REQ: DEC-94 / DEC-95 — any Active flow; with cases in flight it goes Retiring (finishes those only), otherwise Inactive.
   async retire(flowId, actor) {
     await simulateNetwork('retire flow')
     requireActive(actor)
     const { flow, project } = loadFlow(actor, flowId, 'activateFlows')
-    const blocked = retireError(flow, project)
+    const blocked = retireError(flow)
     if (blocked) throw validation([{ field: 'status', message: blocked }])
     const at = now()
     const retired = retire(flow, inFlight(flowId), at, by(actor))
@@ -200,16 +195,6 @@ export const mockFlowService: FlowService = {
     return wire(retired)
   },
 
-  async setDefault(flowId, actor) {
-    await simulateNetwork('set default flow')
-    requireActive(actor)
-    const { flow, project } = loadFlow(actor, flowId, 'activateFlows')
-    const blocked = setDefaultFlowError(project, flow)
-    if (blocked) throw validation([{ field: 'default', message: blocked }])
-    db.setState((st) => ({ projects: st.projects.map((p) => (p.projectId === project.projectId ? { ...p, defaultFlowId: flowId } : p)) }))
-    auditProject(actor, 'FLOW_DEFAULT_CHANGED', project, { flowId, changes: [{ field: 'Default flow', from: project.defaultFlowId, to: flowId }] })
-    return wire(projectById(project.projectId)!)
-  },
 
 }
 

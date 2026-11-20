@@ -9,7 +9,6 @@ import {
   retire,
   retireError,
   revisionLabel,
-  setDefaultFlowError,
   settleRetiring,
   validateProjectName,
   versionLocked,
@@ -26,7 +25,6 @@ const project = (overrides: Partial<Project> = {}): Project => ({
   name: 'Default',
   status: 'ACTIVE',
   isDefault: true,
-  defaultFlowId: fx('FLW-0001'),
   claimTimeoutSec: 30 * 60,
   createdAt: NOW.toISOString(),
   createdBy: 'SYSTEM',
@@ -101,9 +99,10 @@ describe('flow lifecycle (DEC-94, DEC-51)', () => {
     expect(activate(flow({ status: 'INACTIVE', revision: 3 }), NOW, OWNER).revision).toBe(3)
   })
 
-  it('Given the default flow, when retiring, then refused until a new default is chosen', () => {
-    expect(retireError(flow({ flowId: fx('FLW-0001') }), project())).toBe('Choose a new default flow before retiring this one.')
-    expect(retireError(flow(), project())).toBeUndefined()
+  it('Given any Active flow, when retiring, then allowed (no default flow, DEC-95); a Draft or Inactive one is refused', () => {
+    expect(retireError(flow({ flowId: fx('FLW-0001') }))).toBeUndefined()
+    expect(retireError(flow({ status: 'DRAFT' }))).toBe('Only an active flow can be retired.')
+    expect(retireError(flow({ status: 'INACTIVE' }))).toBe('Only an active flow can be retired.')
   })
 
   it('Given in-flight cases, when retired, then Retiring until the last case is decided, then Inactive by SYSTEM', () => {
@@ -112,12 +111,6 @@ describe('flow lifecycle (DEC-94, DEC-51)', () => {
     expect(settleRetiring(retiring, 1, NOW)).toBe(retiring)
     expect(settleRetiring(retiring, 0, NOW)).toMatchObject({ status: 'INACTIVE', updatedBy: { userId: 'SYSTEM' } })
     expect(retire(flow(), 0, NOW, OWNER).status).toBe('INACTIVE')
-  })
-
-  it('Given set as default, then only an active flow of the same project', () => {
-    expect(setDefaultFlowError(project(), flow())).toBeUndefined()
-    expect(setDefaultFlowError(project(), flow({ status: 'DRAFT' }))).toBe('Only an active flow can be the default.')
-    expect(setDefaultFlowError(project(), flow({ projectId: fx('PRJ-0002') }))).toBe('This flow belongs to another project.')
   })
 
   it('Given a duplicate, then a Draft copy with no revision and independent settings', () => {

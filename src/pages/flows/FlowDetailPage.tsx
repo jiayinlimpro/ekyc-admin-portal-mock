@@ -250,7 +250,7 @@ export function FlowDetailPage() {
   const headerProject = useSession((s) => s.projectId)
   const detail = useLoad(() => flowService.get(flowId, actor), [flowId, actor.userId])
   const d = detail.data?.flow.flowId === flowId ? detail.data : undefined
-  // REQ: DEC-102 — Activate / retire / set default and Duplicate each need their own permission.
+  // REQ: DEC-102 — Activate / retire and Duplicate each need their own permission.
   const { account, projects } = useAccess()
   const flowProject = d && projects.find((p) => p.projectId === d.flow.projectId)
   const may = (a: 'activateFlows' | 'createFlows') => !!account && !!flowProject && canInProject(account, a, flowProject)
@@ -292,7 +292,6 @@ export function FlowDetailPage() {
           <div className="flex flex-wrap items-center gap-2">
             <h1 className="text-2xl font-semibold">{f.name}</h1>
             <FlowStatusBadge status={f.status} />
-            {d.isDefault && <span className="rounded bg-blue-100 px-1.5 text-[10px] font-medium text-blue-800 uppercase dark:bg-blue-500/20 dark:text-blue-200">Default</span>}
           </div>
           <p className="text-sm text-muted-foreground">
             {f.workflowVersion} · {revisionLabel(f) ? <span className="font-mono">{revisionLabel(f)}</span> : 'no revision yet'} · {d.inFlightCases} open case(s) · updated {formatMyt(f.updatedAt)} MYT by {f.updatedBy.fullName}
@@ -309,18 +308,11 @@ export function FlowDetailPage() {
               Activate
             </Button>
           )}
-          {may('activateFlows') && f.status === 'ACTIVE' && !d.isDefault && (
-            <Button size="sm" variant="outline" onClick={() => void act(() => flowService.setDefault(f.flowId, actor), `${f.name} is now the default`)}>
-              Set as default
-            </Button>
-          )}
           {may('activateFlows') && f.status === 'ACTIVE' && (
             <Button
               size="sm"
               variant="outline"
-              disabled={d.isDefault}
-              title={d.isDefault ? 'Choose a new default flow before retiring this one.' : undefined}
-              onClick={() => window.confirm(d.inFlightCases ? `Retire ${f.name}? It finishes its ${d.inFlightCases} open case(s), then becomes Inactive.` : `Retire ${f.name}? It becomes Inactive.`) && void act(() => flowService.retire(f.flowId, actor), `${f.name} retired`)}
+              onClick={() => window.confirm(`Retire ${f.name}? New sessions sent with its Flow ID are refused. ${d.inFlightCases ? `It finishes its ${d.inFlightCases} open case(s), then becomes Inactive.` : 'It becomes Inactive.'}`) && void act(() => flowService.retire(f.flowId, actor), `${f.name} retired`)}
             >
               Retire
             </Button>

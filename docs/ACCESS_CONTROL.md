@@ -83,7 +83,7 @@ every project):
 | Module | View | Actions |
 |---|---|---|
 | Verifications | `VIEW_CASE_LIST` ("View list": no personal data) | `VIEW_CASE_DETAILS` (case page: name, ID number, images; every open audited) → `CLAIM_CASES` (claim / release) → `DECIDE_CASES` (approve / reject) |
-| Flows | `VIEW_FLOWS` | `CREATE_FLOWS` (and duplicate), `EDIT_FLOWS`, `ACTIVATE_FLOWS` (activate, retire, set default), `CHANGE_VERIFICATION_LEVEL` (thresholds, retries, risk minimums) |
+| Flows | `VIEW_FLOWS` | `CREATE_FLOWS` (and duplicate), `EDIT_FLOWS`, `ACTIVATE_FLOWS` (activate, retire), `CHANGE_VERIFICATION_LEVEL` (thresholds, retries, risk minimums) |
 | Project settings | `VIEW_PROJECT_SETTINGS` | `MANAGE_PROJECT_SETTINGS` |
 | API keys and webhook | `VIEW_INTEGRATION` | `MANAGE_INTEGRATION` |
 | Members | `VIEW_MEMBERS` | `MANAGE_MEMBERS` (add / remove) |
@@ -348,7 +348,7 @@ Draft REST shapes are at the top of each `src/services/*Service.ts`. Error codes
 | `GET /projects/{id}/flows`, `GET /flows/{id}` | viewFlows | Hidden Internal-testing flows: 404 for merchant users. |
 | `POST …/flows`, duplicate | createFlows | |
 | `PUT /flows/{id}` | editFlows; **plus** changeVerificationLevel if thresholds, retries or risk minimums change; **plus** setAdvancedThresholds for custom (Advanced) values | Saving an active flow needs a reason and creates a revision. |
-| `POST /flows/{id}/activate · retire · default` | activateFlows | |
+| `POST /flows/{id}/activate · retire` | activateFlows | |
 | `GET /registry/selectable` | createFlows in some project | Who may pick a version: Active → everyone; Internal testing → internal users; Limited release → internal users + listed merchants (`selectableForNewFlow`). |
 | `GET /registry`, `GET …/flows` / registry writes | viewRegistry / manageRegistry (PL) | |
 | `GET/POST/PATCH /merchants`, status, owner invitation | viewMerchants / createMerchants / changeMerchantStatus (PL) | `GET /merchants/{id}`: internal users any merchant, merchant users their own, else 404. |

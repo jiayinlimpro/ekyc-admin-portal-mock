@@ -1,5 +1,5 @@
 // REQ: DEC-93 / DEC-109 — New project (from a merchant row on the Merchants page), rename and archive (Project Settings ›
-// General). MOCK-12: a new project starts with a Draft default flow.
+// General). MOCK-12: a new project starts with one Draft flow, “First flow”.
 import { useState, type FormEvent } from 'react'
 import { toast } from 'sonner'
 import { FormField } from '@/components/common/FormField'
@@ -22,7 +22,7 @@ function fieldError(e: unknown, field: string): string | undefined {
   return (e.details as { field: string; message: string }[]).find((d) => d.field === field)?.message
 }
 
-// REQ: DEC-93 — create (name required, unique per merchant), rename, archive. MOCK-12: a new project starts with a Draft default flow.
+// REQ: DEC-93 — create (name required, unique per merchant), rename, archive. MOCK-12: a new project starts with one Draft flow, “First flow”.
 export function ProjectDialog({ editing, onClose, onSaved }: { editing: ProjectEditing; onClose: () => void; onSaved: (projectId?: string) => void }) {
   const actor = useSession((s) => s.actor)
   const merchants = useLoad(() => projectService.creatableMerchants(actor), [actor.userId])
@@ -40,7 +40,7 @@ export function ProjectDialog({ editing, onClose, onSaved }: { editing: ProjectE
     try {
       if (editing.mode === 'create') {
         const p = await projectService.create(chosenMerchant, { name }, actor)
-        toast.success(`${p.name} created`, { description: 'Its Draft “Default flow” needs settings before it can be activated.' })
+        toast.success(`${p.name} created`, { description: 'Its Draft “First flow” needs settings before it can be activated.' })
         onSaved(p.projectId)
       } else if (editing.mode === 'rename') {
         await projectService.rename(editing.row.projectId, name, actor)
@@ -66,7 +66,7 @@ export function ProjectDialog({ editing, onClose, onSaved }: { editing: ProjectE
           <DialogHeader>
             <DialogTitle>{title}</DialogTitle>
             <DialogDescription>
-              {editing.mode === 'create' && 'A project has its own members, cases and settings. It starts with a Draft “Default flow” on the registry’s default version.'}
+              {editing.mode === 'create' && 'A project has its own members, cases and settings. It starts with a Draft “First flow” on the registry’s default version.'}
               {editing.mode === 'rename' && 'Names are unique within the merchant.'}
               {editing.mode === 'archive' && 'Archived projects take no new sessions. Existing cases stay reviewable. Projects are never deleted.'}
             </DialogDescription>

@@ -188,7 +188,7 @@ export const NAV_ITEMS: NavItem[] = [
     access: { project: 'viewFlows' },
     priority: 'P0',
     built: true,
-    notes: ['Draft, Active, Retiring, Inactive; one default per project; create, duplicate, set default, activate, retire (DEC-94).'],
+    notes: ['Draft, Active, Retiring, Inactive; create, duplicate, activate, retire (DEC-94). No default flow: every session names its flow (DEC-95).'],
   },
   {
     path: '/flows/:flowId',

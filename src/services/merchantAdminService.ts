@@ -1,6 +1,6 @@
 // Merchants API (mock), Super admin only (DEC-70). [FRS] Merchant Management (DEC-98): FRS fields, Onboarding → Active →
-// Suspended → Terminated with reasons, never deleted. DEC-92: a new merchant also gets a Default project, one default flow
-// on the registry's default version (Draft until its settings are complete) and its first user as Merchant Owner
+// Suspended → Terminated with reasons, never deleted. DEC-92: a new merchant also gets a Default project, one Draft flow
+// ("First flow") on the registry's default version (Draft until its settings are complete) and its first user as Merchant Owner
 // (Pending, invited). Every change is audited (DEC-42).
 //   GET   /merchants                         list              → 200 MerchantRow[]
 //   POST  /merchants                         create            → 201 Merchant (Onboarding) | 422
@@ -127,13 +127,12 @@ export const mockMerchantAdminService: MerchantAdminService = {
       name: 'Default',
       status: 'ACTIVE',
       isDefault: true,
-      defaultFlowId: flowId,
       claimTimeoutSec: DEFAULT_CLAIM_TIMEOUT_SEC,
       createdAt: at.toISOString(),
       createdBy: 'SYSTEM',
       ...structuredClone(PROJECT_SETTING_DEFAULTS),
     }
-    const flow = createFlow({ flowId, project }, { name: 'Default flow', description: 'Created with the merchant' }, entry, at, { userId: 'SYSTEM', fullName: 'SYSTEM' })
+    const flow = createFlow({ flowId, project }, { name: 'First flow', description: 'Created with the merchant' }, entry, at, { userId: 'SYSTEM', fullName: 'SYSTEM' })
     const owner: UserAccount = {
       userId: newId('usr'),
       fullName: merchant.primaryContact.fullName,
@@ -149,7 +148,7 @@ export const mockMerchantAdminService: MerchantAdminService = {
     db.setState((st) => ({ merchants: [...st.merchants, merchant], projects: [...st.projects, project], flows: [...st.flows, flow], accounts: [...st.accounts, owner] }))
     audit(actor, 'MERCHANT_CREATED', merchant.merchantId, { name: merchant.name, registrationNo: merchant.registrationNo, country: merchant.country, status: 'ONBOARDING' })
     auditProject(actor, 'PROJECT_CREATED', project, { name: project.name, isDefault: true }, at)
-    auditProject(actor, 'FLOW_CREATED', project, { flowId, name: flow.name, workflowVersion: flow.workflowVersion, isDefault: true }, at)
+    auditProject(actor, 'FLOW_CREATED', project, { flowId, name: flow.name, workflowVersion: flow.workflowVersion }, at)
     audit(actor, 'USER_INVITED', merchant.merchantId, { userId: owner.userId, fullName: owner.fullName, email, access: 'Owner · All projects', invitationId: owner.invitationId })
     return wire(merchant)
   },

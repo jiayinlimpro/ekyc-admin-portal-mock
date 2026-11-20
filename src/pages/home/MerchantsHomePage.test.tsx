@@ -109,7 +109,7 @@ describe('Merchants page — the outer layer (DEC-109)', () => {
     await waitFor(async () => expect(cards(await merchantRow('Atoz Software Tech'))).toContain('Retail app'))
   })
 
-  it('Given a new merchant, then a row with its Default project; Onboarding with a Draft default flow and the primary contact as Pending owner', async () => {
+  it('Given a new merchant, then a row with its Default project; Onboarding with a Draft “First flow” and the primary contact as Pending owner', async () => {
     renderAt('/')
     await merchantRow('Atoz Software Tech')
     fireEvent.click(screen.getByRole('button', { name: /New merchant/ }))
@@ -124,7 +124,7 @@ describe('Merchants page — the outer layer (DEC-109)', () => {
     expect(m).toMatchObject({ registrationNo: '202101012345', status: 'ONBOARDING', primaryContact: { fullName: 'Aminah Binti Salleh', email: 'aminah@nusantara.example' } })
     const project = db.state().projects.find((p) => p.merchantId === m.merchantId)!
     expect(project).toMatchObject({ name: 'Default', isDefault: true })
-    expect(db.state().flows.find((f) => f.flowId === project.defaultFlowId)).toMatchObject({ status: 'DRAFT', workflowVersion: 'V1' })
+    expect(db.state().flows.filter((f) => f.projectId === project.projectId)).toMatchObject([{ name: 'First flow', status: 'DRAFT', workflowVersion: 'V1' }])
     expect(db.state().accounts.find((a) => a.email === 'aminah@nusantara.example')).toMatchObject({ status: 'PENDING', merchantId: m.merchantId })
     expect((await auditService.list({ merchantId: m.merchantId }, ADMIN)).items.map((e) => e.action).sort()).toEqual(['FLOW_CREATED', 'MERCHANT_CREATED', 'PROJECT_CREATED', 'USER_INVITED'])
   })

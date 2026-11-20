@@ -334,11 +334,9 @@ describe('projects, flows and registry (DEC-56 … DEC-58, DEC-90 … DEC-95)', 
     }
   })
 
-  it('Given every project, then its default flow belongs to it; active projects default to an Active flow', () => {
-    for (const p of db.projects) {
-      const def = db.flows.find((f) => f.flowId === p.defaultFlowId)!
-      expect(def.projectId, p.projectId).toBe(p.projectId)
-      if (p.status === 'ACTIVE') expect(def.status, p.projectId).toBe('ACTIVE')
+  it('Given every active project, then it has at least one Active flow to send sessions to (DEC-95: no default flow)', () => {
+    for (const p of db.projects.filter((x) => x.status === 'ACTIVE')) {
+      expect(db.flows.some((f) => f.projectId === p.projectId && f.status === 'ACTIVE'), p.projectId).toBe(true)
     }
   })
 

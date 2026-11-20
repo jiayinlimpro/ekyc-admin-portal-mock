@@ -31,10 +31,10 @@ beforeEach(async () => {
 afterEach(cleanup)
 
 describe('Flows List (DEC-94)', () => {
-  it('Given Atoz Default, then the default flow first with its revision and open cases, no Routing column; the draft has no revision', async () => {
+  it('Given Atoz Default, then each flow with its revision and open cases, no Default badge or Routing column; the draft has no revision', async () => {
     renderAt('/flows')
     const malaysian = await row('Malaysian onboarding')
-    expect(malaysian.textContent).toContain('Default')
+    expect(malaysian.textContent).not.toContain('Default') // REQ: DEC-95 — no default flow
     expect(malaysian.textContent).toContain('V4-R2')
     expect((await row('Foreigner onboarding')).textContent).not.toContain('Rule P1')
     expect(screen.queryByRole('columnheader', { name: 'Routing' })).toBeNull() // REQ: DEC-95 — no routing
@@ -43,18 +43,14 @@ describe('Flows List (DEC-94)', () => {
     expect(within(draft).getAllByRole('cell')[1].textContent).toBe('—')
   })
 
-  it('Given the default flow, then Retire is refused until another flow is the default', async () => {
+  it('Given any Active flow, when Retire is chosen, then the dialog warns that its Flow ID is refused from now on and Retire is enabled (DEC-95)', async () => {
     renderAt('/flows')
-    fireEvent.click((await menu('Malaysian onboarding')).find((m) => m.textContent === 'Retire')!)
-    expect(await screen.findByText(/This is the default flow/)).toBeTruthy()
-    expect((screen.getByRole('button', { name: 'Retire flow' }) as HTMLButtonElement).disabled).toBe(true)
-  })
-
-  it('Given Set as default on Foreigner, then it carries the Default tag', async () => {
-    renderAt('/flows')
-    fireEvent.click((await menu('Foreigner onboarding')).find((m) => m.textContent === 'Set as default')!)
-    await waitFor(() => expect(db.state().projects.find((p) => p.projectId === fx('PRJ-0001'))!.defaultFlowId).toBe(fx('FLW-0002')))
-    await waitFor(async () => expect((await row('Foreigner onboarding')).textContent).toContain('Default'))
+    const items = await menu('Malaysian onboarding')
+    expect(items.map((m) => m.textContent)).not.toContain('Set as default')
+    fireEvent.click(items.find((m) => m.textContent === 'Retire')!)
+    expect(await screen.findByText(/New sessions sent with its Flow ID are refused/)).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Retire flow' }))
+    await waitFor(() => expect(db.state().flows.find((f) => f.flowId === fx('FLW-0001'))!.status).toBe('RETIRING'))
   })
 
   it('Given New flow, then only Active versions are offered and it opens Flow Detail as Draft', async () => {

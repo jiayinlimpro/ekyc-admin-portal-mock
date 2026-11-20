@@ -1,5 +1,5 @@
 // REQ: DEC-98 — [FRS] Merchant Management, Super admin only (DEC-70). DEC-92: a new merchant also gets its Default
-// project, default flow and first owner.
+// project, a Draft “First flow” and first owner.
 import { useState, type FormEvent, type ReactNode } from 'react'
 import { toast } from 'sonner'
 import { FormField } from '@/components/common/FormField'
@@ -51,7 +51,7 @@ export function CreateMerchantDialog({ onClose, onSaved }: { onClose: () => void
     setErrors({})
     try {
       const m = await merchantAdminService.create(f, actor)
-      toast.success(`${m.name} created`, { description: 'Onboarding: Default project and Draft default flow created; the primary contact is invited as Owner.' })
+      toast.success(`${m.name} created`, { description: 'Onboarding: Default project and a Draft “First flow” created; the primary contact is invited as Owner.' })
       onSaved()
     } catch (err) {
       setErrors(fieldErrors(err))
@@ -75,7 +75,7 @@ export function CreateMerchantDialog({ onClose, onSaved }: { onClose: () => void
         <form onSubmit={submit} noValidate className="space-y-4">
           <DialogHeader>
             <DialogTitle>Create New Merchant</DialogTitle>
-            <DialogDescription>Starts as Onboarding (sandbox only). Also creates its Default project with a Draft default flow, and invites the primary contact as Owner.</DialogDescription>
+            <DialogDescription>Starts as Onboarding (sandbox only). Also creates its Default project with a Draft “First flow”, and invites the primary contact as Owner.</DialogDescription>
           </DialogHeader>
           {field('name', req('Merchant Name'), <Input id="m-name" value={f.name} onChange={set('name')} aria-invalid={!!errors.name} autoFocus />)}
           {field('country', req('Country of incorporation'), (

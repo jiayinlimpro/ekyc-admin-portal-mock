@@ -46,11 +46,10 @@ describe('projectService (DEC-92, DEC-93, DEC-96)', () => {
     expect(admin.every((p) => p.roles.join() === 'Super admin')).toBe(true)
   })
 
-  it('Given the Owner creates a project, then it starts with a Draft default flow on the registry default (MOCK-12), audited', async () => {
+  it('Given the Owner creates a project, then it starts with one Draft “First flow” on the registry default (MOCK-12), audited', async () => {
     const p = await projectService.create(fx('MER-0001'), { name: 'Branch kiosks' }, OWNER)
-    expect(p).toMatchObject({ projectId: expect.stringMatching(/^prj_/), merchantId: fx('MER-0001'), status: 'ACTIVE', isDefault: false, defaultFlowId: expect.stringMatching(/^flw_/), claimTimeoutSec: 1800 })
-    const flow = db.state().flows.find((f) => f.flowId === p.defaultFlowId)!
-    expect(flow).toMatchObject({ projectId: p.projectId, status: 'DRAFT', workflowVersion: 'V1', revision: 0 })
+    expect(p).toMatchObject({ projectId: expect.stringMatching(/^prj_/), merchantId: fx('MER-0001'), status: 'ACTIVE', isDefault: false, claimTimeoutSec: 1800 })
+    expect(db.state().flows.filter((f) => f.projectId === p.projectId)).toMatchObject([{ name: 'First flow', status: 'DRAFT', workflowVersion: 'V1', revision: 0 }])
     expect(await lastAudit('PROJECT_CREATED')).toMatchObject({ actorRole: 'Owner', projectId: p.projectId, details: { name: 'Branch kiosks' } })
     expect((await projectService.listMine(OWNER)).map((x) => x.projectId)).toContain(p.projectId)
   })
@@ -144,15 +143,13 @@ describe('flowService settings and lifecycle (DEC-51 … DEC-53, DEC-94)', () =>
     expect(await lastAudit('FLOW_ACTIVATED')).toMatchObject({ details: { flowId: f.flowId, revision: 1 } })
   })
 
-  it('Given the default flow, then it cannot be retired until another flow is the default', async () => {
-    await expectError(flowService.retire(fx('FLW-0001'), OWNER), 'VALIDATION', 'Choose a new default flow before retiring this one.')
-    expect((await flowService.setDefault(fx('FLW-0002'), OWNER)).defaultFlowId).toBe(fx('FLW-0002'))
-    expect(await lastAudit('FLOW_DEFAULT_CHANGED')).toMatchObject({ details: { changes: [{ field: 'Default flow', from: fx('FLW-0001'), to: fx('FLW-0002') }] } })
-    expect((await flowService.retire(fx('FLW-0001'), OWNER)).status).toBe('RETIRING') // it has cases in flight
+  it('Given any Active flow, when retired, then allowed with no default to change first (DEC-95); with cases in flight it goes Retiring', async () => {
+    expect((await flowService.retire(fx('FLW-0001'), OWNER)).status).toBe('RETIRING')
+    expect(await lastAudit('FLOW_RETIRED')).toMatchObject({ details: { flowId: fx('FLW-0001'), changes: [{ field: 'Status', from: 'ACTIVE', to: 'RETIRING' }] } })
   })
 
   it('Given a Retiring flow, when its last in-flight case is decided, then it becomes Inactive (SYSTEM, audited)', async () => {
-    // Make S10 (pending, unclaimed) the last in-flight case of FLW-0002, a non-default flow.
+    // Make S10 (pending, unclaimed) the last in-flight case of FLW-0002.
     const ref = caseIdOf('KYC-260901-900010')
     db.setState((st) => ({
       verifications: st.verifications.map((v) =>

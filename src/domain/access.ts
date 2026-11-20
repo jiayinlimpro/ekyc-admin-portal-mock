@@ -51,7 +51,7 @@ export const PROJECT_ACTIONS = [
   'viewFlows', // Flows List / Detail, read-only
   'createFlows', // and duplicate
   'editFlows',
-  'activateFlows', // activate, retire, set default
+  'activateFlows', // activate, retire
   'changeVerificationLevel', // thresholds, retries allowed, risk level
   'setAdvancedThresholds', // DEC-19: Super admin, or platform staff who may calibrate (DEC-99)
   'viewCases', // the Verifications list (DEC-104: View list)

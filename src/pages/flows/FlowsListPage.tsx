@@ -108,7 +108,7 @@ function Flows({ project }: { project: MyProject }) {
   const actor = useSession((s) => s.actor)
   const { account } = useAccess()
   // REQ: DEC-99 — Flows View opens the list read-only; creating and changing flows needs Manage flows (staff: Edit).
-  // REQ: DEC-102 — Create (and Duplicate) and Activate / retire (and Set as default) are separate permissions.
+  // REQ: DEC-102 — Create (and Duplicate) and Activate / retire are separate permissions.
   const canCreate = !!account && canInProject(account, 'createFlows', project)
   const canActivate = !!account && canInProject(account, 'activateFlows', project)
   const navigate = useNavigate()
@@ -162,7 +162,6 @@ function Flows({ project }: { project: MyProject }) {
                   <Link to={`/flows/${f.flowId}`} className="font-medium text-blue-700 hover:underline dark:text-blue-400">
                     {f.name}
                   </Link>
-                  {f.isDefault && <span className="ml-2 rounded bg-blue-100 px-1.5 text-[10px] font-medium text-blue-800 uppercase dark:bg-blue-500/20 dark:text-blue-200">Default</span>}
                   <div className="text-xs text-muted-foreground">{f.description}</div>
                   {/* REQ: DEC-97 — merchants send it as flow_id; copy from here ([MS] Flows List). */}
                   <CopyId label="Flow ID" value={f.flowId} className="mt-0.5" />
@@ -204,7 +203,6 @@ function Flows({ project }: { project: MyProject }) {
                       {canCreate && <DropdownMenuItem onClick={() => void act(() => flowService.duplicate(f.flowId, actor), `${f.name} duplicated as Draft`)}>
                         <Copy aria-hidden /> Duplicate
                       </DropdownMenuItem>}
-                      {canActivate && f.status === 'ACTIVE' && !f.isDefault && <DropdownMenuItem onClick={() => void act(() => flowService.setDefault(f.flowId, actor), `${f.name} is now the default`)}>Set as default</DropdownMenuItem>}
                       {canActivate && f.status !== 'ACTIVE' && <DropdownMenuItem onClick={() => void act(() => flowService.activate(f.flowId, actor), `${f.name} activated`)}>Activate</DropdownMenuItem>}
                       {canActivate && f.status === 'ACTIVE' && <DropdownMenuItem onClick={() => setRetiring(f)}>Retire</DropdownMenuItem>}
                     </DropdownMenuContent>
@@ -222,11 +220,10 @@ function Flows({ project }: { project: MyProject }) {
             <DialogHeader>
               <DialogTitle>Retire {retiring.name}?</DialogTitle>
               <DialogDescription>
-                {retiring.isDefault
-                  ? 'This is the default flow. Set another flow as default first.'
-                  : retiring.inFlightCases > 0
-                    ? `It takes no new sessions and becomes Retiring until its ${retiring.inFlightCases} open case(s) are decided, then Inactive.`
-                    : 'It has no open cases, so it becomes Inactive at once. Flows are never deleted; past cases keep their flow.'}
+                {/* REQ: DEC-94 / DEC-95 — any Active flow can be retired; the merchant must stop sending its Flow ID. */}
+                {retiring.inFlightCases > 0
+                  ? `New sessions sent with its Flow ID are refused. It becomes Retiring until its ${retiring.inFlightCases} open case(s) are decided, then Inactive.`
+                  : 'New sessions sent with its Flow ID are refused. It has no open cases, so it becomes Inactive at once. Flows are never deleted; past cases keep their flow.'}
               </DialogDescription>
             </DialogHeader>
             <DialogFooter>
@@ -235,7 +232,6 @@ function Flows({ project }: { project: MyProject }) {
               </Button>
               <Button
                 variant="destructive"
-                disabled={retiring.isDefault}
                 onClick={() => {
                   const f = retiring
                   setRetiring(undefined)

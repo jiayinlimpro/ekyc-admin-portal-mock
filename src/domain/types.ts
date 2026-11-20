@@ -264,7 +264,7 @@ export interface DecisionReasonRef {
 // REQ: DEC-42 — event names, grouped as in DECISIONS.md.
 export const AUDIT_ACTION_GROUPS = {
   Cases: ['SENSITIVE_PII_VIEW', 'CASE_CLAIMED', 'CASE_RELEASED', 'CASE_CLAIM_EXPIRED', 'CASE_DECISION_APPROVED', 'CASE_DECISION_REJECTED', 'CASE_DECISION_BLOCKED'],
-  Flows: ['FLOW_CREATED', 'FLOW_ACTIVATED', 'FLOW_RETIRED', 'FLOW_DEFAULT_CHANGED', 'FLOW_SETTING_CHANGED'],
+  Flows: ['FLOW_CREATED', 'FLOW_ACTIVATED', 'FLOW_RETIRED', 'FLOW_SETTING_CHANGED'],
   Projects: ['PROJECT_CREATED', 'PROJECT_RENAMED', 'PROJECT_ARCHIVED', 'PROJECT_SETTING_CHANGED'],
   Integration: ['API_KEY_CREATED', 'API_KEY_ROTATED', 'API_KEY_REVOKED', 'WEBHOOK_CHANGED'],
   Users: ['USER_INVITED', 'USER_INVITATION_RESENT', 'USER_ACCESS_ADDED', 'USER_ACCESS_CHANGED', 'USER_ACCESS_REMOVED', 'USER_SUSPENDED', 'USER_REACTIVATED'],
@@ -320,8 +320,7 @@ export interface Project {
   merchantId: string
   name: string
   status: ProjectStatus
-  isDefault: boolean // the merchant's Default project (DEC-92)
-  defaultFlowId: string // exactly one default flow per project (DEC-94)
+  isDefault: boolean // the merchant's Default project (DEC-92). No default flow: every session names its flow (DEC-95)
   claimTimeoutSec: number // REQ: DEC-22 / DEC-53 — seconds (entered in minutes); OQ-04
   createdAt: string
   createdBy: string // fullName, or SYSTEM
@@ -437,7 +436,7 @@ export const PROJECT_PERMISSIONS = [
   'VIEW_FLOWS',
   'CREATE_FLOWS', // and duplicate
   'EDIT_FLOWS',
-  'ACTIVATE_FLOWS', // activate, retire, set default
+  'ACTIVATE_FLOWS', // activate, retire
   'CHANGE_VERIFICATION_LEVEL', // thresholds, retries allowed, risk level
   'VIEW_PROJECT_SETTINGS',
   'MANAGE_PROJECT_SETTINGS',

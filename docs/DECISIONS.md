@@ -22,13 +22,16 @@ Rules changed on 2026-10-20 (Projects & Flows restructure) are marked **(changed
   | Flow | Workflow version (locked once active) · check thresholds · retries allowed, cooldown · accepted documents · risk thresholds (V4, V5) · session expiry |
 
 - **DEC-92** Every merchant starts with a **Default** project. Creating a merchant also creates its Default project with one
-  default flow built on the registry's default version (DEC-57), and its first user as Merchant Owner (FRS "Option B"). [MS][FRS]
+  Draft flow, "First flow", built on the registry's default version (DEC-57), and its first user as Merchant Owner (FRS
+  "Option B"). [MS][FRS] **(changed 2026-11-20)** It is no longer a "default flow" (DEC-95). [PO 2026-11-20]
 - **DEC-93** Projects: create (name required), rename, archive. Archived = no new sessions; existing cases stay reviewable.
   The Default project cannot be archived while it is the merchant's only active project. Projects are never deleted. [MS]
-- **DEC-94** Flows: status `Draft`, `Active`, `Retiring` (in-flight cases only), `Inactive`. Exactly one default flow per
-  project. Actions: create (pick a workflow version → Flow Detail), duplicate, set as default, activate, retire. Retiring the
-  default flow requires choosing a new default first. Flows are never deleted, so past cases keep their flow. The workflow
-  version is locked once a flow is active; to change version, create a new flow. [MS]
+- **DEC-94** Flows: status `Draft`, `Active`, `Retiring` (in-flight cases only), `Inactive`. Actions: create (pick a
+  workflow version → Flow Detail), duplicate, activate, retire. Flows are never deleted, so past cases keep their flow. The
+  workflow version is locked once a flow is active; to change version, create a new flow. [MS]
+  **(changed 2026-11-20)** No default flow (every session names its flow, DEC-95): no Default badge, no Set as default, and
+  any Active flow can be retired. Retiring warns that new sessions sent with its Flow ID are refused from then on, so the
+  merchant must switch their `flowId` first. [PO 2026-11-20]
 - **DEC-95** **(changed 2026-11-20)** **No routing: every session names its flow.** Each create-session request must send
   `flowId` (required; the Flow ID is on Flows and Flow Detail). It is refused when `flowId` is missing or unknown, belongs
   to another project than the API key's, or the flow is not Active (Draft, Retiring, Inactive), or the project is
@@ -200,7 +203,7 @@ Rules changed on 2026-10-20 (Projects & Flows restructure) are marked **(changed
   value, IP). Event actions:
   - Cases: `SENSITIVE_PII_VIEW`, `CASE_CLAIMED`, `CASE_RELEASED`, `CASE_CLAIM_EXPIRED`, `CASE_DECISION_APPROVED`,
     `CASE_DECISION_REJECTED`, `CASE_DECISION_BLOCKED`
-  - Flows: `FLOW_CREATED`, `FLOW_ACTIVATED`, `FLOW_RETIRED`, `FLOW_DEFAULT_CHANGED`, `FLOW_SETTING_CHANGED`
+  - Flows: `FLOW_CREATED`, `FLOW_ACTIVATED`, `FLOW_RETIRED`, `FLOW_SETTING_CHANGED` (`FLOW_DEFAULT_CHANGED` removed with the default flow, DEC-94)
   - Projects: `PROJECT_CREATED`, `PROJECT_RENAMED`, `PROJECT_ARCHIVED`, `PROJECT_SETTING_CHANGED`
   - Integration: `API_KEY_CREATED`, `API_KEY_ROTATED`, `API_KEY_REVOKED`, `WEBHOOK_CHANGED`
   - Users: `USER_INVITED`, `USER_INVITATION_RESENT`, `USER_ACCESS_ADDED`, `USER_ACCESS_CHANGED`, `USER_ACCESS_REMOVED`,
@@ -377,7 +380,7 @@ Rules changed on 2026-10-20 (Projects & Flows restructure) are marked **(changed
     | Create, rename, archive projects | Approve / reject cases (own claim only, DEC-30) |
     | View merchant-wide reports | Manage project settings (branding, auto-release timeout) |
     | | Manage API keys and webhook |
-    | | Manage flows (create, activate, retire, set default) |
+    | | Manage flows (create, activate, retire) |
     | | Change verification level and retries (thresholds, retries allowed, risk minimums) |
     | | Manage project members |
     | | View project reports (Overview, System Intelligence, Billing for those projects) |
@@ -407,7 +410,7 @@ Rules changed on 2026-10-20 (Projects & Flows restructure) are marked **(changed
   | | Billing and contract | View | Manage |
   | | Merchant reports | View | Export |
   | Project-level | Verifications | View | Claim · Approve / reject |
-  | | Flows | View | Create (and duplicate) · Edit · Activate / retire (and set default) · Change verification level (ticks Edit) |
+  | | Flows | View | Create (and duplicate) · Edit · Activate / retire · Change verification level (ticks Edit) |
   | | Project settings | View | Edit (General, Review operations) |
   | | API keys and webhook | View | Manage |
   | | Members | View | Add / remove |
@@ -503,7 +506,7 @@ Rules changed on 2026-10-20 (Projects & Flows restructure) are marked **(changed
 
 ## Merchants
 - **DEC-98** **(new)** **Merchants** screen (Platform Admin) follows [FRS] Merchant Management; DEC-92 still adds the Default
-  project, default flow and first owner. [FRS][PO 2026-10-21]
+  project, its first (Draft) flow and first owner. [FRS][PO 2026-10-21]
   - **List:** Merchant ID, Merchant Name, Country, Status (colour badge), Created At, Actions (⋮). Search by name or ID,
     filter by status, applied on Search; newest first; 10 / 20 / 50 per page; "No Records Found". Owner, projects, users
     and cases are in the read-only detail panel.
@@ -767,14 +770,15 @@ These keep the mock runnable. They are not signed-off requirements; change them 
   Their open claims still end by timeout.
 - **MOCK-08** Cross-tab sync uses localStorage (last writer wins). It demonstrates the race; the real API needs an atomic
   conditional write (see docs/HANDOFF.md).
-- **MOCK-09** **(changed)** Creating a merchant creates its Default project, a default flow on the registry default version
-  (Draft) and a Merchant Owner user, each audited. Demo registration numbers and phone numbers are made up (Malaysian ones
+- **MOCK-09** **(changed)** Creating a merchant creates its Default project, a Draft "First flow" on the registry default version
+  and a Merchant Owner user, each audited. Demo registration numbers and phone numbers are made up (Malaysian ones
   follow the SSM format but belong to no company); the mock has no sandbox / live API, so Onboarding is a label on the
   API keys.
 - **MOCK-10** **(removed 2026-10-27)** Flow Detail had a what-if preview; it was removed as not needed [PO 2026-10-27].
 - **MOCK-11** **(new)** Login, portal login security and webhook delivery are simulated; no real auth or HTTP calls.
-- **MOCK-12** **(new)** A new project (DEC-93) starts with one Draft flow, "Default flow", on the registry's default version
-  (DEC-57) as its default flow. The project takes sessions once that flow is completed and activated. A new merchant
+- **MOCK-12** **(changed 2026-11-20)** A new project (DEC-93) starts with one Draft flow, "First flow", on the registry's
+  default version (DEC-57); it is a starting point, not a default (DEC-95). The project takes sessions once a flow is
+  completed and activated, and each session names that flow's Flow ID. A new merchant
   (DEC-92) gets the same, plus its first user as an Invited Merchant Owner.
 - **MOCK-13** **(new)** Calls made where the decisions are silent [Claude, 2026-10-20]:
   - Project Settings › General and Review operations are edited by the roles that manage flows (Platform Admin, Merchant
@@ -802,6 +806,7 @@ These keep the mock runnable. They are not signed-off requirements; change them 
 | DEC-70 | Two global roles: Platform Admin, Merchant Reviewer | DEC-70 |
 | DEC-81 | Drop-off KPI removed | Drop-off by phase on System Intelligence (DEC-86) |
 | DEC-82 | Webhooks on hold | DEC-54, DEC-55 |
+| DEC-94 / MOCK-12 | Exactly one default flow per project: Set as default, Default badge, retiring the default blocked, `FLOW_DEFAULT_CHANGED` | No default flow; any Active flow can be retired (DEC-94) |
 | DEC-95 / OQ-18 | Routing rules and % shares set through the API, shown read-only in Project Settings › Routing | Every session names its flow (`flowId` required); no routing (DEC-95) |
 
 ## Conflict register (old FRS / Axure → latest decision)

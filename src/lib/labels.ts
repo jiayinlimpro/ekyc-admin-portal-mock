@@ -136,7 +136,6 @@ export const AUDIT_ACTION_LABELS: Record<AuditAction, string> = {
   FLOW_CREATED: 'Flow created',
   FLOW_ACTIVATED: 'Flow activated',
   FLOW_RETIRED: 'Flow retired',
-  FLOW_DEFAULT_CHANGED: 'Default flow changed',
   FLOW_SETTING_CHANGED: 'Flow settings changed',
   PROJECT_CREATED: 'Project created',
   PROJECT_RENAMED: 'Project renamed',

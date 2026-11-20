@@ -35,7 +35,6 @@ export type ProjectRow = MyProject & {
   merchantName: string
   flows: number
   activeFlows: number
-  defaultFlowName: string
   members: number // users with access, incl. All projects (DEC-77), Pending or Active; not Super admins
   inFlightCases: number // PROCESSING + PENDING_REVIEW
   /** REQ: DEC-102 — the user may rename it / archive it (separate permissions). */
@@ -149,7 +148,6 @@ export const mockProjectService: ProjectService = {
           merchantName: s.merchants.find((m) => m.merchantId === p.merchantId)?.name ?? p.merchantId,
           flows: flows.length,
           activeFlows: flows.filter((f) => f.status === 'ACTIVE').length,
-          defaultFlowName: flows.find((f) => f.flowId === p.defaultFlowId)?.name ?? p.defaultFlowId,
           members: s.accounts.filter((a) => a.status !== 'SUSPENDED' && a.merchantId === p.merchantId && coversProject(grantsOf(a.assignments, s.roles), p.projectId)).length, // REQ: DEC-104 — Member alone doesn't count
           inFlightCases: s.verifications.filter((v) => v.projectId === p.projectId && IN_FLIGHT_STATUSES.includes(v.status)).length,
           canRename: canInProject(me, 'renameProjects', p),
@@ -171,7 +169,7 @@ export const mockProjectService: ProjectService = {
     return wire(loadProject(actor, projectId))
   },
 
-  // REQ: DEC-93 — name required, unique within the merchant. MOCK-12: starts with a Draft default flow on the registry default.
+  // REQ: DEC-93 — name required, unique within the merchant. MOCK-12: starts with a Draft "First flow" on the registry default.
   async create(merchantId, input, actor) {
     await simulateNetwork('create project')
     const me = requireActive(actor)
@@ -193,16 +191,15 @@ export const mockProjectService: ProjectService = {
       name: input.name.trim(),
       status: 'ACTIVE',
       isDefault: false,
-      defaultFlowId: flowId,
       claimTimeoutSec: DEFAULT_CLAIM_TIMEOUT_SEC,
       createdAt: at.toISOString(),
       createdBy: actor.fullName,
       ...structuredClone(PROJECT_SETTING_DEFAULTS),
     }
-    const flow = createFlow({ flowId, project }, { name: 'Default flow', description: 'Created with the project' }, entry, at, by(actor))
+    const flow = createFlow({ flowId, project }, { name: 'First flow', description: 'Created with the project' }, entry, at, by(actor))
     db.setState((st) => ({ projects: [...st.projects, project], flows: [...st.flows, flow] }))
     auditProject(actor, 'PROJECT_CREATED', project, { name: project.name }, at)
-    auditProject(actor, 'FLOW_CREATED', project, { flowId, name: flow.name, workflowVersion: flow.workflowVersion, isDefault: true }, at)
+    auditProject(actor, 'FLOW_CREATED', project, { flowId, name: flow.name, workflowVersion: flow.workflowVersion }, at)
     return wire(project)
   },
 

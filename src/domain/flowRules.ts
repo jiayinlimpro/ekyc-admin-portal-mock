@@ -54,9 +54,9 @@ export function activate(flow: Flow, now: Date, by: By): Flow {
   return { ...flow, status: 'ACTIVE', revision: Math.max(flow.revision, 1), updatedAt: now.toISOString(), updatedBy: by }
 }
 
-export function retireError(flow: Pick<Flow, 'flowId' | 'status'>, project: Pick<Project, 'defaultFlowId'>): string | undefined {
+// REQ: DEC-94 / DEC-95 — any Active flow can be retired; new sessions sent with its Flow ID are refused from then on.
+export function retireError(flow: Pick<Flow, 'status'>): string | undefined {
   if (flow.status !== 'ACTIVE') return 'Only an active flow can be retired.'
-  if (project.defaultFlowId === flow.flowId) return 'Choose a new default flow before retiring this one.'
   return undefined
 }
 
@@ -69,13 +69,6 @@ export function retire(flow: Flow, inFlight: number, now: Date, by: By): Flow {
 export function settleRetiring(flow: Flow, inFlight: number, now: Date): Flow {
   if (flow.status !== 'RETIRING' || inFlight > 0) return flow
   return { ...flow, status: 'INACTIVE', updatedAt: now.toISOString(), updatedBy: { userId: 'SYSTEM', fullName: 'SYSTEM' } }
-}
-
-export function setDefaultFlowError(project: Pick<Project, 'projectId' | 'defaultFlowId'>, flow: Pick<Flow, 'flowId' | 'projectId' | 'status'>): string | undefined {
-  if (flow.projectId !== project.projectId) return 'This flow belongs to another project.'
-  if (project.defaultFlowId === flow.flowId) return 'This flow is already the default.'
-  if (flow.status !== 'ACTIVE') return 'Only an active flow can be the default.'
-  return undefined
 }
 
 /** A copy starts as Draft with no revision; its version can still be changed until first activated. */

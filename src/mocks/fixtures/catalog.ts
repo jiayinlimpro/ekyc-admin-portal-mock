@@ -77,7 +77,7 @@ interface ProjectSpec extends Omit<Project, 'createdAt' | 'createdBy' | keyof ty
 // Owners per merchant (see fixtures/users.ts). Default projects are created by SYSTEM with the merchant (DEC-92).
 const PROJECTS: ProjectSpec[] = [
   {
-    projectId: fx('PRJ-0001'), merchantId: fx('MER-0001'), name: 'Default', status: 'ACTIVE', isDefault: true, defaultFlowId: fx('FLW-0001'), claimTimeoutSec: 1800, createdDaysAgo: 400, createdBy: 'SYSTEM',
+    projectId: fx('PRJ-0001'), merchantId: fx('MER-0001'), name: 'Default', status: 'ACTIVE', isDefault: true, claimTimeoutSec: 1800, createdDaysAgo: 400, createdBy: 'SYSTEM',
     branding: { primaryColor: '#1D4ED8' }, language: 'en',
     redirectUrls: ['https://app.atoz.example/kyc/done'], allowedOrigins: ['https://app.atoz.example'], ipAllowlist: ['203.0.113.0/24'],
     // REQ: DEC-106 — the project's own reasons (codes generated when added).
@@ -89,15 +89,15 @@ const PROJECTS: ProjectSpec[] = [
       ],
     },
   },
-  { projectId: fx('PRJ-0002'), merchantId: fx('MER-0001'), name: 'SME app', status: 'ACTIVE', isDefault: false, defaultFlowId: fx('FLW-0004'), claimTimeoutSec: 2700, createdDaysAgo: 60, createdBy: 'Tan Mei Ling' },
+  { projectId: fx('PRJ-0002'), merchantId: fx('MER-0001'), name: 'SME app', status: 'ACTIVE', isDefault: false, claimTimeoutSec: 2700, createdDaysAgo: 60, createdBy: 'Tan Mei Ling' },
   // Vantage onboards every nationality, so that System Default reason is off (DEC-106).
-  { projectId: fx('PRJ-0003'), merchantId: fx('MER-0002'), name: 'Default', status: 'ACTIVE', isDefault: true, defaultFlowId: fx('FLW-0005'), claimTimeoutSec: 1800, createdDaysAgo: 400, createdBy: 'SYSTEM', decisionReasons: { disabledSystemCodes: ['NATIONALITY_NOT_ACCEPTED'], custom: [] } },
-  { projectId: fx('PRJ-0004'), merchantId: fx('MER-0003'), name: 'Default', status: 'ACTIVE', isDefault: true, defaultFlowId: fx('FLW-0006'), claimTimeoutSec: 1800, createdDaysAgo: 300, createdBy: 'SYSTEM' },
-  { projectId: fx('PRJ-0005'), merchantId: fx('MER-0004'), name: 'Default', status: 'ACTIVE', isDefault: true, defaultFlowId: fx('FLW-0007'), claimTimeoutSec: 1200, createdDaysAgo: 300, createdBy: 'SYSTEM' },
-  { projectId: fx('PRJ-0006'), merchantId: fx('MER-0005'), name: 'Default', status: 'ACTIVE', isDefault: true, defaultFlowId: fx('FLW-0009'), claimTimeoutSec: 1800, createdDaysAgo: 250, createdBy: 'SYSTEM' },
-  { projectId: fx('PRJ-0007'), merchantId: fx('MER-0005'), name: 'Wallet app', status: 'ACTIVE', isDefault: false, defaultFlowId: fx('FLW-0010'), claimTimeoutSec: 1800, createdDaysAgo: 90, createdBy: 'Ng Chee Keong' },
-  { projectId: fx('PRJ-0008'), merchantId: fx('MER-0005'), name: 'Pilot 2025', status: 'ARCHIVED', isDefault: false, defaultFlowId: fx('FLW-0011'), claimTimeoutSec: 1800, createdDaysAgo: 240, createdBy: 'Ng Chee Keong' },
-  { projectId: fx('PRJ-0009'), merchantId: fx('MER-0006'), name: 'Default', status: 'ACTIVE', isDefault: true, defaultFlowId: fx('FLW-0012'), claimTimeoutSec: 1800, createdDaysAgo: 20, createdBy: 'SYSTEM' },
+  { projectId: fx('PRJ-0003'), merchantId: fx('MER-0002'), name: 'Default', status: 'ACTIVE', isDefault: true, claimTimeoutSec: 1800, createdDaysAgo: 400, createdBy: 'SYSTEM', decisionReasons: { disabledSystemCodes: ['NATIONALITY_NOT_ACCEPTED'], custom: [] } },
+  { projectId: fx('PRJ-0004'), merchantId: fx('MER-0003'), name: 'Default', status: 'ACTIVE', isDefault: true, claimTimeoutSec: 1800, createdDaysAgo: 300, createdBy: 'SYSTEM' },
+  { projectId: fx('PRJ-0005'), merchantId: fx('MER-0004'), name: 'Default', status: 'ACTIVE', isDefault: true, claimTimeoutSec: 1200, createdDaysAgo: 300, createdBy: 'SYSTEM' },
+  { projectId: fx('PRJ-0006'), merchantId: fx('MER-0005'), name: 'Default', status: 'ACTIVE', isDefault: true, claimTimeoutSec: 1800, createdDaysAgo: 250, createdBy: 'SYSTEM' },
+  { projectId: fx('PRJ-0007'), merchantId: fx('MER-0005'), name: 'Wallet app', status: 'ACTIVE', isDefault: false, claimTimeoutSec: 1800, createdDaysAgo: 90, createdBy: 'Ng Chee Keong' },
+  { projectId: fx('PRJ-0008'), merchantId: fx('MER-0005'), name: 'Pilot 2025', status: 'ARCHIVED', isDefault: false, claimTimeoutSec: 1800, createdDaysAgo: 240, createdBy: 'Ng Chee Keong' },
+  { projectId: fx('PRJ-0009'), merchantId: fx('MER-0006'), name: 'Default', status: 'ACTIVE', isDefault: true, claimTimeoutSec: 1800, createdDaysAgo: 20, createdBy: 'SYSTEM' },
 ]
 
 const OWNER_ATOZ = { userId: fx('USR-2026-0002'), fullName: 'Tan Mei Ling' }
@@ -163,7 +163,7 @@ const FLOWS: FlowSpec[] = [
     revisions: [{ hoursAgo: 240 * 24, by: { userId: fx('USR-2026-0071'), fullName: 'Ng Chee Keong' }, reason: 'Flow activated', settings: settings({}) }],
   },
   {
-    flowId: fx('FLW-0012'), projectId: fx('PRJ-0009'), name: 'Default flow', description: 'Created with the merchant', version: 'V1', status: 'ACTIVE', createdDaysAgo: 20,
+    flowId: fx('FLW-0012'), projectId: fx('PRJ-0009'), name: 'First flow', description: 'Created with the merchant', version: 'V1', status: 'ACTIVE', createdDaysAgo: 20,
     revisions: [{ hoursAgo: 20 * 24, reason: 'Flow activated', settings: settings({}) }],
   },
   {
