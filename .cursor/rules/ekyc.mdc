@@ -48,7 +48,7 @@ UAT scenarios: `docs/SCENARIOS.md`.
 - IDs (DEC-97): every stored record gets a prefixed cuid2-shaped ID from `src/lib/ids.ts` (`newId`; seeded records
   `fx('PRJ-0001')` / `stableId`, stable across resets). Never sort by ID, never show user / role / audit IDs. A case is
   addressed by its **Verification ID** `verificationId` (`vrf_…`, DEC-114); `referenceId` is the merchant's **Reference ID**:
-  unique per merchant, it identifies the end user (DEC-113). Verification ID first, then Reference ID, wherever both appear.
+  it identifies the end user within a project (DEC-113); the merchant's value may repeat across projects, each with its own case. Verification ID first, then Reference ID, wherever both appear.
 - Only FACE_MATCH (shown as **Face match**; it judges the similarity, face vs ID photo) and LIVENESS have thresholds: autoReject/autoPass, chosen as a Low/Standard/High preset, or Advanced
   (custom, super admin or staff with Calibrate). Never per individual metric. Every engine metric is shown on the case page with its fixed threshold (DEC-105).
   "Face detection confidence" = the engine's fixed > 90 value, never configurable. Risk for V4/V5 only (DEC-107): four

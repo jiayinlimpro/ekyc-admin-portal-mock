@@ -155,17 +155,21 @@ Rules changed on 2026-10-20 (Projects & Flows restructure) are marked **(changed
     applies is the one in the configuration revision of the session that ended. Verification Detail shows "New session
     allowed from …" on `REJECTED` and `FAILED` cases while a cooldown runs. [PO 2026-11-22]
 - **DEC-113** **(new)** **One case per end user: a returning Reference ID continues the same case** [PO 2026-11-22].
-  - The **Reference ID** (the merchant's own ID for the end user, DEC-97) is **unique per merchant** (answers OQ-17). It
-    identifies the end user, whatever document they scan.
+  - The **Reference ID** (the merchant's own ID for the end user, DEC-97) identifies the end user **within a project**,
+    whatever document they scan: a case is found by merchant + project + Reference ID (**changed 2026-11-22**, was "unique
+    per merchant"; answers OQ-17 and OQ-37). The merchant chooses the value and we can't control it, so the same Reference
+    ID may appear in several projects of a merchant; each project then has its own case with its own **Verification ID**
+    (DEC-114), our unique key. Cases are only ever shown inside their project (DEC-109), so they never mix.
   - A create-session request with a Reference ID whose case is `REJECTED` or `FAILED`, once its cooldown has ended
     (DEC-26), starts a **new session on the same case** (same Verification ID, DEC-114): the status goes back to `PROCESSING`
     (`lastUpdatedBy` SYSTEM), every phase's retries start again, the earlier sessions and their attempts stay in the case's
     history, and every submission costs a token as before (DEC-60).
   - This includes a case a reviewer rejected: the earlier decision stays in the case's history and the Audit Log.
-  - **Another Flow ID:** the case moves to that flow (it must be Active, DEC-95) and the new session uses its current
-    revision. A flow in **another project** of the same merchant is **not refused**: it starts a **new case** (new case
-    ID) in that project [PO 2026-11-22]. How it relates to the case in the first project (Reference ID uniqueness,
-    cooldown) is still to be explained by the PO (OQ-37).
+  - **Another Flow ID in the same project:** the case moves to that flow (it must be Active, DEC-95) and the new session
+    uses its current revision.
+  - **A flow in another project:** that project's own case for the Reference ID is used: none yet → a **new case** (new
+    Verification ID) at once; one exists → the rules above apply to it. Projects are isolated: a case, its status and its
+    cooldown in one project never affect another [PO 2026-11-22; answers OQ-37].
   - The same Reference ID while the case is `PROCESSING`, `PENDING_REVIEW` or `APPROVED` is refused (OQ-38; not expected).
   - Audit: `CASE_RESUMED` (SYSTEM) with the previous status, the session number and the flow (old → new when it moved).
   - No webhook for the return to `PROCESSING` (DEC-55 never sends it); the next delivery is the new session's result.
@@ -737,8 +741,9 @@ Rules changed on 2026-10-20 (Projects & Flows restructure) are marked **(changed
   - **Reference ID** is the **merchant's own reference** for the end user, sent when the session is created. It is stored
     alongside the Verification ID, searchable, shown in the list, and never used as the key; case URLs and webhooks use the
     Verification ID (DEC-114).
-    **(changed 2026-11-22)** Unique **per merchant**: it identifies the end user, and a returning Reference ID continues its
-    case (DEC-113; answers OQ-17).
+    **(changed 2026-11-22)** It identifies the end user **within a project**: a returning Reference ID continues that
+    project's case (DEC-113; answers OQ-17). The value is the merchant's and may repeat across projects; the Verification ID
+    is our unique key (DEC-114).
 - **DEC-114** **(new)** **Verification ID and Reference ID** [PO 2026-11-22]. The industry keeps two identifiers apart and
   names its own after the object: Persona *Inquiry ID* / *Reference ID*, Sumsub *Applicant ID* / *External user ID*, Jumio
   *Workflow Execution ID*, *Account ID* / *Customer Internal Reference*, *User Reference*, Veriff *Session ID* / *vendorData*,
@@ -902,7 +907,7 @@ These keep the mock runnable. They are not signed-off requirements; change them 
 | DEC-97 | Our case ID `ver_…`, labelled "Case ID"; code fields `caseId`, `referenceNo` | Verification ID `vrf_…`; code fields `verificationId`, `referenceId` (DEC-114) |
 | DEC-26 / OQ-22 | One cooldown, after a rejection; same end user = same ID document number | Cooldown after Rejected + cooldown after Failed; same end user = same Reference ID (DEC-26, DEC-113) |
 | DEC-32 | Decisions are final; a returning end user gets a new case | No reviewer reopen; a returning Reference ID continues its `REJECTED` or `FAILED` case after the cooldown (DEC-113) |
-| DEC-97 / OQ-17 | Reference ID uniqueness open (mock: per project) | Unique per merchant (DEC-113) |
+| DEC-97 / OQ-17 | Reference ID uniqueness open (mock: per project) | Identifies the end user within a project; may repeat across projects; Verification ID is the unique key (DEC-113, DEC-114) |
 
 ## Conflict register (old FRS / Axure → latest decision)
 | Topic | Old FRS / Axure | Latest decision |
