@@ -205,7 +205,7 @@ const VERIFICATION_ID = /^vrf_[a-z0-9]{24}$/i
 function RefSearch() {
   const navigate = useNavigate()
   const actor = useSession((s) => s.actor)
-  const { account } = useAccess()
+  const { account, inView } = useAccess()
   const [q, setQ] = useState('')
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault()
@@ -215,7 +215,9 @@ function RefSearch() {
     if (VERIFICATION_ID.test(v)) return navigate(`/verifications/${v.toLowerCase()}`) // the page checks access (DEC-72: "not found")
     const toList = `/verifications?status=ALL&referenceId=${encodeURIComponent(v)}`
     try {
-      const exact = (await verificationService.list({ referenceId: v, pageSize: 50 }, actor)).items.filter((r) => r.referenceId.toLowerCase() === v.toLowerCase())
+      // REQ: DEC-109 / DEC-113 — the project in the header: the same Reference ID may have its own case in another project.
+      const projectIds = inView.map((p) => p.projectId)
+      const exact = (await verificationService.list({ referenceId: v, projectIds, pageSize: 50 }, actor)).items.filter((r) => r.referenceId.toLowerCase() === v.toLowerCase())
       // REQ: DEC-104 — the case opens only for View details; otherwise the list shows it.
       const canOpen = exact.length === 1 && !!account && canInProject(account, 'viewCaseDetails', exact[0])
       navigate(canOpen ? `/verifications/${exact[0].verificationId}` : toList)

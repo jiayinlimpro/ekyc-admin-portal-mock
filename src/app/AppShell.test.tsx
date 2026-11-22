@@ -214,6 +214,20 @@ describe('AppShell', () => {
     await waitFor(() => expect(router.state.location.pathname).toBe(`/verifications/${verificationIdOf('KYC-260901-900010')}`))
   })
 
+  it('Given a Reference ID with a case in two projects, then the header search opens the case of the project in the header (DEC-113)', async () => {
+    useSession.getState().switchUser(OWNER) // sees both Default and SME app
+    for (const [project, variant] of [[fx('PRJ-0001'), undefined], [fx('PRJ-0002'), 'PRJ-0002']] as const) {
+      inProject(project)
+      const router = renderAt('/billing')
+      await mainNav().findByRole('link', { name: 'Billing' })
+      const box = screen.getByRole('textbox', { name: 'Go to Verification ID or Reference ID' })
+      fireEvent.change(box, { target: { value: 'KYC-260901-900034' } })
+      fireEvent.submit(box.closest('form')!)
+      await waitFor(() => expect(router.state.location.pathname).toBe(`/verifications/${verificationIdOf('KYC-260901-900034', variant)}`))
+      cleanup()
+    }
+  })
+
   it('Given ?as=<email>, then the session switches to Siti and the parameter is removed', async () => {
     const router = renderAt(`/verifications/${verificationIdOf('KYC-260901-900010')}?as=siti.yusof@atoz.example`)
     await waitFor(() => expect(useSession.getState().actor.userId).toBe(fx('USR-2026-0031')))
