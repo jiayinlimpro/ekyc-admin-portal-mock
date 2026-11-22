@@ -11,10 +11,15 @@ included (DEC-75); every case he opens is audited.
 Thresholds come from each case's flow revision and the presets (OQ-02). Atoz "Malaysian onboarding" (V4-R2):
 face match reject < 85 / approve ≥ 95, liveness reject < 70 / approve ≥ 85, 3 retries per phase (Document, Selfie on V1,
 Liveness; up to 4 submissions each, DEC-108). A result below approve sends the user to retry; when retries run out, the last
-submission decides (DEC-15, DEC-16); a document that still fails is rejected.
+submission decides (DEC-15, DEC-16); a document, or a V1 selfie when none was usable, that still fails ends **Failed**
+(DEC-112).
 
-Claim-timed scenarios (S07, S08, S09) and cooldown (S18) are relative to the moment the data was seeded. Use **Reset demo
-data** before a UAT run.
+A Rejected or Failed case continues when the same Reference ID comes back after its cooldown: a new **session** on the same
+case (DEC-113). Cooldowns are per flow: after Rejected and after Failed, default 0 (DEC-26). The mock has no button for it:
+S30–S32 are the continued cases, and the refusals (cooldown, case still in progress) are rules in `caseSessions.ts`.
+
+Claim-timed scenarios (S07, S08, S09) and cooldowns (S18, S33) are relative to the moment the data was seeded. Use **Reset
+demo data** before a UAT run.
 
 ## Access scenarios (DEC-74, DEC-76, DEC-77, DEC-104, DEC-109)
 
@@ -71,12 +76,19 @@ Settings, dashboards) open after **Go to project** on a project card.
 | S15 | KYC-260901-900015 | Vantage Default › Standard onboarding (V1) | Passport (non-MyKad) | OCR panel shows passport fields; no NRIC |
 | S16 | KYC-260901-900016 | Atoz SME app › SME director check (V3) | Liveness retries used up (2 retries), last 72.3 | PENDING_REVIEW. Ali is a **Viewer** in SME app: may view, may not claim; Nurul Huda (Reviewer) may claim, with SME app's 45-min claim timeout |
 | S17 | KYC-260901-900017 | Boring Default › Express (pilot) (V3, **Retiring**) | First liveness failed, retry pending | PROCESSING; the flow stays Retiring until this case is decided |
-| S18 | KYC-260901-900018 | Atoz Default › Foreigner onboarding (V4, High face match) | Face match below 90 on all 4 submissions | REJECTED · SYSTEM; 120-min cooldown: same end user may start a new case only 2 h after rejection (DEC-26) |
+| S18 | KYC-260901-900018 | Atoz Default › Foreigner onboarding (V4, High face match) | Face match below 90 on all 4 submissions | REJECTED · SYSTEM; Cooldown after Rejected 120 min: "New session allowed from …" 2 h after the rejection (DEC-26) |
 | S19 | KYC-260901-900019 | Vantage Default › Standard onboarding (V1, Advanced face match 82/93) | Face match (ID vs selfie) 70.0, retry pending | PROCESSING; a selfie that failed its quality check would use a Selfie retry (DEC-108) |
 | S20 | KYC-260901-900020 | Vantage Default › Standard onboarding (V1, accepts Driving License) | Driving License; face match 80.1 → 84.0 → 86.2 → 88.0 | PENDING_REVIEW, "ID face and Selfie face do not match (Retry Not Allowed)"; End-user data shows IC, licence class and validity |
 | S22 | KYC-260901-900022 | Vantage Default › Standard onboarding (V1) | Selfie too dark (brightness 14.2 ≤ 25); the user stopped | PROCESSING; Selfie "Fail: not compared with the ID"; Telemetry shows the rejected selfie and "Face match: Not run"; no duplicate-user search (DEC-105) |
 | S23 | KYC-260901-900023 | Atoz Default › Premium accounts (V5, own minimums EXIF 40 · Noise 60 · Email 50 · OSINT 30) | Checks pass; OSINT 22 | PENDING_REVIEW, "OSINT Score 22 < 30"; the other categories are OK against this flow's minimums (DEC-107) |
 | S24 | KYC-260901-900024 | Atoz Default › Premium accounts (V5) | Checks pass; EXIF 45 | APPROVED · SYSTEM: Low risk under this flow's EXIF minimum 40, though V4's fixed 50 would flag it (DEC-107) |
-| S25 | KYC-260901-900025 | Atoz Default › Malaysian onboarding (V4) | Three ID images failed; the 4th is still 300 × 240 | REJECTED · SYSTEM, "ID image smaller than 320x320 (Retry Not Allowed)"; Checks shows 3 of 3 document (OCR) retries used; 4 document tokens (DEC-108, DEC-60) |
+| S25 | KYC-260901-900025 | Atoz Default › Malaysian onboarding (V4) | Three ID images failed; the 4th is still 300 × 240 | FAILED · SYSTEM, "ID image smaller than 320x320 (Retry Not Allowed)"; Checks shows 3 of 3 document (OCR) retries used; 4 document tokens; no claim or decision; Cooldown after Failed 0, so no "New session allowed from" (DEC-108, DEC-112, DEC-60) |
 | S26 | KYC-260901-900026 | Atoz Default › Next engine trial (V6, Internal testing) | Platform test session, both checks pass | APPROVED · SYSTEM; not charged (0 tokens); seen by super admins and platform staff only (DEC-56, DEC-60) |
+| S27 | KYC-260901-900027 | Vantage Default › Standard onboarding (V1) | 4 selfies submitted, each failed the quality check (the last: sharpness 11.5); none compared | FAILED · SYSTEM, "No valid face in Selfie detected (Retry Not Allowed)"; Attempts lists 4 rejected selfies; 5 tokens (1 document, 4 selfies) (DEC-112) |
+| S28 | KYC-260901-900028 | Atoz SME app › SME director check (V3) | 3 MyKad images failed; the 4th still has no readable Address | FAILED · SYSTEM, "Address field not detected (Retry Not Allowed)" (DEC-112) |
+| S29 | KYC-260901-900029 | Vantage Default › Standard onboarding (V1, Advanced face match 82/93) | Face match 70.0 → 72.5 → 75.0, then a blurry 4th selfie (sharpness 9.0) | REJECTED · SYSTEM, "ID face and Selfie face do not match (Retry Not Allowed)", not Failed: once a selfie was compared, the last face match decides (DEC-112) |
+| S30 | KYC-260901-900030 | Atoz Default › Malaysian onboarding (V4) | Same Reference ID, 3 sessions: the 4th ID image too small (yesterday, V4-R1), then liveness below Auto-Reject (V4-R1), then both checks pass today (V4-R2) | APPROVED · SYSTEM; Sessions lists Failed, Rejected, Approved (current) with their rules and tokens; Billing has 3 lines; Audit Log has 2 `CASE_RESUMED` (DEC-113, DEC-60) |
+| S31 | KYC-260901-900031 | Atoz Default › Foreigner onboarding (V4) | Rejected ~4 h ago (face match below 90); came back 30 min ago, after the 120-min Cooldown after Rejected | PROCESSING (session 2, liveness retry pending); session 1 Rejected in Sessions (DEC-113, DEC-26) |
+| S32 | KYC-260901-900032 | Atoz Default › Premium accounts (V5), was Malaysian onboarding | Ali rejected it 70 min ago ("Face doesn’t match ID"); the same Reference ID came back on Premium accounts | PENDING_REVIEW (session 2; face match in High's review band); the case moved flow; session 1 shows Rejected by Ali Bin Ahmad; `CASE_RESUMED` names the flow move (DEC-113) |
+| S33 | KYC-260901-900033 | Atoz Default › Foreigner onboarding (V4) | The 4th passport image still 300 × 240, 17 min ago | FAILED · SYSTEM; Cooldown after Failed 30 min: "New session allowed from …" 13 min from seeding (DEC-26, DEC-112) |
 | S21 | KYC-260901-900021 | Atoz Default › Malaysian onboarding (V4) | Face match 86.0 → 87.5 → 88.0 → 89.2; face search finds an existing user (97.6) | PENDING_REVIEW for the face match only; "Existing user found" is shown for information and changes nothing (DEC-105) |

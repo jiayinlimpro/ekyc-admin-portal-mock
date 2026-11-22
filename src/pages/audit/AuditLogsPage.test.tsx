@@ -69,11 +69,18 @@ describe('Audit Logs', () => {
   })
   it('Given claims expire (time warp), then SYSTEM CASE_CLAIM_EXPIRED entries name whose claim ended', async () => {
     act(() => useDevFlags.getState().advanceTime(minutes(31)))
-    renderAt('/audit?actor=SYSTEM')
+    renderAt('/audit?actor=SYSTEM&action=CASE_CLAIM_EXPIRED')
     const r = await rows('Audit entries')
     expect(r.length).toBeGreaterThan(0)
     expect(r.every((x) => x.textContent!.includes('CASE_CLAIM_EXPIRED'))).toBe(true)
     expect(screen.getAllByText(/Claim by Ali Bin Ahmad expired/).length).toBeGreaterThan(0)
+  })
+
+  it('Given S32 came back on another flow, then a SYSTEM CASE_RESUMED entry names the session and the flow move (DEC-113)', async () => {
+    renderAt('/audit?ref=KYC-260901-900032&action=CASE_RESUMED')
+    const r = await rows('Audit entries')
+    expect(r).toHaveLength(1)
+    expect(r[0].textContent).toContain('Session 2 started by the same Reference ID: Rejected → Processing · flow Malaysian onboarding → Premium accounts')
   })
 
   it('Given a live action elsewhere, then it appears on the next load', async () => {

@@ -7,7 +7,7 @@ a draft API contract.
 
 - Rules and decisions: [docs/DECISIONS.md](docs/DECISIONS.md) (overrides the FRS and old Axure)
 - Placeholder values still to confirm: [docs/OPEN_QUESTIONS.md](docs/OPEN_QUESTIONS.md)
-- UAT scenarios S01–S15: [docs/SCENARIOS.md](docs/SCENARIOS.md)
+- UAT scenarios S01–S33: [docs/SCENARIOS.md](docs/SCENARIOS.md)
 - Engineering handoff: [docs/HANDOFF.md](docs/HANDOFF.md)
 - Access control (users, roles, permissions) for engineers: [docs/ACCESS_CONTROL.md](docs/ACCESS_CONTROL.md)
 
@@ -84,7 +84,7 @@ carry `?project=<project ID>` to open a screen in that project; case links selec
 - **Skip UI claim checks:** lets a save reach the service's ownership check (S08).
 - **Reset demo data:** run this before every UAT session. Claim timers count from when the data was seeded.
 
-**Scenarios.** Dev menu → "UAT scenarios & data coverage" lists S01–S20 with "Open as" links that sign in as the right user. To show the two-reviewer race
+**Scenarios.** Dev menu → "UAT scenarios & data coverage" lists S01–S33 with "Open as" links that sign in as the right user. To show the two-reviewer race
 (S10), open the same record in two tabs of the same browser, one with `?as=ali.ahmad@atoz.example` and one with
 `?as=siti.yusof@atoz.example`, then click **Assign to me** in both.
 

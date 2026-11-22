@@ -1,7 +1,8 @@
-// Named scenarios S01–S25 (docs/SCENARIOS.md). Each one is a UAT test case with a fixed Reference No (MOCK-05).
+// Named scenarios S01–S33 (docs/SCENARIOS.md). Each one is a UAT test case with a fixed Reference No (MOCK-05).
 // Thresholds referred to below come from the flow revision (fixtures/catalog.ts) and the presets (OQ-02).
 import { Faker, en } from '@faker-js/faker'
 import { makeAudit } from '@/domain/audit'
+import { continueCase, resumedAuditDetails } from '@/domain/caseSessions'
 import { applyDecision } from '@/domain/claimRules'
 import type { Actor, AuditEntry, Check, DocumentType, IdCaptureTelemetry, RiskScores, SelfieTelemetry, UpdatedBy, Verification, VerificationStatus } from '@/domain/types'
 import { buildCase } from '../builders'
@@ -22,6 +23,7 @@ export interface EdgeCaseExpectation {
   claimedByUserId?: string
   lastUpdatedBy?: UpdatedBy['kind']
   configRevision?: number
+  sessions?: number // REQ: DEC-113 — how many sessions the case had (default 1)
 }
 
 export const EDGE_CASES: EdgeCaseExpectation[] = [
@@ -49,6 +51,15 @@ export const EDGE_CASES: EdgeCaseExpectation[] = [
   { id: 'S24', title: 'V5: EXIF 45 is Low risk under the flow’s minimum 40 (a V4 flow would flag it)', asUserId: fx('USR-2026-0012'), referenceNo: 'KYC-260901-900024', flowId: fx('FLW-0014'), status: 'APPROVED', lastUpdatedBy: 'SYSTEM' },
   { id: 'S25', title: 'Document retries used up: 4th ID image still too small → Failed', asUserId: fx('USR-2026-0012'), referenceNo: 'KYC-260901-900025', flowId: fx('FLW-0001'), status: 'FAILED', reason: 'ID image smaller than 320x320 (Retry Not Allowed)', lastUpdatedBy: 'SYSTEM' },
   { id: 'S26', title: 'Internal test session on V6: not charged; hidden from Atoz’s users', asUserId: fx('USR-2026-0001'), referenceNo: 'KYC-260901-900026', flowId: fx('FLW-0015'), status: 'APPROVED', lastUpdatedBy: 'SYSTEM' },
+  // REQ: DEC-112 — FAILED on V1 (selfie) and V3 (document), and the V1 rule that the face match decides once a selfie was compared.
+  { id: 'S27', title: 'V1: all 4 selfies failed the quality check, none compared → Failed', asUserId: fx('USR-2026-0044'), referenceNo: 'KYC-260901-900027', flowId: fx('FLW-0005'), status: 'FAILED', reason: 'No valid face in Selfie detected (Retry Not Allowed)', lastUpdatedBy: 'SYSTEM' },
+  { id: 'S28', title: 'V3: Document retries used up, Address still not read → Failed', asUserId: fx('USR-2026-0020'), referenceNo: 'KYC-260901-900028', flowId: fx('FLW-0004'), status: 'FAILED', reason: 'Address field not detected (Retry Not Allowed)', lastUpdatedBy: 'SYSTEM' },
+  { id: 'S29', title: 'V1: 3 compared selfies below Auto-Reject, the 4th blurry → Rejected (not Failed)', asUserId: fx('USR-2026-0044'), referenceNo: 'KYC-260901-900029', flowId: fx('FLW-0005'), status: 'REJECTED', reason: 'ID face and Selfie face do not match (Retry Not Allowed)', lastUpdatedBy: 'SYSTEM' },
+  // REQ: DEC-113 / DEC-26 — a returning Reference ID continues its case; cooldowns.
+  { id: 'S30', title: 'Same Reference ID, 3 sessions: Failed → Rejected → Approved', asUserId: fx('USR-2026-0012'), referenceNo: 'KYC-260901-900030', flowId: fx('FLW-0001'), status: 'APPROVED', lastUpdatedBy: 'SYSTEM', sessions: 3 },
+  { id: 'S31', title: 'Rejected, came back after the 120-min cooldown: session 2 in progress', asUserId: fx('USR-2026-0012'), referenceNo: 'KYC-260901-900031', flowId: fx('FLW-0002'), status: 'PROCESSING', sessions: 2 },
+  { id: 'S32', title: 'Rejected by a reviewer, came back on another flow: session 2 in review', asUserId: fx('USR-2026-0012'), referenceNo: 'KYC-260901-900032', flowId: fx('FLW-0014'), status: 'PENDING_REVIEW', reason: 'Liveness face does not match ID face (Retry Not Allowed)', sessions: 2 },
+  { id: 'S33', title: 'Failed 17 min ago; 30-min Cooldown after Failed running', asUserId: fx('USR-2026-0012'), referenceNo: 'KYC-260901-900033', flowId: fx('FLW-0002'), status: 'FAILED', reason: 'ID image smaller than 320x320 (Retry Not Allowed)', lastUpdatedBy: 'SYSTEM' },
   { id: 'S21', title: 'Existing user found (duplicate, information only)', asUserId: fx('USR-2026-0012'), referenceNo: 'KYC-260901-900021', flowId: fx('FLW-0001'), status: 'PENDING_REVIEW', reason: 'Liveness face does not match ID face (Retry Not Allowed)' },
 ]
 
@@ -71,7 +82,7 @@ export function buildEdgeCases(ctx: { now: Date; catalog: Catalog }): {
     flowId: string,
     startMin: number,
     submissions: Partial<Record<Check, number[]>>,
-    opts: { riskScore?: number; documentType?: DocumentType; stepMin?: number; idCapture?: Partial<IdCaptureTelemetry>; duplicateSimilarity?: number; riskScores?: RiskScores; stoppedAtSelfie?: Partial<SelfieTelemetry>; softRejects?: number } = {},
+    opts: { riskScore?: number; documentType?: DocumentType; stepMin?: number; idCapture?: Partial<IdCaptureTelemetry>; duplicateSimilarity?: number; riskScores?: RiskScores; stoppedAtSelfie?: Partial<SelfieTelemetry>; softRejects?: number; selfieFailures?: number; lastSelfieFailed?: Partial<SelfieTelemetry>; sessionNo?: number } = {},
   ): Verification => {
     const flow = catalog.flows.find((x) => x.flowId === flowId)!
     const p = person(f, now, opts.documentType ?? 'MYKAD')
@@ -91,7 +102,31 @@ export function buildEdgeCases(ctx: { now: Date; catalog: Catalog }): {
       riskScores: opts.riskScores,
       stoppedAtSelfie: opts.stoppedAtSelfie,
       softRejects: opts.softRejects,
+      selfieFailures: opts.selfieFailures,
+      lastSelfieFailed: opts.lastSelfieFailed,
+      sessionNo: opts.sessionNo,
     })
+  }
+
+  // REQ: DEC-113 — the same Reference ID came back: each later session continues the case (CASE_RESUMED by SYSTEM).
+  // The end user is the same person: personal data from the first session.
+  const flowName = (id: string) => catalog.flows.find((x) => x.flowId === id)!.name
+  const continued = (first: Verification, ...later: Verification[]): Verification => {
+    let v = first
+    for (const next of later) {
+      const startedAt = new Date(next.createdAt)
+      const resumed = continueCase(v, { flowId: next.flowId, projectId: next.projectId, workflowVersion: next.workflowVersion, configRevision: next.configRevision }, startedAt)
+      audit.push(makeAudit({ id: '', now: startedAt, action: 'CASE_RESUMED', actor: 'SYSTEM', ip: fakeIp(f), merchantId: v.merchantId, projectId: v.projectId, caseId: v.caseId, referenceNo: v.referenceNo, details: resumedAuditDetails(v, resumed, flowName) }))
+      v = { ...next, caseId: resumed.caseId, createdAt: resumed.createdAt, sessions: resumed.sessions, pii: { ...next.pii, ...first.pii }, documentType: first.documentType }
+    }
+    return v
+  }
+  const rejectedBy = (v: Verification, actor: Actor, decidedMinAgo: number, reasonCodes: string[]): Verification => {
+    const claimed = claimFor(v, actor, decidedMinAgo + 4)
+    const decision = { outcome: 'REJECT' as const, reasonCodes }
+    const decidedAt = ago(decidedMinAgo)
+    audit.push(makeAudit({ id: '', now: decidedAt, action: 'CASE_DECISION_REJECTED', actor, actorRole: 'Reviewer', ip: fakeIp(f), merchantId: v.merchantId, projectId: v.projectId, caseId: v.caseId, referenceNo: v.referenceNo, details: { ...decision, fromStatus: 'PENDING_REVIEW', toStatus: 'REJECTED' } }))
+    return applyDecision(claimed, actor, decision, decidedAt)
   }
   const passes = (n: number) => Array.from({ length: n }, (_, i) => 95.5 + i * 0.4)
 
@@ -162,6 +197,32 @@ export function buildEdgeCases(ctx: { now: Date; catalog: Catalog }): {
     make(26, fx('FLW-0015'), 35, { FACE_MATCH: [96.0], LIVENESS: [94.0] }),
     // Vantage FLW-0005 (V1): the selfie was too dark (brightness 14.2), so the engine ended the run before Face Match.
     make(22, fx('FLW-0005'), 15, {}, { idCapture: { faceConfidence: 98.4, imageWidth: 1600, imageHeight: 1000, ocrFieldsMissing: [] }, stoppedAtSelfie: { brightness: 14.2, sharpness: 52.0, yaw: 4.0, pitch: -3.0, eyesOpen: true, occluded: false } }),
+    // Vantage FLW-0005 (V1, 3 Selfie retries): 4 selfies submitted, every one failed the quality check; nothing compared (DEC-112).
+    make(27, fx('FLW-0005'), 18, {}, { idCapture: { faceConfidence: 98.0, imageWidth: 1600, imageHeight: 1000, ocrFieldsMissing: [] }, stoppedAtSelfie: { sharpness: 11.5, brightness: 48.0, yaw: 3.0, pitch: 2.0, eyesOpen: true, occluded: false }, selfieFailures: 4 }),
+    // Atoz "SME director check" FLW-0004 (V3, 3 Document retries): the 4th MyKad image still has no readable Address (DEC-112).
+    make(28, fx('FLW-0004'), 25, {}, { softRejects: 3, idCapture: { faceConfidence: 98.1, imageWidth: 1600, imageHeight: 1000, ocrFieldsMissing: ['Address'] } }),
+    // Vantage FLW-0005 (face match Advanced < 82): 3 compared selfies below Auto-Reject, then a blurry one: Selfie retries
+    // used up, but a selfie was compared, so the last face match decides → REJECTED, not FAILED (DEC-112).
+    make(29, fx('FLW-0005'), 22, { FACE_MATCH: [70.0, 72.5, 75.0] }, { lastSelfieFailed: { sharpness: 9.0, brightness: 55.0, yaw: 2.0, pitch: 1.0, eyesOpen: true, occluded: false } }),
+    // Atoz FLW-0001 (cooldowns 0): Failed at the document (R1, yesterday), then Rejected (liveness), then Approved today (R2).
+    continued(
+      make(30, fx('FLW-0001'), 1500, {}, { softRejects: 3, idCapture: { imageWidth: 300, imageHeight: 240 } }),
+      make(30, fx('FLW-0001'), 1400, { FACE_MATCH: passes(4), LIVENESS: [20.0, 25.0, 30.0, 35.0] }, { sessionNo: 2 }),
+      make(30, fx('FLW-0001'), 60, { FACE_MATCH: [96.1], LIVENESS: [97.0] }, { sessionNo: 3 }),
+    ),
+    // Atoz "Foreigner onboarding" FLW-0002 (Rejected cooldown 120 min): rejected ~4 h ago, back 30 min ago, liveness retry pending.
+    continued(
+      make(31, fx('FLW-0002'), 260, { FACE_MATCH: [80.0, 82.0, 84.0, 83.0], LIVENESS: passes(4) }, { documentType: 'PASSPORT' }),
+      make(31, fx('FLW-0002'), 30, { FACE_MATCH: [98.0], LIVENESS: [60.0] }, { documentType: 'PASSPORT', sessionNo: 2 }),
+    ),
+    // Atoz FLW-0001 (Rejected cooldown 0): Ali rejected it 70 min ago; the same Reference ID came back on "Premium accounts"
+    // (FLW-0014, V5, face match High < 90 / ≥ 97): the case moved to that flow and is in review again.
+    continued(
+      rejectedBy(make(32, fx('FLW-0001'), 100, { FACE_MATCH: [86.0, 87.0, 88.0, 89.0], LIVENESS: passes(4) }, { riskScore: 15 }), ali, 70, ['FACE_MISMATCH']),
+      make(32, fx('FLW-0014'), 40, { FACE_MATCH: [91.0, 92.0, 93.0, 94.5], LIVENESS: passes(4) }, { riskScore: 15, sessionNo: 2 }),
+    ),
+    // Atoz FLW-0002 (Cooldown after Failed 30 min): the 4th passport image still too small, 17 min ago.
+    make(33, fx('FLW-0002'), 20, {}, { documentType: 'PASSPORT', softRejects: 3, idCapture: { imageWidth: 300, imageHeight: 240 } }),
   ]
 
   // S16: Nurul (Reviewer, SME app) looked at it a few minutes ago without claiming it.

@@ -54,8 +54,25 @@ describe('seedDatabase', () => {
       expect(flow.merchantId, v.referenceNo).toBe(v.merchantId)
       expect(v.workflowVersion, v.referenceNo).toBe(flow.workflowVersion)
       const rev = revisionOf(v.flowId, v.configRevision)
-      expect(Date.parse(rev.savedAt), v.referenceNo).toBeLessThanOrEqual(Date.parse(v.createdAt))
+      expect(Date.parse(rev.savedAt), v.referenceNo).toBeLessThanOrEqual(Date.parse(v.sessions.at(-1)!.startedAt)) // REQ: DEC-113 — the current session
       expect(rev.settings.acceptedDocuments, v.referenceNo).toContain(v.documentType)
+    }
+  })
+
+  it('Given every case, then its sessions are in order, the last is the current one, earlier ones ended Rejected or Failed, and each later one has a CASE_RESUMED entry (DEC-113)', () => {
+    for (const v of db.verifications) {
+      const last = v.sessions.at(-1)!
+      expect(v.sessions.map((x) => x.sessionNo), v.referenceNo).toEqual(v.sessions.map((_, i) => i + 1))
+      expect(v.sessions[0].startedAt, v.referenceNo).toBe(v.createdAt) // reports count the case from its first session
+      expect(last, v.referenceNo).toMatchObject({ flowId: v.flowId, workflowVersion: v.workflowVersion, configRevision: v.configRevision })
+      expect(last.ended, v.referenceNo).toBeUndefined()
+      for (const [i, x] of v.sessions.slice(0, -1).entries()) {
+        expect(['REJECTED', 'FAILED'], v.referenceNo).toContain(x.ended!.status)
+        expect(flowOf(x.flowId).projectId, v.referenceNo).toBe(v.projectId) // another project would be a new case (OQ-37)
+        expect(Date.parse(revisionOf(x.flowId, x.configRevision).savedAt)).toBeLessThanOrEqual(Date.parse(x.startedAt))
+        expect(x.ended!.at < v.sessions[i + 1].startedAt, v.referenceNo).toBe(true)
+        expect(db.audit.some((e) => e.action === 'CASE_RESUMED' && e.caseId === v.caseId && e.details.sessionNo === i + 2), v.referenceNo).toBe(true)
+      }
     }
   })
 
@@ -105,8 +122,8 @@ describe('seedDatabase', () => {
   })
 
   it('covers every status × V1/V3/V4 combination, both manual and system decisions, and both risk results', () => {
-    // REQ: DEC-112 — FAILED: S25 (V4 document) for now; V1 selfie and V3 document examples come with the demo data step.
-    for (const status of VERIFICATION_STATUSES.filter((s) => s !== 'FAILED')) {
+    // REQ: DEC-112 — FAILED too: S27 (V1 selfie), S28 (V3 document), S25 (V4 document).
+    for (const status of VERIFICATION_STATUSES) {
       for (const wf of ['V1', 'V3', 'V4']) {
         expect(db.verifications.some((v) => v.status === status && v.workflowVersion === wf), `${status} × ${wf}`).toBe(true)
       }
@@ -117,7 +134,6 @@ describe('seedDatabase', () => {
       }
     }
     for (const r of ['LOW', 'HIGH']) expect(db.verifications.some((v) => v.riskResult === r), r).toBe(true)
-    expect(db.verifications.some((v) => v.status === 'FAILED'), 'FAILED').toBe(true)
   })
 
   it('every record is charged except the Internal testing session S26 (DEC-60, DEC-56)', () => {
@@ -269,6 +285,7 @@ describe('named scenarios (docs/SCENARIOS.md)', () => {
     const v = db.verifications.find((x) => x.referenceNo === e.referenceNo)!
     expect(v).toBeDefined()
     expect(v.status).toBe(e.status)
+    expect(v.sessions).toHaveLength(e.sessions ?? 1) // REQ: DEC-113
     if (e.reason) expect(v.statusReason).toBe(e.reason)
     if (e.claimedByUserId) expect(v.claimedBy?.userId).toBe(e.claimedByUserId)
     if (e.lastUpdatedBy) expect(v.lastUpdatedBy.kind).toBe(e.lastUpdatedBy)

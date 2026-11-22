@@ -46,12 +46,19 @@ export interface CaseSpec {
   riskScores?: RiskScores
   /** V1 with no submission: the selfie the engine rejected when the user stopped (no similarity was run). */
   stoppedAtSelfie?: Partial<SelfieTelemetry>
+  /** V1 with `stoppedAtSelfie`: how many submitted selfies failed the quality check (default 1; all retries used → FAILED, DEC-112). */
+  selfieFailures?: number
+  /** V1: after the compared selfies, one more submitted selfie failed the quality check (DEC-112: the face match still decides). */
+  lastSelfieFailed?: Partial<SelfieTelemetry>
+  /** REQ: DEC-113 — the session of the case this builds (default 1); later sessions get their own attempt IDs and telemetry. */
+  sessionNo?: number
 }
 
 /** Builds a case in its SYSTEM-assigned state (checkRules.evaluateCase). Manual decisions and claims are applied afterwards. */
 export function buildCase(spec: CaseSpec): Verification {
   const rev = revisionAt(spec.revisions, spec.flow.flowId, spec.startedAt)!
-  const rand = rng(spec.referenceNo) // REQ: DEC-105 — telemetry is stable per case across resets (MOCK-05)
+  const key = (spec.sessionNo ?? 1) > 1 ? `${spec.referenceNo}#${spec.sessionNo}` : spec.referenceNo // REQ: DEC-113
+  const rand = rng(key) // REQ: DEC-105 — telemetry is stable per case across resets (MOCK-05)
   const flow: FlowContext = { checks: spec.entry.configurableChecks, faceMatchMethod: spec.entry.faceMatchMethod, hasRisk: hasRisk(spec.entry), settings: rev.settings }
 
   // REQ: DEC-17 — one attempt per submission round under the same Reference No (the round's time is on the timeline).
@@ -71,8 +78,12 @@ export function buildCase(spec: CaseSpec): Verification {
   const base = evaluateCase({ submissions: spec.submissions, document }, flow)
   const fmState = base.checks.find((c) => c.check === 'FACE_MATCH')?.state
   const room = rev.settings.retries.SELFIE + 1 - fm.length - (fmState === 'RETRY' ? 1 : 0)
-  const retakeRound = v1 && fm.length > 0 && room > 0 && rand() < 0.25 ? Math.floor(rand() * fm.length) : undefined
-  const selfie = stoppedSelfie || retakeRound !== undefined ? { failed: stoppedSelfie || retakeRound !== undefined ? 1 : 0, lastFailed: stoppedSelfie ? SELFIE_FAILED_CONDITION : undefined } : undefined
+  // REQ: DEC-112 — a failing selfie after the compared ones (the face match still decides), or several before stopping.
+  const lastSelfie = v1 && fm.length > 0 && spec.lastSelfieFailed ? { ...failingSelfie(rand), ...spec.lastSelfieFailed } : undefined
+  const earlierStopped = stoppedSelfie ? Array.from({ length: (spec.selfieFailures ?? 1) - 1 }, () => failingSelfie(rand)) : []
+  const retakeRound = !lastSelfie && v1 && fm.length > 0 && room > 0 && rand() < 0.25 ? Math.floor(rand() * fm.length) : undefined
+  const selfieFailed = stoppedSelfie ? (spec.selfieFailures ?? 1) : (retakeRound !== undefined ? 1 : 0) + (lastSelfie ? 1 : 0)
+  const selfie = selfieFailed ? { failed: selfieFailed, lastFailed: stoppedSelfie || lastSelfie ? SELFIE_FAILED_CONDITION : undefined } : undefined
   const pre = evaluateCase({ submissions: spec.submissions, document, selfie }, flow)
   // Risk runs once onboarding completes without a reject (FRS AWS flow: V4 runs risk after onboarding).
   const riskRan = flow.hasRisk && spec.riskScore !== undefined && !document.lastFailed && pre.checks.every((c) => c.state === 'PASS' || c.state === 'REVIEW')
@@ -83,14 +94,14 @@ export function buildCase(spec: CaseSpec): Verification {
     rounds === 0
       ? [
           {
-            attemptId: stableId('att', `${spec.referenceNo}:1`),
+            attemptId: stableId('att', `${key}:1`),
             attemptNo: 1,
             phase: stoppedSelfie ? 'SELFIE' : 'DOCUMENT',
             startedAt: at(0),
             outcome: ev.status === 'FAILED' ? 'COMPLETED' : (spec.abandoned ?? 'ABORTED'), // REQ: DEC-108 / DEC-112 — retries used up, no usable image
             isUserRetake: false,
             phaseScores: {},
-            ...(stoppedSelfie ? { faceImage: { fileId: stableId('file', `${spec.referenceNo}:face:1`), url: '/mock/selfie.svg' }, telemetry: { selfieRetakes: [stoppedSelfie] } } : {}),
+            ...(stoppedSelfie ? { faceImage: { fileId: stableId('file', `${key}:face:1`), url: '/mock/selfie.svg' }, telemetry: { selfieRetakes: [...earlierStopped, stoppedSelfie] } } : {}),
           },
         ]
       : Array.from({ length: rounds }, (_, i) => {
@@ -102,9 +113,9 @@ export function buildCase(spec: CaseSpec): Verification {
             const j = c === 'LIVENESS' ? i - (rounds - s.length) : i
             if (j >= 0 && j < s.length) scores[c] = s[j]
           }
-          const final = i === rounds - 1 && ev.status !== 'PROCESSING'
+          const final = i === rounds - 1 && ev.status !== 'PROCESSING' && !lastSelfie
           return {
-            attemptId: stableId('att', `${spec.referenceNo}:${i + 1}`),
+            attemptId: stableId('att', `${key}:${i + 1}`),
             attemptNo: i + 1,
             phase: 'LIVENESS',
             startedAt: at(i),
@@ -114,11 +125,24 @@ export function buildCase(spec: CaseSpec): Verification {
             ...(scores.FACE_MATCH === undefined
               ? {}
               : {
-                  faceImage: { fileId: stableId('file', `${spec.referenceNo}:face:${i + 1}`), url: spec.entry.faceMatchMethod === 'ID_VS_SELFIE' ? '/mock/selfie.svg' : '/mock/liveness.svg' },
+                  faceImage: { fileId: stableId('file', `${key}:face:${i + 1}`), url: spec.entry.faceMatchMethod === 'ID_VS_SELFIE' ? '/mock/selfie.svg' : '/mock/liveness.svg' },
                   telemetry: attemptTelemetry(rand, v1, scores.FACE_MATCH, i === retakeRound),
                 }),
           }
         })
+  // REQ: DEC-112 — V1: the last submitted selfie failed the quality check after the compared ones; nothing compared after it.
+  if (lastSelfie)
+    attempts.push({
+      attemptId: stableId('att', `${key}:${rounds + 1}`),
+      attemptNo: rounds + 1,
+      phase: 'SELFIE',
+      startedAt: at(rounds),
+      outcome: ev.status === 'PROCESSING' ? 'ABORTED' : 'COMPLETED',
+      isUserRetake: true,
+      phaseScores: {},
+      faceImage: { fileId: stableId('file', `${key}:face:${rounds + 1}`), url: '/mock/selfie.svg' },
+      telemetry: { selfieRetakes: [lastSelfie] },
+    })
 
   // REQ: DEC-03 — lastUpdatedAt only moves on status change: PROCESSING was set when the user entered the flow.
   const lastUpdatedAt = ev.status === 'PROCESSING' ? at(0) : new Date(Date.parse(attempts.at(-1)!.startedAt) + 3 * 60_000).toISOString()
