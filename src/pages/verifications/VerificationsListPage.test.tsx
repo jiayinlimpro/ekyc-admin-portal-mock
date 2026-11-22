@@ -8,7 +8,7 @@ import { devService } from '@/services/devService'
 import { DEFAULT_DEV_FLAGS, useDevFlags } from '@/stores/devFlagsStore'
 import { useSession } from '@/stores/sessionStore'
 import { ADMIN, ALI, EMPTY_OWNER, HAFIZ } from '@/test/factories'
-import { fx } from '@/lib/ids'
+import { fx, verificationIdOf } from '@/lib/ids'
 import { addDays, formatRange, mytToday } from '@/lib/dateRange'
 
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
@@ -82,7 +82,7 @@ describe('Verifications List', () => {
     renderAt('/verifications?status=ALL')
     await dataRows()
     const headers = within(table()).getAllByRole('columnheader').map((h) => h.textContent)
-    expect(headers).toEqual(['Reference ID', 'Full Name', 'Flow', 'Document', 'Status', 'Risk', 'Claimed By', 'Created (MYT)', 'Last updated (MYT)'])
+    expect(headers).toEqual(['Verification IDReference ID', 'Full Name', 'Flow', 'Document', 'Status', 'Risk', 'Claimed By', 'Created (MYT)', 'Last updated (MYT)'])
     expect(screen.queryByLabelText('Project')).toBeNull()
     cleanup()
     useSession.getState().switchUser(HAFIZ) // one project (SME app, V3: no risk)
@@ -124,13 +124,32 @@ describe('Verifications List', () => {
     for (const r of rows) expect(r.textContent).toContain('Failed')
   })
 
+  it('Given a Verification ID, when Search, then only that case; the row shows it first with the Reference ID under it (DEC-114)', async () => {
+    const router = renderAt('/verifications?status=ALL')
+    await dataRows()
+    fireEvent.change(screen.getByLabelText('Verification ID'), { target: { value: ` ${verificationIdOf('KYC-260901-900003').toUpperCase()} ` } })
+    search()
+    await waitFor(() => expect(router.state.location.search).toContain(`verificationId=${verificationIdOf('KYC-260901-900003').toUpperCase()}`))
+    await waitFor(async () => expect(await dataRows()).toHaveLength(1))
+    const th = within(table()).getAllByRole('rowheader')[0]
+    expect(within(th).getByRole('link').textContent).toBe(verificationIdOf('KYC-260901-900003'))
+    expect(th.textContent).toBe(`${verificationIdOf('KYC-260901-900003')}Reference ID KYC-260901-900003`)
+  })
+
+  it('Given the Reference ID line in the first header, when clicked, then the list sorts by Reference ID (DEC-100, DEC-114)', async () => {
+    const router = renderAt('/verifications?status=ALL')
+    await dataRows()
+    fireEvent.click(within(table()).getByRole('button', { name: 'Reference ID' }))
+    await waitFor(() => expect(router.state.location.search).toContain('sort=referenceId.asc'))
+  })
+
   it('Given Claim = Claimed by me, then S07 and S08 show with a "You" marker and the countdown under Claimed By', async () => {
     renderAt('/verifications')
     await dataRows()
     fireEvent.change(screen.getByLabelText('Claim'), { target: { value: 'MINE' } })
     search()
-    await waitFor(() => expect(screen.getByRole('link', { name: 'KYC-260901-900007' })).toBeTruthy())
-    const s08 = screen.getByRole('link', { name: 'KYC-260901-900008' }).closest('tr')!
+    await waitFor(() => expect(screen.getByRole('link', { name: verificationIdOf('KYC-260901-900007') })).toBeTruthy())
+    const s08 = screen.getByRole('link', { name: verificationIdOf('KYC-260901-900008') }).closest('tr')!
     expect(s08.textContent).toMatch(/Ali Bin AhmadYou/)
     expect(s08.textContent).toMatch(/\d+ min left/)
     expect(s08.textContent).toContain('Pending Review') // claim is not a status
@@ -157,7 +176,8 @@ describe('Verifications List', () => {
   it('Given the Super admin in Vantage Default, then its cases are listed (DEC-75, DEC-109)', async () => {
     useSession.getState().switchUser(ADMIN)
     renderAt('/verifications?status=ALL&referenceId=KYC-260901-900013', fx('PRJ-0003'))
-    const row = (await screen.findByRole('rowheader', { name: 'KYC-260901-900013' })).closest('tr')!
+    const row = (await screen.findByRole('link', { name: verificationIdOf('KYC-260901-900013') })).closest('tr')!
+    expect(row.textContent).toContain('KYC-260901-900013') // the Reference ID under it
     expect(row.textContent).toContain('Standard onboarding')
     expect(row.textContent).not.toContain('Vantage') // one project: no merchant line
   })

@@ -15,6 +15,7 @@ describe('parseListParams / toSearchParams', () => {
   it('round-trips every filter through the URL', () => {
     const p: ListParams = {
       filters: {
+        verificationId: 'vrf_tz4a98xxat96iws9zmbrgj3a',
         referenceId: 'KYC-2609',
         fullName: 'tan',
         statuses: ['PENDING_REVIEW', 'REJECTED'],

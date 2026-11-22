@@ -69,8 +69,12 @@ export function VerificationFilters({ initial, onSearch, onReset, options }: { i
   return (
     <form role="search" aria-label="Filter verifications" noValidate onSubmit={submit} className="rounded-lg border bg-card p-4">
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {/* REQ: DEC-114 — our own Verification ID first (exact), then the merchant's Reference ID. */}
+        <Field id="f-vid" label="Verification ID">
+          <Input id="f-vid" value={draft.verificationId} onChange={(e) => set('verificationId', e.target.value)} placeholder="Exact, e.g. vrf_tz4a98…" autoComplete="off" spellCheck={false} />
+        </Field>
         <Field id="f-ref" label="Reference ID">
-          <Input id="f-ref" value={draft.referenceId} onChange={(e) => set('referenceId', e.target.value)} placeholder="e.g. KYC-260901" autoComplete="off" />
+          <Input id="f-ref" value={draft.referenceId} onChange={(e) => set('referenceId', e.target.value)} placeholder="Contains…" autoComplete="off" />
         </Field>
         <Field id="f-name" label="Full Name">
           <Input id="f-name" value={draft.fullName} onChange={(e) => set('fullName', e.target.value)} placeholder="Contains…" autoComplete="off" />

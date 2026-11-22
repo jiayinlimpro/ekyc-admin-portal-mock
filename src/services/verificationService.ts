@@ -33,6 +33,7 @@ export interface VerificationSort {
 
 // REQ: DEC-43 — filters, search and sort of the Verifications List.
 export interface VerificationQuery {
+  verificationId?: string // REQ: DEC-114 — exact (case-insensitive): our own ID
   referenceId?: string // contains, case-insensitive
   fullName?: string // contains, case-insensitive
   statuses?: VerificationStatus[]
@@ -178,6 +179,7 @@ export const mockVerificationService: VerificationService = {
         if (!scope.has(v.projectId) || (asked && !asked.has(v.projectId)) || !visible(v)) return false
         if (q.flowId && v.flowId !== q.flowId) return false
         if (q.workflowVersion && v.workflowVersion !== q.workflowVersion) return false
+        if (q.verificationId && v.verificationId !== q.verificationId.trim().toLowerCase()) return false
         if (!includes(v.referenceId, q.referenceId) || !includes(v.pii.fullName, q.fullName)) return false
         if (q.statuses?.length && !q.statuses.includes(v.status)) return false
         if (q.riskResults?.length && (!v.riskResult || !q.riskResults.includes(v.riskResult))) return false

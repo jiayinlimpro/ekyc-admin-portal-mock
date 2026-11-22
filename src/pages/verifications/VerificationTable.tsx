@@ -12,7 +12,7 @@ import type { VerificationSort, VerificationSortKey } from '@/services/verificat
 
 type Column = 'Full Name' | 'Project' | 'Flow' | 'Document' | 'Status' | 'Risk' | 'Claimed By' | 'Created (MYT)' | 'Last updated (MYT)'
 
-// Sticky first column: on narrow screens the table still scrolls sideways, with the Reference ID visible.
+// Sticky first column: on narrow screens the table still scrolls sideways, with the Verification ID and Reference ID visible.
 // REQ: DEC-40 — related values share a column (second line) so the list fits a desktop screen without scrolling.
 const STICKY = 'sticky left-0 z-10 bg-card group-hover:bg-muted'
 
@@ -22,6 +22,21 @@ const SORT_KEY: Partial<Record<Column | 'Reference ID', VerificationSortKey>> = 
   Status: 'status',
   Risk: 'riskResult',
   'Last updated (MYT)': 'lastUpdatedAt',
+}
+
+/** REQ: DEC-100 — a sortable name inside a header cell (the first column's Reference ID line). */
+function SortLabel({ name, sort, onSort, className }: { name: 'Reference ID'; sort?: VerificationSort; onSort?: (by: VerificationSortKey) => void; className?: string }) {
+  const key = SORT_KEY[name]!
+  if (!onSort) return <div className={className}>{name}</div>
+  const dir = sort?.by === key ? sort.dir : undefined
+  const Icon = dir === 'asc' ? ArrowUp : dir === 'desc' ? ArrowDown : ChevronsUpDown
+  const next = dir === 'asc' ? 'sort descending' : dir === 'desc' ? 'back to the default order' : 'sort ascending'
+  return (
+    <button type="button" onClick={() => onSort(key)} title={`Click to ${next}`} className={cn('-mx-1 flex items-center gap-1 rounded px-1 hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none', dir && 'text-foreground', className)}>
+      {name}
+      <Icon aria-hidden className={cn('size-3', !dir && 'opacity-50')} />
+    </button>
+  )
 }
 
 /** REQ: DEC-100 — a column name that sorts on click (ascending → descending → default), with its state as an icon. */
@@ -134,7 +149,11 @@ export function VerificationTable({
         <caption className="sr-only">Verifications. Personal data other than Full Name is shown on the detail page only.</caption>
         <thead className="bg-muted/50 text-left text-xs text-muted-foreground">
           <tr>
-            <HeaderCell name="Reference ID" sort={sort} onSort={onSort} className="sticky left-0 z-10 bg-muted" />
+            {/* REQ: DEC-114 — our Verification ID first, the merchant's Reference ID on the second line (still sortable, DEC-100). */}
+            <th scope="col" className="sticky left-0 z-10 bg-muted px-2 py-2 align-bottom font-medium whitespace-nowrap">
+              <div>Verification ID</div>
+              <SortLabel name="Reference ID" sort={sort} onSort={onSort} className="text-[11px] font-normal" />
+            </th>
             {cells.map(([c]) => (
               <HeaderCell key={c} name={c} sort={sort} onSort={onSort} />
             ))}
@@ -153,17 +172,21 @@ export function VerificationTable({
               </tr>
             ))}
           {rows.map((r) => (
-            <tr key={r.referenceId} className="group border-t hover:bg-muted">
+            <tr key={r.verificationId} className="group border-t hover:bg-muted">
               <th scope="row" className={cn('px-2 py-2 text-left font-normal', STICKY)}>
                 {canOpen(r) ? (
                   <Link to={`/verifications/${r.verificationId}`} className="font-mono text-xs whitespace-nowrap text-blue-700 underline-offset-2 hover:underline dark:text-blue-400">
-                    {r.referenceId}
+                    {r.verificationId}
                   </Link>
                 ) : (
                   <span className="font-mono text-xs whitespace-nowrap" title="Needs View details to open">
-                    {r.referenceId}
+                    {r.verificationId}
                   </span>
                 )}
+                <div className="font-mono text-xs whitespace-nowrap text-muted-foreground">
+                  <span className="sr-only">Reference ID </span>
+                  {r.referenceId}
+                </div>
               </th>
               {cells.map(([c, render]) => (
                 <td key={c} className="px-2 py-2">
