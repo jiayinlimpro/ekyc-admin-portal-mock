@@ -50,7 +50,7 @@ export function UatPage() {
               <tr>
                 <th scope="col" className="px-4 py-2 font-medium">ID</th>
                 <th scope="col" className="px-4 py-2 font-medium">Scenario</th>
-                <th scope="col" className="px-4 py-2 font-medium">Reference ID</th>
+                <th scope="col" className="px-4 py-2 font-medium">Verification ID</th>
                 <th scope="col" className="px-4 py-2 font-medium">Expected at seed time</th>
                 <th scope="col" className="px-4 py-2 font-medium">Open as</th>
               </tr>
@@ -60,10 +60,12 @@ export function UatPage() {
                 <tr key={s.id} className="border-t">
                   <td className="px-4 py-2 font-mono text-xs">{s.id}</td>
                   <td className="px-4 py-2">{s.title}</td>
+                  {/* REQ: DEC-114 — Verification ID first (opens the case), the Reference ID under it. */}
                   <td className="px-4 py-2 font-mono text-xs">
-                    <Link to={`/verifications/${s.verificationId}`} className="text-blue-700 underline-offset-2 hover:underline dark:text-blue-400">
-                      {s.referenceId}
+                    <Link to={`/verifications/${s.verificationId}`} className="whitespace-nowrap text-blue-700 underline-offset-2 hover:underline dark:text-blue-400">
+                      {s.verificationId}
                     </Link>
+                    <div className="whitespace-nowrap text-muted-foreground">{s.referenceId}</div>
                   </td>
                   <td className="px-4 py-2">
                     <StatusBadge status={s.expectedStatus} />

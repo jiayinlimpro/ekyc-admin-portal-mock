@@ -148,7 +148,7 @@ function ProjectCrumbs() {
 function Breadcrumb() {
   const { pathname } = useLocation()
   const meta = routeMetaFor(pathname)
-  const pageTitle = usePageTitle((s) => s.titles[pathname]) // e.g. the case's Reference ID
+  const pageTitle = usePageTitle((s) => s.titles[pathname]) // e.g. the case's Verification ID
   if (!meta) return null
   const inner = meta.item.layer === 'inner'
   // REQ: DEC-109 — outer: Merchants › … ; inner: Merchant ▾ / Project ▾ › group › the screens it is opened from › this screen.
@@ -162,15 +162,16 @@ function Breadcrumb() {
     <nav aria-label="Breadcrumb" className="min-w-0">
       <ol className="flex items-center gap-1 text-sm text-muted-foreground">
         {inner && <ProjectCrumbs />}
+        {/* The page's own crumb (e.g. a long Verification ID, DEC-114) truncates first; the crumbs before it keep their width. */}
         {parts.map((p, i) => (
-          <li key={i} className="flex min-w-0 items-center gap-1">
+          <li key={i} className={cn('flex items-center gap-1', i === parts.length - 1 ? 'min-w-0 shrink-[100]' : 'shrink-0 whitespace-nowrap')}>
             {(i > 0 || inner) && <ChevronRight className="size-3.5 shrink-0" aria-hidden />}
             {p.to ? (
               <Link to={p.to} className="hover:text-foreground">
                 {p.label}
               </Link>
             ) : (
-              <span className={i === parts.length - 1 ? 'truncate font-medium text-foreground' : 'truncate'} aria-current={i === parts.length - 1 ? 'page' : undefined}>
+              <span className={i === parts.length - 1 ? 'truncate font-medium text-foreground' : 'truncate'} aria-current={i === parts.length - 1 ? 'page' : undefined} title={i === parts.length - 1 ? p.label : undefined}>
                 {p.label}
               </span>
             )}

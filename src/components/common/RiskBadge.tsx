@@ -17,5 +17,5 @@ export function RiskBadge({ result }: { result?: RiskResult }) {
         <span className="sr-only">Not applicable</span>
       </span>
     )
-  return <span className={cn('inline-flex items-center rounded-md border px-1.5 py-0.5 text-xs font-medium', STYLES[result])}>{RISK_RESULT_LABELS[result]}</span>
+  return <span className={cn('inline-flex items-center rounded-md border px-1.5 py-0.5 text-xs font-medium whitespace-nowrap', STYLES[result])}>{RISK_RESULT_LABELS[result]}</span>
 }
