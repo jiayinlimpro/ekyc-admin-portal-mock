@@ -9,11 +9,11 @@ test('S10: first reviewer wins the claim, the second is refused and sees who hol
   const ref = S10_VERIFICATION_ID
   const ali = await context.newPage()
   await ali.goto(`/verifications/${ref}?as=ali.ahmad@atoz.example`)
-  await expect(ali.getByRole('heading', { level: 1, name: 'KYC-260901-900010' })).toBeVisible()
+  await expect(ali.getByRole('heading', { level: 1, name: S10_VERIFICATION_ID })).toBeVisible()
 
   const siti = await context.newPage()
   await siti.goto(`/verifications/${ref}?as=siti.yusof@atoz.example`)
-  await expect(siti.getByRole('heading', { level: 1, name: 'KYC-260901-900010' })).toBeVisible()
+  await expect(siti.getByRole('heading', { level: 1, name: S10_VERIFICATION_ID })).toBeVisible()
   await expect(siti.getByRole('button', { name: 'Assign to me' })).toBeVisible()
 
   // Ali claims first.

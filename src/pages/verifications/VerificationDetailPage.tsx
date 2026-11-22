@@ -82,7 +82,7 @@ function SimulateOtherClaim({ v, actor, reviewers, onDone }: { v: VerificationDe
           onClick={() =>
             verificationService.claim(v.verificationId, pick as Actor).then(
               (d) => {
-                toast.info(`${pick.fullName} claimed ${v.referenceId}`)
+                toast.info(`${pick.fullName} claimed ${v.verificationId}`)
                 onDone(d)
               },
               (e: unknown) => toast.error(message(e)),

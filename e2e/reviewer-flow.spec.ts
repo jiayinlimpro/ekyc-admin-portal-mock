@@ -13,9 +13,11 @@ test('reviewer finds an unclaimed pending record, claims it, approves it, and th
   await expect(page.locator('table[aria-busy="false"] tbody tr').first()).toBeVisible()
 
   // Open S03 directly from the filtered list via the top-bar search.
-  await page.getByLabel('Go to Reference ID').fill('KYC-260901-900003')
-  await page.getByLabel('Go to Reference ID').press('Enter')
-  await expect(page.getByRole('heading', { level: 1, name: 'KYC-260901-900003' })).toBeVisible()
+  // REQ: DEC-114 — the header search takes a Reference ID too; the case page's heading is its Verification ID.
+  await page.getByLabel('Go to Verification ID or Reference ID').fill('KYC-260901-900003')
+  await page.getByLabel('Go to Verification ID or Reference ID').press('Enter')
+  await expect(page.getByRole('heading', { level: 1, name: /^vrf_[a-z0-9]{24}$/ })).toBeVisible()
+  await expect(page.getByText('KYC-260901-900003', { exact: true })).toBeVisible()
 
   await page.getByRole('button', { name: 'Assign to me' }).click()
   await expect(page.getByText('You are reviewing this record.')).toBeVisible()
