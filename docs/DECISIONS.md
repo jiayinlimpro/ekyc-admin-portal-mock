@@ -19,7 +19,7 @@ Rules changed on 2026-10-20 (Projects & Flows restructure) are marked **(changed
   |---|---|
   | Merchant | Contract, plan, billing · user accounts · portal login security · default branding and language |
   | Project | Members and roles · auto-release claim timeout · API keys, webhook · redirect URLs, allowed web origins, IP allowlist · branding override, language · data retention (OQ-21) |
-  | Flow | Workflow version (locked once active) · check thresholds · retries allowed, cooldowns (after Failed per phase, after Rejected) · accepted documents · risk thresholds (V4, V5) · session expiry |
+  | Flow | Workflow version (locked once active) · check thresholds · retries allowed, cooldowns (after Rejected, after Failed) · accepted documents · risk thresholds (V4, V5) · session expiry |
 
 - **DEC-92** Every merchant starts with a **Default** project. Creating a merchant also creates its Default project with one
   Draft flow, "First flow", built on the registry's default version (DEC-57), and its first user as Merchant Owner (FRS
@@ -145,8 +145,11 @@ Rules changed on 2026-10-20 (Projects & Flows restructure) are marked **(changed
   flow or the whole project, is OQ-22. Verification Detail shows "New case allowed from …" on rejected cases. [PO 2026-10-20]
   **(changed 2026-11-22)** Two kinds of cooldown per flow, each in whole minutes, `>= 0`, default 0 (= at once):
   - **Cooldown after Rejected** (the existing field, relabelled), after a `REJECTED` case.
-  - **Cooldown after Failed**, one per phase that can end in `FAILED` (DEC-112): **Document (OCR)**, and **Selfie** on V1.
-    Shown beside that phase's "Retries allowed" (DEC-108). Liveness has none: it never ends in `FAILED`.
+  - **Cooldown after Failed**, after a `FAILED` case (DEC-112), whichever phase failed (Document, or the V1 selfie). One
+    value per flow, not per phase [PO 2026-11-22].
+  - The case's status picks the cooldown, not the phase: in the V1 selfie stage, no usable selfie (`FAILED`) uses the
+    Failed cooldown and a face mismatch (`REJECTED`) the Rejected one. Liveness never ends in `FAILED`. A reviewer's reject
+    uses the Rejected cooldown.
   - The same end user is the **same Reference ID** of the same merchant (DEC-113; answers OQ-22). Until the cooldown ends a
     new session with that Reference ID is refused; after it, the session continues the same case. The cooldown that
     applies is the one in the configuration revision of the session that ended. Verification Detail shows "New session
@@ -335,7 +338,7 @@ Rules changed on 2026-10-20 (Projects & Flows restructure) are marked **(changed
   |---|---|---|---|---|
   | General: name, description, workflow version (locked once active) | ✓ | ✓ | ✓ | ✓ |
   | Thresholds: similarity, liveness (DEC-19) | ✓ | ✓ | ✓ | ✓ |
-  | Retries allowed per phase: Document (OCR), Selfie (V1), Liveness (DEC-108) · cooldown after Failed per phase, cooldown after Rejected (DEC-26) | ✓ | ✓ | ✓ | ✓ |
+  | Retries allowed per phase: Document (OCR), Selfie (V1), Liveness (DEC-108) · cooldown after Rejected, cooldown after Failed (DEC-26) | ✓ | ✓ | ✓ | ✓ |
   | Accepted documents (MyKad, Passport, Driving License) | ✓ | ✓ | ✓ | ✓ |
   | Session expiry | ✓ | ✓ | ✓ | ✓ |
   | Risk minimums per category (DEC-107) | | | read-only (fixed) | ✓ |
@@ -861,7 +864,7 @@ These keep the mock runnable. They are not signed-off requirements; change them 
 | DEC-95 / OQ-18 | Routing rules and % shares set through the API, shown read-only in Project Settings › Routing | Every session names its flow (`flowId` required); no routing (DEC-95) |
 | DEC-01 | Exactly four statuses | Five: `FAILED` added (DEC-112) |
 | DEC-16 / DEC-108 | A document or V1 selfie still failing when its retries are used up → `REJECTED` | `FAILED` (DEC-112) |
-| DEC-26 / OQ-22 | One cooldown, after a rejection; same end user = same ID document number | Cooldown after Rejected + cooldown after Failed per phase; same end user = same Reference ID (DEC-26, DEC-113) |
+| DEC-26 / OQ-22 | One cooldown, after a rejection; same end user = same ID document number | Cooldown after Rejected + cooldown after Failed; same end user = same Reference ID (DEC-26, DEC-113) |
 | DEC-32 | Decisions are final; a returning end user gets a new case | No reviewer reopen; a returning Reference ID continues its `REJECTED` or `FAILED` case after the cooldown (DEC-113) |
 | DEC-97 / OQ-17 | Reference ID uniqueness open (mock: per project) | Unique per merchant (DEC-113) |
 

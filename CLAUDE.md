@@ -53,7 +53,7 @@ UAT scenarios: `docs/SCENARIOS.md`.
   fail when retries are used up → FAILED (DEC-112). Tokens = every submission: document, V1 selfie, liveness (OQ-35). Retries keep the same referenceNo.
 - PROCESSING records are read-only. No reviewer reopen, no Request Resubmission; a REJECTED or FAILED case continues
   only when the same Reference ID starts a new session after its cooldown (DEC-113; cooldowns DEC-26: after Rejected, and
-  after Failed per phase, default 0). Reasons come from the project's
+  after Failed, default 0). Reasons come from the project's
   decision reasons (DEC-106), not the engine conditions (DEC-35): Reject one or more, Approve exactly one; note optional
   unless the reason requires it (Other).
 - Claim is NOT a status: `claimedBy` / `claimedAt` / `claimExpiresAt`. One owner, per-project timeout, ends only by
