@@ -159,6 +159,37 @@ describe('Members, in the project sidebar (DEC-77, DEC-109)', () => {
     fireEvent.click(p.getByRole('button', { name: /Add member/ }))
     expect((await p.findByRole('rowheader', { name: 'Siti Aminah Binti Yusof' })).closest('tr')!.textContent).toContain('Reviewer')
   })
+
+  it('Given New person, then Hafiz invites someone new: listed here as Reviewer, Pending, and a Member of the merchant (DEC-77, OQ-27)', async () => {
+    useSession.getState().switchUser(HAFIZ)
+    renderAt('/members')
+    const p = within(await screen.findByRole('region', { name: 'Members' }))
+    fireEvent.click(await p.findByRole('radio', { name: 'New person' }))
+    expect(p.queryByLabelText('User')).toBeNull()
+    fireEvent.change(p.getByLabelText('Full name'), { target: { value: 'Farah Binti Ismail' } })
+    fireEvent.change(p.getByLabelText('Email'), { target: { value: 'farah.ismail@atoz.example' } })
+    const role = p.getByLabelText('Project role')
+    await waitFor(() => expect(within(role).getAllByRole('option').length).toBeGreaterThan(1))
+    fireEvent.change(role, { target: { value: fx('ROL-2026-0003') } })
+    fireEvent.click(p.getByRole('button', { name: /Invite/ }))
+    const row = (await p.findByRole('rowheader', { name: 'Farah Binti Ismail' })).closest('tr')!
+    expect(row.textContent).toContain('Reviewer')
+    expect(row.textContent).toContain('Pending')
+    const farah = db.state().accounts.find((a) => a.email === 'farah.ismail@atoz.example')!
+    expect(farah.assignments.map((x) => x.scope.kind)).toEqual(['ALL_PROJECTS', 'PROJECTS']) // Member + the project role
+  })
+
+  it('Given Aaron (Users › Invite only), then Members opens with New person only, and no project role he could give (DEC-74, DEC-77)', async () => {
+    useSession.getState().switchUser({ userId: fx('USR-2026-0022'), fullName: 'Aaron Teoh' })
+    useSession.getState().selectProject(fx('PRJ-0001'))
+    renderAt('/members')
+    const p = within(await screen.findByRole('region', { name: 'Members' }))
+    await waitFor(() => expect(p.getByLabelText('Project role')).toHaveProperty('disabled', true))
+    expect(p.queryByRole('radio', { name: 'Existing user' })).toBeNull()
+    expect(p.getByLabelText('Full name')).toBeTruthy()
+    expect(p.getByText(/You hold no project permissions/)).toBeTruthy()
+    expect(p.queryByRole('button', { name: /^Remove / })).toBeNull()
+  })
 })
 
 describe('No access yet (DEC-73)', () => {

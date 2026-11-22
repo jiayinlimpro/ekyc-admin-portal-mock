@@ -221,7 +221,7 @@ describe('userAdminService.inviteMember: a new person from Project › Members (
     // The Users screen shows them as Member, with the project access in the details.
     expect((await users.list(OWNER)).find((u) => u.userId === r.userId)).toMatchObject({ merchantRoleName: 'Member', status: 'PENDING' })
     expect((await users.get(r.userId, OWNER)).projectRoles).toEqual([expect.objectContaining({ projectId: fx('PRJ-0002'), roleName: 'Reviewer' })])
-    expect(mayInProject({ userId: r.userId, fullName: a.fullName }, 'viewCases', fx('PRJ-0001'))).toBe(false) // nothing in Default
+    expect(mayInProject({ userId: r.userId }, 'viewCases', fx('PRJ-0001'))).toBe(false) // nothing in Default
     expect(await lastAudit('USER_INVITED')).toMatchObject({ projectId: fx('PRJ-0002'), details: expect.objectContaining({ access: 'Member', fromProjectId: fx('PRJ-0002') }) })
     expect(await lastAudit('USER_ACCESS_ADDED')).toMatchObject({ projectId: fx('PRJ-0002'), details: expect.objectContaining({ userId: r.userId }) })
   })
