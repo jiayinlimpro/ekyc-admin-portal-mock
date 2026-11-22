@@ -8,8 +8,9 @@
 //   POST   /users/{id}/suspend | /reactivate        suspend/reactivate → 200 UserRow
 //   GET    /projects/{id}/members                   listMembers        → 200 MemberRow[]
 //   POST   /projects/{id}/members                   addMember          → 200 MemberRow[]
+//   POST   /projects/{id}/members/invitations       inviteMember       → 200 { members, userId, existing } | 403 | 422
 //   DELETE /projects/{id}/members/{uid}/{aid}       removeMember       → 200 MemberRow[]
-import { canInMerchant, canInProject, hasProject, isInternal } from '@/domain/access'
+import { canAnyInProject, canInMerchant, canInProject, hasProject, isInternal } from '@/domain/access'
 import { makeAudit } from '@/domain/audit'
 import { CLEARED_CLAIM, isClaimActive } from '@/domain/claimRules'
 import { canGrant, chipLabel, covers, DEFAULT_MERCHANT_ROLE_ID, effectivePermissions, isStaffEmail, GRANT_TOO_POWERFUL, grantsOf, lastOwnerError, SYSTEM_ROLE_IDS, validateAssignment } from '@/domain/roles'
@@ -71,6 +72,20 @@ export interface UserDetail extends UserRow {
   effective: { projectId: string; projectName: string; permissions: { permission: Permission; from: string[] }[] }[]
 }
 
+/** REQ: DEC-77 / OQ-27 — a new person from Project › Members: their name and email, and the project role. */
+export interface InviteMemberInput {
+  fullName: string
+  email: string
+  roleId: string
+}
+
+export interface InviteMemberResult {
+  members: MemberRow[]
+  userId: string
+  /** The email already belonged to a user of this merchant: the project role was added to them (no second account). */
+  existing: boolean
+}
+
 /** A row on a project's Members tab (DEC-77): everyone with access, merchant-role access marked inherited. */
 export interface MemberRow {
   userId: string
@@ -95,6 +110,8 @@ export interface UserAdminService {
   /** Users of the project's merchant who could be added (not suspended). */
   memberCandidates(projectId: string, actor: Actor): Promise<Pick<UserRow, 'userId' | 'fullName' | 'email'>[]>
   addMember(projectId: string, userId: string, roleId: string, actor: Actor): Promise<MemberRow[]>
+  /** REQ: DEC-77 / OQ-27 — New person: a merchant user with the Member role, plus the project role here. */
+  inviteMember(projectId: string, input: InviteMemberInput, actor: Actor): Promise<InviteMemberResult>
   removeMember(projectId: string, userId: string, assignmentId: string, actor: Actor): Promise<MemberRow[]>
 }
 
@@ -297,14 +314,18 @@ function membersOf(actor: Actor, p: Project): MemberRow[] {
     .sort((x, y) => Number(y.roles.some((r) => r.inherited)) - Number(x.roles.some((r) => r.inherited)) || x.fullName.localeCompare(y.fullName))
 }
 
-/** The project, if the actor may view (or manage) its members; otherwise "not found" / "forbidden" (DEC-72, DEC-102). */
-function membersProject(actor: Actor, projectId: string, action: 'viewMembers' | 'manageMembers' = 'manageMembers'): Project {
+/**
+ * The project, if the actor may view (or manage) its members; otherwise "not found" / "forbidden" (DEC-72, DEC-102).
+ * REQ: DEC-77 — Users › Invite (merchant level) also opens Members, to invite a new person.
+ */
+function membersProject(actor: Actor, projectId: string, action: 'viewMembers' | 'manageMembers' | 'inviteMembers' = 'manageMembers'): Project {
   const me = accountOf(actor)
   const p = projectOf(projectId)
   if (!p || !hasProject(me, p)) {
     throw new ServiceError('NOT_FOUND', `Project ${projectId} not found.`)
   }
-  if (!canInProject(me, action, p)) throw new ServiceError('FORBIDDEN', `You do not have permission to ${action === 'viewMembers' ? 'view' : 'manage'} members in this project.`)
+  const ok = action === 'manageMembers' ? canInProject(me, 'manageMembers', p) : canAnyInProject(me, [action === 'viewMembers' ? 'viewMembers' : 'manageMembers', 'inviteUsers'], p)
+  if (!ok) throw new ServiceError('FORBIDDEN', `You do not have permission to ${action === 'viewMembers' ? 'view' : 'manage'} members in this project.`)
   return p
 }
 
@@ -451,6 +472,52 @@ export const mockUserAdminService: UserAdminService = {
     putAccount({ ...a, assignments: [...a.assignments, assignment] })
     auditAccess(actor, 'USER_ACCESS_ADDED', a.merchantId, { userId, fullName: a.fullName, assignmentId: assignment.assignmentId, summary: `${a.fullName}: ${label(assignment)} added` }, projectId)
     return wire(membersOf(actor, p))
+  },
+
+  // REQ: DEC-77 / OQ-27 — Members › Add / remove here, or Users › Invite (merchant level). One step: the merchant user with
+  // the Member role (no permissions; Pending, invitation sent) and the project role in this project only.
+  async inviteMember(projectId, input, actor) {
+    await simulateNetwork('invite member')
+    const me = requireActive(actor)
+    const p = membersProject(actor, projectId, 'inviteMembers')
+    if (p.status !== 'ACTIVE') throw validation([{ field: 'scope', message: 'Archived projects keep their members but take no new ones.' }])
+    if (!input.roleId) throw validation([{ field: 'roleId', message: 'Choose a role.' }])
+    const email = input.email.trim().toLowerCase()
+    const known = db.state().accounts.find((a) => a.email.toLowerCase() === email)
+    // The email is already a user of this merchant: add the project role to them, no second account (DEC-104).
+    if (known && known.merchantId === p.merchantId) {
+      if (known.status === 'SUSPENDED') throw validation([{ field: 'email', message: `${known.fullName} is suspended. Reactivate them on the Users screen first.` }])
+      notSelf(actor, known)
+      const role = checkProjectRole(me, p, input.roleId)
+      if (known.assignments.some((x) => x.roleId === role.roleId && x.scope.kind === 'PROJECTS' && x.scope.projectIds.includes(projectId))) {
+        throw validation([{ field: 'email', message: `${known.fullName} is already ${role.name} in this project.` }])
+      }
+      const assignment: RoleAssignment = { assignmentId: nextAssignmentId(), roleId: role.roleId, scope: { kind: 'PROJECTS', projectIds: [projectId] }, addedBy: by(actor), addedAt: now().toISOString() }
+      putAccount({ ...known, assignments: [...known.assignments, assignment] })
+      auditAccess(actor, 'USER_ACCESS_ADDED', p.merchantId, { userId: known.userId, fullName: known.fullName, assignmentId: assignment.assignmentId, summary: `${known.fullName}: ${label(assignment)} added` }, projectId)
+      return wire({ members: membersOf(actor, p), userId: known.userId, existing: true })
+    }
+    // Otherwise a new merchant user: the same checks as New user (another merchant's email, staff domain → refused).
+    requireNewUser(input, 'MERCHANT')
+    const role = checkProjectRole(me, p, input.roleId)
+    const at = now().toISOString()
+    const member = roleOf(DEFAULT_MERCHANT_ROLE_ID)!
+    const project: RoleAssignment = { assignmentId: nextAssignmentId(), roleId: role.roleId, scope: { kind: 'PROJECTS', projectIds: [projectId] }, addedBy: by(actor), addedAt: at }
+    const account: UserAccount & { merchantId: string } = {
+      userId: newId('usr'),
+      fullName: input.fullName.trim(),
+      email,
+      level: 'MERCHANT_USER',
+      merchantId: p.merchantId,
+      assignments: [{ assignmentId: nextAssignmentId(), roleId: member.roleId, scope: { kind: 'ALL_PROJECTS' }, addedBy: by(actor), addedAt: at }, project],
+      status: 'PENDING',
+      invitationId: newId('inv'),
+      invitedAt: at,
+    }
+    db.setState((st) => ({ accounts: [...st.accounts, account] }))
+    auditAccess(actor, 'USER_INVITED', p.merchantId, { userId: account.userId, fullName: account.fullName, email, access: member.name, fromProjectId: projectId, summary: `${account.fullName} invited as ${member.name} from project ${p.name}` }, projectId)
+    auditAccess(actor, 'USER_ACCESS_ADDED', p.merchantId, { userId: account.userId, fullName: account.fullName, assignmentId: project.assignmentId, summary: `${account.fullName}: ${label(project)} added` }, projectId)
+    return wire({ members: membersOf(actor, p), userId: account.userId, existing: false })
   },
 
   async removeMember(projectId, userId, assignmentId, actor) {

@@ -8,7 +8,7 @@
 //   POST /merchants/{id}/roles                create            → 201 Role | 403 | 422 (with projectId: a project role)
 //   PUT  /roles/{id}                          update            → 200 Role | 403 | 422
 //   POST /roles/{id}/status                   setStatus         → 200 Role | 422 (still assigned)
-import { canInMerchant, canInProject, canOnPlatform, hasProject, isInternal } from '@/domain/access'
+import { canAnyInProject, canInMerchant, canInProject, canOnPlatform, hasProject, isInternal } from '@/domain/access'
 import { canGrant, GRANT_TOO_POWERFUL, holdersOf, PLATFORM_DEFAULT_ROLES, SYSTEM_DEFAULT_ROLES, validateRole, validateRoleStatus, withImpliedPermissions } from '@/domain/roles'
 import type { Actor, AssignmentScope, Permission, Project, Role, RoleAudience, RoleStatus } from '@/domain/types'
 import { now } from '@/lib/clock'
@@ -201,7 +201,8 @@ export const mockRoleService: RoleService = {
     if (projectId) {
       // REQ: DEC-77 / DEC-104 — Members: that project's roles the actor may give there.
       const p = loadProject(me, projectId)
-      if (p.merchantId !== merchantId || !canInProject(me, 'manageMembers', p)) throw new ServiceError('FORBIDDEN', 'You do not manage members in this project.')
+      // REQ: DEC-77 / OQ-27 — Users › Invite may invite a new person from Members too.
+      if (p.merchantId !== merchantId || !canAnyInProject(me, ['manageMembers', 'inviteUsers'], p)) throw new ServiceError('FORBIDDEN', 'You do not manage members in this project.')
       return wire(projectRolesOf(projectId).filter((r) => r.status === 'ACTIVE' && canGrant(g, r.permissions, { kind: 'PROJECTS', projectIds: [projectId] })).sort(byOrder))
     }
     // REQ: DEC-104 — New user and Change role: merchant roles (the whole merchant).

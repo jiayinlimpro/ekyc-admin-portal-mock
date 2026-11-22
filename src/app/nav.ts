@@ -211,7 +211,7 @@ export const NAV_ITEMS: NavItem[] = [
     layer: 'inner',
     group: 'User Management',
     inMenu: true,
-    access: { project: 'viewMembers' },
+    access: { project: ['viewMembers', 'inviteUsers'] }, // REQ: DEC-77 — Users › Invite invites from here too
     priority: 'P1',
     built: true,
     notes: ['Everyone with access to this project; project roles are given here (merchant-role users listed as inherited).'],

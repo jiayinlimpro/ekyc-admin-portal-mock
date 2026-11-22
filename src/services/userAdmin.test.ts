@@ -204,6 +204,62 @@ describe('userAdminService: a project’s Members tab (DEC-77, DEC-104)', () => 
   })
 })
 
+describe('userAdminService.inviteMember: a new person from Project › Members (DEC-77, OQ-27)', () => {
+  const NEW = { fullName: 'Farah Binti Ismail', email: ' Farah.Ismail@atoz.example ', roleId: REVIEWER }
+  const AARON = { userId: fx('USR-2026-0022'), fullName: 'Aaron Teoh' } // User Coordinator: Users View + Invite, no project permissions
+
+  it('Given Hafiz (Members › Add / remove in SME app, no Users permission), then the person becomes a Pending merchant user with Member, plus Reviewer in SME app only', async () => {
+    const r = await users.inviteMember(fx('PRJ-0002'), NEW, HAFIZ)
+    expect(r.existing).toBe(false)
+    const a = account(r.userId)
+    expect(a).toMatchObject({ email: 'farah.ismail@atoz.example', fullName: 'Farah Binti Ismail', merchantId: fx('MER-0001'), level: 'MERCHANT_USER', status: 'PENDING' })
+    expect(a.assignments.map((x) => [x.roleId, x.scope])).toEqual([
+      [MEMBER, { kind: 'ALL_PROJECTS' }],
+      [REVIEWER, { kind: 'PROJECTS', projectIds: [fx('PRJ-0002')] }],
+    ])
+    expect(r.members.find((m) => m.userId === r.userId)).toMatchObject({ status: 'PENDING', roles: [expect.objectContaining({ roleName: 'Reviewer', inherited: false })] })
+    // The Users screen shows them as Member, with the project access in the details.
+    expect((await users.list(OWNER)).find((u) => u.userId === r.userId)).toMatchObject({ merchantRoleName: 'Member', status: 'PENDING' })
+    expect((await users.get(r.userId, OWNER)).projectRoles).toEqual([expect.objectContaining({ projectId: fx('PRJ-0002'), roleName: 'Reviewer' })])
+    expect(mayInProject({ userId: r.userId, fullName: a.fullName }, 'viewCases', fx('PRJ-0001'))).toBe(false) // nothing in Default
+    expect(await lastAudit('USER_INVITED')).toMatchObject({ projectId: fx('PRJ-0002'), details: expect.objectContaining({ access: 'Member', fromProjectId: fx('PRJ-0002') }) })
+    expect(await lastAudit('USER_ACCESS_ADDED')).toMatchObject({ projectId: fx('PRJ-0002'), details: expect.objectContaining({ userId: r.userId }) })
+  })
+
+  it('Given the email of a user of this merchant, then the project role is added to that user, no second account', async () => {
+    const before = db.state().accounts.length
+    const r = await users.inviteMember(fx('PRJ-0002'), { fullName: 'whatever', email: 'SITI.YUSOF@atoz.example', roleId: REVIEWER }, HAFIZ)
+    expect(r).toMatchObject({ existing: true, userId: SITI.userId })
+    expect(db.state().accounts).toHaveLength(before)
+    expect(projectRole(SITI.userId, fx('PRJ-0002')).roleId).toBe(REVIEWER)
+    await expect(users.inviteMember(fx('PRJ-0002'), { fullName: 'x', email: 'siti.yusof@atoz.example', roleId: REVIEWER }, HAFIZ)).rejects.toMatchObject({ message: 'Siti Aminah Binti Yusof is already Reviewer in this project.' })
+  })
+
+  it('Given another merchant’s user or a company staff email, then refused as on New user (one merchant per user)', async () => {
+    await expect(users.inviteMember(fx('PRJ-0002'), { ...NEW, email: 'kavitha.s@vantage.example' }, HAFIZ)).rejects.toMatchObject({ code: 'VALIDATION' })
+    await expect(users.inviteMember(fx('PRJ-0002'), { ...NEW, email: 'someone@ekyc-platform.example' }, HAFIZ)).rejects.toMatchObject({ code: 'VALIDATION' })
+    await expect(users.inviteMember(fx('PRJ-0002'), { ...NEW, fullName: 'Fa' }, HAFIZ)).rejects.toMatchObject({ code: 'VALIDATION' })
+  })
+
+  it('Given no Members › Add / remove and no Users › Invite (Ali, Viewer in SME app), then refused; Owner (both, merchant-wide) may in every project', async () => {
+    await expect(users.inviteMember(fx('PRJ-0002'), NEW, ALI)).rejects.toMatchObject({ code: 'FORBIDDEN' })
+    expect((await users.inviteMember(fx('PRJ-0001'), NEW, OWNER)).existing).toBe(false)
+    expect((await users.inviteMember(fx('PRJ-0002'), { ...NEW, email: 'farah.ismail@atoz.example' }, OWNER)).existing).toBe(true)
+  })
+
+  it('Given Aaron (Users › Invite only), then Members opens for him in every project, but he holds no project permissions, so no project role can be given (DEC-74)', async () => {
+    expect((await users.listMembers(fx('PRJ-0001'), AARON)).length).toBeGreaterThan(0)
+    expect(await roleService.assignable(fx('MER-0001'), AARON, fx('PRJ-0001'))).toEqual([])
+    await expect(users.inviteMember(fx('PRJ-0001'), NEW, AARON)).rejects.toMatchObject({ code: 'FORBIDDEN', message: GRANT_TOO_POWERFUL })
+    await expect(users.addMember(fx('PRJ-0001'), SITI.userId, REVIEWER, AARON)).rejects.toMatchObject({ code: 'FORBIDDEN' }) // existing users: Members › Add / remove only
+  })
+
+  it('Given an archived project or a suspended user’s email, then refused', async () => {
+    await expect(users.inviteMember(fx('PRJ-0008'), { ...NEW, roleId: VIEWER }, ADMIN)).rejects.toMatchObject({ code: 'VALIDATION' })
+    await expect(users.inviteMember(fx('PRJ-0002'), { ...NEW, email: 'liwen.yap@atoz.example' }, HAFIZ)).rejects.toMatchObject({ message: 'Yap Li Wen is suspended. Reactivate them on the Users screen first.' })
+  })
+})
+
 describe('roleService: the Roles screen (DEC-76, DEC-104)', () => {
   it('Given the Owner, then the merchant role table: System Default merchant roles first, then their Custom merchant roles, with user counts', async () => {
     const rows = await roleService.list(OWNER)
