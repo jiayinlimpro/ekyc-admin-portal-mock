@@ -7,7 +7,7 @@
 //   GET /billing/periods                           → string[]
 //   GET /billing?period=YYYY-MM&…                  → BillingReport
 import { evaluateCase } from '@/domain/checkRules'
-import { billingBy, billingLine, billingTotals, intelligenceStats, monthRange, mytDay, overviewStats, presetRange, type BillingLine, type BillingTotals, type IntelligenceStats, type OverviewStats } from '@/domain/dashboards'
+import { billingBy, billingLines, billingTotals, intelligenceStats, monthRange, mytDay, overviewStats, presetRange, type BillingLine, type BillingTotals, type IntelligenceStats, type OverviewStats } from '@/domain/dashboards'
 import { TOKEN_PRICE } from '@/domain/openQuestions'
 import { caseInputOf } from '@/domain/telemetry'
 import { hasRisk, hasSelfie } from '@/domain/registryRules'
@@ -115,16 +115,16 @@ export const mockAnalyticsService: AnalyticsService = {
 
   async billingPeriods(actor) {
     await simulateNetwork('billing periods')
-    const months = new Set(scoped(actor, {}, 'viewBilling').map((v) => mytDay(v.createdAt).slice(0, 7)))
+    const months = new Set(scoped(actor, {}, 'viewBilling').flatMap((v) => v.sessions.map((s) => mytDay(s.startedAt).slice(0, 7)))) // REQ: DEC-113
     return [...months].sort().reverse()
   },
 
-  // REQ: DEC-60 — tokens per liveness submission, whatever the final status.
+  // REQ: DEC-60 / DEC-113 — tokens per submission, whatever the status; one line per session, in the month it started.
   async billing(q, actor) {
     await simulateNetwork('billing')
     const { from, to } = monthRange(q.period)
     const lines = scoped(actor, q, 'viewBilling')
-      .map((v) => billingLine(v, TOKEN_PRICE))
+      .flatMap((v) => billingLines(v, TOKEN_PRICE))
       .filter((l) => l.chargedAt >= from && l.chargedAt <= to)
       .sort((a, b) => b.chargedAt.localeCompare(a.chargedAt))
     return wire({

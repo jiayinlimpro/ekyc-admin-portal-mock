@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { ALI, NOW, at, minutes, verification } from '@/test/factories'
+import { continueCase } from './caseSessions'
 import { evaluateCase } from './checkRules'
-import { billingBy, billingLine, billingTotals, intelligenceStats, monthRange, overviewStats, presetRange, type CaseContext } from './dashboards'
+import { billingBy, billingLines, billingTotals, intelligenceStats, monthRange, overviewStats, presetRange, type CaseContext } from './dashboards'
 import type { Verification } from './types'
 import { fx } from '@/lib/ids'
 
@@ -86,9 +87,9 @@ describe('intelligenceStats (DEC-18, DEC-86)', () => {
 
 describe('billing (DEC-60)', () => {
   const lines = [
-    billingLine(verification({ referenceNo: 'A', submissions: { FACE_MATCH: [96], LIVENESS: [90] } }), 0.5),
-    billingLine(verification({ referenceNo: 'B', submissions: { FACE_MATCH: [96, 96, 96], LIVENESS: [60, 61, 90] }, status: 'PROCESSING' }), 0.5),
-    billingLine(verification({ referenceNo: 'C', submissions: {}, projectId: fx('PRJ-0002'), flowId: fx('FLW-0004') }), 0.5),
+    billingLines(verification({ caseId: 'ver_a', referenceNo: 'A', submissions: { FACE_MATCH: [96], LIVENESS: [90] } }), 0.5)[0],
+    billingLines(verification({ caseId: 'ver_b', referenceNo: 'B', submissions: { FACE_MATCH: [96, 96, 96], LIVENESS: [60, 61, 90] }, status: 'PROCESSING' }), 0.5)[0],
+    billingLines(verification({ caseId: 'ver_c', referenceNo: 'C', submissions: {}, projectId: fx('PRJ-0002'), flowId: fx('FLW-0004') }), 0.5)[0],
   ]
 
   it('charges a token per liveness submission whatever the status', () => {
@@ -100,8 +101,8 @@ describe('billing (DEC-60)', () => {
   it('Given documents, then a token per document submission too; an Internal testing session is not charged (DEC-60, DEC-56)', () => {
     const idCapture = { facesFound: 1, faceConfidence: 98, eyesOpen: true, occluded: false, imageWidth: 1280, imageHeight: 800, ocrFieldsMissing: [] }
     const withDocs = verification({ referenceNo: 'D', idCapture, idCaptureSoftRejects: 2, submissions: { FACE_MATCH: [96], LIVENESS: [90] } })
-    expect(billingLine(withDocs, 0.5)).toMatchObject({ tokens: 3 + 1, retryTokens: 2 })
-    expect(billingLine({ ...withDocs, charged: false }, 0.5)).toMatchObject({ tokens: 0, retryTokens: 0, cost: 0 })
+    expect(billingLines(withDocs, 0.5)[0]).toMatchObject({ tokens: 3 + 1, retryTokens: 2 })
+    expect(billingLines({ ...withDocs, charged: false }, 0.5)[0]).toMatchObject({ tokens: 0, retryTokens: 0, cost: 0 })
   })
 
   it('Given a V1 case with a rejected selfie, then every submitted selfie costs a token, the rejected one included (DEC-60, OQ-35)', () => {
@@ -111,7 +112,19 @@ describe('billing (DEC-60)', () => {
       { ...base.attempts[0], telemetry: { selfieRetakes: [selfie], selfie } },
       { ...base.attempts[0], telemetry: { selfie } },
     ]
-    expect(billingLine({ ...base, attempts }, 0.5)).toMatchObject({ tokens: 3, retryTokens: 2, cost: 1.5 })
+    expect(billingLines({ ...base, attempts }, 0.5)[0]).toMatchObject({ tokens: 3, retryTokens: 2, cost: 1.5 })
+  })
+
+  it('Given a case that continued (Failed, then a new session on another flow), then one line per session in the month it started; the case counts once (DEC-60, DEC-113)', () => {
+    const idCapture = { facesFound: 1, faceConfidence: 98, eyesOpen: true, occluded: false, imageWidth: 300, imageHeight: 240, ocrFieldsMissing: [] }
+    const failed = verification({ caseId: 'ver_f', status: 'FAILED', idCapture, idCaptureSoftRejects: 3, submissions: {}, attempts: [], createdAt: '2026-08-30T02:00:00.000Z', sessions: [{ sessionNo: 1, startedAt: '2026-08-30T02:00:00.000Z', flowId: fx('FLW-0001'), workflowVersion: 'V4', configRevision: 2 }] })
+    const resumed = { ...continueCase(failed, { flowId: fx('FLW-0002'), projectId: fx('PRJ-0001'), workflowVersion: 'V4', configRevision: 1 }, NOW), status: 'APPROVED' as const, submissions: { FACE_MATCH: [97], LIVENESS: [92] } }
+    const ls = billingLines(resumed, 0.5)
+    expect(ls.map((l) => [l.sessionNo, l.flowId, l.chargedAt.slice(0, 7), l.status, l.tokens, l.retryTokens])).toEqual([
+      [1, fx('FLW-0001'), '2026-08', 'FAILED', 4, 3],
+      [2, fx('FLW-0002'), NOW.toISOString().slice(0, 7), 'APPROVED', 1, 0],
+    ])
+    expect(billingTotals(ls, 0.5)).toMatchObject({ verifications: 1, tokens: 5 })
   })
 
   it('groups tokens and cost by project and flow', () => {

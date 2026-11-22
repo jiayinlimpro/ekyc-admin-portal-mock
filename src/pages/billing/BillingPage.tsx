@@ -25,8 +25,8 @@ const PAGE_SIZES = [25, 50, 100] as const
 
 function csvFor(r: BillingReport, names: { projectName: (id: string) => string; flowName: (id: string) => string }) {
   const cell = (v: string | number) => (/[",\n]/.test(String(v)) ? `"${String(v).replaceAll('"', '""')}"` : String(v))
-  const head = ['Reference ID', 'Case ID', 'Project', 'Flow', 'Created (MYT)', 'Verification Status', 'Workflow', 'Tokens', 'Retry tokens', 'Cost (RM)']
-  const rows = r.lines.map((l) => [l.referenceNo, l.caseId, names.projectName(l.projectId), names.flowName(l.flowId), formatMyt(l.chargedAt), STATUS_LABELS[l.status], l.workflowVersion, l.tokens, l.retryTokens, l.cost.toFixed(2)])
+  const head = ['Reference ID', 'Case ID', 'Session', 'Project', 'Flow', 'Session started (MYT)', 'Verification Status', 'Workflow', 'Tokens', 'Retry tokens', 'Cost (RM)']
+  const rows = r.lines.map((l) => [l.referenceNo, l.caseId, l.sessionNo, names.projectName(l.projectId), names.flowName(l.flowId), formatMyt(l.chargedAt), STATUS_LABELS[l.status], l.workflowVersion, l.tokens, l.retryTokens, l.cost.toFixed(2)])
   return [head, ...rows].map((row) => row.map(cell).join(',')).join('\n')
 }
 
@@ -101,7 +101,7 @@ export function BillingPage() {
       </div>
 
       <div className={cn('grid gap-4 sm:grid-cols-2 lg:grid-cols-4 transition-opacity', loading && r && 'opacity-60')} aria-busy={loading}>
-        <StatTile label="Verifications" value={t ? fmtInt(t.verifications) : '—'} note="Every status, Processing, Rejected and Failed included" />
+        <StatTile label="Verifications" value={t ? fmtInt(t.verifications) : '—'} note="Cases of every status; a continued case has a line per session" />
         <StatTile label="Tokens" value={t ? fmtInt(t.tokens) : '—'} note="Document, selfie and liveness submissions" />
         <StatTile label="Cost of Retries" value={t ? money(t.retryCost) : '—'} note={t ? `${fmtInt(t.retryTokens)} submissions after the first in a phase` : undefined} />
         <StatTile label="Total" value={t ? money(t.cost) : '—'} note={period ? periodLabel(period) : undefined} />
@@ -120,7 +120,7 @@ export function BillingPage() {
             <table className={cn('w-full text-sm', loading && r && 'opacity-60')} aria-busy={loading}>
               <thead className="bg-muted/50 text-left text-xs text-muted-foreground">
                 <tr>
-                  {['Reference ID', 'Project', 'Flow', 'Created (MYT)', 'Verification Status', 'Tokens', 'Retry tokens', 'Cost'].map((h, i) => (
+                  {['Reference ID', 'Project', 'Flow', 'Session started (MYT)', 'Verification Status', 'Tokens', 'Retry tokens', 'Cost'].map((h, i) => (
                     <th key={h} scope="col" className={cn('px-3 py-2 font-medium whitespace-nowrap', i >= 5 && 'text-right')}>
                       {h}
                     </th>
@@ -137,11 +137,13 @@ export function BillingPage() {
                     </tr>
                   ))}
                 {r?.lines.slice((page - 1) * pageSize, page * pageSize).map((l) => (
-                  <tr key={l.referenceNo} className="border-t">
+                  <tr key={`${l.caseId}:${l.sessionNo}`} className="border-t">
                     <td className="px-3 py-2">
                       <Link to={`/verifications/${l.caseId}`} className="font-mono text-xs text-blue-700 hover:underline dark:text-blue-400">
                         {l.referenceNo}
                       </Link>
+                      {/* REQ: DEC-113 — a continued case has a line per session */}
+                      {l.sessionNo > 1 && <span className="ml-1.5 text-xs text-muted-foreground">Session {l.sessionNo}</span>}
                     </td>
                     <td className="px-3 py-2 whitespace-nowrap">{d.names.projectName(l.projectId)}</td>
                     <td className="px-3 py-2 whitespace-nowrap">
