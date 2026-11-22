@@ -31,6 +31,12 @@ describe('summarizeAudit', () => {
     )
   })
 
+  it('CASE_RESUMED names the new session, the previous status and a flow move (DEC-113)', () => {
+    const d = { fromStatus: 'FAILED', toStatus: 'PROCESSING', sessionNo: 2, fromFlowId: 'flw_a', toFlowId: 'flw_b', fromFlowName: 'Malaysian onboarding', toFlowName: 'Foreigner onboarding' }
+    expect(summarizeAudit(e('CASE_RESUMED', d))).toBe('Session 2 started by the same Reference ID: Failed → Processing · flow Malaysian onboarding → Foreigner onboarding')
+    expect(summarizeAudit(e('CASE_RESUMED', { ...d, toFlowId: 'flw_a', toFlowName: 'Malaysian onboarding' }))).toBe('Session 2 started by the same Reference ID: Failed → Processing')
+  })
+
   it('CASE_DECISION_BLOCKED carries the refusal reason', () => {
     expect(summarizeAudit(e('CASE_DECISION_BLOCKED', { attempted: 'REJECT', reason: 'Your claim expired. No changes saved.' }))).toBe('Save refused (reject): Your claim expired. No changes saved.')
   })

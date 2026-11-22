@@ -154,6 +154,7 @@ export function buildCase(spec: CaseSpec): Verification {
     createdAt: at(0),
     submissions: spec.submissions,
     idCaptureSoftRejects: spec.softRejects ?? 0,
+    sessions: [{ sessionNo: 1, startedAt: at(0), flowId: spec.flow.flowId, workflowVersion: spec.flow.workflowVersion as WorkflowVersion, configRevision: rev.revision }], // REQ: DEC-113
   }
 }
 

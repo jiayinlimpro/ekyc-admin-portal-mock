@@ -1,6 +1,7 @@
 // Human-readable one-line summary of an audit entry's details, per action. Pure (unit-tested).
 import type { AuditEntry, ClaimHolder, SettingChange } from '@/domain/types'
 import { formatMyt } from './format'
+import { STATUS_LABELS } from './labels'
 
 const str = (v: unknown) => (typeof v === 'string' ? v : undefined)
 
@@ -27,6 +28,11 @@ export function summarizeAudit(e: AuditEntry): string {
     }
     case 'CASE_DECISION_BLOCKED':
       return `Save refused (${d.attempted === 'APPROVE' ? 'approve' : d.attempted === 'REJECT' ? 'reject' : 'decision'}): ${str(d.reason) ?? 'claim not held'}`
+    case 'CASE_RESUMED': {
+      // REQ: DEC-113 — the same Reference ID started a new session on the case.
+      const moved = str(d.fromFlowName) && str(d.toFlowName) && d.fromFlowId !== d.toFlowId ? ` · flow ${str(d.fromFlowName)} → ${str(d.toFlowName)}` : ''
+      return `Session ${String(d.sessionNo ?? '?')} started by the same Reference ID: ${STATUS_LABELS[d.fromStatus as keyof typeof STATUS_LABELS] ?? '?'} → Processing${moved}`
+    }
     case 'API_KEY_ROTATED':
       return `API key rotated${str(d.keyId) ? ` (${str(d.keyId)})` : ''}`
     default: {

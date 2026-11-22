@@ -134,6 +134,7 @@ export const AUDIT_ACTION_LABELS: Record<AuditAction, string> = {
   CASE_DECISION_APPROVED: 'Case approved',
   CASE_DECISION_REJECTED: 'Case rejected',
   CASE_DECISION_BLOCKED: 'Decision blocked',
+  CASE_RESUMED: 'New session (same Reference ID)', // REQ: DEC-113
   FLOW_CREATED: 'Flow created',
   FLOW_ACTIVATED: 'Flow activated',
   FLOW_RETIRED: 'Flow retired',

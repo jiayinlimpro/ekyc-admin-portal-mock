@@ -51,6 +51,30 @@ export type DocumentType = 'MYKAD' | 'PASSPORT' | 'DRIVING_LICENSE'
 
 export type AttemptOutcome = 'COMPLETED' | 'ABORTED' | 'TIMED_OUT' | 'FAILED_RETAKE'
 
+/**
+ * REQ: DEC-113 — one session of a case. A returning Reference ID starts a new session on the same case; the case's own
+ * fields (flow, revision, scores, attempts, telemetry, status) always describe the current (last) session.
+ */
+export interface CaseSession {
+  sessionNo: number // shown as "Session 1, 2, 3"
+  startedAt: string
+  flowId: string // the flow it ran on: a case can move to another flow of its project
+  workflowVersion: WorkflowVersion
+  configRevision: number // its "Rules applied"
+  ended?: SessionEnd // set when a later session started; the current session has none
+}
+
+/** REQ: DEC-113 / DEC-60 — how an earlier session ended, what it cost, and its attempts (kept for the history). */
+export interface SessionEnd {
+  status: 'REJECTED' | 'FAILED'
+  reason?: string
+  at: string
+  by: UpdatedBy
+  tokens: number
+  retryTokens: number
+  attempts: Attempt[]
+}
+
 export interface Attempt {
   attemptId: string // att_… (DEC-97); shown as "Attempt 1, 2, 3", never by ID
   attemptNo: number
@@ -166,6 +190,7 @@ export interface Verification {
   idCaptureSoftRejects: number // REQ: DEC-108 — submitted ID images that failed before the last one: each used a Document retry
   statusDetail?: string // e.g. "Auto-Reject < 70 · Auto-Pass ≥ 85 · Actual 78"
   decidedReasons?: DecisionReasonRef[] // REQ: DEC-106 — set by a manual decision
+  sessions: CaseSession[] // REQ: DEC-113 — oldest first; the last one is the current session
 }
 
 // REQ: DEC-40 — list rows carry no PII beyond name/ref, no client metadata and no duplicate-user information.
@@ -264,7 +289,7 @@ export interface DecisionReasonRef {
 
 // REQ: DEC-42 — event names, grouped as in DECISIONS.md.
 export const AUDIT_ACTION_GROUPS = {
-  Cases: ['SENSITIVE_PII_VIEW', 'CASE_CLAIMED', 'CASE_RELEASED', 'CASE_CLAIM_EXPIRED', 'CASE_DECISION_APPROVED', 'CASE_DECISION_REJECTED', 'CASE_DECISION_BLOCKED'],
+  Cases: ['SENSITIVE_PII_VIEW', 'CASE_CLAIMED', 'CASE_RELEASED', 'CASE_CLAIM_EXPIRED', 'CASE_DECISION_APPROVED', 'CASE_DECISION_REJECTED', 'CASE_DECISION_BLOCKED', 'CASE_RESUMED'],
   Flows: ['FLOW_CREATED', 'FLOW_ACTIVATED', 'FLOW_RETIRED', 'FLOW_SETTING_CHANGED'],
   Projects: ['PROJECT_CREATED', 'PROJECT_RENAMED', 'PROJECT_ARCHIVED', 'PROJECT_SETTING_CHANGED'],
   Integration: ['API_KEY_CREATED', 'API_KEY_ROTATED', 'API_KEY_REVOKED', 'WEBHOOK_CHANGED'],

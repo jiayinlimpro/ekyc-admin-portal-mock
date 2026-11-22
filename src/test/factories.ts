@@ -54,6 +54,7 @@ export function verification(overrides: Partial<Verification> = {}): Verificatio
     createdAt: NOW.toISOString(),
     submissions: { FACE_MATCH: [95], LIVENESS: [95] },
     idCaptureSoftRejects: 0,
+    sessions: [{ sessionNo: 1, startedAt: NOW.toISOString(), flowId: overrides.flowId ?? fx('FLW-0001'), workflowVersion: overrides.workflowVersion ?? 'V4', configRevision: overrides.configRevision ?? 2 }],
     ...overrides,
   }
 }
