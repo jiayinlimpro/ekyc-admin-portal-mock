@@ -40,6 +40,13 @@ describe('overviewStats (DEC-14, DEC-20, DEC-86)', () => {
     expect(s.daily).toHaveLength(7)
   })
 
+  it('Given a FAILED case, then it is counted on its own and as completed in the pass rate (DEC-112)', () => {
+    const f = overviewStats([...rows, verification({ referenceNo: 'F', status: 'FAILED' })], range.current, range.previous, NOW)
+    expect(f.byStatus).toMatchObject({ APPROVED: 2, REJECTED: 1, FAILED: 1 })
+    expect(f.byProject.find((r) => r.key === fx('PRJ-0001'))!.passRate).toBeCloseTo(1 / 3) // A / (A + E + F)
+    expect(f.autoCleared).toBe(1)
+  })
+
   it('breaks down by project with pass rate (approved out of completed) and pending age (DEC-86)', () => {
     const def = s.byProject.find((r) => r.key === fx('PRJ-0001'))!
     expect(def).toMatchObject({ total: 4, pending: 2, oldestPendingHours: 5, avgPendingHours: 3 })

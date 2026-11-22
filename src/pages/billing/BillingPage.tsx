@@ -101,7 +101,7 @@ export function BillingPage() {
       </div>
 
       <div className={cn('grid gap-4 sm:grid-cols-2 lg:grid-cols-4 transition-opacity', loading && r && 'opacity-60')} aria-busy={loading}>
-        <StatTile label="Verifications" value={t ? fmtInt(t.verifications) : '—'} note="Including Processing and Rejected" />
+        <StatTile label="Verifications" value={t ? fmtInt(t.verifications) : '—'} note="Every status, Processing, Rejected and Failed included" />
         <StatTile label="Tokens" value={t ? fmtInt(t.tokens) : '—'} note="Document, selfie and liveness submissions" />
         <StatTile label="Cost of Retries" value={t ? money(t.retryCost) : '—'} note={t ? `${fmtInt(t.retryTokens)} submissions after the first in a phase` : undefined} />
         <StatTile label="Total" value={t ? money(t.cost) : '—'} note={period ? periodLabel(period) : undefined} />

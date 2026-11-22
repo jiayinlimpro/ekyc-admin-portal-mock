@@ -345,6 +345,12 @@ describe('analyticsService scoping (DEC-86)', () => {
     expect(hafiz).toBeGreaterThan(0)
   })
 
+  it('Given S25 FAILED after 4 ID images, then Billing charges all 4 document submissions (DEC-60, DEC-112)', async () => {
+    const v = await svc.get(C(25), ALI)
+    const report = await analyticsService.billing({ period: v.createdAt.slice(0, 7) }, ALI)
+    expect(report.lines.find((l) => l.referenceNo === S(25))).toMatchObject({ status: 'FAILED', tokens: 4, retryTokens: 3 })
+  })
+
   it('Given a Reviewer, then Billing is available with their projects only', async () => {
     const report = await analyticsService.billing({ period: NOW.toISOString().slice(0, 7) }, ALI)
     expect(report.byMerchant.every((m) => m.key === fx('MER-0001'))).toBe(true)
