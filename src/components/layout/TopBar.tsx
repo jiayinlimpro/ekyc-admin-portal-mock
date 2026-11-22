@@ -197,7 +197,10 @@ function RoleLines() {
   )
 }
 
-// REQ: DEC-97 — the Reference ID is the merchant's (no fixed format): one exact match opens the case, otherwise the list.
+// REQ: DEC-114 — an exact Verification ID opens the case (like Persona's Omnisearch and Stripe's ID search); anything else is
+// the merchant's Reference ID (no fixed format): one exact match opens the case, otherwise the list.
+const VERIFICATION_ID = /^vrf_[a-z0-9]{24}$/i
+
 function RefSearch() {
   const navigate = useNavigate()
   const actor = useSession((s) => s.actor)
@@ -208,6 +211,7 @@ function RefSearch() {
     const v = q.trim()
     if (!v) return
     setQ('')
+    if (VERIFICATION_ID.test(v)) return navigate(`/verifications/${v.toLowerCase()}`) // the page checks access (DEC-72: "not found")
     const toList = `/verifications?status=ALL&referenceId=${encodeURIComponent(v)}`
     try {
       const exact = (await verificationService.list({ referenceId: v, pageSize: 50 }, actor)).items.filter((r) => r.referenceId.toLowerCase() === v.toLowerCase())
@@ -221,7 +225,7 @@ function RefSearch() {
   return (
     <form role="search" onSubmit={(e) => void onSubmit(e)} className="relative hidden md:block">
       <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
-      <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Reference ID" aria-label="Go to Reference ID" className="h-8 w-52 pl-8" />
+      <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Verification ID or Reference ID" aria-label="Go to Verification ID or Reference ID" className="h-8 w-64 pl-8" />
     </form>
   )
 }

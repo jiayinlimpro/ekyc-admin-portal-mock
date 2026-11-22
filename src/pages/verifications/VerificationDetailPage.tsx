@@ -27,7 +27,7 @@ import { userService, type UserSummary } from '@/services/userService'
 import { verificationService } from '@/services/verificationService'
 import { useDevFlags } from '@/stores/devFlagsStore'
 import { useSession } from '@/stores/sessionStore'
-import { CopyId } from '@/components/common/CopyId'
+import { CopyButton, CopyId } from '@/components/common/CopyId'
 import { usePageTitle } from '@/stores/pageTitleStore'
 
 type Loaded = { key: string; detail?: VerificationDetail; error?: { message: string; notFound: boolean } }
@@ -133,13 +133,13 @@ export function VerificationDetailPage() {
     if (projectId && me.ready && me.selected?.projectId !== projectId && me.projects.some((p) => p.projectId === projectId)) selectProject(projectId)
   }, [projectId, me.ready, me.selected?.projectId, me.projects, selectProject])
 
-  // REQ: DEC-97 — the URL holds the Verification ID; the breadcrumb reads the merchant's Reference ID.
+  // REQ: DEC-114 — the URL, the browser tab and the breadcrumb all name the case by its Verification ID.
   const { pathname } = useLocation()
   const setTitle = usePageTitle((s) => s.setTitle)
-  const referenceId = detail?.referenceId
+  const loadedId = detail?.verificationId
   useEffect(() => {
-    if (referenceId) setTitle(pathname, referenceId)
-  }, [referenceId, pathname, setTitle])
+    if (loadedId) setTitle(pathname, loadedId)
+  }, [loadedId, pathname, setTitle])
   useEffect(() => {
     if (!projectId) return
     let live = true
@@ -201,12 +201,15 @@ export function VerificationDetailPage() {
 
       <header className="flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
         <div className="min-w-0 flex-[1_1_28rem] space-y-1">
-        <div className="flex flex-wrap items-center gap-3">
-          <h1 className="font-mono text-2xl font-semibold">{v.referenceId}</h1>
+        {/* REQ: DEC-114 — our Verification ID is the heading (copy); the merchant's Reference ID (copy) right under it. */}
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+          <span className="flex min-w-0 items-center gap-1">
+            <h1 className="font-mono text-xl font-semibold break-all sm:text-2xl">{v.verificationId}</h1>
+            <CopyButton label="Verification ID" value={v.verificationId} />
+          </span>
           <StatusBadge status={v.status} className="text-sm" />
-          {/* REQ: DEC-97 — the Verification ID, for support tickets and webhooks; the Reference ID above is the merchant's. */}
-          <CopyId label="Verification ID" value={v.verificationId} />
         </div>
+        <CopyId label="Reference ID" value={v.referenceId} />
         {/* REQ: DEC-105 — header strip: project › flow, version and revision, created, last updated (no audit link). */}
         <p className="text-sm text-muted-foreground">
           <span className="text-foreground">{v.projectName}</span> › <span className="text-foreground">{v.flowName}</span> · {v.workflowVersion} · Rules applied{' '}

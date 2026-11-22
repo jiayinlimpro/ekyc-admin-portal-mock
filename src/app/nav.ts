@@ -268,7 +268,7 @@ export function parentsOf(item: NavItem): NavItem[] {
 export function routeMetaFor(pathname: string): RouteMeta | undefined {
   for (const item of NAV_ITEMS) {
     const m = matchPath({ path: item.path, end: true }, pathname)
-    // The case page renames its tab to the Reference ID once loaded (DEC-97: the URL has the Verification ID).
+    // The case page renames its tab to its Verification ID once loaded (DEC-114).
     if (m) return { item, title: item.label }
   }
   return undefined

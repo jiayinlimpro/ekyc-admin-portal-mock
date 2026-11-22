@@ -191,14 +191,27 @@ describe('AppShell', () => {
     expect(screen.queryByRole('link', { name: 'UAT scenarios' })).toBeNull()
   })
 
-  it('Given pages inside a project, then no tab strip; the case page’s breadcrumb ends with its Reference ID', async () => {
+  it('Given pages inside a project, then no tab strip; the case page’s breadcrumb ends with its Verification ID (DEC-114)', async () => {
     inProject()
     const router = renderAt('/billing')
     await mainNav().findByRole('link', { name: 'Billing' })
     expect(screen.queryByRole('navigation', { name: 'Open pages' })).toBeNull()
     await act(() => router.navigate(`/verifications/${verificationIdOf('KYC-260901-900003')}`))
     const crumbs = within(screen.getByRole('navigation', { name: 'Breadcrumb' }))
-    await waitFor(() => expect(crumbs.getAllByRole('listitem').at(-1)!.textContent).toBe('KYC-260901-900003'))
+    await waitFor(() => expect(crumbs.getAllByRole('listitem').at(-1)!.textContent).toBe(verificationIdOf('KYC-260901-900003')))
+  })
+
+  it('Given the header search, then a Verification ID opens its case directly and a Reference ID opens its one exact match (DEC-114)', async () => {
+    inProject()
+    const router = renderAt('/billing')
+    await mainNav().findByRole('link', { name: 'Billing' })
+    const box = () => screen.getByRole('textbox', { name: 'Go to Verification ID or Reference ID' })
+    fireEvent.change(box(), { target: { value: ` ${verificationIdOf('KYC-260901-900003').toUpperCase()} ` } })
+    fireEvent.submit(box().closest('form')!)
+    await waitFor(() => expect(router.state.location.pathname).toBe(`/verifications/${verificationIdOf('KYC-260901-900003')}`))
+    fireEvent.change(box(), { target: { value: 'kyc-260901-900010' } })
+    fireEvent.submit(box().closest('form')!)
+    await waitFor(() => expect(router.state.location.pathname).toBe(`/verifications/${verificationIdOf('KYC-260901-900010')}`))
   })
 
   it('Given ?as=<email>, then the session switches to Siti and the parameter is removed', async () => {

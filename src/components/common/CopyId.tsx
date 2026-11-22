@@ -3,20 +3,27 @@ import { Copy } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 
-export function CopyId({ label, value, className }: { label: string; value: string; className?: string }) {
+/** The copy button alone, e.g. beside an ID shown as a page heading. */
+export function CopyButton({ label, value, className }: { label: string; value: string; className?: string }) {
   const copy = () => {
     void navigator.clipboard?.writeText(value).then(
       () => toast.success(`${label} copied`),
-      () => toast.error(`Couldn’t copy. Select the ${label.toLowerCase()} and copy it instead.`),
+      () => toast.error(`Couldn’t copy. Select the ${label} and copy it instead.`),
     )
   }
+  return (
+    <button type="button" onClick={copy} aria-label={`Copy ${label}`} title={`Copy ${label}`} className={cn('rounded p-0.5 text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none', className)}>
+      <Copy className="size-3.5" aria-hidden />
+    </button>
+  )
+}
+
+export function CopyId({ label, value, className }: { label: string; value: string; className?: string }) {
   return (
     <span className={cn('inline-flex items-center gap-1 text-xs text-muted-foreground', className)}>
       {label}
       <code className="rounded bg-muted px-1 font-mono text-foreground select-all">{value}</code>
-      <button type="button" onClick={copy} aria-label={`Copy ${label}`} className="rounded p-0.5 hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none">
-        <Copy className="size-3.5" aria-hidden />
-      </button>
+      <CopyButton label={label} value={value} />
     </span>
   )
 }

@@ -17,7 +17,7 @@ const S = (n: number) => `KYC-260901-${900000 + n}`
 async function open(ref: string) {
   const router = createMemoryRouter(routes, { initialEntries: [`/verifications/${verificationIdOf(ref)}`] })
   render(<RouterProvider router={router} />)
-  await screen.findByRole('heading', { level: 1, name: ref })
+  await screen.findByRole('heading', { level: 1, name: verificationIdOf(ref) }) // REQ: DEC-114
   return router
 }
 
@@ -274,6 +274,14 @@ describe('Verification Detail', () => {
     await open(S(27))
     expect(screen.getByText('No valid face in Selfie detected (Retry Not Allowed)')).toBeTruthy()
     expect(within(screen.getByRole('table', { name: 'Attempts' })).getAllByText('Selfie rejected')).toHaveLength(4)
+  })
+
+  it('Given a case page, then the heading is the Verification ID with a copy button, and the Reference ID follows it (DEC-114)', async () => {
+    await open(S(3))
+    expect(screen.getByRole('button', { name: 'Copy Verification ID' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Copy Reference ID' })).toBeTruthy()
+    const heading = screen.getByRole('heading', { level: 1 })
+    expect(heading.compareDocumentPosition(screen.getByText(S(3))) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
   })
 
   it('Given S05 stopped at ID capture, then the failing ID checks say why (DEC-105)', async () => {
