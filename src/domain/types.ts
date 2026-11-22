@@ -200,7 +200,7 @@ export type VerificationDetail = Verification & {
   steps: { phases: OnboardingPhase[]; faceMatchMethod: FaceMatchMethod; runsRisk: boolean; riskMinimumsPerFlow: boolean } // from the registry version
   checks: CheckEvaluation[] // face match / liveness: threshold applied, result, retries used / allowed
   phases: PhaseEvaluation[] // REQ: DEC-108 — submissions and retries per phase
-  newCaseAllowedAt?: string // REJECTED with a cooldown (DEC-26)
+  newSessionAllowedAt?: string // REQ: DEC-26 / DEC-113 — REJECTED or FAILED with a cooldown: when the same Reference ID may start a new session
   reasonOptions: DecisionReason[] // REQ: DEC-106 — the project's active decision reasons, for the decision panel
 }
 

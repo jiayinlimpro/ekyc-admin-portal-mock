@@ -132,7 +132,7 @@ function toDetail(v: Verification): VerificationDetail {
     steps: { phases: entry.phases, faceMatchMethod: entry.faceMatchMethod, runsRisk, riskMinimumsPerFlow: entry.riskMinimumsPerFlow },
     checks: ev.checks,
     phases: ev.phases, // REQ: DEC-108
-    newCaseAllowedAt: newSessionAllowedAt(v.lastUpdatedAt, cooldownFor(v.status, settings))?.toISOString(), // REQ: DEC-26 / DEC-112
+    newSessionAllowedAt: newSessionAllowedAt(v.lastUpdatedAt, cooldownFor(v.status, settings))?.toISOString(), // REQ: DEC-26 / DEC-112
     reasonOptions: activeReasons(projectById(v.projectId)!.decisionReasons), // REQ: DEC-106
   })
 }

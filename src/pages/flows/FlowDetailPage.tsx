@@ -35,7 +35,8 @@ const FIELD_LABELS: Record<string, string> = {
   'checks.FACE_MATCH.threshold': 'Face match threshold',
   'checks.LIVENESS.threshold': 'Liveness threshold',
   ...Object.fromEntries(RETRY_PHASES.map((p) => [`retries.${p}`, `${RETRY_PHASE_LABELS[p]} retries allowed`])),
-  cooldownMin: 'Cooldown (min)',
+  cooldownMin: 'Cooldown after Rejected (min)',
+  failedCooldownMin: 'Cooldown after Failed (min)',
   sessionExpiryMin: 'Session expiry (min)',
   acceptedDocuments: 'Accepted documents',
   'risk.enabled': 'Risk assessment on',
@@ -112,12 +113,22 @@ function Editor({ detail, onSaved }: { detail: FlowDetail; onSaved: () => void }
       {/* REQ: DEC-108 — retries per phase, apart from the thresholds. */}
       <RetriesCard entry={entry} value={s.retries} onChange={(retries) => set({ retries })} disabled={!editable || !canChangeLevel} errors={errors} />
 
-      <Card title="Session">
-        <fieldset disabled={!editable} className="grid gap-4 sm:grid-cols-3">
-          <legend className="sr-only">Session</legend>
-          <FormField id="fl-cooldown" label={<span className="flex items-center gap-2">Cooldown after a rejection (min) <OpenQuestionTag id="OQ-22" /></span>} hint="How long the same end user waits before a new case. 0 = no wait." error={errors.cooldownMin}>
+      {/* REQ: DEC-26 / DEC-112 / DEC-113 — the case's status picks the cooldown, whichever phase ended it. */}
+      <Card title="Cooldown">
+        <fieldset disabled={!editable} className="grid gap-4 sm:grid-cols-2">
+          <legend className="sr-only">Cooldown</legend>
+          <FormField id="fl-cooldown" label="Cooldown after Rejected (min)" hint="How long the same Reference ID waits before a new session after a rejection, by the engine or a reviewer. 0 = no wait." error={errors.cooldownMin}>
             <Input id="fl-cooldown" type="number" min={0} step={1} value={shown(s.cooldownMin)} onChange={(e) => set({ cooldownMin: numberOrNaN(e.target.value) })} aria-invalid={!!errors.cooldownMin} />
           </FormField>
+          <FormField id="fl-failed-cooldown" label="Cooldown after Failed (min)" hint="How long the same Reference ID waits before a new session after Failed: no usable ID image or selfie when retries ran out. 0 = no wait." error={errors.failedCooldownMin}>
+            <Input id="fl-failed-cooldown" type="number" min={0} step={1} value={shown(s.failedCooldownMin)} onChange={(e) => set({ failedCooldownMin: numberOrNaN(e.target.value) })} aria-invalid={!!errors.failedCooldownMin} />
+          </FormField>
+        </fieldset>
+      </Card>
+
+      <Card title="Session">
+        <fieldset disabled={!editable} className="grid gap-4 sm:grid-cols-2">
+          <legend className="sr-only">Session</legend>
           <FormField id="fl-expiry" label={<span className="flex items-center gap-2">Session expiry (min) <OpenQuestionTag id="OQ-19" /></span>} error={errors.sessionExpiryMin}>
             <Input id="fl-expiry" type="number" min={1} step={1} value={shown(s.sessionExpiryMin)} onChange={(e) => set({ sessionExpiryMin: numberOrNaN(e.target.value) })} aria-invalid={!!errors.sessionExpiryMin} />
           </FormField>

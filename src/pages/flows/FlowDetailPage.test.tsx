@@ -77,6 +77,22 @@ describe('Flow Detail (DEC-18, DEC-19, DEC-50, DEC-51)', () => {
     expect(r.getByText(/A submitted selfie that fails its quality check, or a face match below Auto-Pass/)).toBeTruthy()
   })
 
+  it('Given the Cooldown card, then one field after Rejected and one after Failed; a change saves in a new revision (DEC-26, DEC-112)', async () => {
+    renderAt(`/flows/${fx('FLW-0002')}`)
+    const c = await card('Cooldown')
+    expect((c.getByLabelText('Cooldown after Rejected (min)') as HTMLInputElement).value).toBe('120')
+    const failed = c.getByLabelText('Cooldown after Failed (min)') as HTMLInputElement
+    expect(failed.value).toBe('30')
+    fireEvent.change(failed, { target: { value: '-5' } })
+    fireEvent.change(screen.getByLabelText(/Reason for change/), { target: { value: 'Longer wait after unusable images' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save new revision' }))
+    expect(await screen.findByText('Cooldown after Failed must be a whole number of minutes, 0 or more')).toBeTruthy()
+    fireEvent.change(failed, { target: { value: '60' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save new revision' }))
+    await waitFor(() => expect(flow(fx('FLW-0002')).settings.failedCooldownMin).toBe(60))
+    expect(flow(fx('FLW-0002')).settings.cooldownMin).toBe(120)
+  })
+
   it('Given Advanced set by the platform, then the merchant sees a read-only chip; the Super admin edits the numbers (DEC-19)', async () => {
     useSession.getState().switchUser(VANTAGE_OWNER)
     renderAt(`/flows/${fx('FLW-0005')}`)

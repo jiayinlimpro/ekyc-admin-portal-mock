@@ -49,7 +49,7 @@ function ReasonBanner({ v }: { v: VerificationDetail }) {
       <span>
         <strong>Reason:</strong> {v.statusReason}
         {detail && <span className="ml-2 font-mono text-xs tabular-nums">{detail}</span>}
-        {v.newCaseAllowedAt && <span className="block text-xs">New case allowed from {formatMyt(v.newCaseAllowedAt)} MYT (cooldown)</span>}
+        {v.newSessionAllowedAt && <span className="block text-xs">New session allowed from {formatMyt(v.newSessionAllowedAt)} MYT (cooldown)</span>}
       </span>
     </div>
   )

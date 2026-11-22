@@ -161,10 +161,12 @@ describe('Verification Detail', () => {
     expect(screen.queryByRole('link', { name: 'Audit trail' })).toBeNull()
   })
 
-  it('Given S18 rejected under a 120-min cooldown, then the banner says when a new case is allowed (DEC-26)', async () => {
+  it('Given S18 rejected under a 120-min cooldown, then both cooldowns are in Rules applied and the banner says when a new session is allowed (DEC-26)', async () => {
     await open(S(18))
-    expect(region('Rules applied').getByText('120 min after a rejection')).toBeTruthy()
-    expect(screen.getByText(/^New case allowed from .* MYT \(cooldown\)$/)).toBeTruthy()
+    expect(region('Rules applied').getByText('Cooldown after Rejected')).toBeTruthy()
+    expect(region('Rules applied').getByText('120 min')).toBeTruthy()
+    expect(region('Rules applied').getByText('Cooldown after Failed')).toBeTruthy()
+    expect(screen.getByText(/^New session allowed from .* MYT \(cooldown\)$/)).toBeTruthy()
   })
 
   it('Given V4 S02, then High risk with the four scores against the fixed minimums, and the banner lists the categories below (DEC-107)', async () => {

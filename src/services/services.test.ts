@@ -190,11 +190,18 @@ describe('verificationService.get detail sections (DEC-44)', () => {
     expect(d.rulesApplied.checks.LIVENESS.threshold).toEqual({ preset: 'LOW' })
   })
 
-  it('Given S18 rejected with a 120-min cooldown, then "New case allowed from" is 2 h after the rejection (DEC-26)', async () => {
+  it('Given S18 rejected on a flow with Rejected 120 min and Failed 30 min, then "New session allowed from" is 2 h after the rejection (DEC-26)', async () => {
     const d = await svc.get(C(18), ALI)
     expect(d.status).toBe('REJECTED')
-    expect(Date.parse(d.newCaseAllowedAt!) - Date.parse(d.lastUpdatedAt)).toBe(minutes(120))
-    expect((await svc.get(C(4), ALI)).newCaseAllowedAt).toBeUndefined() // cooldown 0
+    expect(d.rulesApplied).toMatchObject({ cooldownMin: 120, failedCooldownMin: 30 })
+    expect(Date.parse(d.newSessionAllowedAt!) - Date.parse(d.lastUpdatedAt)).toBe(minutes(120)) // the Rejected one
+    expect((await svc.get(C(4), ALI)).newSessionAllowedAt).toBeUndefined() // cooldown 0
+  })
+
+  it('Given S25 FAILED on a flow whose Cooldown after Failed is 0, then a new session is allowed at once (DEC-26, DEC-112)', async () => {
+    const d = await svc.get(C(25), ALI)
+    expect(d.status).toBe('FAILED')
+    expect(d.newSessionAllowedAt).toBeUndefined()
   })
 
 })

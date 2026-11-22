@@ -203,7 +203,9 @@ export function RulesAppliedSection({ v }: { v: VerificationDetail }) {
           ['Face match', check('FACE_MATCH')],
           ['Liveness', check('LIVENESS')],
           ['Retries allowed', v.phases.map((p) => `${RETRY_PHASE_LABELS[p.phase]} ${p.retriesAllowed}`).join(' · ')],
-          ['Cooldown', r.cooldownMin > 0 ? `${r.cooldownMin} min after a rejection` : 'None'],
+          // REQ: DEC-26 / DEC-112 — the case's status picks one: after Rejected or after Failed.
+          ['Cooldown after Rejected', r.cooldownMin > 0 ? `${r.cooldownMin} min` : 'None'],
+          ['Cooldown after Failed', r.failedCooldownMin > 0 ? `${r.failedCooldownMin} min` : 'None'],
           ['Accepted documents', r.acceptedDocuments.map((d) => DOCUMENT_TYPE_LABELS[d]).join(', ')],
           ['Session expiry', Number.isFinite(r.sessionExpiryMin) ? `${r.sessionExpiryMin} min` : undefined],
           ...(r.risk ? ([['Risk minimums', r.risk.enabled ? RISK_CATEGORIES.map((c) => `${RISK_CATEGORY_LABELS[c].replace(' Score', '')} ${r.risk!.minimums[c]}`).join(' · ') : 'Off']] as [string, string][]) : []),
