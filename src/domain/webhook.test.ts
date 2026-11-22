@@ -23,6 +23,10 @@ describe('webhookEventFor (DEC-55)', () => {
     expect(Object.keys(e)).not.toContain('pii')
   })
 
+  it('Given a case FAILED (no usable image), then it is sent like the other final statuses, by SYSTEM (DEC-112)', () => {
+    expect(webhookEventFor(verification({ status: 'FAILED' }))).toMatchObject({ status: 'FAILED', lastUpdatedBy: { kind: 'SYSTEM' } })
+  })
+
   it('Given a case still PROCESSING, then nothing is sent', () => {
     expect(webhookEventFor(verification({ status: 'PROCESSING' }))).toBeUndefined()
   })

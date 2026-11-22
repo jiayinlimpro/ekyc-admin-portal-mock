@@ -22,7 +22,7 @@ const LIGHT: VizTokens = {
   textSecondary: '#52514e',
   series1: '#2a78d6',
   hover: 'rgba(11,11,11,0.05)',
-  status: { APPROVED: '#0ca30c', PENDING_REVIEW: '#fab219', REJECTED: '#d03b3b', PROCESSING: '#898781' },
+  status: { APPROVED: '#0ca30c', PENDING_REVIEW: '#fab219', REJECTED: '#d03b3b', PROCESSING: '#898781', FAILED: '#ec835a' }, // FAILED = status "serious"
 }
 
 const DARK: VizTokens = {
@@ -33,14 +33,15 @@ const DARK: VizTokens = {
   textSecondary: '#c3c2b7',
   series1: '#3987e5',
   hover: 'rgba(255,255,255,0.06)',
-  status: { APPROVED: '#0ca30c', PENDING_REVIEW: '#fab219', REJECTED: '#d03b3b', PROCESSING: '#898781' },
+  status: { APPROVED: '#0ca30c', PENDING_REVIEW: '#fab219', REJECTED: '#d03b3b', PROCESSING: '#898781', FAILED: '#ec835a' }, // FAILED = status "serious"
 }
 
 /**
- * Stack / legend order for statuses. Validated (scripts/validate_palette.js, both modes): adjacent CVD ΔE ≥ 9.1,
- * normal-vision ≥ 18.9. Approved (green) and Rejected (red) must never be adjacent — they collapse under deuteranopia.
+ * Stack / legend order for statuses. Validated (dataviz validate_palette.js, both modes): adjacent CVD ΔE ≥ 9.1,
+ * normal-vision ≥ 15.7 (Rejected ↔ Failed). Approved (green) and Rejected (red) must never be adjacent — they collapse
+ * under deuteranopia; Failed (orange) must not sit next to Approved or Pending Review (CVD 5.6, normal 13.6). REQ: DEC-112
  */
-export const STATUS_STACK: readonly VerificationStatus[] = ['APPROVED', 'PENDING_REVIEW', 'REJECTED', 'PROCESSING']
+export const STATUS_STACK: readonly VerificationStatus[] = ['APPROVED', 'PENDING_REVIEW', 'PROCESSING', 'REJECTED', 'FAILED']
 
 export function useVizTokens(): VizTokens {
   return useUi((s) => s.theme) === 'dark' ? DARK : LIGHT

@@ -33,19 +33,18 @@ type Loaded = { key: string; detail?: VerificationDetail; error?: { message: str
 
 const message = (e: unknown) => (isServiceError(e) ? e.message : 'Unexpected error.')
 
-// REQ: DEC-105 / DEC-107 — the condition plus target vs actual (the flow band and the score, or the risk minimums missed).
+const BANNER_STYLE = {
+  PENDING_REVIEW: 'border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-100',
+  REJECTED: 'border-red-200 bg-red-50 text-red-900 dark:border-red-500/40 dark:bg-red-500/10 dark:text-red-100',
+  FAILED: 'border-orange-200 bg-orange-50 text-orange-900 dark:border-orange-500/40 dark:bg-orange-500/10 dark:text-orange-100', // REQ: DEC-112
+} as const
+
+// REQ: DEC-105 / DEC-107 / DEC-112 — the condition plus target vs actual (the flow band and the score, or the risk minimums missed).
 function ReasonBanner({ v }: { v: VerificationDetail }) {
-  if (!v.statusReason || (v.status !== 'PENDING_REVIEW' && v.status !== 'REJECTED')) return null
-  const rejected = v.status === 'REJECTED'
+  if (!v.statusReason || !(v.status in BANNER_STYLE)) return null
   const detail = v.statusDetail // e.g. "Auto-Reject < 85 · Auto-Pass ≥ 95 · Actual 88.5", or "OSINT Score 22 < 30" (DEC-107)
   return (
-    <div
-      className={
-        rejected
-          ? 'flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-4 py-2.5 text-sm text-red-900 dark:border-red-500/40 dark:bg-red-500/10 dark:text-red-100'
-          : 'flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-2.5 text-sm text-amber-900 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-100'
-      }
-    >
+    <div className={`flex items-center gap-2 rounded-lg border px-4 py-2.5 text-sm ${BANNER_STYLE[v.status as keyof typeof BANNER_STYLE]}`}>
       <AlertTriangle className="size-4 shrink-0" aria-hidden />
       <span>
         <strong>Reason:</strong> {v.statusReason}

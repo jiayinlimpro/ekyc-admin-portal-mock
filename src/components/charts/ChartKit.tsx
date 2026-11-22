@@ -1,11 +1,11 @@
 // Small chart building blocks in plain HTML: stat tile, chart card with table twin, status legend, hover tips, bar list.
 import { useState, type ReactNode } from 'react'
-import { CheckCircle2, Clock, Loader, XCircle } from 'lucide-react'
+import { CheckCircle2, Clock, ImageOff, Loader, XCircle } from 'lucide-react'
 import type { VerificationStatus } from '@/domain/types'
 import { STATUS_LABELS } from '@/lib/labels'
 import { cn } from '@/lib/utils'
 import { fmtInt, fmtPct, pct } from './numbers'
-import { useVizTokens } from './vizTokens'
+import { STATUS_STACK, useVizTokens } from './vizTokens'
 
 
 const STATUS_ICON: Record<VerificationStatus, typeof CheckCircle2> = {
@@ -13,6 +13,7 @@ const STATUS_ICON: Record<VerificationStatus, typeof CheckCircle2> = {
   PENDING_REVIEW: Clock,
   REJECTED: XCircle,
   PROCESSING: Loader,
+  FAILED: ImageOff, // REQ: DEC-112 — no usable image
 }
 
 /** Stat tile: label · value · optional delta vs a named period · optional note. Proportional figures for the value. */
@@ -63,7 +64,7 @@ export function ChartCard({ title, subtitle, legend, table, children, className,
 /** Legend for status series: swatch + icon + label (+ value), so identity is never colour-alone. */
 export function StatusLegend({ counts, total }: { counts?: Record<VerificationStatus, number>; total?: number }) {
   const t = useVizTokens()
-  const order: VerificationStatus[] = ['APPROVED', 'PENDING_REVIEW', 'REJECTED', 'PROCESSING']
+  const order = STATUS_STACK
   return (
     <ul className="flex flex-wrap gap-x-5 gap-y-1 text-sm">
       {order.map((s) => {
@@ -101,7 +102,7 @@ export function HoverTip({ value, label, children, className }: { value: string;
 /** 100% stacked bar of status shares, 2px surface gaps between segments. */
 export function StatusShareBar({ counts, total }: { counts: Record<VerificationStatus, number>; total: number }) {
   const t = useVizTokens()
-  const order: VerificationStatus[] = ['APPROVED', 'PENDING_REVIEW', 'REJECTED', 'PROCESSING']
+  const order = STATUS_STACK
   const shown = order.filter((s) => counts[s] > 0)
   if (!total) return <p className="text-sm text-muted-foreground">No verifications in this range.</p>
   return (

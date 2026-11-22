@@ -38,12 +38,12 @@ describe('Overview', () => {
     expect(screen.queryByText(/drop-off/i)).toBeNull()
   })
 
-  it('Given Show table on the status split, then all 4 statuses are listed with counts', async () => {
+  it('Given Show table on the status split, then all 5 statuses are listed with counts (DEC-112)', async () => {
     renderAt('/dashboard')
     const card = within(await screen.findByRole('region', { name: 'Status split' }))
     fireEvent.click(card.getByRole('button', { name: 'Show table' }))
     const rows = card.getAllByRole('row').slice(1).map((r) => within(r).getAllByRole('cell')[0].textContent)
-    expect(rows).toEqual(['Processing', 'Pending Review', 'Approved', 'Rejected'])
+    expect(rows).toEqual(['Processing', 'Pending Review', 'Approved', 'Rejected', 'Failed'])
   })
 
   it('Given Last 7 days, then the URL carries it and the daily table has 7 rows', async () => {

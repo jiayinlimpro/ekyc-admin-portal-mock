@@ -3,7 +3,8 @@ import type { CheckEvaluation, PhaseEvaluation } from './checkRules'
 // Const arrays + derived types (not TS enums): loopable for dropdowns/badges and compatible with erasableSyntaxOnly.
 
 // REQ: DEC-01 — exactly 4 statuses. Never add more.
-export const VERIFICATION_STATUSES = ['PROCESSING', 'PENDING_REVIEW', 'APPROVED', 'REJECTED'] as const
+// REQ: DEC-01 / DEC-112 — exactly these five, in lifecycle order (FAILED = no usable image when retries ran out).
+export const VERIFICATION_STATUSES = ['PROCESSING', 'PENDING_REVIEW', 'APPROVED', 'REJECTED', 'FAILED'] as const
 export type VerificationStatus = (typeof VERIFICATION_STATUSES)[number]
 
 // REQ: DEC-10 — DOCUMENT = Capture & OCR; RISK_ASSESSMENT = internal engine, V4 only.
