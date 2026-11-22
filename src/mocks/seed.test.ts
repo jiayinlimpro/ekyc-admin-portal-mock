@@ -12,7 +12,7 @@ import { VERIFICATION_STATUSES, type UserAccount } from '@/domain/types'
 import { NOW } from '@/test/factories'
 import { EDGE_CASES } from './fixtures/edgeCases'
 import { seedDatabase } from './seed'
-import { fx, isId } from '@/lib/ids'
+import { fx, isId, verificationIdOf } from '@/lib/ids'
 
 const db = seedDatabase(NOW)
 const flowOf = (id: string) => db.flows.find((f) => f.flowId === id)!
@@ -26,10 +26,14 @@ describe('seedDatabase', () => {
     expect(seedDatabase(NOW)).toEqual(db)
   })
 
-  it('has unique Reference Nos in KYC-YYMMDD-NNNNNN format', () => {
-    const refs = db.verifications.map((v) => v.referenceId)
-    expect(new Set(refs).size).toBe(refs.length)
-    for (const r of refs) expect(r).toMatch(/^KYC-\d{6}-\d{6}$/)
+  it('Given every case, then its Verification ID is unique, and a Reference ID is unique within its project (it may repeat across projects, DEC-113)', () => {
+    const ids = db.verifications.map((v) => v.verificationId)
+    expect(new Set(ids).size).toBe(ids.length)
+    const perProject = db.verifications.map((v) => `${v.projectId}|${v.referenceId}`)
+    expect(new Set(perProject).size).toBe(perProject.length)
+    for (const v of db.verifications) expect(v.referenceId).toMatch(/^KYC-\d{6}-\d{6}$/)
+    const s34 = db.verifications.filter((v) => v.referenceId === 'KYC-260901-900034')
+    expect(s34.map((v) => [v.projectId, v.status]).sort()).toEqual([[fx('PRJ-0001'), 'REJECTED'], [fx('PRJ-0002'), 'APPROVED']].sort())
   })
 
   it('Given a SYSTEM-updated record, then its status and reason equal evaluateCase with its own flow revision (no random statuses)', () => {
@@ -282,7 +286,7 @@ describe('telemetry, duplicate user and risk categories (DEC-105)', () => {
 
 describe('named scenarios (docs/SCENARIOS.md)', () => {
   it.each(EDGE_CASES)('$id $referenceId matches its expected state', (e) => {
-    const v = db.verifications.find((x) => x.referenceId === e.referenceId)!
+    const v = db.verifications.find((x) => x.verificationId === verificationIdOf(e.referenceId, e.idVariant))!
     expect(v).toBeDefined()
     expect(v.status).toBe(e.status)
     expect(v.sessions).toHaveLength(e.sessions ?? 1) // REQ: DEC-113

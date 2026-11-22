@@ -16,7 +16,7 @@ submission decides (DEC-15, DEC-16); a document, or a V1 selfie when none was us
 
 A Rejected or Failed case continues when the same Reference ID comes back after its cooldown: a new **session** on the same
 case (DEC-113). Cooldowns are per flow: after Rejected and after Failed, default 0 (DEC-26). The mock has no button for it:
-S30–S32 are the continued cases, and the refusals (cooldown, case still in progress) are rules in `caseSessions.ts`.
+S30–S32 are the continued cases, S34 and S35 the same Reference ID in two projects, and the refusals (cooldown, case still in progress) are rules in `caseSessions.ts`.
 
 Claim-timed scenarios (S07, S08, S09) and cooldowns (S18, S33) are relative to the moment the data was seeded. Use **Reset
 demo data** before a UAT run.
@@ -91,4 +91,6 @@ Settings, dashboards) open after **Go to project** on a project card.
 | S31 | KYC-260901-900031 | Atoz Default › Foreigner onboarding (V4) | Rejected ~4 h ago (face match below 90); came back 30 min ago, after the 120-min Cooldown after Rejected | PROCESSING (session 2, liveness retry pending); session 1 Rejected in Sessions (DEC-113, DEC-26) |
 | S32 | KYC-260901-900032 | Atoz Default › Premium accounts (V5), was Malaysian onboarding | Ali rejected it 70 min ago ("Face doesn’t match ID"); the same Reference ID came back on Premium accounts | PENDING_REVIEW (session 2; face match in High's review band); the case moved flow; session 1 shows Rejected by Ali Bin Ahmad; `CASE_RESUMED` names the flow move (DEC-113) |
 | S33 | KYC-260901-900033 | Atoz Default › Foreigner onboarding (V4) | The 4th passport image still 300 × 240, 17 min ago | FAILED · SYSTEM; Cooldown after Failed 30 min: "New session allowed from …" 13 min from seeding (DEC-26, DEC-112) |
+| S34 | KYC-260901-900034 | Atoz Default › Malaysian onboarding (V4) | The merchant also sent this Reference ID to SME app (S35); here liveness stayed below Auto-Reject | REJECTED · SYSTEM. Its own Verification ID; the header search in Default opens this case (DEC-113) |
+| S35 | KYC-260901-900034 | Atoz SME app › SME director check (V3) | Same Reference ID as S34, 20 min ago; SME app had no case for it | APPROVED · SYSTEM: a separate case with its own Verification ID; Default's rejection and cooldown don't apply (projects are isolated, DEC-113) |
 | S21 | KYC-260901-900021 | Atoz Default › Malaysian onboarding (V4) | Face match 86.0 → 87.5 → 88.0 → 89.2; face search finds an existing user (97.6) | PENDING_REVIEW for the face match only; "Existing user found" is shown for information and changes nothing (DEC-105) |

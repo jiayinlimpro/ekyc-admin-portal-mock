@@ -1,4 +1,4 @@
-// Named scenarios S01–S33 (docs/SCENARIOS.md). Each one is a UAT test case with a fixed Reference No (MOCK-05).
+// Named scenarios S01–S35 (docs/SCENARIOS.md). Each one is a UAT test case with a fixed Reference No (MOCK-05).
 // Thresholds referred to below come from the flow revision (fixtures/catalog.ts) and the presets (OQ-02).
 import { Faker, en } from '@faker-js/faker'
 import { makeAudit } from '@/domain/audit'
@@ -24,6 +24,7 @@ export interface EdgeCaseExpectation {
   lastUpdatedBy?: UpdatedBy['kind']
   configRevision?: number
   sessions?: number // REQ: DEC-113 — how many sessions the case had (default 1)
+  idVariant?: string // REQ: DEC-113 — set when the Reference ID also has a case in another project (verificationIdOf)
 }
 
 export const EDGE_CASES: EdgeCaseExpectation[] = [
@@ -60,6 +61,9 @@ export const EDGE_CASES: EdgeCaseExpectation[] = [
   { id: 'S31', title: 'Rejected, came back after the 120-min cooldown: session 2 in progress', asUserId: fx('USR-2026-0012'), referenceId: 'KYC-260901-900031', flowId: fx('FLW-0002'), status: 'PROCESSING', sessions: 2 },
   { id: 'S32', title: 'Rejected by a reviewer, came back on another flow: session 2 in review', asUserId: fx('USR-2026-0012'), referenceId: 'KYC-260901-900032', flowId: fx('FLW-0014'), status: 'PENDING_REVIEW', reason: 'Liveness face does not match ID face (Retry Not Allowed)', sessions: 2 },
   { id: 'S33', title: 'Failed 17 min ago; 30-min Cooldown after Failed running', asUserId: fx('USR-2026-0012'), referenceId: 'KYC-260901-900033', flowId: fx('FLW-0002'), status: 'FAILED', reason: 'ID image smaller than 320x320 (Retry Not Allowed)', lastUpdatedBy: 'SYSTEM' },
+  // REQ: DEC-113 — the same Reference ID in two projects of Atoz: two separate cases, each with its own Verification ID.
+  { id: 'S34', title: 'Reference ID also used in SME app: here (Default) Rejected', asUserId: fx('USR-2026-0002'), referenceId: 'KYC-260901-900034', flowId: fx('FLW-0001'), status: 'REJECTED', reason: 'Face not live (Retry Not Allowed)', lastUpdatedBy: 'SYSTEM' },
+  { id: 'S35', title: 'Same Reference ID as S34, in SME app: its own case, Approved', asUserId: fx('USR-2026-0002'), referenceId: 'KYC-260901-900034', flowId: fx('FLW-0004'), status: 'APPROVED', lastUpdatedBy: 'SYSTEM', idVariant: 'PRJ-0002' },
   { id: 'S21', title: 'Existing user found (duplicate, information only)', asUserId: fx('USR-2026-0012'), referenceId: 'KYC-260901-900021', flowId: fx('FLW-0001'), status: 'PENDING_REVIEW', reason: 'Liveness face does not match ID face (Retry Not Allowed)' },
 ]
 
@@ -82,7 +86,7 @@ export function buildEdgeCases(ctx: { now: Date; catalog: Catalog }): {
     flowId: string,
     startMin: number,
     submissions: Partial<Record<Check, number[]>>,
-    opts: { riskScore?: number; documentType?: DocumentType; stepMin?: number; idCapture?: Partial<IdCaptureTelemetry>; duplicateSimilarity?: number; riskScores?: RiskScores; stoppedAtSelfie?: Partial<SelfieTelemetry>; softRejects?: number; selfieFailures?: number; lastSelfieFailed?: Partial<SelfieTelemetry>; sessionNo?: number } = {},
+    opts: { riskScore?: number; documentType?: DocumentType; stepMin?: number; idCapture?: Partial<IdCaptureTelemetry>; duplicateSimilarity?: number; riskScores?: RiskScores; stoppedAtSelfie?: Partial<SelfieTelemetry>; softRejects?: number; selfieFailures?: number; lastSelfieFailed?: Partial<SelfieTelemetry>; sessionNo?: number; idVariant?: string } = {},
   ): Verification => {
     const flow = catalog.flows.find((x) => x.flowId === flowId)!
     const p = person(f, now, opts.documentType ?? 'MYKAD')
@@ -105,6 +109,7 @@ export function buildEdgeCases(ctx: { now: Date; catalog: Catalog }): {
       selfieFailures: opts.selfieFailures,
       lastSelfieFailed: opts.lastSelfieFailed,
       sessionNo: opts.sessionNo,
+      idVariant: opts.idVariant,
     })
   }
 
@@ -224,6 +229,11 @@ export function buildEdgeCases(ctx: { now: Date; catalog: Catalog }): {
     // Atoz FLW-0002 (Cooldown after Failed 30 min): the 4th passport image still too small, 17 min ago.
     make(33, fx('FLW-0002'), 20, {}, { documentType: 'PASSPORT', softRejects: 3, idCapture: { imageWidth: 300, imageHeight: 240 } }),
   ]
+  // REQ: DEC-113 — the merchant sent the same Reference ID to two projects. Default: liveness below Auto-Reject → Rejected.
+  // SME app (V3) has no case for it, so it starts its own (no cooldown carried over) and passes → Approved.
+  const s34 = make(34, fx('FLW-0001'), 150, { FACE_MATCH: passes(4), LIVENESS: [45.0, 50.0, 48.0, 52.0] })
+  const s35 = make(34, fx('FLW-0004'), 20, { FACE_MATCH: [96.0], LIVENESS: [90.0] }, { idVariant: 'PRJ-0002' })
+  out.push(s34, { ...s35, pii: s34.pii, documentType: s34.documentType }) // the same person, as the merchant told us
 
   // S16: Nurul (Reviewer, SME app) looked at it a few minutes ago without claiming it.
   const s16 = out.find((v) => v.referenceId === 'KYC-260901-900016')!

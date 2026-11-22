@@ -64,8 +64,11 @@ export function fx(handle: string): string {
   return stableId(prefix, handle)
 }
 
-/** The Verification ID of a seeded case, from its Reference ID (each seeded Reference ID belongs to one case). */
-export const verificationIdOf = (referenceId: string) => stableId('vrf', referenceId)
+/**
+ * The Verification ID of a seeded case, from its Reference ID. REQ: DEC-113 — the merchant's Reference ID may repeat in
+ * another project (its own case there): `variant` (e.g. that project's handle) tells the two cases apart.
+ */
+export const verificationIdOf = (referenceId: string, variant?: string) => stableId('vrf', variant ? `${referenceId}@${variant}` : referenceId)
 
 /**
  * REQ: DEC-97 — a form may show the new record's ID before saving (Role ID, User ID). The service keeps that drafted ID

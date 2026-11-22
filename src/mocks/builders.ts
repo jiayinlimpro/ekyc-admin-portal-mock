@@ -52,12 +52,15 @@ export interface CaseSpec {
   lastSelfieFailed?: Partial<SelfieTelemetry>
   /** REQ: DEC-113 — the session of the case this builds (default 1); later sessions get their own attempt IDs and telemetry. */
   sessionNo?: number
+  /** REQ: DEC-113 — the same Reference ID in another project is another case: a variant for its Verification ID. */
+  idVariant?: string
 }
 
 /** Builds a case in its SYSTEM-assigned state (checkRules.evaluateCase). Manual decisions and claims are applied afterwards. */
 export function buildCase(spec: CaseSpec): Verification {
   const rev = revisionAt(spec.revisions, spec.flow.flowId, spec.startedAt)!
-  const key = (spec.sessionNo ?? 1) > 1 ? `${spec.referenceId}#${spec.sessionNo}` : spec.referenceId // REQ: DEC-113
+  const caseKey = spec.idVariant ? `${spec.referenceId}@${spec.idVariant}` : spec.referenceId
+  const key = (spec.sessionNo ?? 1) > 1 ? `${caseKey}#${spec.sessionNo}` : caseKey // REQ: DEC-113
   const rand = rng(key) // REQ: DEC-105 — telemetry is stable per case across resets (MOCK-05)
   const flow: FlowContext = { checks: spec.entry.configurableChecks, faceMatchMethod: spec.entry.faceMatchMethod, hasRisk: hasRisk(spec.entry), settings: rev.settings }
 
@@ -151,7 +154,7 @@ export function buildCase(spec: CaseSpec): Verification {
   // REQ: DEC-44 — V4/V5 sessions require an email; reserved .example domain, never a real address.
   const email = spec.entry.requiredInputs.includes('EMAIL') ? emailFor(spec.person.pii.fullName, spec.referenceId) : undefined
   return {
-    verificationId: verificationIdOf(spec.referenceId), // REQ: DEC-97 — stable for seeded cases (MOCK-05)
+    verificationId: verificationIdOf(spec.referenceId, spec.idVariant), // REQ: DEC-97 — stable for seeded cases (MOCK-05)
     referenceId: spec.referenceId,
     merchantId: spec.flow.merchantId,
     workflowVersion: spec.flow.workflowVersion as WorkflowVersion,
@@ -170,7 +173,7 @@ export function buildCase(spec: CaseSpec): Verification {
     documentType: spec.person.documentType,
     pii: email ? { ...spec.person.pii, email } : spec.person.pii,
     clientMetadata: spec.metadata,
-    images: { docFront: { fileId: stableId('file', `${spec.referenceId}:doc`), url: image }, selfie: { fileId: stableId('file', `${spec.referenceId}:selfie`), url: '/mock/selfie.svg' } },
+    images: { docFront: { fileId: stableId('file', `${caseKey}:doc`), url: image }, selfie: { fileId: stableId('file', `${caseKey}:selfie`), url: '/mock/selfie.svg' } },
     charged: spec.entry.status !== 'INTERNAL_TESTING', // REQ: DEC-60 / DEC-56
     projectId: spec.flow.projectId,
     flowId: spec.flow.flowId,

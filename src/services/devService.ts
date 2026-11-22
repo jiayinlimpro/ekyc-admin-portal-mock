@@ -40,7 +40,7 @@ export const devService = {
 
   /** Named UAT scenarios from docs/SCENARIOS.md. */
   async listScenarios(): Promise<ScenarioSummary[]> {
-    return EDGE_CASES.map((e) => ({ id: e.id, title: e.title, verificationId: verificationIdOf(e.referenceId), referenceId: e.referenceId, expectedStatus: e.status, asUserId: e.asUserId }))
+    return EDGE_CASES.map((e) => ({ id: e.id, title: e.title, verificationId: verificationIdOf(e.referenceId, e.idVariant), referenceId: e.referenceId, expectedStatus: e.status, asUserId: e.asUserId }))
   },
 
   /** Re-seed all demo data with claims relative to now (run before a UAT session; see docs/SCENARIOS.md). */
