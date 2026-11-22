@@ -388,7 +388,8 @@ export interface CheckSettings {
 export interface FlowSettings {
   checks: Record<Check, CheckSettings>
   retries: Record<RetryPhase, number> // REQ: DEC-108 — retries after the first submission, per phase (Selfie: V1 only)
-  cooldownMin: number // REQ: DEC-26
+  cooldownMin: number // REQ: DEC-26 — Cooldown after Rejected (min)
+  failedCooldownMin: number // REQ: DEC-26 / DEC-112 — Cooldown after Failed (min), whichever phase failed
   acceptedDocuments: DocumentType[]
   sessionExpiryMin: number
   risk?: RiskConfig // V4 / V5 (DEC-107)

@@ -16,6 +16,7 @@ export function newFlowSettings(entry: Pick<RegistryEntry, 'phases'>): FlowSetti
     checks: { FACE_MATCH: { ...check }, LIVENESS: { ...check } },
     retries: { DOCUMENT: RETRY_LIMITS.default, SELFIE: RETRY_LIMITS.default, LIVENESS: RETRY_LIMITS.default }, // REQ: DEC-108
     cooldownMin: DEFAULT_COOLDOWN_MIN,
+    failedCooldownMin: DEFAULT_COOLDOWN_MIN, // REQ: DEC-26 / DEC-112
     acceptedDocuments: [],
     sessionExpiryMin: Number.NaN,
     risk: hasRisk(entry) ? { enabled: true, minimums: { ...DEFAULT_RISK_MINIMUMS } } : undefined, // REQ: DEC-107
@@ -72,8 +73,11 @@ export function validateFlow(flow: Pick<Flow, 'name' | 'settings'>, entry: Pick<
       errors.push({ field: `retries.${p}`, message: `${RETRY_PHASE_LABELS[p]} retries allowed must be a whole number between ${RETRY_LIMITS.min} and ${RETRY_LIMITS.max}` })
     }
   }
-  if (!Number.isFinite(s.cooldownMin)) errors.push({ field: 'cooldownMin', message: 'Cooldown period is required. Enter 0 for no cooldown' })
-  else if (!whole(s.cooldownMin, 0)) errors.push({ field: 'cooldownMin', message: 'Cooldown period must be a whole number of minutes, 0 or more' })
+  // REQ: DEC-26 — two cooldowns, whole minutes, 0 or more.
+  for (const [field, label] of [['cooldownMin', 'Cooldown after Rejected'], ['failedCooldownMin', 'Cooldown after Failed']] as const) {
+    if (!Number.isFinite(s[field])) errors.push({ field, message: `${label} is required. Enter 0 for no cooldown` })
+    else if (!whole(s[field], 0)) errors.push({ field, message: `${label} must be a whole number of minutes, 0 or more` })
+  }
   if (!Number.isFinite(s.sessionExpiryMin)) errors.push({ field: 'sessionExpiryMin', message: 'Session expiry is required' })
   else if (!whole(s.sessionExpiryMin, 1)) errors.push({ field: 'sessionExpiryMin', message: 'Session expiry must be a whole number of minutes, at least 1' })
   if (s.acceptedDocuments.length === 0) errors.push({ field: 'acceptedDocuments', message: 'Select at least one accepted document' })
@@ -128,6 +132,7 @@ export function diffFlow(base: Pick<Flow, 'name' | 'description' | 'settings'>, 
   }
   for (const p of RETRY_PHASES) push(`retries.${p}`, show.num(base.settings.retries[p]), show.num(next.settings.retries[p]))
   push('cooldownMin', show.num(base.settings.cooldownMin), show.num(next.settings.cooldownMin))
+  push('failedCooldownMin', show.num(base.settings.failedCooldownMin), show.num(next.settings.failedCooldownMin))
   push('sessionExpiryMin', show.num(base.settings.sessionExpiryMin), show.num(next.settings.sessionExpiryMin))
   push('acceptedDocuments', show.docs(base.settings.acceptedDocuments), show.docs(next.settings.acceptedDocuments))
   push('risk.enabled', String(base.settings.risk?.enabled ?? '—'), String(next.settings.risk?.enabled ?? '—'))

@@ -57,12 +57,13 @@ interface FlowSpec {
 
 const preset = (p: 'LOW' | 'STANDARD' | 'HIGH'): ThresholdChoice => ({ preset: p })
 
-function settings(o: { fm?: ThresholdChoice; l?: ThresholdChoice; retries?: number; cooldownMin?: number; docs?: DocumentType[]; expiry?: number; risk?: boolean | RiskScores }): FlowSettings {
+function settings(o: { fm?: ThresholdChoice; l?: ThresholdChoice; retries?: number; cooldownMin?: number; failedCooldownMin?: number; docs?: DocumentType[]; expiry?: number; risk?: boolean | RiskScores }): FlowSettings {
   const r = o.retries ?? 3
   return {
     checks: { FACE_MATCH: { threshold: o.fm ?? preset('STANDARD') }, LIVENESS: { threshold: o.l ?? preset('STANDARD') } },
     retries: { DOCUMENT: 3, SELFIE: r, LIVENESS: r }, // REQ: DEC-108
     cooldownMin: o.cooldownMin ?? 0,
+    failedCooldownMin: o.failedCooldownMin ?? 0, // REQ: DEC-26 / DEC-112
     acceptedDocuments: o.docs ?? ['MYKAD'],
     sessionExpiryMin: o.expiry ?? 30,
     risk: o.risk ? { enabled: true, minimums: o.risk === true ? { ...DEFAULT_RISK_MINIMUMS } : o.risk } : undefined, // REQ: DEC-107
@@ -112,7 +113,7 @@ const FLOWS: FlowSpec[] = [
   },
   {
     flowId: fx('FLW-0002'), projectId: fx('PRJ-0001'), name: 'Foreigner onboarding', description: 'Passport holders', version: 'V4', status: 'ACTIVE', createdDaysAgo: 200,
-    revisions: [{ hoursAgo: 200 * 24, by: OWNER_ATOZ, reason: 'Flow activated', settings: settings({ fm: preset('HIGH'), cooldownMin: 120, docs: ['PASSPORT'], risk: true }) }],
+    revisions: [{ hoursAgo: 200 * 24, by: OWNER_ATOZ, reason: 'Flow activated', settings: settings({ fm: preset('HIGH'), cooldownMin: 120, failedCooldownMin: 30, docs: ['PASSPORT'], risk: true }) }],
   },
   {
     // REQ: DEC-107 — V5: this flow's own risk minimums (EXIF looser, Noise stricter, OSINT looser than the defaults).

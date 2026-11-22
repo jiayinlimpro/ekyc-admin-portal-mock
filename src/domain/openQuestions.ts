@@ -22,7 +22,7 @@ export const THRESHOLD_PRESETS: Record<Check, Record<ThresholdPreset, { autoReje
 /** OQ-03: "Retries allowed" per check (DEC-18). Default 3 retries = up to 4 submissions. */
 export const RETRY_LIMITS = { min: 1, max: 5, default: 3 } as const
 
-/** DEC-26 (FRS default); what counts as the "same end user" is OQ-22. */
+/** DEC-26 (FRS default): both cooldowns, after Rejected and after Failed. 0 = a new session at once. */
 export const DEFAULT_COOLDOWN_MIN = 0
 
 /** OQ-04 */

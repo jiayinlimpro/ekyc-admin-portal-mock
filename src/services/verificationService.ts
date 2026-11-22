@@ -10,7 +10,7 @@ import { makeAudit } from '@/domain/audit'
 import { applyDecision, checkOwnershipAtSave, decisionReason, claim as claimRule, isClaimActive, release as releaseRule, validateDecision } from '@/domain/claimRules'
 import { activeReasons, reasonsOf } from '@/domain/decisionReasons'
 import { evaluateCase } from '@/domain/checkRules'
-import { newCaseAllowedAt, revisionLabel } from '@/domain/flowRules'
+import { cooldownFor, newSessionAllowedAt, revisionLabel } from '@/domain/flowRules'
 import { caseInputOf } from '@/domain/telemetry'
 import { hasRisk } from '@/domain/registryRules'
 import { RISK_RESULTS, VERIFICATION_STATUSES, type Actor, type Decision, type Flow, type Paged, type Project, type RiskResult, type Verification, type VerificationDetail, type VerificationStatus, type VerificationSummary } from '@/domain/types'
@@ -132,7 +132,7 @@ function toDetail(v: Verification): VerificationDetail {
     steps: { phases: entry.phases, faceMatchMethod: entry.faceMatchMethod, runsRisk, riskMinimumsPerFlow: entry.riskMinimumsPerFlow },
     checks: ev.checks,
     phases: ev.phases, // REQ: DEC-108
-    newCaseAllowedAt: v.status === 'REJECTED' ? newCaseAllowedAt(v.lastUpdatedAt, settings.cooldownMin)?.toISOString() : undefined,
+    newCaseAllowedAt: newSessionAllowedAt(v.lastUpdatedAt, cooldownFor(v.status, settings))?.toISOString(), // REQ: DEC-26 / DEC-112
     reasonOptions: activeReasons(projectById(v.projectId)!.decisionReasons), // REQ: DEC-106
   })
 }

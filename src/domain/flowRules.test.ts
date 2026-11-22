@@ -4,8 +4,9 @@ import {
   activateError,
   archiveError,
   duplicateFlow,
+  cooldownFor,
   inCooldown,
-  newCaseAllowedAt,
+  newSessionAllowedAt,
   retire,
   retireError,
   revisionLabel,
@@ -48,6 +49,7 @@ const flow = (overrides: Partial<Flow> = {}): Flow => ({
     checks: { FACE_MATCH: { threshold: { preset: 'STANDARD' } }, LIVENESS: { threshold: { preset: 'HIGH' } } },
     retries: { DOCUMENT: 3, SELFIE: 3, LIVENESS: 3 },
     cooldownMin: 0,
+    failedCooldownMin: 0,
     acceptedDocuments: ['PASSPORT'],
     sessionExpiryMin: 30,
     risk: { enabled: true, minimums: { EXIF: 50, NOISE: 50, EMAIL_VALIDITY: 50, OSINT: 50 } },
@@ -122,17 +124,24 @@ describe('flow lifecycle (DEC-94, DEC-51)', () => {
   })
 })
 
-describe('cooldown after rejection (DEC-26)', () => {
+describe('cooldowns after Rejected and after Failed (DEC-26, DEC-112)', () => {
   const rejectedAt = '2026-10-20T01:00:00.000Z'
 
-  it('Given cooldown 0, then a new case is allowed straight away', () => {
-    expect(newCaseAllowedAt(rejectedAt, 0)).toBeUndefined()
+  it('Given cooldown 0, then a new session is allowed straight away', () => {
+    expect(newSessionAllowedAt(rejectedAt, 0)).toBeUndefined()
     expect(inCooldown(rejectedAt, 0, NOW)).toBe(false)
   })
 
-  it('Given cooldown 120 min, then a new case is allowed only from rejection + 120 min', () => {
-    expect(newCaseAllowedAt(rejectedAt, 120)?.toISOString()).toBe('2026-10-20T03:00:00.000Z')
+  it('Given cooldown 120 min, then a new session is allowed only from the end + 120 min', () => {
+    expect(newSessionAllowedAt(rejectedAt, 120)?.toISOString()).toBe('2026-10-20T03:00:00.000Z')
     expect(inCooldown(rejectedAt, 120, NOW)).toBe(true)
     expect(inCooldown(rejectedAt, 120, new Date('2026-10-20T03:00:00.000Z'))).toBe(false)
+  })
+
+  it('Given a flow with both cooldowns, then the case status picks one, whatever the phase; other statuses have none', () => {
+    const s = { cooldownMin: 120, failedCooldownMin: 30 }
+    expect(cooldownFor('REJECTED', s)).toBe(120) // incl. a V1 face mismatch and a reviewer's reject
+    expect(cooldownFor('FAILED', s)).toBe(30) // a document or V1 selfie with no usable image
+    for (const st of ['PROCESSING', 'PENDING_REVIEW', 'APPROVED'] as const) expect(cooldownFor(st, s)).toBe(0)
   })
 })

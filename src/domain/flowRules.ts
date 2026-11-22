@@ -1,5 +1,5 @@
 // Project and flow lifecycle (DEC-26, DEC-51, DEC-92 … DEC-94). Settings validation and presets: flowSettings.ts.
-import type { Flow, Project, RegistryEntry, RuleError, VerificationStatus } from './types'
+import type { Flow, FlowSettings, Project, RegistryEntry, RuleError, VerificationStatus } from './types'
 
 type By = Flow['updatedBy']
 
@@ -88,14 +88,21 @@ export function duplicateFlow(flow: Flow, flowId: string, now: Date, by: By): Fl
 
 // ----- Cooldown -----------------------------------------------------------------------------------------------------
 
-// REQ: DEC-26 — after a rejection, the same end user may start a new case only from this time. Who counts as "the same
-// end user", and whether the wait covers one flow or the whole project, is OQ-22.
-export function newCaseAllowedAt(rejectedAt: string, cooldownMin: number): Date | undefined {
-  if (!(cooldownMin > 0)) return undefined
-  return new Date(new Date(rejectedAt).getTime() + cooldownMin * 60_000)
+// REQ: DEC-26 / DEC-112 — the case's status picks the cooldown, not the phase: Rejected (also a reviewer's reject) or
+// Failed. No cooldown for the other statuses.
+export function cooldownFor(status: VerificationStatus, settings: Pick<FlowSettings, 'cooldownMin' | 'failedCooldownMin'>): number {
+  if (status === 'REJECTED') return settings.cooldownMin
+  if (status === 'FAILED') return settings.failedCooldownMin
+  return 0
 }
 
-export function inCooldown(rejectedAt: string, cooldownMin: number, now: Date): boolean {
-  const until = newCaseAllowedAt(rejectedAt, cooldownMin)
+// REQ: DEC-26 / DEC-113 — the same Reference ID may start a new session on the case only from this time.
+export function newSessionAllowedAt(endedAt: string, cooldownMin: number): Date | undefined {
+  if (!(cooldownMin > 0)) return undefined
+  return new Date(new Date(endedAt).getTime() + cooldownMin * 60_000)
+}
+
+export function inCooldown(endedAt: string, cooldownMin: number, now: Date): boolean {
+  const until = newSessionAllowedAt(endedAt, cooldownMin)
   return !!until && now < until
 }
