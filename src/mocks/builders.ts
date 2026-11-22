@@ -87,7 +87,7 @@ export function buildCase(spec: CaseSpec): Verification {
             attemptNo: 1,
             phase: stoppedSelfie ? 'SELFIE' : 'DOCUMENT',
             startedAt: at(0),
-            outcome: ev.status === 'REJECTED' ? 'COMPLETED' : (spec.abandoned ?? 'ABORTED'), // REQ: DEC-108 — document retries used up
+            outcome: ev.status === 'FAILED' ? 'COMPLETED' : (spec.abandoned ?? 'ABORTED'), // REQ: DEC-108 / DEC-112 — retries used up, no usable image
             isUserRetake: false,
             phaseScores: {},
             ...(stoppedSelfie ? { faceImage: { fileId: stableId('file', `${spec.referenceNo}:face:1`), url: '/mock/selfie.svg' }, telemetry: { selfieRetakes: [stoppedSelfie] } } : {}),
@@ -122,7 +122,7 @@ export function buildCase(spec: CaseSpec): Verification {
 
   // REQ: DEC-03 — lastUpdatedAt only moves on status change: PROCESSING was set when the user entered the flow.
   const lastUpdatedAt = ev.status === 'PROCESSING' ? at(0) : new Date(Date.parse(attempts.at(-1)!.startedAt) + 3 * 60_000).toISOString()
-  const decisive = ev.status === 'PENDING_REVIEW' || ev.status === 'REJECTED'
+  const decisive = ev.status === 'PENDING_REVIEW' || ev.status === 'REJECTED' || ev.status === 'FAILED'
   const image = { MYKAD: '/mock/mykad-front.svg', PASSPORT: '/mock/passport.svg', DRIVING_LICENSE: '/mock/driving-license.svg' }[spec.person.documentType]
   // REQ: DEC-44 — V4/V5 sessions require an email; reserved .example domain, never a real address.
   const email = spec.entry.requiredInputs.includes('EMAIL') ? emailFor(spec.person.pii.fullName, spec.referenceNo) : undefined

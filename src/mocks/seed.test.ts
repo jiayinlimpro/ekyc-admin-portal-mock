@@ -117,6 +117,7 @@ describe('seedDatabase', () => {
       }
     }
     for (const r of ['LOW', 'HIGH']) expect(db.verifications.some((v) => v.riskResult === r), r).toBe(true)
+    expect(db.verifications.some((v) => v.status === 'FAILED'), 'FAILED').toBe(true)
   })
 
   it('every record is charged except the Internal testing session S26 (DEC-60, DEC-56)', () => {
@@ -227,9 +228,9 @@ describe('telemetry, duplicate user and risk categories (DEC-105)', () => {
     expect(db.verifications.filter((v) => !v.riskScores).every((v) => v.riskResult === undefined)).toBe(true)
   })
 
-  it('S25 used its 3 Document retries: the 4th ID image is still too small, so REJECTED by SYSTEM (DEC-108)', () => {
+  it('S25 used its 3 Document retries: the 4th ID image is still too small, so FAILED by SYSTEM (DEC-108, DEC-112)', () => {
     const v = byRef('KYC-260901-900025')
-    expect(v).toMatchObject({ status: 'REJECTED', statusReason: 'ID image smaller than 320x320 (Retry Not Allowed)', idCaptureSoftRejects: 3, lastUpdatedBy: { kind: 'SYSTEM' } })
+    expect(v).toMatchObject({ status: 'FAILED', statusReason: 'ID image smaller than 320x320 (Retry Not Allowed)', idCaptureSoftRejects: 3, lastUpdatedBy: { kind: 'SYSTEM' } })
     expect(v.attempts).toMatchObject([{ phase: 'DOCUMENT', outcome: 'COMPLETED' }])
   })
 

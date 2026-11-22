@@ -230,8 +230,9 @@ describe('Verification Detail', () => {
     expect(region('Checks').getByText('Not checked yet')).toBeTruthy() // duplicate user: no search without a face comparison
   })
 
-  it('Given S25, then the 4th ID image still failed with 3 of 3 Document retries used, so REJECTED by the engine (DEC-108)', async () => {
+  it('Given S25, then the 4th ID image still failed with 3 of 3 Document retries used, so Failed by the engine (DEC-108, DEC-112)', async () => {
     await open(S(25))
+    expect(screen.getAllByText('Failed').length).toBeGreaterThan(0) // status badge
     expect(screen.getByText('ID image smaller than 320x320 (Retry Not Allowed)')).toBeTruthy()
     expect(region('Checks').getByText('3 earlier ID image(s) failed · 3 of 3 retries used')).toBeTruthy()
     expect(region('Rules applied').getByText('Document (OCR) 3 · Liveness 3')).toBeTruthy()

@@ -88,7 +88,7 @@ describe('verificationService.list', () => {
     const refs = (await list('referenceNo', 'asc')).map((r) => r.referenceNo)
     expect(refs).toEqual([...refs].sort())
     expect((await list('referenceNo', 'desc')).map((r) => r.referenceNo)).toEqual([...refs].reverse())
-    const order = ['PROCESSING', 'PENDING_REVIEW', 'APPROVED', 'REJECTED']
+    const order = ['PROCESSING', 'PENDING_REVIEW', 'APPROVED', 'REJECTED', 'FAILED'] // REQ: DEC-112
     const statuses = (await list('status', 'asc')).map((r) => order.indexOf(r.status))
     expect(statuses).toEqual([...statuses].sort((a, b) => a - b))
     const down = (await list('status', 'desc')).map((r) => order.indexOf(r.status))

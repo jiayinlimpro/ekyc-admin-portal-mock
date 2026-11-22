@@ -51,7 +51,7 @@ describe('Verifications List', () => {
     expect(header().getAttribute('aria-sort')).toBe('none')
     expect(within(table()).getByRole('columnheader', { name: 'Full Name' }).querySelector('button')).toBeNull() // not sortable (FRS)
     fireEvent.change(screen.getByLabelText('Full Name'), { target: { value: 'tan' } }) // not searched yet
-    const order = ['Processing', 'Pending Review', 'Approved', 'Rejected']
+    const order = ['Processing', 'Pending Review', 'Approved', 'Rejected', 'Failed'] // REQ: DEC-112
     const statuses = async () => (await dataRows()).map((r) => order.findIndex((s) => r.textContent!.includes(s)))
     fireEvent.click(within(header()).getByRole('button'))
     await waitFor(() => expect(header().getAttribute('aria-sort')).toBe('ascending'))
@@ -59,7 +59,7 @@ describe('Verifications List', () => {
     expect(await statuses()).toEqual([...(await statuses())].sort((a, b) => a - b))
     fireEvent.click(within(header()).getByRole('button'))
     await waitFor(() => expect(header().getAttribute('aria-sort')).toBe('descending'))
-    expect((await statuses())[0]).toBe(3) // Rejected first
+    expect((await statuses())[0]).toBe(4) // Failed (S25) first
     fireEvent.click(within(header()).getByRole('button'))
     await waitFor(() => expect(header().getAttribute('aria-sort')).toBe('none'))
     expect(router.state.location.search).toBe('?status=ALL')

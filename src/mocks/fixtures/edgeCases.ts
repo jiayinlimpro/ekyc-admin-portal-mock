@@ -47,7 +47,7 @@ export const EDGE_CASES: EdgeCaseExpectation[] = [
   { id: 'S22', title: 'V1: selfie too dark, rejected; user stopped, nothing compared', asUserId: fx('USR-2026-0044'), referenceNo: 'KYC-260901-900022', flowId: fx('FLW-0005'), status: 'PROCESSING' },
   { id: 'S23', title: 'V5: High risk by its own OSINT minimum (22 < 30)', asUserId: fx('USR-2026-0012'), referenceNo: 'KYC-260901-900023', flowId: fx('FLW-0014'), status: 'PENDING_REVIEW', reason: 'Risk Assessment: high risk' },
   { id: 'S24', title: 'V5: EXIF 45 is Low risk under the flow’s minimum 40 (a V4 flow would flag it)', asUserId: fx('USR-2026-0012'), referenceNo: 'KYC-260901-900024', flowId: fx('FLW-0014'), status: 'APPROVED', lastUpdatedBy: 'SYSTEM' },
-  { id: 'S25', title: 'Document retries used up: 4th ID image still too small', asUserId: fx('USR-2026-0012'), referenceNo: 'KYC-260901-900025', flowId: fx('FLW-0001'), status: 'REJECTED', reason: 'ID image smaller than 320x320 (Retry Not Allowed)', lastUpdatedBy: 'SYSTEM' },
+  { id: 'S25', title: 'Document retries used up: 4th ID image still too small → Failed', asUserId: fx('USR-2026-0012'), referenceNo: 'KYC-260901-900025', flowId: fx('FLW-0001'), status: 'FAILED', reason: 'ID image smaller than 320x320 (Retry Not Allowed)', lastUpdatedBy: 'SYSTEM' },
   { id: 'S26', title: 'Internal test session on V6: not charged; hidden from Atoz’s users', asUserId: fx('USR-2026-0001'), referenceNo: 'KYC-260901-900026', flowId: fx('FLW-0015'), status: 'APPROVED', lastUpdatedBy: 'SYSTEM' },
   { id: 'S21', title: 'Existing user found (duplicate, information only)', asUserId: fx('USR-2026-0012'), referenceNo: 'KYC-260901-900021', flowId: fx('FLW-0001'), status: 'PENDING_REVIEW', reason: 'Liveness face does not match ID face (Retry Not Allowed)' },
 ]
