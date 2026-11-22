@@ -7,6 +7,7 @@ import { StatusBadge } from '@/components/common/StatusBadge'
 import { EmptyState, ErrorState } from '@/components/common/States'
 import { Button } from '@/components/ui/button'
 import { ChecksSection, EvidenceSection, RiskSection, RulesAppliedSection } from '@/components/verification/CaseSections'
+import { SessionsSection } from '@/components/verification/SessionsSection'
 import { AttemptsSection, TelemetrySection } from '@/components/verification/TelemetrySections'
 import { ClaimBar } from '@/components/verification/ClaimBar'
 import { DecisionOverlay } from '@/components/verification/DecisionOverlay'
@@ -243,6 +244,7 @@ export function VerificationDetailPage() {
             </div>
           </div>
           <TelemetrySection v={v} />
+          <SessionsSection v={v} />
           <AttemptsSection v={v} />
           <RulesAppliedSection v={v} />
         </div>

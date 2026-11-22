@@ -226,6 +226,7 @@ export type VerificationDetail = Verification & {
   checks: CheckEvaluation[] // face match / liveness: threshold applied, result, retries used / allowed
   phases: PhaseEvaluation[] // REQ: DEC-108 — submissions and retries per phase
   newSessionAllowedAt?: string // REQ: DEC-26 / DEC-113 — REJECTED or FAILED with a cooldown: when the same Reference ID may start a new session
+  sessionRows: (CaseSession & { flowName: string; revisionLabel: string; tokens: number })[] // REQ: DEC-113 — for the Sessions section
   reasonOptions: DecisionReason[] // REQ: DEC-106 — the project's active decision reasons, for the decision panel
 }
 

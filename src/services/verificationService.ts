@@ -12,6 +12,7 @@ import { activeReasons, reasonsOf } from '@/domain/decisionReasons'
 import { evaluateCase } from '@/domain/checkRules'
 import { cooldownFor, newSessionAllowedAt, revisionLabel } from '@/domain/flowRules'
 import { caseInputOf } from '@/domain/telemetry'
+import { sessionTokens } from '@/domain/dashboards'
 import { hasRisk } from '@/domain/registryRules'
 import { RISK_RESULTS, VERIFICATION_STATUSES, type Actor, type Decision, type Flow, type Paged, type Project, type RiskResult, type Verification, type VerificationDetail, type VerificationStatus, type VerificationSummary } from '@/domain/types'
 import { now } from '@/lib/clock'
@@ -134,6 +135,13 @@ function toDetail(v: Verification): VerificationDetail {
     phases: ev.phases, // REQ: DEC-108
     newSessionAllowedAt: newSessionAllowedAt(v.lastUpdatedAt, cooldownFor(v.status, settings))?.toISOString(), // REQ: DEC-26 / DEC-112
     reasonOptions: activeReasons(projectById(v.projectId)!.decisionReasons), // REQ: DEC-106
+    // REQ: DEC-113 — every session with its flow's name and rules applied; tokens of the current one from the case (DEC-60).
+    sessionRows: v.sessions.map((x) => ({
+      ...x,
+      flowName: s.flows.find((f) => f.flowId === x.flowId)?.name ?? x.flowId,
+      revisionLabel: `${x.workflowVersion}-R${x.configRevision}`,
+      tokens: (x.ended ?? sessionTokens(v)).tokens,
+    })),
   })
 }
 

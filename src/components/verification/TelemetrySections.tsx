@@ -104,7 +104,10 @@ export function AttemptsSection({ v }: { v: VerificationDetail }) {
   const v1 = v.steps.faceMatchMethod === 'ID_VS_SELFIE'
   const hasLiveness = v.checks.some((c) => c.check === 'LIVENESS')
   return (
-    <Section title="Attempts" aside={<span className="text-xs text-muted-foreground">Same Reference ID for every retry</span>}>
+    <Section
+      title="Attempts"
+      aside={<span className="text-xs text-muted-foreground">{v.sessionRows.length > 1 ? `Session ${v.sessionRows.length} (current) · ` : ''}Same Reference ID for every retry</span>}
+    >
       <div className="overflow-x-auto">
         <table className="w-full text-sm" aria-label="Attempts">
           <thead>

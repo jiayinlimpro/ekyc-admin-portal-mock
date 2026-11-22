@@ -9,6 +9,7 @@ import { flowService } from './flowService'
 import { isServiceError } from './errors'
 import { merchantService } from './merchantService'
 import { verificationService as svc } from './verificationService'
+import { mytDay } from '@/domain/dashboards'
 import { fx, caseIdOf } from '@/lib/ids'
 
 const S = (n: number) => `KYC-260901-${900000 + n}` // Reference ID
@@ -349,6 +350,15 @@ describe('analyticsService scoping (DEC-86)', () => {
     const v = await svc.get(C(25), ALI)
     const report = await analyticsService.billing({ period: v.createdAt.slice(0, 7) }, ALI)
     expect(report.lines.find((l) => l.referenceNo === S(25))).toMatchObject({ status: 'FAILED', tokens: 4, retryTokens: 3 })
+  })
+
+  it('Given S30 with 3 sessions, then 3 billing lines, each with its session result, and the case counts once (DEC-60, DEC-113)', async () => {
+    const v = await svc.get(C(30), ALI)
+    const lines = []
+    for (const period of new Set(v.sessionRows.map((x) => mytDay(x.startedAt).slice(0, 7)))) // billing months are MYT
+      lines.push(...(await analyticsService.billing({ period }, ALI)).lines.filter((l) => l.caseId === v.caseId))
+    expect(lines.map((l) => [l.sessionNo, l.status]).sort()).toEqual([[1, 'FAILED'], [2, 'REJECTED'], [3, 'APPROVED']])
+    expect(lines.find((l) => l.sessionNo === 1)!.tokens).toBe(4)
   })
 
   it('Given a Reviewer, then Billing is available with their projects only', async () => {
