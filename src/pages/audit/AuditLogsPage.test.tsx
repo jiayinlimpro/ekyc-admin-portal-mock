@@ -77,10 +77,21 @@ describe('Audit Logs', () => {
   })
 
   it('Given S32 came back on another flow, then a SYSTEM CASE_RESUMED entry names the session and the flow move (DEC-113)', async () => {
-    renderAt('/audit?ref=KYC-260901-900032&action=CASE_RESUMED')
+    renderAt('/audit?ref=kyc-260901-900032&action=CASE_RESUMED') // the merchant's value, any case
     const r = await rows('Audit entries')
     expect(r).toHaveLength(1)
     expect(r[0].textContent).toContain('Session 2 started by the same Reference ID: Rejected → Processing · flow Malaysian onboarding → Premium accounts')
+  })
+
+  it('Given a Verification ID filter, then only that case’s entries, each showing the Verification ID (link) and the Reference ID under it (DEC-114)', async () => {
+    const id = verificationIdOf('KYC-260901-900011')
+    renderAt(`/audit?vid=${id}`)
+    const r = await rows('Audit entries')
+    expect(r.length).toBeGreaterThan(0)
+    for (const row of r) {
+      expect(within(row).getByRole('link', { name: id })).toBeTruthy()
+      expect(row.textContent).toContain('KYC-260901-900011')
+    }
   })
 
   it('Given a live action elsewhere, then it appears on the next load', async () => {

@@ -50,9 +50,14 @@ function Filters({ initial, onSearch, onReset, merchants, users, showMerchant }:
   return (
     <form role="search" aria-label="Filter audit log" noValidate onSubmit={submit} className="space-y-4 rounded-lg border bg-card p-4">
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+        {/* REQ: DEC-114 — our Verification ID first, then the merchant's Reference ID; both exact. */}
+        <div>
+          <label htmlFor="a-vid" className="mb-1 block text-xs font-medium text-muted-foreground">Verification ID</label>
+          <Input id="a-vid" value={f.verificationId} onChange={(e) => set('verificationId', e.target.value)} placeholder="Exact, e.g. vrf_tz4a98…" autoComplete="off" spellCheck={false} />
+        </div>
         <div>
           <label htmlFor="a-ref" className="mb-1 block text-xs font-medium text-muted-foreground">Reference ID</label>
-          <Input id="a-ref" value={f.referenceId} onChange={(e) => set('referenceId', e.target.value)} placeholder="Exact, e.g. KYC-260901-900003" autoComplete="off" />
+          <Input id="a-ref" value={f.referenceId} onChange={(e) => set('referenceId', e.target.value)} placeholder="Exact" autoComplete="off" />
         </div>
         <div>
           <label htmlFor="a-actor" className="mb-1 block text-xs font-medium text-muted-foreground">Actor</label>
@@ -229,7 +234,7 @@ export function AuditLogsPage() {
             <table className={cn('w-full text-sm', loading && data && 'opacity-60')} aria-busy={loading}>
               <thead className="bg-muted/50 text-left text-xs text-muted-foreground">
                 <tr>
-                  {['Time (MYT)', 'Event', 'Actor', 'Project', ...(isAdmin ? ['Merchant'] : []), 'Reference ID', 'IP', 'Details'].map((h) => (
+                  {['Time (MYT)', 'Event', 'Actor', 'Project', ...(isAdmin ? ['Merchant'] : []), 'Verification ID', 'IP', 'Details'].map((h) => (
                     <th key={h} scope="col" className="px-3 py-2 font-medium whitespace-nowrap">
                       {h}
                     </th>
@@ -268,10 +273,14 @@ export function AuditLogsPage() {
                     <td className="px-3 py-2 whitespace-nowrap">{projectName(e.projectId)}</td>
                     {isAdmin && <td className="px-3 py-2 whitespace-nowrap">{merchantName(e.merchantId)}</td>}
                     <td className="px-3 py-2">
-                      {e.referenceId ? (
-                        <Link to={`/verifications/${e.verificationId}`} className="font-mono text-xs whitespace-nowrap text-blue-700 hover:underline dark:text-blue-400">
-                          {e.referenceId}
-                        </Link>
+                      {/* REQ: DEC-114 — the Verification ID opens the case; the Reference ID on the second line. */}
+                      {e.verificationId ? (
+                        <>
+                          <Link to={`/verifications/${e.verificationId}`} className="font-mono text-xs whitespace-nowrap text-blue-700 hover:underline dark:text-blue-400">
+                            {e.verificationId}
+                          </Link>
+                          {e.referenceId && <div className="font-mono text-[11px] whitespace-nowrap text-muted-foreground">{e.referenceId}</div>}
+                        </>
                       ) : (
                         <span className="text-muted-foreground">—</span>
                       )}

@@ -50,7 +50,7 @@ describe('auditCsv', () => {
   it('escapes commas and quotes', () => {
     const csv = auditCsv([e('CASE_DECISION_REJECTED', { outcome: 'REJECT', reasons: 'X', note: 'He said "no", twice', fromStatus: 'PENDING_REVIEW' })], () => 'Atoz Software Tech')
     const [header, row] = csv.split('\n')
-    expect(header).toBe('Event ID,Time (MYT),Action,Actor,Actor ID,Merchant,Reference ID,Verification ID,IP,Summary')
+    expect(header).toBe('Event ID,Time (MYT),Action,Actor,Actor ID,Merchant,Verification ID,Reference ID,IP,Summary')
     expect(row).toContain('"PENDING_REVIEW → Rejected · X · “He said ""no"", twice”"')
   })
 })
