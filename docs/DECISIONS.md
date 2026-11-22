@@ -560,6 +560,21 @@ Rules changed on 2026-10-20 (Projects & Flows restructure) are marked **(changed
   archived project keeps its assignments read-only and leaves the switcher. [PO 2026-10-20] Adding from this tab fixes the
   project (shown, not changeable) and lists only roles the actor may give; inherited rows link to the user's details when
   the actor may open them. [PO 2026-10-21]
+  **(changed 2026-11-22) Invite a new person from Members** [PO 2026-11-22; answers OQ-27]. The add form has **Existing
+  user | New person**. New person = full name, email and the project role; in one step it creates the **merchant user**
+  with the **Member** merchant role (no permissions), status Pending, invitation sent (simulated), and gives the project
+  role in this project only. The person then shows on the Users screen (Member, Pending; project access in the details)
+  and on Members.
+  - **Who:** **Members › Add / remove** in the project **or** **Users › Invite** (merchant level). A merchant role holds
+    for the whole merchant, so a merchant role with either permission may do it in every project; a project role only in
+    its project. **Existing user** and removing stay with Members › Add / remove. The Members screen opens for either
+    permission (Users › Invite already sees every user and their project access on the Users screen).
+  - The project roles offered are still only those the actor may give (DEC-74 "give only what you hold"), so a role with
+    Users › Invite but no project permissions (e.g. Atoz's User Coordinator) has no project role to give here.
+  - An email already used by a user of **this** merchant adds the project role to that user (no second account); one of
+    another merchant or a company staff email is refused as on New user (one merchant per user, DEC-104). Suspended users
+    are not added. Archived projects take no new members; nobody changes their own access.
+  - Audit: `USER_INVITED` (noting the project) and `USER_ACCESS_ADDED` in that project.
 - **DEC-78** **(new)** Hide or disable, one rule for every screen [PO 2026-10-21]:
   - **Hide** an action the user can never do with their access (a Reviewer never sees "Add member").
   - **Disable with a tooltip** an action blocked by the current state, where knowing it exists matters (Remove on the last
