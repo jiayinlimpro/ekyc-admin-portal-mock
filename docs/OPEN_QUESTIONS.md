@@ -16,25 +16,27 @@ Each question is a **parameter**, not a fact. The mock uses the default below. I
 | OQ-12 | Can a reviewer re-claim straight after their own claim times out? | Yes | `claimRules.ts` |
 | OQ-13 | What does the page show if the claim expires while the reviewer is typing? | Buttons disable; save fails with "This case is no longer assigned to you"; typed text is kept | Detail page |
 | OQ-14 | Price per token (by contract tier) | RM 0.50 per liveness submission | `TOKEN_PRICE` |
-| OQ-17 | Is Reference ID unique per merchant or per project? (MS OQ-1) | Per project; the Project column makes duplicates across projects clear | Project setting (shown read-only) |
 | OQ-19 | Default session expiry and accepted documents for a new flow (MS OQ-4) | Required fields with no default on a new flow; seeded flows use 30 min and MyKad + Passport | Flow Detail |
 | OQ-21 | Project data retention period | Not set; shown as a placeholder | Project Settings › General |
-| OQ-22 | Cooldown after a rejection (DEC-26): how is the "same end user" identified, and does the wait apply to this flow only or the whole project? | Same ID document number (NRIC / passport no.), same flow | Flow `cooldownMin`, `flowRules.ts` |
 | OQ-24 | Does the claim timeout run from claim time or from the last activity? (FRS TBC) | From claim time | `claimRules.ts` |
 | OQ-25 | How does the engine compute and normalise each risk category to 0–100 (EXIF tag points, ELA and wavelet values, email points, OSINT social score 0–10)? (DEC-107) | The engine returns the four 0–100 scores; the portal shows them as given | `Verification.riskScores` |
 | OQ-27 | On a project's Members tab (DEC-77), can a user with Manage project members invite someone new, or only add existing users of the merchant? | Existing users only; new people are invited on the Users screen (Manage users and roles) | `userAdminService.addMember` |
-| OQ-28 | Must the merchant always send a Reference ID when creating a session (DEC-97)? If not, does the platform generate one? | Required; the mock always has one | `Verification.referenceNo` |
+| OQ-28 | Must the merchant always send a Reference ID when creating a session (DEC-97)? If not, does the platform generate one? | Required; the mock always has one. It now also identifies the end user (DEC-113), so without one a returning user can't be recognised | `Verification.referenceNo` |
 | OQ-29 | How long are a Terminated merchant's cases and audit log kept, and are they then archived or deleted? Keeping them is required for compliance; the PDPA says not longer than needed (DEC-98) | Kept; nothing is deleted | — (backend policy) |
 | OQ-30 | Are invoices issued from this portal? If so, merchants also need registered address, TIN, SST number and a billing email (MyInvois) (DEC-98) | No; only the FRS fields | `Merchant` |
 | OQ-33 | EXIF edge cases: (a) the modern-maker list has no Samsung, Xiaomi, Huawei or Realme, so their photos get 0 for the maker; (b) a missing Megapixels value; (c) a missing DateTimeOriginal or FileModifyDate | (a) 0 points as listed; (b) 0 points; (c) counts as "differ" (−4) | `exifScore` in `src/domain/riskSignals.ts` |
 | OQ-34 | Default minimum per risk category: V4's fixed minimums and V5's starting values (DEC-107) | 50 for each category | `DEFAULT_RISK_MINIMUMS` in `src/domain/openQuestions.ts` |
 | OQ-32 | The engine sets FacePixelSizeThreshold = 50, but its Selfie Quality Check doesn't apply it. Should a selfie face smaller than 50 px fail? | Not checked; shown as information | `selfieMetrics` in `src/domain/telemetry.ts` |
 | OQ-36 | Test and live API keys (sandbox). An Onboarding merchant is "sandbox only" (DEC-98), but nothing says how a sandbox works. Separate test keys (`sk_test_…`) whose sessions use no tokens, aren't billed, are kept apart from real cases and get simulated results? Or a separate sandbox environment? (DEC-111) | Not modelled: one kind of key; Onboarding is a label only (MOCK) | Project Settings › Integration (not built) |
+| OQ-37 | A returning Reference ID (DEC-113) sent with the Flow ID of a flow in **another project** of the same merchant. Partly answered [PO 2026-11-22]: not refused, it starts a **new case** (new case ID) in that project. Still open (PO to explain): is the Reference ID then unique per project rather than per merchant (OQ-17)? Does the first project's cooldown apply? | A new case in that project; no cooldown carried over | DEC-113 (create-session, backend) |
+| OQ-38 | The same Reference ID while its case is `PROCESSING`, `PENDING_REVIEW` or `APPROVED` (DEC-113). Not expected; what should the API answer? | Refused: "This Reference ID already has a case" | DEC-113 (create-session, backend) |
 | OQ-31 | The company staff email domain (DEC-99): platform staff and super admins must use it; merchant users may not | `ekyc-platform.example` | `STAFF_EMAIL_DOMAIN` in `src/domain/openQuestions.ts` |
 
 ## Answered (kept for traceability)
 | ID | Question | Answer |
 |---|---|---|
+| OQ-17 | Is Reference ID unique per merchant or per project? (MS OQ-1) | Per merchant: it identifies the end user, and a returning Reference ID continues its case (DEC-113) [PO 2026-11-22] |
+| OQ-22 | Cooldown (DEC-26): how is the "same end user" identified, and does the wait apply to this flow only or the whole project? | The same Reference ID of the same merchant, not the document; the wait applies to that case, in whichever flow it returns (DEC-26, DEC-113) [PO 2026-11-22] |
 | OQ-18 | Are routing rules and percentage splits set only through the API, or also edited in the portal? (MS OQ-2) | Neither: no routing. Every session names its flow (`flowId` required) (DEC-95) [PO 2026-11-20] |
 | OQ-35 | Does a submitted V1 selfie also cost a token (DEC-60)? | Yes: everything submitted costs a token, a rejected selfie included [PO 2026-10-27] |
 | OQ-07 | Are retakes charged per attempt? | Tokens per liveness submission; ID capture and selfie retakes are free (DEC-60) |
