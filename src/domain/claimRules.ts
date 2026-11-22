@@ -82,6 +82,7 @@ export interface OverlayState {
 // `mayDecide` = the user's role in the case's project allows claiming and deciding (access.canInProject 'decideCase').
 export function decisionOverlayState(v: Verification, actor: Pick<Actor, 'userId'>, now: Date, mayDecide: boolean): OverlayState {
   if (v.status === 'PROCESSING') return { enabled: false, why: 'Record is still processing (read-only)' }
+  if (v.status === 'FAILED') return { enabled: false, why: 'Failed: nothing to review' } // REQ: DEC-112 — no usable image
   if (v.status !== 'PENDING_REVIEW') return { enabled: false, why: 'Decision is final' }
   if (!mayDecide) return { enabled: false, why: 'No review permission' }
   if (!isClaimActive(v, now)) return { enabled: false, why: 'Assign to me to review', showClaim: true }

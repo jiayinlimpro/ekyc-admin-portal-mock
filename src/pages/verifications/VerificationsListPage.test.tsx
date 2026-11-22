@@ -111,6 +111,19 @@ describe('Verifications List', () => {
     for (const r of rows) expect(r.textContent).toContain('Processing')
   })
 
+  it('Given Status = Failed, when Search, then only Failed cases, S25 among them (DEC-112)', async () => {
+    const router = renderAt('/verifications')
+    await dataRows()
+    const status = within(screen.getByRole('group', { name: 'Status' }))
+    fireEvent.click(status.getByRole('button', { name: 'Pending Review' })) // off: the default
+    fireEvent.click(status.getByRole('button', { name: 'Failed' }))
+    search()
+    await waitFor(() => expect(router.state.location.search).toBe('?status=FAILED'))
+    const rows = await dataRows()
+    expect(rows.some((r) => r.textContent!.includes('KYC-260901-900025'))).toBe(true)
+    for (const r of rows) expect(r.textContent).toContain('Failed')
+  })
+
   it('Given Claim = Claimed by me, then S07 and S08 show with a "You" marker and the countdown under Claimed By', async () => {
     renderAt('/verifications')
     await dataRows()

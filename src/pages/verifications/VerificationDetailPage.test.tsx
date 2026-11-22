@@ -238,6 +238,10 @@ describe('Verification Detail', () => {
     expect(screen.getByText('ID image smaller than 320x320 (Retry Not Allowed)')).toBeTruthy()
     expect(region('Checks').getByText('3 earlier ID image(s) failed · 3 of 3 retries used')).toBeTruthy()
     expect(region('Rules applied').getByText('Document (OCR) 3 · Liveness 3')).toBeTruthy()
+    // REQ: DEC-112 — nothing to review: no claim, no decision buttons.
+    expect(decision().getByRole('status').textContent).toBe('Failed: nothing to review')
+    expect(screen.queryByRole('button', { name: 'Assign to me' })).toBeNull()
+    expect(screen.getByText(/^Failed: no usable image when retries ran out — SYSTEM\. Nothing to review; the same Reference ID can start a new session\.$/)).toBeTruthy()
   })
 
   it('Given S05 stopped at ID capture, then the failing ID checks say why (DEC-105)', async () => {

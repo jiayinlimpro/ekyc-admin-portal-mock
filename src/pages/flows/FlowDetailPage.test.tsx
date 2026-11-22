@@ -66,6 +66,8 @@ describe('Flow Detail (DEC-18, DEC-19, DEC-50, DEC-51)', () => {
     expect(r.getByLabelText('Document (OCR) retries allowed').textContent).toBe('5')
     expect((r.getByRole('button', { name: 'More Document (OCR) retries' }) as HTMLButtonElement).disabled).toBe(true)
     expect(r.getByText(/up to 6 submissions/)).toBeTruthy()
+    expect(r.getByText(/Used up: Failed \(no usable ID image\)/)).toBeTruthy() // DEC-112
+    expect(r.getByText(/Used up: the last result decides \(Pending Review or Rejected\)/)).toBeTruthy() // liveness never fails
     expect((await card('Face match')).queryByText(/Retries allowed/)).toBeNull() // not in the threshold card
   })
 
@@ -75,6 +77,7 @@ describe('Flow Detail (DEC-18, DEC-19, DEC-50, DEC-51)', () => {
     const r = await card('Retries allowed')
     expect(r.getByLabelText('Selfie retries allowed').textContent).toBe('3')
     expect(r.getByText(/A submitted selfie that fails its quality check, or a face match below Auto-Pass/)).toBeTruthy()
+    expect(r.getByText(/Used up: Failed when no selfie was usable; otherwise the last face match decides/)).toBeTruthy() // DEC-112
   })
 
   it('Given the Cooldown card, then one field after Rejected and one after Failed; a change saves in a new revision (DEC-26, DEC-112)', async () => {

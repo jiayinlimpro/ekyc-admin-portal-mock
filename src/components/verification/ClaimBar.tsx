@@ -54,9 +54,14 @@ export function ClaimBar({
 
   if (v.status === 'PROCESSING') {
     body = 'Still processing: the end user hasn’t finished the flow. This record is read-only.'
+  } else if (v.status === 'FAILED') {
+    // REQ: DEC-112 / DEC-113 — no usable image: nothing to review; the same Reference ID may start a new session.
+    icon = <Lock className="size-4 shrink-0" aria-hidden />
+    body = `Failed: no usable image when retries ran out — ${formatUpdatedBy(v.lastUpdatedBy)}. Nothing to review; the same Reference ID can start a new session.`
   } else if (v.status !== 'PENDING_REVIEW') {
     icon = <Lock className="size-4 shrink-0" aria-hidden />
-    body = `Decision is final — ${formatUpdatedBy(v.lastUpdatedBy)}. It cannot be reopened.`
+    // REQ: DEC-113 — a reviewer never reopens a case; after a rejection the same Reference ID can start a new session.
+    body = `Decision is final — ${formatUpdatedBy(v.lastUpdatedBy)}. It cannot be reopened${v.status === 'REJECTED' ? '; the same Reference ID can start a new session' : ''}.`
   } else if (mine) {
     tone = warn ? 'warn' : 'mine'
     icon = <UserCheck className="size-4 shrink-0" aria-hidden />

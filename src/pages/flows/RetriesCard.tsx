@@ -7,11 +7,16 @@ import { RETRY_LIMITS } from '@/domain/openQuestions'
 import { RETRY_PHASE_LABELS, RETRY_PHASES, type FlowSettings, type RegistryEntry, type RetryPhase } from '@/domain/types'
 import { Card } from '../projects/settingsUi'
 
-/** What uses a retry in each phase; the face match belongs to the selfie phase on V1, to liveness otherwise. */
+const LAST_DECIDES = 'Used up: the last result decides (Pending Review or Rejected).'
+
+/**
+ * What uses a retry in each phase, and what happens when they are used up (DEC-16, DEC-112). The face match belongs to
+ * the selfie phase on V1, to liveness otherwise.
+ */
 function usedBy(phase: RetryPhase, v1: boolean): string {
-  if (phase === 'DOCUMENT') return 'A submitted ID image that fails any check (face, size, OCR fields). Used up: Rejected.'
-  if (phase === 'SELFIE') return 'A submitted selfie that fails its quality check, or a face match below Auto-Pass. A failed selfie used up: Rejected.'
-  return v1 ? 'A liveness result below Auto-Pass.' : 'A liveness or face match result below Auto-Pass (the face match uses the liveness face).'
+  if (phase === 'DOCUMENT') return 'A submitted ID image that fails any check (face, size, OCR fields). Used up: Failed (no usable ID image).'
+  if (phase === 'SELFIE') return 'A submitted selfie that fails its quality check, or a face match below Auto-Pass. Used up: Failed when no selfie was usable; otherwise the last face match decides (Pending Review or Rejected).'
+  return v1 ? `A liveness result below Auto-Pass. ${LAST_DECIDES}` : `A liveness or face match result below Auto-Pass (the face match uses the liveness face). ${LAST_DECIDES}`
 }
 
 export function RetriesCard({ entry, value, onChange, disabled, errors }: { entry: Pick<RegistryEntry, 'phases' | 'faceMatchMethod'>; value: FlowSettings['retries']; onChange: (v: FlowSettings['retries']) => void; disabled: boolean; errors: Record<string, string> }) {

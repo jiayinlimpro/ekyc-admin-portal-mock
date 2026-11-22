@@ -104,6 +104,10 @@ describe('decisionOverlayState (DEC-25, DEC-30, DEC-32, DEC-33)', () => {
     expect(decisionOverlayState(verification({ status }), ALI, NOW, true)).toEqual({ enabled: false, why: 'Decision is final' })
   })
 
+  it('Given FAILED (no usable image), then disabled with nothing to review and no Assign button (DEC-112)', () => {
+    expect(decisionOverlayState(verification({ status: 'FAILED' }), ALI, NOW, true)).toEqual({ enabled: false, why: 'Failed: nothing to review' })
+  })
+
   it('Given unclaimed, then disabled with an "Assign to me" prompt', () => {
     expect(decisionOverlayState(verification(), ALI, NOW, true)).toEqual({ enabled: false, why: 'Assign to me to review', showClaim: true })
   })
