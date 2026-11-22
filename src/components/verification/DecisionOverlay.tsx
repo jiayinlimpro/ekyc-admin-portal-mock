@@ -207,7 +207,7 @@ export function DecisionOverlay({
               {chosen?.label} → {chosen?.result}?
             </DialogTitle>
             <DialogDescription>
-              {v.referenceNo} will be set to <strong>{chosen?.result}</strong> with you as Last Updated By. Decisions are final and cannot be reopened.
+              {v.referenceId} will be set to <strong>{chosen?.result}</strong> with you as Last Updated By. Decisions are final and cannot be reopened.
             </DialogDescription>
             {chosenReasons.length > 0 && (
               <ul className="list-disc space-y-0.5 pl-5 text-sm" aria-label="Chosen reasons">

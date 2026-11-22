@@ -18,7 +18,7 @@ const STICKY = 'sticky left-0 z-10 bg-card group-hover:bg-muted'
 
 // REQ: DEC-100 — the FRS sortable columns; Full Name, Merchant and the rest are not sortable.
 const SORT_KEY: Partial<Record<Column | 'Reference ID', VerificationSortKey>> = {
-  'Reference ID': 'referenceNo',
+  'Reference ID': 'referenceId',
   Status: 'status',
   Risk: 'riskResult',
   'Last updated (MYT)': 'lastUpdatedAt',
@@ -153,15 +153,15 @@ export function VerificationTable({
               </tr>
             ))}
           {rows.map((r) => (
-            <tr key={r.referenceNo} className="group border-t hover:bg-muted">
+            <tr key={r.referenceId} className="group border-t hover:bg-muted">
               <th scope="row" className={cn('px-2 py-2 text-left font-normal', STICKY)}>
                 {canOpen(r) ? (
-                  <Link to={`/verifications/${r.caseId}`} className="font-mono text-xs whitespace-nowrap text-blue-700 underline-offset-2 hover:underline dark:text-blue-400">
-                    {r.referenceNo}
+                  <Link to={`/verifications/${r.verificationId}`} className="font-mono text-xs whitespace-nowrap text-blue-700 underline-offset-2 hover:underline dark:text-blue-400">
+                    {r.referenceId}
                   </Link>
                 ) : (
                   <span className="font-mono text-xs whitespace-nowrap" title="Needs View details to open">
-                    {r.referenceNo}
+                    {r.referenceId}
                   </span>
                 )}
               </th>

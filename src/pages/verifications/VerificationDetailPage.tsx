@@ -80,9 +80,9 @@ function SimulateOtherClaim({ v, actor, reviewers, onDone }: { v: VerificationDe
           size="sm"
           variant="outline"
           onClick={() =>
-            verificationService.claim(v.caseId, pick as Actor).then(
+            verificationService.claim(v.verificationId, pick as Actor).then(
               (d) => {
-                toast.info(`${pick.fullName} claimed ${v.referenceNo}`)
+                toast.info(`${pick.fullName} claimed ${v.referenceId}`)
                 onDone(d)
               },
               (e: unknown) => toast.error(message(e)),
@@ -97,14 +97,14 @@ function SimulateOtherClaim({ v, actor, reviewers, onDone }: { v: VerificationDe
 }
 
 export function VerificationDetailPage() {
-  const { caseId = '' } = useParams()
+  const { verificationId = '' } = useParams()
   const actor = useSession((s) => s.actor)
   const uiClaimChecks = useDevFlags((s) => s.uiClaimChecks)
   const me = useAccess() // the account and its project roles (DEC-71: the service checks again)
   const now = useNow(1000)
   // One id per page visit: StrictMode's double effect and live refreshes don't log extra PII_VIEWs (DEC-41).
   const [requestId] = useState(() => crypto.randomUUID())
-  const key = `${caseId}|${actor.userId}`
+  const key = `${verificationId}|${actor.userId}`
   const [loaded, setLoaded] = useState<Loaded>({ key: '' })
   const [refresh, setRefresh] = useState(0)
   const [busy, setBusy] = useState(false)
@@ -112,14 +112,14 @@ export function VerificationDetailPage() {
 
   useEffect(() => {
     let live = true
-    verificationService.get(caseId, actor, { requestId }).then(
+    verificationService.get(verificationId, actor, { requestId }).then(
       (detail) => live && setLoaded({ key, detail }),
       (e: unknown) => live && setLoaded({ key, error: { message: message(e), notFound: isServiceError(e) && e.code === 'NOT_FOUND' } }),
     )
     return () => {
       live = false
     }
-  }, [caseId, actor, requestId, key, refresh])
+  }, [verificationId, actor, requestId, key, refresh])
 
   // Another tab (or the dev "simulate" button) changed data: refetch.
   useEffect(() => onVerificationsChanged(() => setRefresh((n) => n + 1)), [])
@@ -133,13 +133,13 @@ export function VerificationDetailPage() {
     if (projectId && me.ready && me.selected?.projectId !== projectId && me.projects.some((p) => p.projectId === projectId)) selectProject(projectId)
   }, [projectId, me.ready, me.selected?.projectId, me.projects, selectProject])
 
-  // REQ: DEC-97 — the URL holds the case ID; the breadcrumb reads the merchant's Reference ID.
+  // REQ: DEC-97 — the URL holds the Verification ID; the breadcrumb reads the merchant's Reference ID.
   const { pathname } = useLocation()
   const setTitle = usePageTitle((s) => s.setTitle)
-  const referenceNo = detail?.referenceNo
+  const referenceId = detail?.referenceId
   useEffect(() => {
-    if (referenceNo) setTitle(pathname, referenceNo)
-  }, [referenceNo, pathname, setTitle])
+    if (referenceId) setTitle(pathname, referenceId)
+  }, [referenceId, pathname, setTitle])
   useEffect(() => {
     if (!projectId) return
     let live = true
@@ -202,10 +202,10 @@ export function VerificationDetailPage() {
       <header className="flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
         <div className="min-w-0 flex-[1_1_28rem] space-y-1">
         <div className="flex flex-wrap items-center gap-3">
-          <h1 className="font-mono text-2xl font-semibold">{v.referenceNo}</h1>
+          <h1 className="font-mono text-2xl font-semibold">{v.referenceId}</h1>
           <StatusBadge status={v.status} className="text-sm" />
-          {/* REQ: DEC-97 — the case ID, for support tickets and webhooks; the Reference ID above is the merchant's. */}
-          <CopyId label="Case ID" value={v.caseId} />
+          {/* REQ: DEC-97 — the Verification ID, for support tickets and webhooks; the Reference ID above is the merchant's. */}
+          <CopyId label="Verification ID" value={v.verificationId} />
         </div>
         {/* REQ: DEC-105 — header strip: project › flow, version and revision, created, last updated (no audit link). */}
         <p className="text-sm text-muted-foreground">
@@ -227,8 +227,8 @@ export function VerificationDetailPage() {
         warningMin={DEFAULT_CLAIM_WARNING_MIN}
         mayClaim={may('claimCase')}
         busy={busy}
-        onClaim={() => void run(() => verificationService.claim(v.caseId, actor), 'Assigned to you')}
-        onRelease={() => void run(() => verificationService.release(v.caseId, actor), 'Claim cancelled')}
+        onClaim={() => void run(() => verificationService.claim(v.verificationId, actor), 'Assigned to you')}
+        onRelease={() => void run(() => verificationService.release(v.verificationId, actor), 'Claim cancelled')}
       />
       <ReasonBanner v={v} />
 
@@ -250,14 +250,14 @@ export function VerificationDetailPage() {
         </div>
         <aside className="space-y-3 lg:sticky lg:top-0">
           <DecisionOverlay
-            key={`${v.caseId}|${actor.userId}`}
+            key={`${v.verificationId}|${actor.userId}`}
             v={v}
             actor={actor}
             now={now}
             uiClaimChecks={uiClaimChecks}
             mayDecide={may('decideCase')}
             busy={busy}
-            onSave={(d: Decision) => run(() => verificationService.decide(v.caseId, actor, d), `Decision saved: ${d.outcome === 'APPROVE' ? 'Approved' : 'Rejected'}`)}
+            onSave={(d: Decision) => run(() => verificationService.decide(v.verificationId, actor, d), `Decision saved: ${d.outcome === 'APPROVE' ? 'Approved' : 'Rejected'}`)}
           />
           {!claimActive && <SimulateOtherClaim v={v} actor={actor} reviewers={reviewers} onDone={apply} />}
         </aside>

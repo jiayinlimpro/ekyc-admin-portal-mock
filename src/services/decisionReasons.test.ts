@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { AuditAction } from '@/domain/types'
-import { caseIdOf, fx } from '@/lib/ids'
+import { verificationIdOf, fx } from '@/lib/ids'
 import { db } from '@/mocks/mockDb'
 import { ADMIN, ALI, NOW, OTHER_MERCHANT_REVIEWER, OWNER } from '@/test/factories'
 import { auditService } from './auditService'
@@ -10,7 +10,7 @@ import { projectService as projects } from './projectService'
 import { verificationService as svc } from './verificationService'
 
 const ATOZ = fx('PRJ-0001')
-const C = (n: number) => caseIdOf(`KYC-260901-${900000 + n}`)
+const C = (n: number) => verificationIdOf(`KYC-260901-${900000 + n}`)
 const lastAudit = async (action: AuditAction) => (await auditService.list({ actions: [action] }, ADMIN)).items[0]
 const reasonsAt = (projectId: string) => db.state().projects.find((p) => p.projectId === projectId)!.decisionReasons
 

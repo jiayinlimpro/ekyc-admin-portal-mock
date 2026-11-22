@@ -2,7 +2,7 @@
 // with a letter), e.g. "prj_k3x9…". The real backend uses the cuid2 library; the mock makes the same shape itself.
 // IDs are not time-ordered: lists sort by created time.
 
-export const ID_PREFIXES = ['mer', 'prj', 'flw', 'rev', 'ver', 'att', 'file', 'usr', 'rol', 'asg', 'inv', 'key', 'whk', 'wfv', 'evt'] as const
+export const ID_PREFIXES = ['mer', 'prj', 'flw', 'rev', 'vrf', 'att', 'file', 'usr', 'rol', 'asg', 'inv', 'key', 'whk', 'wfv', 'evt'] as const
 export type IdPrefix = (typeof ID_PREFIXES)[number]
 
 const LETTERS = 'abcdefghijklmnopqrstuvwxyz'
@@ -64,8 +64,8 @@ export function fx(handle: string): string {
   return stableId(prefix, handle)
 }
 
-/** The case ID of a seeded case, from its Reference ID (each seeded Reference ID belongs to one case). */
-export const caseIdOf = (referenceNo: string) => stableId('ver', referenceNo)
+/** The Verification ID of a seeded case, from its Reference ID (each seeded Reference ID belongs to one case). */
+export const verificationIdOf = (referenceId: string) => stableId('vrf', referenceId)
 
 /**
  * REQ: DEC-97 — a form may show the new record's ID before saving (Role ID, User ID). The service keeps that drafted ID

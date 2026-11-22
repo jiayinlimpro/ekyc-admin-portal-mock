@@ -161,7 +161,7 @@ export const NAV_ITEMS: NavItem[] = [
     ],
   },
   {
-    path: '/verifications/:caseId',
+    path: '/verifications/:verificationId',
     label: 'Verification Detail',
     icon: FileSearch,
     layer: 'inner',
@@ -268,7 +268,7 @@ export function parentsOf(item: NavItem): NavItem[] {
 export function routeMetaFor(pathname: string): RouteMeta | undefined {
   for (const item of NAV_ITEMS) {
     const m = matchPath({ path: item.path, end: true }, pathname)
-    // The case page renames its tab to the Reference ID once loaded (DEC-97: the URL has the case ID).
+    // The case page renames its tab to the Reference ID once loaded (DEC-97: the URL has the Verification ID).
     if (m) return { item, title: item.label }
   }
   return undefined

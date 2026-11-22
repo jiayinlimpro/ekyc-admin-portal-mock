@@ -15,7 +15,7 @@ describe('parseListParams / toSearchParams', () => {
   it('round-trips every filter through the URL', () => {
     const p: ListParams = {
       filters: {
-        referenceNo: 'KYC-2609',
+        referenceId: 'KYC-2609',
         fullName: 'tan',
         statuses: ['PENDING_REVIEW', 'REJECTED'],
         projectId: fx('PRJ-0002'),
@@ -57,11 +57,11 @@ describe('parseListParams / toSearchParams', () => {
   })
 
   it('Given clicks on one column, then ascending, descending, then the default order; another column starts at ascending (DEC-100)', () => {
-    const asc = nextSort(undefined, 'referenceNo')
-    expect(asc).toEqual({ by: 'referenceNo', dir: 'asc' })
-    const desc = nextSort(asc, 'referenceNo')
-    expect(desc).toEqual({ by: 'referenceNo', dir: 'desc' })
-    expect(nextSort(desc, 'referenceNo')).toBeUndefined()
+    const asc = nextSort(undefined, 'referenceId')
+    expect(asc).toEqual({ by: 'referenceId', dir: 'asc' })
+    const desc = nextSort(asc, 'referenceId')
+    expect(desc).toEqual({ by: 'referenceId', dir: 'desc' })
+    expect(nextSort(desc, 'referenceId')).toBeUndefined()
     expect(nextSort(desc, 'status')).toEqual({ by: 'status', dir: 'asc' })
   })
 

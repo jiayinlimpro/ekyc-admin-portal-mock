@@ -20,7 +20,7 @@ beforeEach(async () => {
 const { OWNER: OWNER_ROLE, ADMIN: ADMIN_ROLE, AUDITOR, MEMBER, REVIEWER, VIEWER } = SYSTEM_ROLE_IDS
 const FRAUD_CHECKER = fx('ROL-2026-0021') // Custom project role of Default
 const account = (userId: string) => db.state().accounts.find((a) => a.userId === userId)!
-const caseOf = (ref: string) => db.state().verifications.find((v) => v.referenceNo === ref)!
+const caseOf = (ref: string) => db.state().verifications.find((v) => v.referenceId === ref)!
 const lastAudit = async (action: AuditAction) => (await auditService.list({ actions: [action] }, ADMIN)).items[0]
 const projectRole = (userId: string, projectId: string) => account(userId).assignments.find((x) => x.scope.kind === 'PROJECTS' && x.scope.projectIds.includes(projectId))!
 const KAVITHA = { userId: fx('USR-2026-0044'), fullName: 'Kavitha A/P Subramaniam' }

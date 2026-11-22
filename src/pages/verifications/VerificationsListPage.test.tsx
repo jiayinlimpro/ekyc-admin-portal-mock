@@ -156,7 +156,7 @@ describe('Verifications List', () => {
 
   it('Given the Super admin in Vantage Default, then its cases are listed (DEC-75, DEC-109)', async () => {
     useSession.getState().switchUser(ADMIN)
-    renderAt('/verifications?status=ALL&referenceNo=KYC-260901-900013', fx('PRJ-0003'))
+    renderAt('/verifications?status=ALL&referenceId=KYC-260901-900013', fx('PRJ-0003'))
     const row = (await screen.findByRole('rowheader', { name: 'KYC-260901-900013' })).closest('tr')!
     expect(row.textContent).toContain('Standard onboarding')
     expect(row.textContent).not.toContain('Vantage') // one project: no merchant line

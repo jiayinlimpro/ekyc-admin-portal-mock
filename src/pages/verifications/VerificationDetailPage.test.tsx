@@ -10,19 +10,19 @@ import { devService } from '@/services/devService'
 import { DEFAULT_DEV_FLAGS, useDevFlags } from '@/stores/devFlagsStore'
 import { useSession } from '@/stores/sessionStore'
 import { ADMIN, ALI, NURUL, OTHER_MERCHANT_REVIEWER, OWNER, minutes } from '@/test/factories'
-import { caseIdOf } from '@/lib/ids'
+import { verificationIdOf } from '@/lib/ids'
 
 const S = (n: number) => `KYC-260901-${900000 + n}`
 
 async function open(ref: string) {
-  const router = createMemoryRouter(routes, { initialEntries: [`/verifications/${caseIdOf(ref)}`] })
+  const router = createMemoryRouter(routes, { initialEntries: [`/verifications/${verificationIdOf(ref)}`] })
   render(<RouterProvider router={router} />)
   await screen.findByRole('heading', { level: 1, name: ref })
   return router
 }
 
 async function audit(ref: string, actions: AuditAction[]) {
-  return (await auditService.list({ referenceNo: ref, actions, pageSize: 500 }, ADMIN)).items.map((e) => e.action).reverse()
+  return (await auditService.list({ referenceId: ref, actions, pageSize: 500 }, ADMIN)).items.map((e) => e.action).reverse()
 }
 
 const decision = () => within(screen.getByRole('region', { name: 'Decision' }))
@@ -319,7 +319,7 @@ describe('Verification Detail', () => {
   })
 
   it("Given another merchant's record, then not found", async () => {
-    const router = createMemoryRouter(routes, { initialEntries: [`/verifications/${caseIdOf(S(1))}`] })
+    const router = createMemoryRouter(routes, { initialEntries: [`/verifications/${verificationIdOf(S(1))}`] })
     render(<RouterProvider router={router} />)
     await screen.findByText('Case not found')
   })

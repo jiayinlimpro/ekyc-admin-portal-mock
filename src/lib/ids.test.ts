@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { caseIdOf, fx, isId, newId, stableId } from './ids'
+import { verificationIdOf, fx, isId, newId, stableId } from './ids'
 
 describe('ids (DEC-97)', () => {
   it('Given a new record, then a prefixed cuid2-shaped ID, different each time', () => {
@@ -13,7 +13,7 @@ describe('ids (DEC-97)', () => {
     expect(fx('PRJ-0001')).toBe(fx('PRJ-0001'))
     expect(fx('PRJ-0001')).not.toBe(fx('PRJ-0002'))
     expect(isId('usr', fx('USR-2026-0012'))).toBe(true)
-    expect(isId('ver', caseIdOf('KYC-260901-900013'))).toBe(true)
+    expect(isId('vrf', verificationIdOf('KYC-260901-900013'))).toBe(true)
     expect(stableId('evt', '1')).not.toBe(stableId('att', '1'))
   })
 
@@ -23,7 +23,7 @@ describe('ids (DEC-97)', () => {
 })
 
 describe('ids used outside the app', () => {
-  it('Given S10, then its case ID is the one hard-coded in the e2e test', () => {
-    expect(caseIdOf('KYC-260901-900010')).toBe('ver_ngbokaq0u76jcmczfoi2vr52')
+  it('Given S10, then its Verification ID is the one hard-coded in the e2e test', () => {
+    expect(verificationIdOf('KYC-260901-900010')).toBe('vrf_ahdcf0j77ilftmnxon73ec2e')
   })
 })

@@ -7,7 +7,7 @@ import { db } from '@/mocks/mockDb'
 export function sweepExpiredClaims(now: Date): void {
   const expired = db.state().verifications.filter((v) => isClaimTimedOut(v, now))
   for (const v of expired) {
-    db.updateVerification(v.caseId, (x) => ({ ...x, ...CLEARED_CLAIM }))
+    db.updateVerification(v.verificationId, (x) => ({ ...x, ...CLEARED_CLAIM }))
     db.appendAudit(
       makeAudit({
         id: '',
@@ -17,7 +17,7 @@ export function sweepExpiredClaims(now: Date): void {
         ip: '-',
         merchantId: v.merchantId,
         projectId: v.projectId,
-        caseId: v.caseId, referenceNo: v.referenceNo,
+        verificationId: v.verificationId, referenceId: v.referenceId,
         details: { claimedBy: v.claimedBy, claimedAt: v.claimedAt, claimExpiresAt: v.claimExpiresAt },
       }),
     )

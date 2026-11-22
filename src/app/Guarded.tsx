@@ -9,7 +9,7 @@ import type { NavItem } from './nav'
 const Loading = ({ label }: { label: string }) => <div className="mx-auto h-40 max-w-[1400px] animate-pulse rounded-lg bg-muted" aria-busy aria-label={`Loading ${label}`} />
 
 /** REQ: DEC-109 — a link to a case opens it whatever project is chosen; the page then selects the case's project. */
-const OPENS_OWN_PROJECT = '/verifications/:caseId'
+const OPENS_OWN_PROJECT = '/verifications/:verificationId'
 
 // REQ: DEC-71 / DEC-72 / DEC-109 — access check (UI only; services check again), then the built page or its placeholder.
 export function Guarded({ item, page: Page }: { item: NavItem; page?: ComponentType }) {

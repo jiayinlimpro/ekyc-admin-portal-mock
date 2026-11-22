@@ -1,11 +1,11 @@
 // Verification API (mock implementation). Signatures are the draft contract for the real REST API:
 //   GET  /verifications?…            list      → 200 Paged<VerificationSummary>
 //   GET  /verifications/filters      filterOptions → 200 FilterOptions (projects and flows in the user's case scope)
-//   GET  /verifications/{caseId}        get       → 200 VerificationDetail (server writes SENSITIVE_PII_VIEW)
-//   POST /verifications/{caseId}/claim  claim     → 200 | 409 ALREADY_CLAIMED / NOT_CLAIMABLE
-//   DELETE /verifications/{caseId}/claim release → 200 | 409 NOT_CLAIM_OWNER
-//   POST /verifications/{caseId}/decision decide  → 200 | 409 OWNERSHIP_CONFLICT | 422 VALIDATION
-// REQ: DEC-97 — cases are addressed by their case ID (ver_…); the Reference ID is the merchant's and only searched.
+//   GET  /verifications/{verificationId}        get       → 200 VerificationDetail (server writes SENSITIVE_PII_VIEW)
+//   POST /verifications/{verificationId}/claim  claim     → 200 | 409 ALREADY_CLAIMED / NOT_CLAIMABLE
+//   DELETE /verifications/{verificationId}/claim release → 200 | 409 NOT_CLAIM_OWNER
+//   POST /verifications/{verificationId}/decision decide  → 200 | 409 OWNERSHIP_CONFLICT | 422 VALIDATION
+// REQ: DEC-97 — cases are addressed by their Verification ID (vrf_…); the Reference ID is the merchant's and only searched.
 import { makeAudit } from '@/domain/audit'
 import { applyDecision, checkOwnershipAtSave, decisionReason, claim as claimRule, isClaimActive, release as releaseRule, validateDecision } from '@/domain/claimRules'
 import { activeReasons, reasonsOf } from '@/domain/decisionReasons'
@@ -24,7 +24,7 @@ import { ServiceError } from './errors'
 import { clientIpFor, simulateNetwork, wire } from './network'
 
 /** REQ: DEC-100 — the columns the FRS lets the list sort on (never Full Name or Merchant). */
-export const VERIFICATION_SORT_KEYS = ['referenceNo', 'status', 'riskResult', 'lastUpdatedAt'] as const
+export const VERIFICATION_SORT_KEYS = ['referenceId', 'status', 'riskResult', 'lastUpdatedAt'] as const
 export type VerificationSortKey = (typeof VERIFICATION_SORT_KEYS)[number]
 export interface VerificationSort {
   by: VerificationSortKey
@@ -33,7 +33,7 @@ export interface VerificationSort {
 
 // REQ: DEC-43 — filters, search and sort of the Verifications List.
 export interface VerificationQuery {
-  referenceNo?: string // contains, case-insensitive
+  referenceId?: string // contains, case-insensitive
   fullName?: string // contains, case-insensitive
   statuses?: VerificationStatus[]
   /** Limits to these projects; projects outside the user's case scope are ignored (DEC-72). Omitted = all of them. */
@@ -57,7 +57,7 @@ const RISK_ORDER = (r?: RiskResult) => (r ? RISK_RESULTS.indexOf(r) : undefined)
 
 /** REQ: DEC-43 / DEC-100 — the chosen column, then the default order (Last updated oldest first, then Reference No.). */
 function compareBy(sort?: VerificationSort) {
-  const byDefault = (a: Verification, b: Verification) => a.lastUpdatedAt.localeCompare(b.lastUpdatedAt) || a.referenceNo.localeCompare(b.referenceNo)
+  const byDefault = (a: Verification, b: Verification) => a.lastUpdatedAt.localeCompare(b.lastUpdatedAt) || a.referenceId.localeCompare(b.referenceId)
   if (!sort) return byDefault
   const sign = sort.dir === 'asc' ? 1 : -1
   return (a: Verification, b: Verification) => {
@@ -66,7 +66,7 @@ function compareBy(sort?: VerificationSort) {
       if (x === undefined || y === undefined) return (x === undefined ? 1 : 0) - (y === undefined ? 1 : 0) || byDefault(a, b)
       return sign * (x - y) || byDefault(a, b)
     }
-    const c = sort.by === 'status' ? STATUS_ORDER(a.status) - STATUS_ORDER(b.status) : sort.by === 'referenceNo' ? a.referenceNo.localeCompare(b.referenceNo) : byDefault(a, b)
+    const c = sort.by === 'status' ? STATUS_ORDER(a.status) - STATUS_ORDER(b.status) : sort.by === 'referenceId' ? a.referenceId.localeCompare(b.referenceId) : byDefault(a, b)
     return sign * c || byDefault(a, b)
   }
 }
@@ -80,10 +80,10 @@ export interface FilterOptions {
 export interface VerificationService {
   list(q: VerificationQuery, actor: Actor): Promise<Paged<VerificationSummary>>
   filterOptions(actor: Actor): Promise<FilterOptions>
-  get(caseId: string, actor: Actor, opts?: { requestId?: string }): Promise<VerificationDetail>
-  claim(caseId: string, actor: Actor): Promise<VerificationDetail>
-  release(caseId: string, actor: Actor): Promise<VerificationDetail>
-  decide(caseId: string, actor: Actor, d: Decision): Promise<VerificationDetail>
+  get(verificationId: string, actor: Actor, opts?: { requestId?: string }): Promise<VerificationDetail>
+  claim(verificationId: string, actor: Actor): Promise<VerificationDetail>
+  release(verificationId: string, actor: Actor): Promise<VerificationDetail>
+  decide(verificationId: string, actor: Actor, d: Decision): Promise<VerificationDetail>
 }
 
 const merchantName = (id: string) => db.state().merchants.find((m) => m.merchantId === id)?.name ?? id
@@ -94,7 +94,7 @@ const flowName = (id: string) => db.state().flows.find((f) => f.flowId === id)?.
 function toSummary(v: Verification, at: Date): VerificationSummary {
   const active = isClaimActive(v, at)
   return {
-    caseId: v.caseId, referenceNo: v.referenceNo,
+    verificationId: v.verificationId, referenceId: v.referenceId,
     merchantId: v.merchantId,
     merchantName: merchantName(v.merchantId),
     projectId: v.projectId,
@@ -146,16 +146,16 @@ function toDetail(v: Verification): VerificationDetail {
 }
 
 // REQ: DEC-72 — the same response for "not found" and "not in your projects", so references can't be probed.
-function load(caseId: string, actor: Actor): Verification {
-  const v = db.findVerification(caseId)
-  if (!v || !mayInProject(actor, 'viewCases', v.projectId) || !internalTestsFilter(actor).session(v)) throw new ServiceError('NOT_FOUND', `Verification ${caseId} not found.`)
+function load(verificationId: string, actor: Actor): Verification {
+  const v = db.findVerification(verificationId)
+  if (!v || !mayInProject(actor, 'viewCases', v.projectId) || !internalTestsFilter(actor).session(v)) throw new ServiceError('NOT_FOUND', `Verification ${verificationId} not found.`)
   return v
 }
 
 function audit(actor: Actor, action: Parameters<typeof makeAudit>[0]['action'], v: Verification, at: Date, details?: Record<string, unknown>) {
   // REQ: DEC-42 — actor, their role in the case's project, project, target and old/new values.
   db.appendAudit(
-    makeAudit({ id: '', now: at, action, actor, actorRole: roleIn(actor, v.projectId), ip: clientIpFor(actor), merchantId: v.merchantId, projectId: v.projectId, caseId: v.caseId, referenceNo: v.referenceNo, details }),
+    makeAudit({ id: '', now: at, action, actor, actorRole: roleIn(actor, v.projectId), ip: clientIpFor(actor), merchantId: v.merchantId, projectId: v.projectId, verificationId: v.verificationId, referenceId: v.referenceId, details }),
   )
 }
 
@@ -178,7 +178,7 @@ export const mockVerificationService: VerificationService = {
         if (!scope.has(v.projectId) || (asked && !asked.has(v.projectId)) || !visible(v)) return false
         if (q.flowId && v.flowId !== q.flowId) return false
         if (q.workflowVersion && v.workflowVersion !== q.workflowVersion) return false
-        if (!includes(v.referenceNo, q.referenceNo) || !includes(v.pii.fullName, q.fullName)) return false
+        if (!includes(v.referenceId, q.referenceId) || !includes(v.pii.fullName, q.fullName)) return false
         if (q.statuses?.length && !q.statuses.includes(v.status)) return false
         if (q.riskResults?.length && (!v.riskResult || !q.riskResults.includes(v.riskResult))) return false
         if (q.lastUpdatedBy === 'SYSTEM' && v.lastUpdatedBy.kind !== 'SYSTEM') return false
@@ -220,15 +220,15 @@ export const mockVerificationService: VerificationService = {
   },
 
   // REQ: DEC-41 — every open writes SENSITIVE_PII_VIEW. requestId dedupes React StrictMode's double effect in dev.
-  async get(caseId, actor, opts) {
+  async get(verificationId, actor, opts) {
     await simulateNetwork('get verification')
     const at = now()
     sweepExpiredClaims(at)
-    const v = load(caseId, actor)
+    const v = load(verificationId, actor)
     // REQ: DEC-104 — the case page needs View details (no masking); View list alone sees the case only in the list.
     if (!mayInProject(actor, 'viewCaseDetails', v.projectId)) throw new ServiceError('FORBIDDEN', 'You can see this case in the list, but not its details.')
     // REQ: DEC-41 / DEC-104 — every open is audited (who, which case, when): the oversight for personal data.
-    const key = opts?.requestId ? `${actor.userId}:${caseId}:${opts.requestId}` : undefined
+    const key = opts?.requestId ? `${actor.userId}:${verificationId}:${opts.requestId}` : undefined
     if (!key || !loggedPiiViews.has(key)) {
       if (key) loggedPiiViews.add(key)
       audit(actor, 'SENSITIVE_PII_VIEW', v, at, { requestId: opts?.requestId })
@@ -236,40 +236,40 @@ export const mockVerificationService: VerificationService = {
     return toDetail(v)
   },
 
-  async claim(caseId, actor) {
+  async claim(verificationId, actor) {
     await simulateNetwork('claim')
     requireActive(actor)
     const at = now()
     sweepExpiredClaims(at)
-    const v = load(caseId, actor)
+    const v = load(verificationId, actor)
     const r = claimRule(v, actor, { mayClaim: mayInProject(actor, 'claimCase', v.projectId), claimTimeoutSec: projectById(v.projectId)!.claimTimeoutSec }, at)
     if (!r.ok) throw new ServiceError(r.code, r.message)
     // REQ: DEC-03 — claiming does not touch lastUpdatedBy / lastUpdatedAt.
-    const updated = db.updateVerification(caseId, (x) => ({ ...x, ...r.value }))
+    const updated = db.updateVerification(verificationId, (x) => ({ ...x, ...r.value }))
     audit(actor, 'CASE_CLAIMED', updated, at, { claimExpiresAt: r.value.claimExpiresAt })
     return toDetail(updated)
   },
 
-  async release(caseId, actor) {
+  async release(verificationId, actor) {
     await simulateNetwork('release claim')
     requireActive(actor)
     const at = now()
     sweepExpiredClaims(at)
-    const v = load(caseId, actor)
+    const v = load(verificationId, actor)
     const r = releaseRule(v, actor, at)
     if (!r.ok) throw new ServiceError(r.code, r.message)
-    const updated = db.updateVerification(caseId, (x) => ({ ...x, ...r.value }))
+    const updated = db.updateVerification(verificationId, (x) => ({ ...x, ...r.value }))
     audit(actor, 'CASE_RELEASED', updated, at, { claimedAt: v.claimedAt })
     return toDetail(updated)
   },
 
   // REQ: DEC-24 / DEC-30 / DEC-31 / DEC-106
-  async decide(caseId, actor, d) {
+  async decide(verificationId, actor, d) {
     await simulateNetwork('save decision')
     requireActive(actor)
     const at = now()
     // Re-read at save time. Check ownership BEFORE sweeping, so an expired claim of the actor's own is recognised.
-    const v = load(caseId, actor)
+    const v = load(verificationId, actor)
     if (!mayInProject(actor, 'decideCase', v.projectId)) throw new ServiceError('FORBIDDEN', 'You do not have review permission for this project.')
     // REQ: DEC-106 — the reasons of the case's project, as they are now (a reason turned off meanwhile is refused).
     const reasons = reasonsOf(projectById(v.projectId)!.decisionReasons)
@@ -281,7 +281,7 @@ export const mockVerificationService: VerificationService = {
       audit(actor, 'CASE_DECISION_BLOCKED', v, at, { attempted: d.outcome, reason: owner.message })
       throw new ServiceError(owner.code, owner.message)
     }
-    const updated = db.updateVerification(caseId, (x) => applyDecision(x, actor, d, at, reasons))
+    const updated = db.updateVerification(verificationId, (x) => applyDecision(x, actor, d, at, reasons))
     audit(actor, d.outcome === 'APPROVE' ? 'CASE_DECISION_APPROVED' : 'CASE_DECISION_REJECTED', updated, at, {
       ...d,
       reasons: decisionReason(d, reasons),

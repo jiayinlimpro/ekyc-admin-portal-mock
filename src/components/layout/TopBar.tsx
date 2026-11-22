@@ -208,12 +208,12 @@ function RefSearch() {
     const v = q.trim()
     if (!v) return
     setQ('')
-    const toList = `/verifications?status=ALL&referenceNo=${encodeURIComponent(v)}`
+    const toList = `/verifications?status=ALL&referenceId=${encodeURIComponent(v)}`
     try {
-      const exact = (await verificationService.list({ referenceNo: v, pageSize: 50 }, actor)).items.filter((r) => r.referenceNo.toLowerCase() === v.toLowerCase())
+      const exact = (await verificationService.list({ referenceId: v, pageSize: 50 }, actor)).items.filter((r) => r.referenceId.toLowerCase() === v.toLowerCase())
       // REQ: DEC-104 — the case opens only for View details; otherwise the list shows it.
       const canOpen = exact.length === 1 && !!account && canInProject(account, 'viewCaseDetails', exact[0])
-      navigate(canOpen ? `/verifications/${exact[0].caseId}` : toList)
+      navigate(canOpen ? `/verifications/${exact[0].verificationId}` : toList)
     } catch {
       navigate(toList)
     }

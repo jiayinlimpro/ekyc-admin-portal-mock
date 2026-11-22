@@ -2,7 +2,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { PLATFORM_ROLE_IDS, SYSTEM_ROLE_IDS, WRONG_ROLE_TYPE } from '@/domain/roles'
 import type { AuditAction } from '@/domain/types'
-import { caseIdOf, fx } from '@/lib/ids'
+import { verificationIdOf, fx } from '@/lib/ids'
 import { db } from '@/mocks/mockDb'
 import { ADMIN, ALI, NOW, OWNER } from '@/test/factories'
 import { mayInProject } from './accessGuard'
@@ -31,7 +31,7 @@ const lastAudit = async (action: AuditAction) => (await auditService.list({ acti
 describe('platform staff: one role, every merchant (DEC-99, DEC-104)', () => {
   it('Given Support, then the full case page in any merchant (no masking), audited; no decisions, no merchants or registry', async () => {
     for (const ref of ['KYC-260901-900003', 'KYC-260901-900013']) {
-      const d = await verificationService.get(caseIdOf(ref), DANIEL)
+      const d = await verificationService.get(verificationIdOf(ref), DANIEL)
       expect(d.pii.nric).toMatch(/^\d{6}-\d{2}-\d{4}$|^[A-Z0-9]+$/)
       expect(d.images.docFront.url).not.toBe('')
     }
@@ -45,30 +45,30 @@ describe('platform staff: one role, every merchant (DEC-99, DEC-104)', () => {
     const auditor = await users.invite(fx('MER-0001'), { fullName: 'Case Auditor', email: 'auditor@atoz.example', roleId: SYSTEM_ROLE_IDS.AUDITOR }, OWNER)
     const who = { userId: auditor.userId, fullName: auditor.fullName }
     db.setState((st) => ({ accounts: st.accounts.map((a) => (a.userId === who.userId ? { ...a, status: 'ACTIVE' } : a)) }))
-    expect((await verificationService.list({ referenceNo: 'KYC-260901-900003' }, who)).items).toHaveLength(1)
-    await expect(verificationService.get(caseIdOf('KYC-260901-900003'), who)).rejects.toMatchObject({ code: 'FORBIDDEN', message: 'You can see this case in the list, but not its details.' })
+    expect((await verificationService.list({ referenceId: 'KYC-260901-900003' }, who)).items).toHaveLength(1)
+    await expect(verificationService.get(verificationIdOf('KYC-260901-900003'), who)).rejects.toMatchObject({ code: 'FORBIDDEN', message: 'You can see this case in the list, but not its details.' })
   })
 
   it('Given Implementation, then flows in any merchant, but no cases', async () => {
     expect((await flowService.list(fx('PRJ-0003'), MARCUS)).length).toBeGreaterThan(0)
     expect(mayInProject(MARCUS, 'activateFlows', fx('PRJ-0001'))).toBe(true)
-    await expect(verificationService.get(caseIdOf('KYC-260901-900003'), MARCUS)).rejects.toMatchObject({ code: 'NOT_FOUND' })
+    await expect(verificationService.get(verificationIdOf('KYC-260901-900003'), MARCUS)).rejects.toMatchObject({ code: 'NOT_FOUND' })
   })
 
   it('Given Platform Admin’s role is changed to Finance while holding a claim, then the claim is released at once', async () => {
     const pending = db.state().verifications.find((v) => v.projectId === fx('PRJ-0003') && v.status === 'PENDING_REVIEW' && !v.claimedBy)!
-    await verificationService.claim(pending.caseId, RIZAL)
+    await verificationService.claim(pending.verificationId, RIZAL)
     const d = await staff.setRole(RIZAL.userId, PLATFORM_ROLE_IDS.FINANCE, ADMIN)
     expect(d.roleName).toBe('Finance')
     expect(mayInProject(RIZAL, 'viewCases', fx('PRJ-0003'))).toBe(false)
-    expect(db.state().verifications.find((v) => v.caseId === pending.caseId)!.claimedBy).toBeUndefined()
+    expect(db.state().verifications.find((v) => v.verificationId === pending.verificationId)!.claimedBy).toBeUndefined()
     expect(await lastAudit('CASE_RELEASED')).toMatchObject({ details: { reason: 'Role changed' } })
     expect(await lastAudit('USER_ACCESS_CHANGED')).toMatchObject({ details: { changes: [{ from: 'Platform Admin', to: 'Finance' }] } })
   })
 
   it('Given Finance, then Billing for every merchant but no cases', async () => {
     expect(mayInProject(HANNAH, 'viewBilling', fx('PRJ-0001'))).toBe(true)
-    await expect(verificationService.get(caseIdOf('KYC-260901-900003'), HANNAH)).rejects.toMatchObject({ code: 'NOT_FOUND' })
+    await expect(verificationService.get(verificationIdOf('KYC-260901-900003'), HANNAH)).rejects.toMatchObject({ code: 'NOT_FOUND' })
   })
 })
 

@@ -12,7 +12,7 @@ import { projectService } from './projectService'
 import { roleService } from './roleService'
 import { userAdminService } from './userAdminService'
 import { verificationService } from './verificationService'
-import { fx, caseIdOf } from '@/lib/ids'
+import { fx, verificationIdOf } from '@/lib/ids'
 
 const VANTAGE_OWNER: Actor = { userId: fx('USR-2026-0045'), fullName: 'Ahmad Faiz Bin Zulkifli' }
 
@@ -70,7 +70,7 @@ describe('projectService (DEC-92, DEC-93, DEC-96)', () => {
   it("Given the merchant's only active project, then it can't be archived; another project can, and stays reviewable", async () => {
     await expectError(projectService.archive(fx('PRJ-0003'), VANTAGE_OWNER), 'VALIDATION', /only active project/)
     expect((await projectService.archive(fx('PRJ-0002'), OWNER)).status).toBe('ARCHIVED')
-    expect((await verificationService.get(caseIdOf('KYC-260901-900016'), OWNER)).status).toBe('PENDING_REVIEW') // DEC-93
+    expect((await verificationService.get(verificationIdOf('KYC-260901-900016'), OWNER)).status).toBe('PENDING_REVIEW') // DEC-93
     await expectError(flowService.create(fx('PRJ-0002'), { name: 'Late flow', description: '', workflowVersion: 'V3' }, OWNER), 'VALIDATION', /archived/)
   })
 })
@@ -113,7 +113,7 @@ describe('flowService settings and lifecycle (DEC-51 … DEC-53, DEC-94)', () =>
       actorRole: 'Owner',
       details: { flowId: fx('FLW-0001'), revision: 3, changes: [{ field: 'checks.LIVENESS.threshold', from: 'Standard (reject < 70, approve ≥ 85)', to: 'High (reject < 80, approve ≥ 92)' }] },
     })
-    expect((await verificationService.get(caseIdOf('KYC-260901-900012'), ALI)).configRevision).toBe(1) // DEC-52
+    expect((await verificationService.get(verificationIdOf('KYC-260901-900012'), ALI)).configRevision).toBe(1) // DEC-52
   })
 
   it('Given a Custom role with Flows Edit but not Change verification level, then only the other settings save (DEC-70)', async () => {
@@ -150,10 +150,10 @@ describe('flowService settings and lifecycle (DEC-51 … DEC-53, DEC-94)', () =>
 
   it('Given a Retiring flow, when its last in-flight case is decided, then it becomes Inactive (SYSTEM, audited)', async () => {
     // Make S10 (pending, unclaimed) the last in-flight case of FLW-0002.
-    const ref = caseIdOf('KYC-260901-900010')
+    const ref = verificationIdOf('KYC-260901-900010')
     db.setState((st) => ({
       verifications: st.verifications.map((v) =>
-        v.flowId === fx('FLW-0002') && v.caseId !== ref ? (v.status === 'PROCESSING' || v.status === 'PENDING_REVIEW' ? { ...v, status: 'APPROVED' as const } : v) : v.caseId === ref ? { ...v, flowId: fx('FLW-0002') } : v,
+        v.flowId === fx('FLW-0002') && v.verificationId !== ref ? (v.status === 'PROCESSING' || v.status === 'PENDING_REVIEW' ? { ...v, status: 'APPROVED' as const } : v) : v.verificationId === ref ? { ...v, flowId: fx('FLW-0002') } : v,
       ),
     }))
     expect((await flowService.retire(fx('FLW-0002'), OWNER)).status).toBe('RETIRING')

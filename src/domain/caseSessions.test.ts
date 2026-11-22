@@ -55,9 +55,9 @@ describe('continueCase: the new session on the same case (DEC-113)', () => {
   })
   const target = { flowId: fx('FLW-0002'), projectId: fx('PRJ-0001'), workflowVersion: 'V4', configRevision: 1 }
 
-  it('Given a case a reviewer rejected, then same case ID, PROCESSING by SYSTEM, fresh retries, on the new flow', () => {
+  it('Given a case a reviewer rejected, then same Verification ID, PROCESSING by SYSTEM, fresh retries, on the new flow', () => {
     const next = continueCase(rejectedByAli, target, NOW)
-    expect(next).toMatchObject({ caseId: rejectedByAli.caseId, referenceNo: rejectedByAli.referenceNo, status: 'PROCESSING', lastUpdatedBy: { kind: 'SYSTEM' }, lastUpdatedAt: NOW.toISOString(), flowId: fx('FLW-0002'), configRevision: 1 })
+    expect(next).toMatchObject({ verificationId: rejectedByAli.verificationId, referenceId: rejectedByAli.referenceId, status: 'PROCESSING', lastUpdatedBy: { kind: 'SYSTEM' }, lastUpdatedAt: NOW.toISOString(), flowId: fx('FLW-0002'), configRevision: 1 })
     expect(next).toMatchObject({ attempts: [], submissions: {}, idCaptureSoftRejects: 0, statusReason: undefined, decidedReasons: undefined, riskScores: undefined })
     expect(next.createdAt).toBe(rejectedByAli.createdAt) // reports count the case once, from its first session
   })

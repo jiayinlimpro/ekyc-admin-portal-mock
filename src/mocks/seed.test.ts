@@ -18,7 +18,7 @@ const db = seedDatabase(NOW)
 const flowOf = (id: string) => db.flows.find((f) => f.flowId === id)!
 const entryOf = (code: string) => db.registry.find((e) => e.code === code)!
 const revisionOf = (flowId: string, revision: number) => db.flowRevisions.find((r) => r.flowId === flowId && r.revision === revision)!
-const byRef = (ref: string) => db.verifications.find((v) => v.referenceNo === ref)!
+const byRef = (ref: string) => db.verifications.find((v) => v.referenceId === ref)!
 const accessOf = (a: UserAccount) => ({ ...a, grants: grantsOf(a.assignments, db.roles) })
 
 describe('seedDatabase', () => {
@@ -27,7 +27,7 @@ describe('seedDatabase', () => {
   })
 
   it('has unique Reference Nos in KYC-YYMMDD-NNNNNN format', () => {
-    const refs = db.verifications.map((v) => v.referenceNo)
+    const refs = db.verifications.map((v) => v.referenceId)
     expect(new Set(refs).size).toBe(refs.length)
     for (const r of refs) expect(r).toMatch(/^KYC-\d{6}-\d{6}$/)
   })
@@ -37,41 +37,41 @@ describe('seedDatabase', () => {
       const flow = flowOf(v.flowId)
       const entry = entryOf(flow.workflowVersion)
       const rev = revisionOf(v.flowId, v.configRevision)
-      expect(rev, v.referenceNo).toBeDefined()
+      expect(rev, v.referenceId).toBeDefined()
       const ev = evaluateCase(
         caseInputOf(v), // REQ: DEC-108 — failed document and selfie submissions count too
         { checks: entry.configurableChecks, faceMatchMethod: entry.faceMatchMethod, hasRisk: hasRisk(entry), settings: rev.settings },
       )
-      expect(v.status, v.referenceNo).toBe(ev.status)
-      if (v.status === 'PENDING_REVIEW' || v.status === 'REJECTED') expect(v.statusReason, v.referenceNo).toBe(ev.reason)
+      expect(v.status, v.referenceId).toBe(ev.status)
+      if (v.status === 'PENDING_REVIEW' || v.status === 'REJECTED') expect(v.statusReason, v.referenceId).toBe(ev.reason)
     }
   })
 
   it('Given every case, then its flow belongs to its project and merchant, the revision was live at session start, and its document is accepted', () => {
     for (const v of db.verifications) {
       const flow = flowOf(v.flowId)
-      expect(flow.projectId, v.referenceNo).toBe(v.projectId)
-      expect(flow.merchantId, v.referenceNo).toBe(v.merchantId)
-      expect(v.workflowVersion, v.referenceNo).toBe(flow.workflowVersion)
+      expect(flow.projectId, v.referenceId).toBe(v.projectId)
+      expect(flow.merchantId, v.referenceId).toBe(v.merchantId)
+      expect(v.workflowVersion, v.referenceId).toBe(flow.workflowVersion)
       const rev = revisionOf(v.flowId, v.configRevision)
-      expect(Date.parse(rev.savedAt), v.referenceNo).toBeLessThanOrEqual(Date.parse(v.sessions.at(-1)!.startedAt)) // REQ: DEC-113 — the current session
-      expect(rev.settings.acceptedDocuments, v.referenceNo).toContain(v.documentType)
+      expect(Date.parse(rev.savedAt), v.referenceId).toBeLessThanOrEqual(Date.parse(v.sessions.at(-1)!.startedAt)) // REQ: DEC-113 — the current session
+      expect(rev.settings.acceptedDocuments, v.referenceId).toContain(v.documentType)
     }
   })
 
   it('Given every case, then its sessions are in order, the last is the current one, earlier ones ended Rejected or Failed, and each later one has a CASE_RESUMED entry (DEC-113)', () => {
     for (const v of db.verifications) {
       const last = v.sessions.at(-1)!
-      expect(v.sessions.map((x) => x.sessionNo), v.referenceNo).toEqual(v.sessions.map((_, i) => i + 1))
-      expect(v.sessions[0].startedAt, v.referenceNo).toBe(v.createdAt) // reports count the case from its first session
-      expect(last, v.referenceNo).toMatchObject({ flowId: v.flowId, workflowVersion: v.workflowVersion, configRevision: v.configRevision })
-      expect(last.ended, v.referenceNo).toBeUndefined()
+      expect(v.sessions.map((x) => x.sessionNo), v.referenceId).toEqual(v.sessions.map((_, i) => i + 1))
+      expect(v.sessions[0].startedAt, v.referenceId).toBe(v.createdAt) // reports count the case from its first session
+      expect(last, v.referenceId).toMatchObject({ flowId: v.flowId, workflowVersion: v.workflowVersion, configRevision: v.configRevision })
+      expect(last.ended, v.referenceId).toBeUndefined()
       for (const [i, x] of v.sessions.slice(0, -1).entries()) {
-        expect(['REJECTED', 'FAILED'], v.referenceNo).toContain(x.ended!.status)
-        expect(flowOf(x.flowId).projectId, v.referenceNo).toBe(v.projectId) // another project would be a new case (OQ-37)
+        expect(['REJECTED', 'FAILED'], v.referenceId).toContain(x.ended!.status)
+        expect(flowOf(x.flowId).projectId, v.referenceId).toBe(v.projectId) // another project would be a new case (OQ-37)
         expect(Date.parse(revisionOf(x.flowId, x.configRevision).savedAt)).toBeLessThanOrEqual(Date.parse(x.startedAt))
-        expect(x.ended!.at < v.sessions[i + 1].startedAt, v.referenceNo).toBe(true)
-        expect(db.audit.some((e) => e.action === 'CASE_RESUMED' && e.caseId === v.caseId && e.details.sessionNo === i + 2), v.referenceNo).toBe(true)
+        expect(x.ended!.at < v.sessions[i + 1].startedAt, v.referenceId).toBe(true)
+        expect(db.audit.some((e) => e.action === 'CASE_RESUMED' && e.verificationId === v.verificationId && e.details.sessionNo === i + 2), v.referenceId).toBe(true)
       }
     }
   })
@@ -88,7 +88,7 @@ describe('seedDatabase', () => {
       const userId = v.claimedBy?.userId ?? (v.lastUpdatedBy.kind === 'USER' ? v.lastUpdatedBy.userId : undefined)
       if (!userId) continue
       const account = accessOf(db.accounts.find((a) => a.userId === userId)!)
-      expect(canInProject(account, 'claimCase', { projectId: v.projectId, merchantId: v.merchantId }), `${v.referenceNo} ${userId}`).toBe(true)
+      expect(canInProject(account, 'claimCase', { projectId: v.projectId, merchantId: v.merchantId }), `${v.referenceId} ${userId}`).toBe(true)
     }
   })
 
@@ -118,7 +118,7 @@ describe('seedDatabase', () => {
   })
 
   it('only cases on a version with Risk Assessment carry a risk result (DEC-13)', () => {
-    for (const v of db.verifications.filter((x) => !hasRisk(entryOf(x.workflowVersion)))) expect(v.riskScores ?? v.riskResult, v.referenceNo).toBeUndefined()
+    for (const v of db.verifications.filter((x) => !hasRisk(entryOf(x.workflowVersion)))) expect(v.riskScores ?? v.riskResult, v.referenceId).toBeUndefined()
   })
 
   it('covers every status × V1/V3/V4 combination, both manual and system decisions, and both risk results', () => {
@@ -137,7 +137,7 @@ describe('seedDatabase', () => {
   })
 
   it('every record is charged except the Internal testing session S26 (DEC-60, DEC-56)', () => {
-    expect(db.verifications.filter((v) => !v.charged).map((v) => v.referenceNo)).toEqual(['KYC-260901-900026'])
+    expect(db.verifications.filter((v) => !v.charged).map((v) => v.referenceId)).toEqual(['KYC-260901-900026'])
   })
 
   it('audit entries have unique event IDs and are in time order (DEC-97)', () => {
@@ -154,7 +154,7 @@ describe('seedDatabase', () => {
       ['prj', db.projects.map((p) => p.projectId)],
       ['flw', db.flows.map((f) => f.flowId)],
       ['rev', db.flowRevisions.map((r) => r.revisionId)],
-      ['ver', db.verifications.map((v) => v.caseId)],
+      ['vrf', db.verifications.map((v) => v.verificationId)],
       ['att', db.verifications.flatMap((v) => v.attempts.map((a) => a.attemptId))],
       ['file', db.verifications.flatMap((v) => [v.images.docFront.fileId, v.images.selfie.fileId])],
       ['usr', db.accounts.map((a) => a.userId)],
@@ -180,7 +180,7 @@ describe('seedDatabase', () => {
 describe('telemetry, duplicate user and risk categories (DEC-105)', () => {
   it('Given a case past ID capture, then its accepted ID image passes every engine check', () => {
     for (const v of db.verifications.filter((x) => x.attempts.some((a) => Object.keys(a.phaseScores).length > 0))) {
-      expect(idCaptureMetrics(v.idCapture!, v.documentType).every((m) => m.result === 'PASS'), v.referenceNo).toBe(true)
+      expect(idCaptureMetrics(v.idCapture!, v.documentType).every((m) => m.result === 'PASS'), v.referenceId).toBe(true)
     }
   })
 
@@ -188,9 +188,9 @@ describe('telemetry, duplicate user and risk categories (DEC-105)', () => {
     for (const v of db.verifications) {
       const v1 = entryOf(v.workflowVersion).faceMatchMethod === 'ID_VS_SELFIE'
       for (const a of v.attempts.filter((x) => x.phaseScores.FACE_MATCH !== undefined)) {
-        expect(a.faceImage?.url, v.referenceNo).toBe(v1 ? '/mock/selfie.svg' : '/mock/liveness.svg')
+        expect(a.faceImage?.url, v.referenceId).toBe(v1 ? '/mock/selfie.svg' : '/mock/liveness.svg')
         expect(a.telemetry?.faceMatchConfidence).toBeGreaterThan(ENGINE_THRESHOLDS.faceMatchMin)
-        if (v1) expect(selfiePasses(a.telemetry!.selfie!), v.referenceNo).toBe(true)
+        if (v1) expect(selfiePasses(a.telemetry!.selfie!), v.referenceId).toBe(true)
         else expect(a.telemetry?.selfie).toBeUndefined()
       }
     }
@@ -200,8 +200,8 @@ describe('telemetry, duplicate user and risk categories (DEC-105)', () => {
     const rejected = db.verifications.flatMap((v) => v.attempts.flatMap((a) => (a.telemetry?.selfieRetakes ?? []).map((t) => ({ v, a, t }))))
     expect(rejected.length).toBeGreaterThan(0)
     for (const { v, t } of rejected) {
-      expect(entryOf(v.workflowVersion).faceMatchMethod, v.referenceNo).toBe('ID_VS_SELFIE')
-      expect(selfiePasses(t), v.referenceNo).toBe(false)
+      expect(entryOf(v.workflowVersion).faceMatchMethod, v.referenceId).toBe('ID_VS_SELFIE')
+      expect(selfiePasses(t), v.referenceId).toBe(false)
     }
     const s22 = byRef('KYC-260901-900022')
     expect(s22.attempts).toMatchObject([{ phase: 'SELFIE', phaseScores: {} }])
@@ -212,7 +212,7 @@ describe('telemetry, duplicate user and risk categories (DEC-105)', () => {
   it('Given the existing-user search, then it ran only where the face comparison passed or reached the review band', () => {
     for (const v of db.verifications.filter((x) => x.duplicateUser)) {
       const fm = v.submissions.FACE_MATCH ?? []
-      expect(fm.length, v.referenceNo).toBeGreaterThan(0)
+      expect(fm.length, v.referenceId).toBeGreaterThan(0)
     }
     expect(byRef('KYC-260901-900019').duplicateUser).toBeUndefined() // S19: retry pending after 70.0
   })
@@ -220,7 +220,7 @@ describe('telemetry, duplicate user and risk categories (DEC-105)', () => {
   it('Given an attempt, then it shows only the scores it submitted: V1 face match first, liveness last', () => {
     for (const v of db.verifications) {
       for (const c of ['FACE_MATCH', 'LIVENESS'] as const) {
-        expect(v.attempts.flatMap((a) => (a.phaseScores[c] === undefined ? [] : [a.phaseScores[c]])), `${v.referenceNo} ${c}`).toEqual(v.submissions[c] ?? [])
+        expect(v.attempts.flatMap((a) => (a.phaseScores[c] === undefined ? [] : [a.phaseScores[c]])), `${v.referenceId} ${c}`).toEqual(v.submissions[c] ?? [])
       }
     }
     const s20 = byRef('KYC-260901-900020').attempts.map((a) => a.phaseScores)
@@ -238,8 +238,8 @@ describe('telemetry, duplicate user and risk categories (DEC-105)', () => {
     expect(withRisk.length).toBeGreaterThan(0)
     for (const v of withRisk) {
       expect(Object.keys(v.riskScores!).sort()).toEqual(['EMAIL_VALIDITY', 'EXIF', 'NOISE', 'OSINT'])
-      for (const n of Object.values(v.riskScores!)) expect(n >= 0 && n <= 100, v.referenceNo).toBe(true)
-      expect(v.riskResult, v.referenceNo).toBe(evaluateRisk(v.riskScores!, revisionOf(v.flowId, v.configRevision).settings.risk).result)
+      for (const n of Object.values(v.riskScores!)) expect(n >= 0 && n <= 100, v.referenceId).toBe(true)
+      expect(v.riskResult, v.referenceId).toBe(evaluateRisk(v.riskScores!, revisionOf(v.flowId, v.configRevision).settings.risk).result)
     }
     expect(db.verifications.filter((v) => !v.riskScores).every((v) => v.riskResult === undefined)).toBe(true)
   })
@@ -255,7 +255,7 @@ describe('telemetry, duplicate user and risk categories (DEC-105)', () => {
       const rev = revisionOf(v.flowId, v.configRevision)
       const entry = entryOf(v.workflowVersion)
       const ev = evaluateCase(caseInputOf(v), { checks: entry.configurableChecks, faceMatchMethod: entry.faceMatchMethod, hasRisk: hasRisk(entry), settings: rev.settings })
-      for (const p of ev.phases) expect(p.retriesUsed, `${v.referenceNo} ${p.phase}`).toBeLessThanOrEqual(p.retriesAllowed)
+      for (const p of ev.phases) expect(p.retriesUsed, `${v.referenceId} ${p.phase}`).toBeLessThanOrEqual(p.retriesAllowed)
     }
   })
 
@@ -281,8 +281,8 @@ describe('telemetry, duplicate user and risk categories (DEC-105)', () => {
 })
 
 describe('named scenarios (docs/SCENARIOS.md)', () => {
-  it.each(EDGE_CASES)('$id $referenceNo matches its expected state', (e) => {
-    const v = db.verifications.find((x) => x.referenceNo === e.referenceNo)!
+  it.each(EDGE_CASES)('$id $referenceId matches its expected state', (e) => {
+    const v = db.verifications.find((x) => x.referenceId === e.referenceId)!
     expect(v).toBeDefined()
     expect(v.status).toBe(e.status)
     expect(v.sessions).toHaveLength(e.sessions ?? 1) // REQ: DEC-113
@@ -319,17 +319,17 @@ describe('named scenarios (docs/SCENARIOS.md)', () => {
   })
 
   it('S13 has exactly 2 user retakes', () => {
-    expect(db.verifications.find((v) => v.referenceNo === 'KYC-260901-900013')!.attempts.filter((a) => a.isUserRetake)).toHaveLength(2)
+    expect(db.verifications.find((v) => v.referenceId === 'KYC-260901-900013')!.attempts.filter((a) => a.isUserRetake)).toHaveLength(2)
   })
 
   it('S15 is a passport without NRIC', () => {
-    const v = db.verifications.find((x) => x.referenceNo === 'KYC-260901-900015')!
+    const v = db.verifications.find((x) => x.referenceId === 'KYC-260901-900015')!
     expect(v.documentType).toBe('PASSPORT')
     expect(v.pii.nric).toBeUndefined()
   })
 
   it('S01 (V1) has no risk result; S02 (V4) does', () => {
-    const risk = (ref: string) => db.verifications.find((v) => v.referenceNo === ref)!.riskResult
+    const risk = (ref: string) => db.verifications.find((v) => v.referenceId === ref)!.riskResult
     expect(risk('KYC-260901-900001')).toBeUndefined()
     expect(risk('KYC-260901-900002')).toBe('HIGH')
   })

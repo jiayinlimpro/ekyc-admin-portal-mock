@@ -70,7 +70,7 @@ export function VerificationFilters({ initial, onSearch, onReset, options }: { i
     <form role="search" aria-label="Filter verifications" noValidate onSubmit={submit} className="rounded-lg border bg-card p-4">
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Field id="f-ref" label="Reference ID">
-          <Input id="f-ref" value={draft.referenceNo} onChange={(e) => set('referenceNo', e.target.value)} placeholder="e.g. KYC-260901" autoComplete="off" />
+          <Input id="f-ref" value={draft.referenceId} onChange={(e) => set('referenceId', e.target.value)} placeholder="e.g. KYC-260901" autoComplete="off" />
         </Field>
         <Field id="f-name" label="Full Name">
           <Input id="f-name" value={draft.fullName} onChange={(e) => set('fullName', e.target.value)} placeholder="Contains…" autoComplete="off" />

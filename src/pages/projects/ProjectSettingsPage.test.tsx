@@ -77,7 +77,7 @@ describe('Project Settings (DEC-54, DEC-96)', () => {
     useSession.getState().selectProject(fx('PRJ-0001'))
     renderAt('/project-settings?tab=integration')
     const sample = JSON.parse((await (await panel()).findByLabelText('Sample webhook delivery')).textContent!)
-    expect(Object.keys(sample)).toEqual(['event', 'caseId', 'flowId', 'referenceId', 'status', 'lastUpdatedBy', 'occurredAt'])
+    expect(Object.keys(sample)).toEqual(['event', 'verificationId', 'flowId', 'referenceId', 'status', 'lastUpdatedBy', 'occurredAt'])
   })
 
   it('Given the Super admin, then Integration and General are open to them (DEC-75)', async () => {

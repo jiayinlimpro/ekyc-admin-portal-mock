@@ -25,8 +25,8 @@ const PAGE_SIZES = [25, 50, 100] as const
 
 function csvFor(r: BillingReport, names: { projectName: (id: string) => string; flowName: (id: string) => string }) {
   const cell = (v: string | number) => (/[",\n]/.test(String(v)) ? `"${String(v).replaceAll('"', '""')}"` : String(v))
-  const head = ['Reference ID', 'Case ID', 'Session', 'Project', 'Flow', 'Session started (MYT)', 'Verification Status', 'Workflow', 'Tokens', 'Retry tokens', 'Cost (RM)']
-  const rows = r.lines.map((l) => [l.referenceNo, l.caseId, l.sessionNo, names.projectName(l.projectId), names.flowName(l.flowId), formatMyt(l.chargedAt), STATUS_LABELS[l.status], l.workflowVersion, l.tokens, l.retryTokens, l.cost.toFixed(2)])
+  const head = ['Reference ID', 'Verification ID', 'Session', 'Project', 'Flow', 'Session started (MYT)', 'Verification Status', 'Workflow', 'Tokens', 'Retry tokens', 'Cost (RM)']
+  const rows = r.lines.map((l) => [l.referenceId, l.verificationId, l.sessionNo, names.projectName(l.projectId), names.flowName(l.flowId), formatMyt(l.chargedAt), STATUS_LABELS[l.status], l.workflowVersion, l.tokens, l.retryTokens, l.cost.toFixed(2)])
   return [head, ...rows].map((row) => row.map(cell).join(',')).join('\n')
 }
 
@@ -137,10 +137,10 @@ export function BillingPage() {
                     </tr>
                   ))}
                 {r?.lines.slice((page - 1) * pageSize, page * pageSize).map((l) => (
-                  <tr key={`${l.caseId}:${l.sessionNo}`} className="border-t">
+                  <tr key={`${l.verificationId}:${l.sessionNo}`} className="border-t">
                     <td className="px-3 py-2">
-                      <Link to={`/verifications/${l.caseId}`} className="font-mono text-xs text-blue-700 hover:underline dark:text-blue-400">
-                        {l.referenceNo}
+                      <Link to={`/verifications/${l.verificationId}`} className="font-mono text-xs text-blue-700 hover:underline dark:text-blue-400">
+                        {l.referenceId}
                       </Link>
                       {/* REQ: DEC-113 — a continued case has a line per session */}
                       {l.sessionNo > 1 && <span className="ml-1.5 text-xs text-muted-foreground">Session {l.sessionNo}</span>}

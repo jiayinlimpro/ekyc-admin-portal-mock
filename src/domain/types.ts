@@ -158,8 +158,8 @@ export interface ClaimHolder {
 }
 
 export interface Verification {
-  caseId: string // ver_… — the case's own ID: URLs, webhooks, audit (DEC-97)
-  referenceNo: string // the merchant's own Reference ID, sent at session creation; never the key (DEC-97, OQ-28)
+  verificationId: string // vrf_… — the case's own ID: URLs, webhooks, audit (DEC-97)
+  referenceId: string // the merchant's own Reference ID, sent at session creation; never the key (DEC-97, OQ-28)
   merchantId: string
   workflowVersion: WorkflowVersion
   status: VerificationStatus
@@ -195,8 +195,8 @@ export interface Verification {
 
 // REQ: DEC-40 — list rows carry no PII beyond name/ref, no client metadata and no duplicate-user information.
 export interface VerificationSummary {
-  caseId: string
-  referenceNo: string
+  verificationId: string
+  referenceId: string
   merchantId: string
   merchantName: string
   projectId: string
@@ -310,8 +310,8 @@ export interface AuditEntry {
   actorRole?: string // REQ: DEC-42 — the actor's role names in the project, or "Super admin"; absent for SYSTEM
   merchantId?: string
   projectId?: string
-  caseId?: string // REQ: DEC-97 — the case this entry is about; Reference ID kept for search and display
-  referenceNo?: string
+  verificationId?: string // REQ: DEC-97 — the case this entry is about; Reference ID kept for search and display
+  referenceId?: string
   ip: string
   details: Record<string, unknown>
 }
@@ -390,7 +390,7 @@ export interface ProjectWebhook {
  */
 export interface WebhookEvent {
   event: 'verification.status_changed'
-  caseId: string // ver_…
+  verificationId: string // vrf_…
   flowId: string // flw_… — the flow the session ran on
   referenceId: string // the merchant's own Reference ID, as they sent it
   status: Exclude<VerificationStatus, 'PROCESSING'>

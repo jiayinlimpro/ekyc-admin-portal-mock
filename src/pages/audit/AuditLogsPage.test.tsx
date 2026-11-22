@@ -9,7 +9,7 @@ import { verificationService } from '@/services/verificationService'
 import { DEFAULT_DEV_FLAGS, useDevFlags } from '@/stores/devFlagsStore'
 import { useSession } from '@/stores/sessionStore'
 import { ALI, OWNER, minutes } from '@/test/factories'
-import { fx, caseIdOf } from '@/lib/ids'
+import { fx, verificationIdOf } from '@/lib/ids'
 
 function renderAt(path: string) {
   const router = createMemoryRouter(routes, { initialEntries: [path] })
@@ -84,7 +84,7 @@ describe('Audit Logs', () => {
   })
 
   it('Given a live action elsewhere, then it appears on the next load', async () => {
-    await verificationService.claim(caseIdOf('KYC-260901-900010'), ALI)
+    await verificationService.claim(verificationIdOf('KYC-260901-900010'), ALI)
     renderAt('/audit?ref=KYC-260901-900010&action=CASE_CLAIMED')
     const r = await rows('Audit entries')
     expect(r).toHaveLength(1)

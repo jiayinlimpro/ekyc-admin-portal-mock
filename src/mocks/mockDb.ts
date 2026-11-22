@@ -28,16 +28,16 @@ if (typeof window !== 'undefined') {
 export const db = {
   state: () => useMockDb.getState(),
 
-  findVerification(caseId: string): Verification | undefined {
-    return useMockDb.getState().verifications.find((v) => v.caseId === caseId)
+  findVerification(verificationId: string): Verification | undefined {
+    return useMockDb.getState().verifications.find((v) => v.verificationId === verificationId)
   },
 
-  updateVerification(caseId: string, fn: (v: Verification) => Verification): Verification {
+  updateVerification(verificationId: string, fn: (v: Verification) => Verification): Verification {
     let updated: Verification | undefined
     useMockDb.setState((s) => ({
-      verifications: s.verifications.map((v) => (v.caseId === caseId ? (updated = fn(v)) : v)),
+      verifications: s.verifications.map((v) => (v.verificationId === verificationId ? (updated = fn(v)) : v)),
     }))
-    if (!updated) throw new Error(`Verification ${caseId} not found`)
+    if (!updated) throw new Error(`Verification ${verificationId} not found`)
     return updated
   },
 

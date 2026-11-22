@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { createMemoryRouter } from 'react-router'
 import { RouterProvider } from 'react-router/dom'
 import { routes } from '@/app/routes'
-import { caseIdOf, fx } from '@/lib/ids'
+import { verificationIdOf, fx } from '@/lib/ids'
 import { devService } from '@/services/devService'
 import { DEFAULT_DEV_FLAGS, useDevFlags } from '@/stores/devFlagsStore'
 import { useSession } from '@/stores/sessionStore'
@@ -45,7 +45,7 @@ describe('screens for platform staff (DEC-99, DEC-104)', () => {
   })
 
   it('Given Support opens a case, then the full page, no masking; the view is logged', async () => {
-    renderAt(`/verifications/${caseIdOf('KYC-260901-900003')}`)
+    renderAt(`/verifications/${verificationIdOf('KYC-260901-900003')}`)
     expect(await screen.findByText(/Your view is logged/)).toBeTruthy()
     expect(screen.getByRole('img', { name: /front \(sample image/ })).toBeTruthy()
   })

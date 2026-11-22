@@ -10,10 +10,10 @@ import { isServiceError } from './errors'
 import { merchantService } from './merchantService'
 import { verificationService as svc } from './verificationService'
 import { mytDay } from '@/domain/dashboards'
-import { fx, caseIdOf } from '@/lib/ids'
+import { fx, verificationIdOf } from '@/lib/ids'
 
 const S = (n: number) => `KYC-260901-${900000 + n}` // Reference ID
-const C = (n: number) => caseIdOf(S(n)) // case ID (DEC-97)
+const C = (n: number) => verificationIdOf(S(n)) // Verification ID (DEC-97)
 
 beforeEach(async () => {
   vi.useFakeTimers({ toFake: ['Date'] })
@@ -23,7 +23,7 @@ beforeEach(async () => {
 afterEach(() => vi.useRealTimers())
 
 async function auditFor(ref: string, actions?: AuditAction[]) {
-  return (await auditService.list({ referenceNo: ref, actions, pageSize: 500 }, ADMIN)).items.map((e) => e.action).reverse()
+  return (await auditService.list({ referenceId: ref, actions, pageSize: 500 }, ADMIN)).items.map((e) => e.action).reverse()
 }
 
 async function expectError(p: Promise<unknown>, code: string, message?: string) {
@@ -53,7 +53,7 @@ describe('verificationService.list', () => {
   })
 
   it('Given a list row, then it names its project and flow and carries Created (DEC-40)', async () => {
-    const row = (await svc.list({ referenceNo: S(16) }, ALI)).items[0]
+    const row = (await svc.list({ referenceId: S(16) }, ALI)).items[0]
     expect(row).toMatchObject({ projectId: fx('PRJ-0002'), projectName: 'SME app', flowId: fx('FLW-0004'), flowName: 'SME director check', workflowVersion: 'V3' })
     expect(row.createdAt).toBe((await svc.get(C(16), ALI)).createdAt)
   })
@@ -69,10 +69,10 @@ describe('verificationService.list', () => {
 
   it('Given claim state filters, then unclaimed, mine and others split the active claims (DEC-43)', async () => {
     const mine = (await svc.list({ claim: 'MINE', pageSize: 500 }, ALI)).items
-    expect(mine.map((r) => r.referenceNo)).toEqual(expect.arrayContaining([S(7), S(8)]))
+    expect(mine.map((r) => r.referenceId)).toEqual(expect.arrayContaining([S(7), S(8)]))
     expect(mine.every((r) => r.claimedBy?.userId === ALI.userId)).toBe(true)
     const others = (await svc.list({ claim: 'OTHERS', pageSize: 500 }, ALI)).items
-    expect(others.map((r) => r.referenceNo)).toContain(S(9))
+    expect(others.map((r) => r.referenceId)).toContain(S(9))
     expect(others.every((r) => r.claimedBy && r.claimedBy.userId !== ALI.userId)).toBe(true)
     expect((await svc.list({ claim: 'UNCLAIMED', pageSize: 500 }, ALI)).items.every((r) => !r.claimedBy)).toBe(true)
   })
@@ -85,10 +85,10 @@ describe('verificationService.list', () => {
   })
 
   it('Given a column sort, then Reference ID, status (lifecycle order) and risk (Low → High, none last) sort both ways (DEC-100, DEC-107)', async () => {
-    const list = async (by: 'referenceNo' | 'status' | 'riskResult', dir: 'asc' | 'desc') => (await svc.list({ sort: { by, dir }, pageSize: 500 }, OWNER)).items
-    const refs = (await list('referenceNo', 'asc')).map((r) => r.referenceNo)
+    const list = async (by: 'referenceId' | 'status' | 'riskResult', dir: 'asc' | 'desc') => (await svc.list({ sort: { by, dir }, pageSize: 500 }, OWNER)).items
+    const refs = (await list('referenceId', 'asc')).map((r) => r.referenceId)
     expect(refs).toEqual([...refs].sort())
-    expect((await list('referenceNo', 'desc')).map((r) => r.referenceNo)).toEqual([...refs].reverse())
+    expect((await list('referenceId', 'desc')).map((r) => r.referenceId)).toEqual([...refs].reverse())
     const order = ['PROCESSING', 'PENDING_REVIEW', 'APPROVED', 'REJECTED', 'FAILED'] // REQ: DEC-112
     const statuses = (await list('status', 'asc')).map((r) => order.indexOf(r.status))
     expect(statuses).toEqual([...statuses].sort((a, b) => a - b))
@@ -119,9 +119,9 @@ describe('verificationService.list', () => {
     const pending = await svc.list({ statuses: ['PENDING_REVIEW'], pageSize: 500 }, OWNER)
     expect(pending.items.every((r) => r.status === 'PENDING_REVIEW')).toBe(true)
     const mine = await svc.list({ claim: 'MINE' }, ALI)
-    expect(mine.items.map((r) => r.referenceNo).sort()).toEqual(expect.arrayContaining([S(7), S(8)]))
+    expect(mine.items.map((r) => r.referenceId).sort()).toEqual(expect.arrayContaining([S(7), S(8)]))
     const target = (await svc.get(C(3), ALI)).pii.fullName
-    expect((await svc.list({ fullName: target.toLowerCase() }, ALI)).items.map((r) => r.referenceNo)).toContain(S(3))
+    expect((await svc.list({ fullName: target.toLowerCase() }, ALI)).items.map((r) => r.referenceId)).toContain(S(3))
   })
 
   it('Given Empty Demo Merchant, then no rows (S14)', async () => {
@@ -137,13 +137,13 @@ describe('verificationService.list', () => {
 
 describe('per-project case access (DEC-70, DEC-72)', () => {
   it('Given Ali (Reviewer in Default, Viewer in SME app), then he sees cases from both projects and nothing else', async () => {
-    const refs = (await svc.list({ pageSize: 1000 }, ALI)).items.map((r) => r.referenceNo)
+    const refs = (await svc.list({ pageSize: 1000 }, ALI)).items.map((r) => r.referenceId)
     expect(refs).toEqual(expect.arrayContaining([S(2), S(16), S(18)])) // Default › Malaysian, SME app, Default › Foreigner
     expect(refs).not.toContain(S(1)) // Vantage
   })
 
   it('Given Hafiz (Project Admin of SME app only), then Default cases are "not found", not "forbidden"', async () => {
-    expect((await svc.list({ pageSize: 1000 }, HAFIZ)).items.map((r) => r.referenceNo)).toEqual(expect.arrayContaining([S(16)]))
+    expect((await svc.list({ pageSize: 1000 }, HAFIZ)).items.map((r) => r.referenceId)).toEqual(expect.arrayContaining([S(16)]))
     await expectError(svc.get(C(2), HAFIZ), 'NOT_FOUND', `Verification ${C(2)} not found.`)
     await expectError(svc.claim(C(10), HAFIZ), 'NOT_FOUND')
   })
@@ -155,7 +155,7 @@ describe('per-project case access (DEC-70, DEC-72)', () => {
   it('Given the Super admin, then every case is visible, each open is audited, and they can claim and decide (DEC-75)', async () => {
     expect((await svc.list({ pageSize: 500 }, ADMIN)).total).toBeGreaterThan((await svc.list({ pageSize: 500 }, OWNER)).total)
     await svc.get(C(10), ADMIN)
-    expect((await auditService.list({ actions: ['SENSITIVE_PII_VIEW'] }, ADMIN)).items[0]).toMatchObject({ referenceNo: S(10), actorRole: 'Super admin' })
+    expect((await auditService.list({ actions: ['SENSITIVE_PII_VIEW'] }, ADMIN)).items[0]).toMatchObject({ referenceId: S(10), actorRole: 'Super admin' })
     await svc.claim(C(10), ADMIN)
     const v = await svc.decide(C(10), ADMIN, { outcome: 'APPROVE', reasonCodes: ['FACE_CONFIRMED'] })
     expect(v).toMatchObject({ status: 'APPROVED', lastUpdatedBy: { kind: 'USER', userId: ADMIN.userId } })
@@ -278,7 +278,7 @@ describe('decide (DEC-24, DEC-30)', () => {
     expect(d).toMatchObject({ status: 'APPROVED', lastUpdatedBy: { kind: 'USER', userId: ALI.userId }, statusReason: 'Face confirmed by reviewer (e.g. old ID photo)', claimedBy: undefined })
     expect(d.lastUpdatedAt).toBe(new Date(NOW.getTime() + minutes(1)).toISOString())
     expect((await auditFor(S(7))).at(-1)).toBe('CASE_DECISION_APPROVED')
-    const [entry] = (await auditService.list({ referenceNo: S(7), actions: ['CASE_DECISION_APPROVED'] }, ADMIN)).items
+    const [entry] = (await auditService.list({ referenceId: S(7), actions: ['CASE_DECISION_APPROVED'] }, ADMIN)).items
     expect(entry).toMatchObject({ actorRole: 'Reviewer', projectId: fx('PRJ-0001'), details: { fromStatus: 'PENDING_REVIEW', toStatus: 'APPROVED' } })
     await expectError(svc.decide(C(7), ALI, approve), 'OWNERSHIP_CONFLICT', 'This record has already been decided. No changes saved.')
   })
@@ -349,14 +349,14 @@ describe('analyticsService scoping (DEC-86)', () => {
   it('Given S25 FAILED after 4 ID images, then Billing charges all 4 document submissions (DEC-60, DEC-112)', async () => {
     const v = await svc.get(C(25), ALI)
     const report = await analyticsService.billing({ period: v.createdAt.slice(0, 7) }, ALI)
-    expect(report.lines.find((l) => l.referenceNo === S(25))).toMatchObject({ status: 'FAILED', tokens: 4, retryTokens: 3 })
+    expect(report.lines.find((l) => l.referenceId === S(25))).toMatchObject({ status: 'FAILED', tokens: 4, retryTokens: 3 })
   })
 
   it('Given S30 with 3 sessions, then 3 billing lines, each with its session result, and the case counts once (DEC-60, DEC-113)', async () => {
     const v = await svc.get(C(30), ALI)
     const lines = []
     for (const period of new Set(v.sessionRows.map((x) => mytDay(x.startedAt).slice(0, 7)))) // billing months are MYT
-      lines.push(...(await analyticsService.billing({ period }, ALI)).lines.filter((l) => l.caseId === v.caseId))
+      lines.push(...(await analyticsService.billing({ period }, ALI)).lines.filter((l) => l.verificationId === v.verificationId))
     expect(lines.map((l) => [l.sessionNo, l.status]).sort()).toEqual([[1, 'FAILED'], [2, 'REJECTED'], [3, 'APPROVED']])
     expect(lines.find((l) => l.sessionNo === 1)!.tokens).toBe(4)
   })
@@ -381,17 +381,17 @@ describe('Internal testing is hidden from merchant users (DEC-56)', () => {
     expect((await flowService.list(fx('PRJ-0001'), OWNER)).map((f) => f.flowId)).not.toContain(TRIAL)
     expect((await flowService.listRows(fx('PRJ-0001'), OWNER)).map((f) => f.flowId)).not.toContain(TRIAL)
     await expectError(flowService.get(TRIAL, OWNER), 'NOT_FOUND')
-    expect((await svc.list({ pageSize: 1000, statuses: ['APPROVED'] }, OWNER)).items.map((r) => r.referenceNo)).not.toContain(S(26))
+    expect((await svc.list({ pageSize: 1000, statuses: ['APPROVED'] }, OWNER)).items.map((r) => r.referenceId)).not.toContain(S(26))
     await expectError(svc.get(C(26), OWNER), 'NOT_FOUND', `Verification ${C(26)} not found.`)
     expect((await svc.filterOptions(OWNER)).flows.map((f) => f.flowId)).not.toContain(TRIAL)
     expect((await analyticsService.filters(OWNER)).flows.map((f) => f.flowId)).not.toContain(TRIAL)
-    expect((await analyticsService.billing({ period: month }, OWNER)).lines.map((l) => l.referenceNo)).not.toContain(S(26))
+    expect((await analyticsService.billing({ period: month }, OWNER)).lines.map((l) => l.referenceId)).not.toContain(S(26))
   })
 
   it('Given the super admin, then he sees both; the test session costs no tokens (DEC-60)', async () => {
     expect((await flowService.list(fx('PRJ-0001'), ADMIN)).map((f) => f.flowId)).toContain(TRIAL)
-    expect((await svc.get(C(26), ADMIN)).referenceNo).toBe(S(26))
-    expect((await analyticsService.billing({ period: month }, ADMIN)).lines.find((l) => l.referenceNo === S(26))).toMatchObject({ tokens: 0, cost: 0 })
+    expect((await svc.get(C(26), ADMIN)).referenceId).toBe(S(26))
+    expect((await analyticsService.billing({ period: month }, ADMIN)).lines.find((l) => l.referenceId === S(26))).toMatchObject({ tokens: 0, cost: 0 })
   })
 
   it('Given the overview, then the Owner’s totals leave the test session out', async () => {

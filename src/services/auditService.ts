@@ -11,7 +11,7 @@ import { simulateNetwork, wire } from './network'
 
 export interface AuditQuery {
   actions?: AuditAction[]
-  referenceNo?: string // exact
+  referenceId?: string // exact
   merchantId?: string
   projectId?: string
   actorUserId?: string // 'SYSTEM' for system entries
@@ -45,7 +45,7 @@ export const mockAuditService: AuditService = {
           (!q.merchantId || e.merchantId === q.merchantId) &&
           (!q.projectId || e.projectId === q.projectId) &&
           (!q.actions?.length || q.actions.includes(e.action)) &&
-          (!q.referenceNo || e.referenceNo === q.referenceNo) &&
+          (!q.referenceId || e.referenceId === q.referenceId) &&
           (!q.actorUserId || actorId(e) === q.actorUserId) &&
           (!q.from || e.at >= q.from) &&
           (!q.to || e.at <= q.to),

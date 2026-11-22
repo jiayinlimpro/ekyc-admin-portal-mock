@@ -9,7 +9,7 @@ export type ClaimState = (typeof CLAIM_STATES)[number]
 
 // REQ: DEC-43
 export interface ListFilters {
-  referenceNo: string
+  referenceId: string
   fullName: string
   statuses: VerificationStatus[] // [] = every status
   projectId: string // '' = every project in view
@@ -44,7 +44,7 @@ function parseSort(raw: string | null): VerificationSort | undefined {
 
 /** REQ: DEC-43 — the default view: Pending Review cases in the user's projects, oldest first (no `sort`). */
 export const DEFAULT_FILTERS: ListFilters = {
-  referenceNo: '',
+  referenceId: '',
   fullName: '',
   statuses: ['PENDING_REVIEW'],
   projectId: '',
@@ -82,7 +82,7 @@ export function parseListParams(sp: URLSearchParams): ListParams {
   const sort = parseSort(sp.get('sort'))
   return {
     filters: {
-      referenceNo: sp.get('referenceNo')?.trim() ?? '',
+      referenceId: sp.get('referenceId')?.trim() ?? '',
       fullName: sp.get('fullName')?.trim() ?? '',
       statuses: status === null ? DEFAULT_FILTERS.statuses : status === ALL_STATUSES ? [] : list(status, VERIFICATION_STATUSES),
       projectId: sp.get('project') ?? '',
@@ -105,7 +105,7 @@ export function toSearchParams(p: ListParams): URLSearchParams {
   const f = p.filters
   const sp = new URLSearchParams()
   const set = (k: string, v: string) => v && sp.set(k, v)
-  set('referenceNo', f.referenceNo.trim())
+  set('referenceId', f.referenceId.trim())
   set('fullName', f.fullName.trim())
   if (!sameStatuses(f.statuses, DEFAULT_FILTERS.statuses)) sp.set('status', f.statuses.length ? f.statuses.join(',') : ALL_STATUSES)
   set('project', f.projectId)
@@ -134,7 +134,7 @@ export function toQuery(p: ListParams, inView?: readonly string[]): Verification
   const f = p.filters
   const projectIds = f.projectId && (!inView || inView.includes(f.projectId)) ? [f.projectId] : inView ? [...inView] : undefined
   return {
-    referenceNo: f.referenceNo || undefined,
+    referenceId: f.referenceId || undefined,
     fullName: f.fullName || undefined,
     statuses: f.statuses.length ? f.statuses : undefined,
     projectIds,

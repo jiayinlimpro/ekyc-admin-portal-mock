@@ -44,7 +44,7 @@ const maskId = (id: string) => `${id.slice(0, id.indexOf('_') + 1)}…${id.slice
 // Typed, so the sample follows the contract in types.ts.
 const SAMPLE_EVENT: WebhookEvent = {
   event: 'verification.status_changed',
-  caseId: 'ver_q8m2x7c1v9b4n6k3j5h0t2ra',
+  verificationId: 'vrf_q8m2x7c1v9b4n6k3j5h0t2ra',
   flowId: 'flw_fvnn406j99wwk86pomyjx67a',
   referenceId: 'your-own-reference-for-this-user',
   status: 'APPROVED',

@@ -209,9 +209,9 @@ export function intelligenceStats(records: readonly Verification[], range: DateR
 
 /** REQ: DEC-60 — tokens = document (OCR) + V1 selfie + liveness submissions, whatever the final status (DEC-108, OQ-35). */
 export interface BillingLine {
-  caseId: string
+  verificationId: string
   sessionNo: number // REQ: DEC-60 / DEC-113 — one line per session of the case
-  referenceNo: string
+  referenceId: string
   merchantId: string
   projectId: string
   flowId: string
@@ -249,9 +249,9 @@ export function billingLines(v: Verification, tokenPrice: number): BillingLine[]
   return v.sessions.map((s) => {
     const { tokens, retryTokens } = s.ended ?? current
     return {
-      caseId: v.caseId,
+      verificationId: v.verificationId,
       sessionNo: s.sessionNo,
-      referenceNo: v.referenceNo,
+      referenceId: v.referenceId,
       merchantId: v.merchantId,
       projectId: v.projectId,
       flowId: s.flowId,
@@ -268,7 +268,7 @@ export function billingLines(v: Verification, tokenPrice: number): BillingLine[]
 export function billingTotals(lines: readonly BillingLine[], tokenPrice: number): BillingTotals {
   const tokens = lines.reduce((n, l) => n + l.tokens, 0)
   const retryTokens = lines.reduce((n, l) => n + l.retryTokens, 0)
-  return { verifications: new Set(lines.map((l) => l.caseId)).size, tokens, retryTokens, cost: round2(tokens * tokenPrice), retryCost: round2(retryTokens * tokenPrice) }
+  return { verifications: new Set(lines.map((l) => l.verificationId)).size, tokens, retryTokens, cost: round2(tokens * tokenPrice), retryCost: round2(retryTokens * tokenPrice) }
 }
 
 export function billingBy(lines: readonly BillingLine[], key: (l: BillingLine) => string, tokenPrice: number): (BillingTotals & { key: string })[] {

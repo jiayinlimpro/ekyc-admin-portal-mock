@@ -8,7 +8,7 @@ import { devService } from '@/services/devService'
 import { useSession } from '@/stores/sessionStore'
 import { useUi } from '@/stores/uiStore'
 import { routes } from './routes'
-import { caseIdOf, fx } from '@/lib/ids'
+import { verificationIdOf, fx } from '@/lib/ids'
 
 function renderAt(path: string) {
   const router = createMemoryRouter(routes, { initialEntries: [path] })
@@ -177,7 +177,7 @@ describe('AppShell', () => {
 
   it('Given a case link from another project, then that project is selected (DEC-109)', async () => {
     inProject(fx('PRJ-0002'))
-    renderAt(`/verifications/${caseIdOf('KYC-260901-900003')}`)
+    renderAt(`/verifications/${verificationIdOf('KYC-260901-900003')}`)
     await waitFor(() => expect(useSession.getState().projectId).toBe(fx('PRJ-0001')))
     expect(await screen.findByRole('button', { name: 'Switch project. Current: Default' })).toBeTruthy()
   })
@@ -196,13 +196,13 @@ describe('AppShell', () => {
     const router = renderAt('/billing')
     await mainNav().findByRole('link', { name: 'Billing' })
     expect(screen.queryByRole('navigation', { name: 'Open pages' })).toBeNull()
-    await act(() => router.navigate(`/verifications/${caseIdOf('KYC-260901-900003')}`))
+    await act(() => router.navigate(`/verifications/${verificationIdOf('KYC-260901-900003')}`))
     const crumbs = within(screen.getByRole('navigation', { name: 'Breadcrumb' }))
     await waitFor(() => expect(crumbs.getAllByRole('listitem').at(-1)!.textContent).toBe('KYC-260901-900003'))
   })
 
   it('Given ?as=<email>, then the session switches to Siti and the parameter is removed', async () => {
-    const router = renderAt(`/verifications/${caseIdOf('KYC-260901-900010')}?as=siti.yusof@atoz.example`)
+    const router = renderAt(`/verifications/${verificationIdOf('KYC-260901-900010')}?as=siti.yusof@atoz.example`)
     await waitFor(() => expect(useSession.getState().actor.userId).toBe(fx('USR-2026-0031')))
     await waitFor(() => expect(router.state.location.search).toBe(''))
   })

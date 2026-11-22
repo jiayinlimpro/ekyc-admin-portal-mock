@@ -61,15 +61,15 @@ export function UatPage() {
                   <td className="px-4 py-2 font-mono text-xs">{s.id}</td>
                   <td className="px-4 py-2">{s.title}</td>
                   <td className="px-4 py-2 font-mono text-xs">
-                    <Link to={`/verifications/${s.caseId}`} className="text-blue-700 underline-offset-2 hover:underline dark:text-blue-400">
-                      {s.referenceNo}
+                    <Link to={`/verifications/${s.verificationId}`} className="text-blue-700 underline-offset-2 hover:underline dark:text-blue-400">
+                      {s.referenceId}
                     </Link>
                   </td>
                   <td className="px-4 py-2">
                     <StatusBadge status={s.expectedStatus} />
                   </td>
                   <td className="px-4 py-2">
-                    <Link to={`/verifications/${s.caseId}?as=${userEmail(s.asUserId)}`} className="text-blue-700 underline-offset-2 hover:underline dark:text-blue-400">
+                    <Link to={`/verifications/${s.verificationId}?as=${userEmail(s.asUserId)}`} className="text-blue-700 underline-offset-2 hover:underline dark:text-blue-400">
                       {userName(s.asUserId)}
                     </Link>
                   </td>

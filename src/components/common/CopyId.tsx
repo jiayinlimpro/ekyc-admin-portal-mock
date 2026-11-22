@@ -1,4 +1,4 @@
-// REQ: DEC-97 — an ID people copy or quote (flow ID, case ID): shown in full, with a copy button.
+// REQ: DEC-97 — an ID people copy or quote (flow ID, Verification ID): shown in full, with a copy button.
 import { Copy } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'

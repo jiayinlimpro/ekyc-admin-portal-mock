@@ -9,7 +9,7 @@ const e = (action: AuditEntry['action'], details: Record<string, unknown> = {}):
   action,
   actor: { kind: 'USER', userId: fx('USR-2026-0012'), fullName: 'Ali Bin Ahmad' },
   merchantId: fx('MER-0001'),
-  referenceNo: 'KYC-260901-900003',
+  referenceId: 'KYC-260901-900003',
   ip: '203.0.113.9',
   details,
 })
@@ -50,7 +50,7 @@ describe('auditCsv', () => {
   it('escapes commas and quotes', () => {
     const csv = auditCsv([e('CASE_DECISION_REJECTED', { outcome: 'REJECT', reasons: 'X', note: 'He said "no", twice', fromStatus: 'PENDING_REVIEW' })], () => 'Atoz Software Tech')
     const [header, row] = csv.split('\n')
-    expect(header).toBe('Event ID,Time (MYT),Action,Actor,Actor ID,Merchant,Reference ID,Case ID,IP,Summary')
+    expect(header).toBe('Event ID,Time (MYT),Action,Actor,Actor ID,Merchant,Reference ID,Verification ID,IP,Summary')
     expect(row).toContain('"PENDING_REVIEW → Rejected · X · “He said ""no"", twice”"')
   })
 })

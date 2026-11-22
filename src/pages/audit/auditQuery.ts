@@ -5,14 +5,14 @@ import type { AuditQuery } from '@/services/auditService'
 
 export interface AuditFilters {
   actions: AuditAction[]
-  referenceNo: string
+  referenceId: string
   actorUserId: string // '' any, 'SYSTEM', or a userId
   merchantId: string
   from: string // MYT yyyy-MM-dd
   to: string
 }
 
-export const EMPTY_AUDIT_FILTERS: AuditFilters = { actions: [], referenceNo: '', actorUserId: '', merchantId: '', from: '', to: '' }
+export const EMPTY_AUDIT_FILTERS: AuditFilters = { actions: [], referenceId: '', actorUserId: '', merchantId: '', from: '', to: '' }
 export const AUDIT_PAGE_SIZES = [25, 50, 100] as const
 const DEFAULT_SIZE = 50
 const DATE = /^\d{4}-\d{2}-\d{2}$/
@@ -29,7 +29,7 @@ export function parseAuditParams(sp: URLSearchParams): AuditParams {
   const page = Number(sp.get('page'))
   const size = Number(sp.get('size'))
   return {
-    filters: { actions: [...new Set(actions)], referenceNo: sp.get('ref')?.trim() ?? '', actorUserId: sp.get('actor') ?? '', merchantId: sp.get('merchant') ?? '', from: date('from'), to: date('to') },
+    filters: { actions: [...new Set(actions)], referenceId: sp.get('ref')?.trim() ?? '', actorUserId: sp.get('actor') ?? '', merchantId: sp.get('merchant') ?? '', from: date('from'), to: date('to') },
     page: Number.isInteger(page) && page > 0 ? page : 1,
     pageSize: (AUDIT_PAGE_SIZES as readonly number[]).includes(size) ? size : DEFAULT_SIZE,
   }
@@ -40,7 +40,7 @@ export function toAuditSearch(p: AuditParams): URLSearchParams {
   const sp = new URLSearchParams()
   const set = (k: string, v: string) => v && sp.set(k, v)
   set('action', f.actions.join(','))
-  set('ref', f.referenceNo.trim())
+  set('ref', f.referenceId.trim())
   set('actor', f.actorUserId)
   set('merchant', f.merchantId)
   set('from', f.from)
@@ -55,7 +55,7 @@ export function toAuditQuery(p: AuditParams, projectId?: string): AuditQuery {
   const f = p.filters
   return {
     actions: f.actions.length ? f.actions : undefined,
-    referenceNo: f.referenceNo ? f.referenceNo.toUpperCase() : undefined,
+    referenceId: f.referenceId ? f.referenceId.toUpperCase() : undefined,
     actorUserId: f.actorUserId || undefined,
     merchantId: projectId ? undefined : f.merchantId || undefined,
     projectId,

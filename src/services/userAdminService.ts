@@ -221,9 +221,9 @@ export function releaseLostClaims(actor: Actor, userIds: readonly string[], reas
     if (!v.claimedBy || !userIds.includes(v.claimedBy.userId) || !isClaimActive(v, at)) continue
     const holder = db.state().accounts.find((a) => a.userId === v.claimedBy!.userId)
     if (holder && holder.status === 'ACTIVE' && canInProject(withAccess(holder), 'claimCase', v)) continue
-    db.updateVerification(v.caseId, (x) => ({ ...x, ...CLEARED_CLAIM }))
+    db.updateVerification(v.verificationId, (x) => ({ ...x, ...CLEARED_CLAIM }))
     db.appendAudit(
-      makeAudit({ id: '', now: at, action: 'CASE_RELEASED', actor, actorRole: roleIn(actor, v.projectId), ip: clientIpFor(actor), merchantId: v.merchantId, projectId: v.projectId, caseId: v.caseId, referenceNo: v.referenceNo, details: { claimedBy: v.claimedBy, reason } }),
+      makeAudit({ id: '', now: at, action: 'CASE_RELEASED', actor, actorRole: roleIn(actor, v.projectId), ip: clientIpFor(actor), merchantId: v.merchantId, projectId: v.projectId, verificationId: v.verificationId, referenceId: v.referenceId, details: { claimedBy: v.claimedBy, reason } }),
     )
   }
 }

@@ -52,7 +52,7 @@ function Filters({ initial, onSearch, onReset, merchants, users, showMerchant }:
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
         <div>
           <label htmlFor="a-ref" className="mb-1 block text-xs font-medium text-muted-foreground">Reference ID</label>
-          <Input id="a-ref" value={f.referenceNo} onChange={(e) => set('referenceNo', e.target.value)} placeholder="Exact, e.g. KYC-260901-900003" autoComplete="off" />
+          <Input id="a-ref" value={f.referenceId} onChange={(e) => set('referenceId', e.target.value)} placeholder="Exact, e.g. KYC-260901-900003" autoComplete="off" />
         </div>
         <div>
           <label htmlFor="a-actor" className="mb-1 block text-xs font-medium text-muted-foreground">Actor</label>
@@ -268,9 +268,9 @@ export function AuditLogsPage() {
                     <td className="px-3 py-2 whitespace-nowrap">{projectName(e.projectId)}</td>
                     {isAdmin && <td className="px-3 py-2 whitespace-nowrap">{merchantName(e.merchantId)}</td>}
                     <td className="px-3 py-2">
-                      {e.referenceNo ? (
-                        <Link to={`/verifications/${e.caseId}`} className="font-mono text-xs whitespace-nowrap text-blue-700 hover:underline dark:text-blue-400">
-                          {e.referenceNo}
+                      {e.referenceId ? (
+                        <Link to={`/verifications/${e.verificationId}`} className="font-mono text-xs whitespace-nowrap text-blue-700 hover:underline dark:text-blue-400">
+                          {e.referenceId}
                         </Link>
                       ) : (
                         <span className="text-muted-foreground">—</span>

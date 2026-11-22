@@ -4,10 +4,10 @@ import { webhookEventFor } from './webhook'
 
 describe('webhookEventFor (DEC-55)', () => {
   it('Given a case in review, then the delivery names the case and the flow it ran on, besides the Reference ID', () => {
-    const v = verification({ caseId: 'ver_a', flowId: 'flw_b', referenceNo: 'REF-1', status: 'PENDING_REVIEW' })
+    const v = verification({ verificationId: 'vrf_a', flowId: 'flw_b', referenceId: 'REF-1', status: 'PENDING_REVIEW' })
     expect(webhookEventFor(v)).toEqual({
       event: 'verification.status_changed',
-      caseId: 'ver_a',
+      verificationId: 'vrf_a',
       flowId: 'flw_b',
       referenceId: 'REF-1',
       status: 'PENDING_REVIEW',

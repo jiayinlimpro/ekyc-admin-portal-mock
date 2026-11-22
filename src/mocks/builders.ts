@@ -20,12 +20,12 @@ import {
 } from '@/domain/types'
 import { revisionAt } from './fixtures/catalog'
 import type { Person } from './malaysia'
-import { caseIdOf, stableId } from '@/lib/ids'
+import { verificationIdOf, stableId } from '@/lib/ids'
 
 const HOUR = 3_600_000
 
 export interface CaseSpec {
-  referenceNo: string
+  referenceId: string
   flow: Flow
   revisions: readonly FlowRevision[]
   entry: RegistryEntry
@@ -57,7 +57,7 @@ export interface CaseSpec {
 /** Builds a case in its SYSTEM-assigned state (checkRules.evaluateCase). Manual decisions and claims are applied afterwards. */
 export function buildCase(spec: CaseSpec): Verification {
   const rev = revisionAt(spec.revisions, spec.flow.flowId, spec.startedAt)!
-  const key = (spec.sessionNo ?? 1) > 1 ? `${spec.referenceNo}#${spec.sessionNo}` : spec.referenceNo // REQ: DEC-113
+  const key = (spec.sessionNo ?? 1) > 1 ? `${spec.referenceId}#${spec.sessionNo}` : spec.referenceId // REQ: DEC-113
   const rand = rng(key) // REQ: DEC-105 — telemetry is stable per case across resets (MOCK-05)
   const flow: FlowContext = { checks: spec.entry.configurableChecks, faceMatchMethod: spec.entry.faceMatchMethod, hasRisk: hasRisk(spec.entry), settings: rev.settings }
 
@@ -149,10 +149,10 @@ export function buildCase(spec: CaseSpec): Verification {
   const decisive = ev.status === 'PENDING_REVIEW' || ev.status === 'REJECTED' || ev.status === 'FAILED'
   const image = { MYKAD: '/mock/mykad-front.svg', PASSPORT: '/mock/passport.svg', DRIVING_LICENSE: '/mock/driving-license.svg' }[spec.person.documentType]
   // REQ: DEC-44 — V4/V5 sessions require an email; reserved .example domain, never a real address.
-  const email = spec.entry.requiredInputs.includes('EMAIL') ? emailFor(spec.person.pii.fullName, spec.referenceNo) : undefined
+  const email = spec.entry.requiredInputs.includes('EMAIL') ? emailFor(spec.person.pii.fullName, spec.referenceId) : undefined
   return {
-    caseId: caseIdOf(spec.referenceNo), // REQ: DEC-97 — stable for seeded cases (MOCK-05)
-    referenceNo: spec.referenceNo,
+    verificationId: verificationIdOf(spec.referenceId), // REQ: DEC-97 — stable for seeded cases (MOCK-05)
+    referenceId: spec.referenceId,
     merchantId: spec.flow.merchantId,
     workflowVersion: spec.flow.workflowVersion as WorkflowVersion,
     status: ev.status,
@@ -170,7 +170,7 @@ export function buildCase(spec: CaseSpec): Verification {
     documentType: spec.person.documentType,
     pii: email ? { ...spec.person.pii, email } : spec.person.pii,
     clientMetadata: spec.metadata,
-    images: { docFront: { fileId: stableId('file', `${spec.referenceNo}:doc`), url: image }, selfie: { fileId: stableId('file', `${spec.referenceNo}:selfie`), url: '/mock/selfie.svg' } },
+    images: { docFront: { fileId: stableId('file', `${spec.referenceId}:doc`), url: image }, selfie: { fileId: stableId('file', `${spec.referenceId}:selfie`), url: '/mock/selfie.svg' } },
     charged: spec.entry.status !== 'INTERNAL_TESTING', // REQ: DEC-60 / DEC-56
     projectId: spec.flow.projectId,
     flowId: spec.flow.flowId,
@@ -261,9 +261,9 @@ function categoryScores(r: () => number, risk: number): RiskScores {
   return Object.fromEntries(RISK_CATEGORIES.map((c, i) => [c, clamp(i === weakest ? base : base + 4 + r() * 20)])) as RiskScores
 }
 
-function emailFor(fullName: string, referenceNo: string): string {
+function emailFor(fullName: string, referenceId: string): string {
   const words = fullName.toLowerCase().replace(/[^a-z ]/g, '').split(' ').filter((w) => w && !['bin', 'binti', 'al', 'ap'].includes(w))
-  return `${words.slice(0, 2).join('.')}${referenceNo.slice(-3)}@mail.example`
+  return `${words.slice(0, 2).join('.')}${referenceId.slice(-3)}@mail.example`
 }
 
 export function refNo(date: Date, seq: number): string {
