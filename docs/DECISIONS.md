@@ -169,8 +169,16 @@ Rules changed on 2026-10-20 (Projects & Flows restructure) are marked **(changed
   - The same Reference ID while the case is `PROCESSING`, `PENDING_REVIEW` or `APPROVED` is refused (OQ-38; not expected).
   - Audit: `CASE_RESUMED` (SYSTEM) with the previous status, the session number and the flow (old → new when it moved).
   - No webhook for the return to `PROCESSING` (DEC-55 never sends it); the next delivery is the new session's result.
-  - Reports count a case once, by its current status; tokens are counted per submission, whichever session.
-  - The case page shows the case's sessions: when each started, its flow and revision, and how it ended.
+  - Reports count a case once, by its current status, on the day the case was first created; tokens are counted per
+    submission, whichever session (DEC-60: one billing line per session).
+  - The case page shows the case's sessions: when each started, its flow and revision, and how it ended (status, reason,
+    by whom). Shown when the case has more than one session; the attempts of an earlier session are listed under it.
+  - **Record** [PO 2026-11-22]: the case keeps a `sessions` list, oldest first, the last one current. The case's own
+    fields (flow, revision, scores, attempts, telemetry, status) always describe the **current** session; an ended session
+    keeps how it ended (`REJECTED` or `FAILED`, reason, time, `lastUpdatedBy`), its tokens and its attempts.
+  - When a create-session request arrives: no case in the project → a new case; `REJECTED` or `FAILED` and no cooldown
+    running → a new session on the case; in cooldown → refused with "New session allowed from …"; `PROCESSING`,
+    `PENDING_REVIEW` or `APPROVED` → refused (OQ-38). The flow must be Active (DEC-95).
 
 ## Claim
 - **DEC-20** Claim is **not** a status. It is stored as `claimedBy`, `claimedAt`, `claimExpiresAt`.
@@ -416,6 +424,9 @@ Rules changed on 2026-10-20 (Projects & Flows restructure) are marked **(changed
   including a selfie the engine rejects (OQ-35 answered) [PO 2026-10-27]. Retakes before submitting are free. "Cost of
   retries" = tokens from submissions after the first in each phase.
   Billing column is "Verification Status". [FRS][PO 2026-10-20]
+  **(changed 2026-11-22)** A case that continued (DEC-113) has **one billing line per session**, in the month the session
+  started, with that session's flow, version, tokens and how it ended ("Verification Status" = the session's result; the
+  current session shows the case's status) [PO 2026-11-22].
 
 ## Roles and access
 - **DEC-70** **(changed again; scopes and the role list superseded by DEC-104)** Users and roles follow the [FRS] User Management method, extended with **scoped role
@@ -840,6 +851,9 @@ These keep the mock runnable. They are not signed-off requirements; change them 
   - Flows List / Flow Detail: members without the manage-flows right get "No access"; outside the project, "not found".
   - Users and Access: nobody changes their own access; Merchant Owners are not changed there; only Platform Admin or the
     Merchant Owner deactivates (account-wide). Becoming Viewer also releases the user's claims in that project.
+  - Continuing a case (DEC-113) has no button in the mock [PO 2026-11-22]: the mock has no API, so its rules live in the
+    domain (`caseSessions.ts`, with tests) and the demo data holds a record for every status and situation, including
+    continued cases, for reference (docs/SCENARIOS.md).
   - Dashboards count sessions by `createdAt`; pass rate = Approved / (Approved + Rejected + Failed) (DEC-112); drop-off = sessions still
     Processing, by the last phase reached.
 
