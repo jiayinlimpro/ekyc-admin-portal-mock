@@ -1,9 +1,9 @@
 # Named scenarios (UAT test cases)
 
 Each scenario is a fixture in `src/mocks/fixtures/edgeCases.ts` with a fixed Reference ID (the merchant's reference)
-and a fixed case ID, so deep links stay stable (the `260901` date part is fixed on purpose; see MOCK-05). Case URLs use the
-case ID (`/verifications/ver_…`, DEC-97): open scenarios from the UAT page (Dev menu), or type the Reference ID in the
-header search. Default users: **Ali Bin Ahmad (ali.ahmad@atoz.example)** and
+and a fixed Verification ID, so deep links stay stable (the `260901` date part is fixed on purpose; see MOCK-05). Case URLs
+use the Verification ID (`/verifications/vrf_…`, DEC-114): open scenarios from the UAT page (Dev menu), or type the
+Verification ID or the Reference ID in the header search. Default users: **Ali Bin Ahmad (ali.ahmad@atoz.example)** and
 **Siti Aminah Binti Yusof (siti.yusof@atoz.example)**, both Members with the Reviewer role in Atoz Software Tech's Default
 project (Project › Members); the Owner **Tan Mei Ling (meiling.tan@atoz.example)** sees every Atoz project. The super admin **Lim Wei Jie (weijie.lim@ekyc-platform.example)** can do everything in every merchant, cases
 included (DEC-75); every case he opens is audited.

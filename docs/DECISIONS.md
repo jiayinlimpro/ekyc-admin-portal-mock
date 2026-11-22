@@ -122,7 +122,7 @@ Rules changed on 2026-10-20 (Projects & Flows restructure) are marked **(changed
   checks when that phase's retries are used up → `REJECTED` by SYSTEM with the failing condition and "(Retry Not Allowed)",
   e.g. "ID image smaller than 320x320 (Retry Not Allowed)" (DEC-108). **(changed 2026-11-22)** That case is now `FAILED`,
   not `REJECTED` (DEC-112). [PO 2026-11-22]
-- **DEC-17** Retries keep the same case (case ID and Reference ID); each retry is appended to `attempts[]`, never a new record.
+- **DEC-17** Retries keep the same case (Verification ID and Reference ID, DEC-114); each retry is appended to `attempts[]`, never a new record.
   **(extended 2026-11-22)** A new session with the same Reference ID also continues the same case (DEC-113).
 - **DEC-18** **(changed again by DEC-108)** "**Retries allowed**" is set **per phase** per flow, not per check: the number of
   retries after the first submission. Default 3 = up to 4 submissions. Range is OQ-03. [PO 2026-10-20][FRS][PO 2026-10-27]
@@ -158,7 +158,7 @@ Rules changed on 2026-10-20 (Projects & Flows restructure) are marked **(changed
   - The **Reference ID** (the merchant's own ID for the end user, DEC-97) is **unique per merchant** (answers OQ-17). It
     identifies the end user, whatever document they scan.
   - A create-session request with a Reference ID whose case is `REJECTED` or `FAILED`, once its cooldown has ended
-    (DEC-26), starts a **new session on the same case** (same case ID): the status goes back to `PROCESSING`
+    (DEC-26), starts a **new session on the same case** (same Verification ID, DEC-114): the status goes back to `PROCESSING`
     (`lastUpdatedBy` SYSTEM), every phase's retries start again, the earlier sessions and their attempts stay in the case's
     history, and every submission costs a token as before (DEC-60).
   - This includes a case a reviewer rejected: the earlier decision stays in the case's history and the Audit Log.
@@ -251,7 +251,7 @@ Rules changed on 2026-10-20 (Projects & Flows restructure) are marked **(changed
   - The case stores the reasons chosen (code and name at the time); the decision audit entry records them.
 
 ## Visibility, PII & audit
-- **DEC-40** **(changed)** Verifications List columns: Reference ID, Full Name, Project (when more than one project is in view),
+- **DEC-40** **(changed)** Verifications List columns: Verification ID with the Reference ID on its second line (DEC-114), Full Name, Project (when more than one project is in view),
   Flow, Workflow version, Document type, Status, Risk (Low risk / High risk; only when a flow in view runs risk, DEC-107), Claimed by (or "Unclaimed"),
   Claim expires, Created, Last updated. No other PII, no client metadata, no duplicate-user information. Enforced by the
   `VerificationSummary` type. [MS][FRS][PO 2026-10-20]
@@ -289,7 +289,7 @@ Rules changed on 2026-10-20 (Projects & Flows restructure) are marked **(changed
   highlight follows the pointer. Future days can't be picked. Quick ranges (FRS "presets"): Today, Last 7 days, Last 30
   days, This month; Clear empties it. Closing with only a start keeps the previous dates. Like every filter it applies on
   Search (DEC-43); the URL still carries `from` / `to`. [FRS][PO 2026-10-22]
-- **DEC-44** **(new)** Verification Detail sections: header (Reference ID, case ID with copy (DEC-97), status, project, flow, workflow version,
+- **DEC-44** **(new)** Verification Detail sections: header (Verification ID and Reference ID with copy (DEC-97, DEC-114), status, project, flow, workflow version,
   configuration revision, created, last updated) · claim panel · end-user data (email for V4/V5) · ID capture (images, result,
   soft rejects) · Selfie (V1 only: image, result) · Face match (result, threshold applied, score, retries used / allowed) ·
   Liveness (result, threshold applied, retries used / allowed, cooldown applied) · Risk (V4/V5: each component's 0–100 score
@@ -297,7 +297,7 @@ Rules changed on 2026-10-20 (Projects & Flows restructure) are marked **(changed
   **(layout and content changed by DEC-105)**
 - **DEC-105** **(new)** Verification Detail layout and content [PO 2026-10-23]. Replaces the section list of DEC-44; the
   original Axure page and the DEC-44 page are combined ("hybrid").
-  - **Header strip:** Reference ID, status, case ID (copy) · Project › Flow · workflow version and preset (e.g. "V4 ·
+  - **Header strip:** Verification ID (heading, copy), Reference ID (copy), status (DEC-114) · Project › Flow · workflow version and preset (e.g. "V4 ·
     High") and configuration revision · Created · Last updated. No Audit trail link [PO 2026-10-27] (the Audit Log is in the menu); the SDK is in the client metadata box, not repeated here. **Client metadata** (SDK, OS,
     device, IP address, location) sits in a compact box at the top right of the header [PO 2026-10-26]; on narrow screens
     it moves under the title. The claim bar sits directly under the header.
@@ -371,8 +371,8 @@ Rules changed on 2026-10-20 (Projects & Flows restructure) are marked **(changed
 - **DEC-55** **(new)** Webhook delivery: on a change to `PENDING_REVIEW`, `APPROVED`, `REJECTED` or `FAILED` (DEC-112), POST
   `verification.status_changed` (Reference ID, new status, Last Updated By, timestamp), signed with the project's signing
   secret; non-2xx → up to 3 retries at increasing intervals, each attempt audited. Mock: deliveries are simulated only. [FRS]
-  **(changed)** One webhook serves all the project's flows, so the body also names the **case ID** and the **flow ID**:
-  `event, caseId, flowId, referenceId, status, lastUpdatedBy (SYSTEM, or the reviewer's name; no user ID), occurredAt`
+  **(changed)** One webhook serves all the project's flows, so the body also names the **Verification ID** and the **flow ID**:
+  `event, verificationId, flowId, referenceId, status, lastUpdatedBy (SYSTEM, or the reviewer's name; no user ID), occurredAt`
   (`WebhookEvent`, `src/domain/webhook.ts`). IDs only, no personal data. The Reference ID is the merchant's own value; the
   integration guide tells merchants to keep personal data (IC, phone, email) out of it. In the portal, the Verifications
   list's Flow filter does the same job. [PO 2026-11-18]
@@ -722,22 +722,43 @@ Rules changed on 2026-10-20 (Projects & Flows restructure) are marked **(changed
 ## Identifiers
 - **DEC-97** **(new)** Identifiers [PO 2026-10-21]:
   - Every stored record has an **internal ID**: a type prefix and a cuid2 body, e.g. `prj_k3x9…`. Prefixes: `mer` merchant,
-    `prj` project, `flw` flow, `rev` flow revision, `ver` verification case, `att` check attempt, `file` uploaded image, `usr`
+    `prj` project, `flw` flow, `rev` flow revision, `vrf` verification (was `ver`, DEC-114), `att` check attempt, `file` uploaded image, `usr`
     user, `rol` role, `asg` role assignment, `inv` invitation, `key` API key, `whk` webhook endpoint, `wfv` registry version,
     `evt` audit event. Lists sort by created time, never by ID (cuid2 IDs are not time-ordered).
   - Not IDs: secrets (API key value, webhook signing secret, session links) are random tokens stored hashed; workflow
     codes (V1 … V5), statuses and permission keys are fixed values; external IDs (Ballerine, AWS liveness) are stored as given.
   - **Shown on screen** only where people copy or quote them: Flow ID (Flows List and Flow Detail, copy button: merchants
-    send it as `flow_id`), case ID (Verification Detail, copy; in webhooks), API key (masked, `key_…a91f`), webhook event
+    send it as `flow_id`), Verification ID (Verifications list, Verification Detail, Billing, Audit Log; copy; in webhooks; DEC-114), API key (masked, `key_…a91f`), webhook event
     ID (delivery log; not in the mock). Internal screens may show Merchant ID (Merchants) and Project ID (Projects, for
     developers). Users, assignments, invitations, attempts, files and audit events are never shown; audit exports include
     the event ID. Exceptions [PO 2026-10-22]: the Role ID is shown read-only in the Role dialog (DEC-76), and the User ID
     is the first, read-only field of New user / New admin (generated when the form opens, kept on save) and is shown in
     the user's details (DEC-74, DEC-79). Lists still don't show it. People are identified by name and email, roles by name; "Last updated by" shows the name.
   - **Reference ID** is the **merchant's own reference** for the end user, sent when the session is created. It is stored
-    alongside the case ID, searchable, shown in the list, and never used as the key; case URLs and webhooks use the case ID.
+    alongside the Verification ID, searchable, shown in the list, and never used as the key; case URLs and webhooks use the
+    Verification ID (DEC-114).
     **(changed 2026-11-22)** Unique **per merchant**: it identifies the end user, and a returning Reference ID continues its
     case (DEC-113; answers OQ-17).
+- **DEC-114** **(new)** **Verification ID and Reference ID** [PO 2026-11-22]. The industry keeps two identifiers apart and
+  names its own after the object: Persona *Inquiry ID* / *Reference ID*, Sumsub *Applicant ID* / *External user ID*, Jumio
+  *Workflow Execution ID*, *Account ID* / *Customer Internal Reference*, *User Reference*, Veriff *Session ID* / *vendorData*,
+  Stripe *VerificationSession ID* / *client_reference_id*; both are searchable, and an exact object ID opens the record
+  (Persona Omnisearch, Stripe). Ours:
+  - **Verification ID**: our own unique ID of a case, `vrf_` + cuid2 (24 characters), e.g. `vrf_tz4a98xxat96iws9zmbrgj3a`.
+    It is the key in URLs, the API, webhooks (`verificationId`), audit and billing. It replaces the "case ID" and the `ver_`
+    prefix. API / code field `verificationId`.
+  - **Reference ID**: the merchant's own ID for the end user (DEC-97, DEC-113). API / code field `referenceId` (was
+    `referenceNo`, from the FRS "Reference No.").
+  - **Verification ID first, then Reference ID**, wherever both appear (Persona's inquiry Info panel lists the Inquiry ID,
+    then the Reference ID).
+  - Verifications list: first column **Verification ID** (opens the case) with the **Reference ID** on its second line
+    (DEC-40 layout); still sortable by Reference ID (DEC-100), never by Verification ID (DEC-97). Filters: **Verification
+    ID** (exact) and **Reference ID**.
+  - Header search: an exact Verification ID opens the case; anything else is looked up as a Reference ID.
+  - Case page: the heading is the Verification ID (copy), the Reference ID (copy) beside it; the browser tab and breadcrumb
+    show the Verification ID.
+  - Billing and Audit Log: Verification ID (opens the case) and Reference ID columns; exports name both the same way.
+  - The demo Reference IDs keep the `KYC-260901-9000NN` look: they stand for a merchant's value (MOCK-05).
   - Supersedes the [FRS] masks `KYC-YYMMDD-XXXXXX` (platform-generated Reference No. as key), `USR-2026-XXXX` and
     `ROL-2026-XXXX` and their columns (DEC-74, DEC-76, DEC-79).
 
@@ -825,7 +846,7 @@ These keep the mock runnable. They are not signed-off requirements; change them 
 - **MOCK-04** Time is read from an injectable clock (`src/lib/clock.ts`) with a dev "time warp" offset, so expiry can be demoed
   without waiting.
 - **MOCK-05** Seeded data is deterministic (`faker.seed(2026)`), with dates relative to the moment of seeding. Scenario
-  records (S01–S20) have fixed Reference IDs (`KYC-260901-9000NN`) and fixed case IDs, and every seeded record gets the same
+  records (S01–S33) have fixed Reference IDs (`KYC-260901-9000NN`) and fixed Verification IDs, and every seeded record gets the same
   internal ID after each reset, so UAT deep links stay stable. Seeded IDs are derived from a readable fixture handle (e.g.
   `PRJ-0001` → `prj_…`); new records get random IDs. The mock generates cuid2-shaped IDs itself (no library); the backend
   uses cuid2 (or UUIDv7 if engineering prefers time-sortable IDs). Deep links sign in by email: `?as=siti.yusof@atoz.example`.
@@ -878,6 +899,7 @@ These keep the mock runnable. They are not signed-off requirements; change them 
 | DEC-95 / OQ-18 | Routing rules and % shares set through the API, shown read-only in Project Settings › Routing | Every session names its flow (`flowId` required); no routing (DEC-95) |
 | DEC-01 | Exactly four statuses | Five: `FAILED` added (DEC-112) |
 | DEC-16 / DEC-108 | A document or V1 selfie still failing when its retries are used up → `REJECTED` | `FAILED` (DEC-112) |
+| DEC-97 | Our case ID `ver_…`, labelled "Case ID"; code fields `caseId`, `referenceNo` | Verification ID `vrf_…`; code fields `verificationId`, `referenceId` (DEC-114) |
 | DEC-26 / OQ-22 | One cooldown, after a rejection; same end user = same ID document number | Cooldown after Rejected + cooldown after Failed; same end user = same Reference ID (DEC-26, DEC-113) |
 | DEC-32 | Decisions are final; a returning end user gets a new case | No reviewer reopen; a returning Reference ID continues its `REJECTED` or `FAILED` case after the cooldown (DEC-113) |
 | DEC-97 / OQ-17 | Reference ID uniqueness open (mock: per project) | Unique per merchant (DEC-113) |

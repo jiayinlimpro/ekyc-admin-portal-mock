@@ -13,10 +13,10 @@ What the mock gives engineering, and what the real backend must do that a mock c
   scope: every merchant); merchant user (one merchant role for the whole merchant, plus project roles from Members).
   No masking: View list (no personal data) and View details are separate permissions, enforced by the API; log every
   case page open. Access rows have no end date (DEC-74).
-- **Identifiers (DEC-97):** every stored record has a prefixed cuid2 ID (`prj_…`, `flw_…`, `ver_…`, `att_…`, `usr_…`, `rol_…`,
+- **Identifiers (DEC-97):** every stored record has a prefixed cuid2 ID (`prj_…`, `flw_…`, `vrf_…`, `att_…`, `usr_…`, `rol_…`,
   `asg_…`, `inv_…`, `key_…`, `whk_…`, `wfv_…`, `rev_…`, `file_…`, `evt_…`, `mer_…`); sort lists by created time, never by ID.
-  The case ID addresses a case in URLs, the API and webhooks; the Reference ID is the merchant's own value, stored beside
-  it (OQ-17, OQ-28). Only flow, case, API key (masked) and webhook event IDs are shown in the UI. The mock makes
+  The **Verification ID** (`verificationId`, DEC-114) addresses a case in URLs, the API and webhooks; the **Reference ID**
+  (`referenceId`) is the merchant's own value, stored beside it (OQ-17, OQ-28). Only flow, verification, API key (masked) and webhook event IDs are shown in the UI. The mock makes
   cuid2-shaped IDs itself (`src/lib/ids.ts`); use the cuid2 library (or UUIDv7) in the backend. Secrets are random
   tokens stored hashed, never IDs.
 - **Endpoints:** each file in `src/services/` starts with the REST shape it stands in for. Error codes map to HTTP
@@ -25,10 +25,10 @@ What the mock gives engineering, and what the real backend must do that a mock c
 | Area | Endpoint (draft) | Notes |
 |---|---|---|
 | Verifications | `GET /verifications?…` | Returns summaries only: no NRIC, passport, address or client metadata (DEC-40). `sort` = `referenceNo` / `status` / `riskLevel` / `lastUpdatedAt` + `asc` / `desc`; omitted = Last updated, oldest first (DEC-100) |
-| | `GET /verifications/{caseId}` | Full PII + client metadata, `idCapture`, per-attempt `telemetry` and `faceImage`, `duplicateUser` (information only), `riskScores` (four categories, 0–100, higher = more genuine) and `riskResult` (`CLEAR` / `FLAGGED`, DEC-107); the **server** writes `SENSITIVE_PII_VIEW` for every open (DEC-41). Engine thresholds: `ENGINE_THRESHOLDS` in `domain/telemetry.ts` |
-| | `POST /verifications/{caseId}/claim` | 409 `ALREADY_CLAIMED` / `NOT_CLAIMABLE`; claim is not a status (DEC-20) |
-| | `DELETE /verifications/{caseId}/claim` | Owner only; 409 `NOT_CLAIM_OWNER`; no supervisor release (DEC-23) |
-| | `POST /verifications/{caseId}/decision` | Body `{ outcome, reasonCodes, note? }`. Re-checks ownership at save; 409 `OWNERSHIP_CONFLICT`, audited `CASE_DECISION_BLOCKED` (DEC-24); 422 unless Reject has one or more and Approve exactly one active reason of the case's project, or when a chosen reason needs a note (DEC-31, DEC-106). The case keeps `decidedReasons` (code and name at the time). `GET` returns the project's active reasons as `reasonOptions` |
+| | `GET /verifications/{verificationId}` | Full PII + client metadata, `idCapture`, per-attempt `telemetry` and `faceImage`, `duplicateUser` (information only), `riskScores` (four categories, 0–100, higher = more genuine) and `riskResult` (`CLEAR` / `FLAGGED`, DEC-107); the **server** writes `SENSITIVE_PII_VIEW` for every open (DEC-41). Engine thresholds: `ENGINE_THRESHOLDS` in `domain/telemetry.ts` |
+| | `POST /verifications/{verificationId}/claim` | 409 `ALREADY_CLAIMED` / `NOT_CLAIMABLE`; claim is not a status (DEC-20) |
+| | `DELETE /verifications/{verificationId}/claim` | Owner only; 409 `NOT_CLAIM_OWNER`; no supervisor release (DEC-23) |
+| | `POST /verifications/{verificationId}/decision` | Body `{ outcome, reasonCodes, note? }`. Re-checks ownership at save; 409 `OWNERSHIP_CONFLICT`, audited `CASE_DECISION_BLOCKED` (DEC-24); 422 unless Reject has one or more and Approve exactly one active reason of the case's project, or when a chosen reason needs a note (DEC-31, DEC-106). The case keeps `decidedReasons` (code and name at the time). `GET` returns the project's active reasons as `reasonOptions` |
 | Projects | `GET /projects/mine`, `GET /projects`, `POST /merchants/{id}/projects`, `PATCH /projects/{id}`, `POST …/archive` | Access from scoped role assignments; "not found" outside the user's projects (DEC-72) |
 | | `PATCH /projects/{id}/general`, `PATCH …/review-ops` | Branding, language; `claimTimeoutSec` in seconds, >= 60 (the UI enters whole minutes and sends × 60) (DEC-53, DEC-54) |
 | | `POST /projects/{id}/decision-reasons`, `PATCH …/{code}`, `POST …/{code}/status` | Custom decision reasons (code generated, never deleted); System Default ones only turn off; "Other" stays on; 422 for a duplicate name per outcome; audited `PROJECT_SETTING_CHANGED` (DEC-106) |
@@ -75,6 +75,6 @@ server-side**. The tests (Given/When/Then names) are a shared spec; port or mirr
 ## 4. Also hand over
 
 - `docs/DECISIONS.md` (with the conflict register), `docs/OPEN_QUESTIONS.md` and `docs/SCENARIOS.md` (UAT cases with
-  stable Reference IDs and case IDs).
+  stable Reference IDs and Verification IDs).
 - UI code is reusable but **not production-hardened**: no real auth, no network error boundaries or retries beyond the
   mock, and no performance work (lists are filtered in memory).

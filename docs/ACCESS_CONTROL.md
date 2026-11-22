@@ -335,10 +335,10 @@ Draft REST shapes are at the top of each `src/services/*Service.ts`. Error codes
 | Endpoint (draft) | Check | Notes |
 |---|---|---|
 | `GET /verifications` | rows only from `projectsWhere(viewCases)` | Summary fields only (no personal data). Merchant users never see Internal-testing sessions (§9). |
-| `GET /verifications/{caseId}` | 404 unless viewCases in the case's project; then 403 unless viewCaseDetails | Server writes `SENSITIVE_PII_VIEW` for **every** open. |
-| `POST /verifications/{caseId}/claim` | claimCase | 409 if not PENDING_REVIEW or someone else holds an active claim. |
-| `DELETE /verifications/{caseId}/claim` | ACTIVE account, case visible to you, and you hold the active claim | No supervisor force-release. |
-| `POST /verifications/{caseId}/decision` | decideCase **and** an active claim of your own, re-checked at save | 409 `OWNERSHIP_CONFLICT` (audited `CASE_DECISION_BLOCKED`). |
+| `GET /verifications/{verificationId}` | 404 unless viewCases in the case's project; then 403 unless viewCaseDetails | Server writes `SENSITIVE_PII_VIEW` for **every** open. |
+| `POST /verifications/{verificationId}/claim` | claimCase | 409 if not PENDING_REVIEW or someone else holds an active claim. |
+| `DELETE /verifications/{verificationId}/claim` | ACTIVE account, case visible to you, and you hold the active claim | No supervisor force-release. |
+| `POST /verifications/{verificationId}/decision` | decideCase **and** an active claim of your own, re-checked at save | 409 `OWNERSHIP_CONFLICT` (audited `CASE_DECISION_BLOCKED`). |
 | `GET /projects/mine` | `hasProject` | Drives the Merchants page and the header switchers. |
 | `GET /projects/{id}` | `hasProject`, else 404 | |
 | `POST /merchants/{id}/projects` | createProjects (M) | |
