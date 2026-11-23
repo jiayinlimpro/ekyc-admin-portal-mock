@@ -22,9 +22,9 @@ UAT scenarios: `docs/SCENARIOS.md`.
   Services get time from `src/lib/clock.ts` (supports the dev time warp).
 
 ## Domain rules (details and IDs in docs/DECISIONS.md)
-- VerificationStatus is EXACTLY: PROCESSING | PENDING_REVIEW | APPROVED | REJECTED | FAILED. Never add MANUAL_APPROVED,
-  ERROR, EXPIRED, CLAIMED, IN_REVIEW, BLOCKED. FAILED (DEC-112) = no usable image: the Document phase, or the V1 selfie
-  quality check, still failing when its retries are used up. A face match or liveness score never gives FAILED.
+- VerificationStatus is EXACTLY: PROCESSING | PENDING_REVIEW | APPROVED | REJECTED | UNSUCCESSFUL. Never add MANUAL_APPROVED,
+  ERROR, EXPIRED, CLAIMED, IN_REVIEW, BLOCKED, FAILED. UNSUCCESSFUL (DEC-112) = no usable image: the Document phase, or the V1 selfie
+  quality check, still failing when its retries are used up. A face match or liveness score never gives UNSUCCESSFUL.
 - Manual vs automated = `lastUpdatedBy` (SYSTEM or user fullName + userId). It changes ONLY when status changes
   (never on claim, release or view).
 - Merchant → Project → Flow → Case. Each setting lives at exactly one level (DEC-91). Access (DEC-104): roles are a
@@ -50,10 +50,10 @@ UAT scenarios: `docs/SCENARIOS.md`.
   PROCESSING. Retries used up → the last attempt decides. V4/V5: APPROVED also requires risk pass, else PENDING_REVIEW.
 - "Retries allowed" is per phase (DEC-108): Document (OCR), Selfie (V1), Liveness; default 3 each. A submitted attempt
   that fails for any reason in that phase uses one; retakes before submitting are free. Documents / V1 selfies that still
-  fail when retries are used up → FAILED (DEC-112). Tokens = every submission: document, V1 selfie, liveness (OQ-35). Retries keep the same referenceNo.
-- PROCESSING records are read-only. No reviewer reopen, no Request Resubmission; a REJECTED or FAILED case continues
+  fail when retries are used up → UNSUCCESSFUL (DEC-112). Tokens = every submission: document, V1 selfie, liveness (OQ-35). Retries keep the same referenceNo.
+- PROCESSING records are read-only. No reviewer reopen, no Request Resubmission; a REJECTED or UNSUCCESSFUL case continues
   only when the same Reference ID starts a new session after its cooldown (DEC-113; cooldowns DEC-26: after Rejected, and
-  after Failed, default 0). Reasons come from the project's
+  after Unsuccessful, default 0). Reasons come from the project's
   decision reasons (DEC-106), not the engine conditions (DEC-35): Reject one or more, Approve exactly one; note optional
   unless the reason requires it (Other).
 - Claim is NOT a status: `claimedBy` / `claimedAt` / `claimExpiresAt`. One owner, per-project timeout, ends only by

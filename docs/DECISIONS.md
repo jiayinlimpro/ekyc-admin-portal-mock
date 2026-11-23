@@ -19,7 +19,7 @@ Rules changed on 2026-10-20 (Projects & Flows restructure) are marked **(changed
   |---|---|
   | Merchant | Contract, plan, billing · user accounts · portal login security · default branding and language |
   | Project | Members and roles · auto-release claim timeout · API keys, webhook · redirect URLs, allowed web origins, IP allowlist · branding override, language · data retention (OQ-21) |
-  | Flow | Workflow version (locked once active) · check thresholds · retries allowed, cooldowns (after Rejected, after Failed) · accepted documents · risk thresholds (V4, V5) · session expiry |
+  | Flow | Workflow version (locked once active) · check thresholds · retries allowed, cooldowns (after Rejected, after Unsuccessful) · accepted documents · risk thresholds (V4, V5) · session expiry |
 
 - **DEC-92** Every merchant starts with a **Default** project. Creating a merchant also creates its Default project with one
   Draft flow, "First flow", built on the registry's default version (DEC-57), and its first user as Merchant Owner (FRS
@@ -40,32 +40,35 @@ Rules changed on 2026-10-20 (Projects & Flows restructure) are marked **(changed
   project. [MS]
 
 ## Statuses
-- **DEC-01** **(changed 2026-11-22)** `VerificationStatus` is exactly: `PROCESSING`, `PENDING_REVIEW`, `APPROVED`,
-  `REJECTED`, `FAILED` (DEC-112). No other status exists (no MANUAL_APPROVED, ERROR, EXPIRED, CLAIMED, IN_REVIEW, BLOCKED).
-  [PO 2026-11-22]
+- **DEC-01** **(changed 2026-11-23)** `VerificationStatus` is exactly: `PROCESSING`, `PENDING_REVIEW`, `APPROVED`,
+  `REJECTED`, `UNSUCCESSFUL` (DEC-112). No other status exists (no MANUAL_APPROVED, ERROR, EXPIRED, CLAIMED, IN_REVIEW, BLOCKED,
+  FAILED). [PO 2026-11-22, 2026-11-23]
 - **DEC-02** Manual vs automated is read from `lastUpdatedBy`: `SYSTEM`, or the reviewer's Full Name + User ID.
 - **DEC-03** `lastUpdatedBy` / `lastUpdatedAt` change **only when the status changes**. Claiming, releasing or viewing never touch them.
 - **DEC-04** Lifecycle timestamps are `createdAt` (session started) and `lastUpdatedAt` (latest status change), plus the claim
   fields. **(changed)** [MS]
-- **DEC-112** **(new)** `FAILED`: **we never got a usable image**, so the person was not judged [PO 2026-11-22]. Shown as
-  "Failed". The name follows Persona's "Failed" (attempts used up) as against "Declined"; Jumio, Sumsub and Onfido also
-  keep "could not read the document" apart from a rejection. "Blocked" was not used: in eKYC it reads as a block list.
+- **DEC-112** **(new)** `UNSUCCESSFUL`: **we never got a usable image**, so the person was not judged [PO 2026-11-22]. Shown as
+  "Unsuccessful" (**changed 2026-11-23** on stakeholder feedback, was `FAILED` / "Failed"; the Flow setting is now "Cooldown
+  after Unsuccessful", `unsuccessfulCooldownMin`) [PO 2026-11-23]. Not "Failed" and not "Blocked" (in eKYC "blocked" reads as a
+  block list). Vendors keep this case apart from a rejection too (Persona "Failed", Jumio "not readable", Sumsub "Rejected ·
+  RETRY"); none uses "Unsuccessful" as a status, so the reason under it always says what went wrong (e.g. "ID image smaller
+  than 320x320 (Retry Not Allowed)"), and filters and reports always keep it apart from Rejected.
   - **Set by SYSTEM only**, when a phase's retries are used up (DEC-108) and its last submission still fails the engine's
     quality checks: the **Document (OCR)** phase (no valid face on the ID, image smaller than 320 × 320, OCR fields not
     detected), or on **V1** the selfie quality check (eyes, covered face, sharpness, brightness, yaw, pitch). The reason is
     the engine's condition with "(Retry Not Allowed)", e.g. "ID image smaller than 320x320 (Retry Not Allowed)".
-  - **Not FAILED:** a face match or liveness score (a judgement of the person) keeps its bands: below Auto-Reject →
+  - **Not UNSUCCESSFUL:** a face match or liveness score (a judgement of the person) keeps its bands: below Auto-Reject →
     `REJECTED`, review band → `PENDING_REVIEW`, on every version (the V1 selfie's face match too).
-  - **V1 selfie: FAILED only when no selfie of the session was usable.** If any selfie of the session passed the quality
+  - **V1 selfie: UNSUCCESSFUL only when no selfie of the session was usable.** If any selfie of the session passed the quality
     check and was compared with the ID, the last face match score decides (`REJECTED` / `PENDING_REVIEW`), even when the
     last selfie then failed its quality check. So a deliberately blurry last selfie can't turn a face mismatch into
-    `FAILED` (and its shorter cooldown). [PO 2026-11-22]
+    `UNSUCCESSFUL` (and its shorter cooldown). [PO 2026-11-22]
   - Never claimed or decided by a reviewer (no decision buttons), like `REJECTED`. It ends only when the same Reference ID
-    starts a new session after the Failed cooldown (DEC-26, DEC-113).
+    starts a new session after the Unsuccessful cooldown (DEC-26, DEC-113).
   - Tokens: every submission is charged as before (DEC-60).
-  - Webhook: `FAILED` is sent like the other final statuses (DEC-55).
+  - Webhook: `UNSUCCESSFUL` is sent like the other final statuses (DEC-55).
   - Reports count it **on its own** (its own count and colour), never inside Rejected. It is an ended session that did not
-    pass: pass rate = Approved / (Approved + Rejected + Failed).
+    pass: pass rate = Approved / (Approved + Rejected + Unsuccessful).
 
 ## Automated evaluation
 - **DEC-10** **(changed)** Only two checks have configurable thresholds: **Face match** and **Liveness**, each with an
@@ -120,7 +123,7 @@ Rules changed on 2026-10-20 (Projects & Flows restructure) are marked **(changed
   `PENDING_REVIEW`. The reason is the matching condition from DEC-35 (e.g. "Liveness face does not match ID face (Retry Not
   Allowed)"). [PO 2026-10-20] **(added 2026-10-27)** A document (OCR) or V1 selfie submission that still fails its engine
   checks when that phase's retries are used up → `REJECTED` by SYSTEM with the failing condition and "(Retry Not Allowed)",
-  e.g. "ID image smaller than 320x320 (Retry Not Allowed)" (DEC-108). **(changed 2026-11-22)** That case is now `FAILED`,
+  e.g. "ID image smaller than 320x320 (Retry Not Allowed)" (DEC-108). **(changed 2026-11-22)** That case is now `UNSUCCESSFUL`,
   not `REJECTED` (DEC-112). [PO 2026-11-22]
 - **DEC-17** Retries keep the same case (Verification ID and Reference ID, DEC-114); each retry is appended to `attempts[]`, never a new record.
   **(extended 2026-11-22)** A new session with the same Reference ID also continues the same case (DEC-113).
@@ -138,29 +141,29 @@ Rules changed on 2026-10-20 (Projects & Flows restructure) are marked **(changed
   - Retaking a photo **before** submitting is free and not counted; every **submitted** attempt that fails, whatever the
     reason in that phase, uses one retry.
   - Retries used up: the last submission decides (DEC-16): face match and liveness by their bands; a document or V1 selfie
-    that still fails its engine checks → `FAILED` (**changed 2026-11-22**, was `REJECTED`; DEC-112).
+    that still fails its engine checks → `UNSUCCESSFUL` (**changed 2026-11-22**, was `REJECTED`; DEC-112).
   - The retry KPIs (First-Attempt Pass Rate, Average Retries) count retries in every phase.
 - **DEC-26** **(new)** Cooldown (per flow, minutes, default 0): after a case is `REJECTED`, the **same end user** cannot start
   a new case until the cooldown ends. 0 = no wait. How "same end user" is identified, and whether the wait covers only this
   flow or the whole project, is OQ-22. Verification Detail shows "New case allowed from …" on rejected cases. [PO 2026-10-20]
   **(changed 2026-11-22)** Two kinds of cooldown per flow, each in whole minutes, `>= 0`, default 0 (= at once):
   - **Cooldown after Rejected** (the existing field, relabelled), after a `REJECTED` case.
-  - **Cooldown after Failed**, after a `FAILED` case (DEC-112), whichever phase failed (Document, or the V1 selfie). One
+  - **Cooldown after Unsuccessful**, after an `UNSUCCESSFUL` case (DEC-112), whichever phase failed (Document, or the V1 selfie). One
     value per flow, not per phase [PO 2026-11-22].
-  - The case's status picks the cooldown, not the phase: in the V1 selfie stage, no usable selfie (`FAILED`) uses the
-    Failed cooldown and a face mismatch (`REJECTED`) the Rejected one. Liveness never ends in `FAILED`. A reviewer's reject
+  - The case's status picks the cooldown, not the phase: in the V1 selfie stage, no usable selfie (`UNSUCCESSFUL`) uses the
+    Unsuccessful cooldown and a face mismatch (`REJECTED`) the Rejected one. Liveness never ends in `UNSUCCESSFUL`. A reviewer's reject
     uses the Rejected cooldown.
   - The same end user is the **same Reference ID** of the same merchant (DEC-113; answers OQ-22). Until the cooldown ends a
     new session with that Reference ID is refused; after it, the session continues the same case. The cooldown that
     applies is the one in the configuration revision of the session that ended. Verification Detail shows "New session
-    allowed from …" on `REJECTED` and `FAILED` cases while a cooldown runs. [PO 2026-11-22]
+    allowed from …" on `REJECTED` and `UNSUCCESSFUL` cases while a cooldown runs. [PO 2026-11-22]
 - **DEC-113** **(new)** **One case per end user: a returning Reference ID continues the same case** [PO 2026-11-22].
   - The **Reference ID** (the merchant's own ID for the end user, DEC-97) identifies the end user **within a project**,
     whatever document they scan: a case is found by merchant + project + Reference ID (**changed 2026-11-22**, was "unique
     per merchant"; answers OQ-17 and OQ-37). The merchant chooses the value and we can't control it, so the same Reference
     ID may appear in several projects of a merchant; each project then has its own case with its own **Verification ID**
     (DEC-114), our unique key. Cases are only ever shown inside their project (DEC-109), so they never mix.
-  - A create-session request with a Reference ID whose case is `REJECTED` or `FAILED`, once its cooldown has ended
+  - A create-session request with a Reference ID whose case is `REJECTED` or `UNSUCCESSFUL`, once its cooldown has ended
     (DEC-26), starts a **new session on the same case** (same Verification ID, DEC-114): the status goes back to `PROCESSING`
     (`lastUpdatedBy` SYSTEM), every phase's retries start again, the earlier sessions and their attempts stay in the case's
     history, and every submission costs a token as before (DEC-60).
@@ -179,8 +182,8 @@ Rules changed on 2026-10-20 (Projects & Flows restructure) are marked **(changed
     by whom). Shown when the case has more than one session; the attempts of an earlier session are listed under it.
   - **Record** [PO 2026-11-22]: the case keeps a `sessions` list, oldest first, the last one current. The case's own
     fields (flow, revision, scores, attempts, telemetry, status) always describe the **current** session; an ended session
-    keeps how it ended (`REJECTED` or `FAILED`, reason, time, `lastUpdatedBy`), its tokens and its attempts.
-  - When a create-session request arrives: no case in the project → a new case; `REJECTED` or `FAILED` and no cooldown
+    keeps how it ended (`REJECTED` or `UNSUCCESSFUL`, reason, time, `lastUpdatedBy`), its tokens and its attempts.
+  - When a create-session request arrives: no case in the project → a new case; `REJECTED` or `UNSUCCESSFUL` and no cooldown
     running → a new session on the case; in cooldown → refused with "New session allowed from …"; `PROCESSING`,
     `PENDING_REVIEW` or `APPROVED` → refused (OQ-38). The flow must be Active (DEC-95).
 
@@ -203,11 +206,11 @@ Rules changed on 2026-10-20 (Projects & Flows restructure) are marked **(changed
   one**. The reasons come from the project's decision reason list (DEC-106), not from the DEC-35 conditions. The note is
   optional, except for a reason marked "note required" (e.g. Other). [MS][PO 2026-10-20][PO 2026-10-23]
 - **DEC-32** Decisions are final: no reopen, no "Request Resubmission". **(changed 2026-11-22)** A reviewer still never
-  reopens a case and there is still no "Request Resubmission"; but a `REJECTED` (or `FAILED`) case continues when the same
+  reopens a case and there is still no "Request Resubmission"; but a `REJECTED` (or `UNSUCCESSFUL`) case continues when the same
   Reference ID starts a new session after its cooldown (DEC-113). [PO 2026-11-22]
 - **DEC-33** `PROCESSING` records are read-only.
 - **DEC-35** Condition catalogue. **(new)** [PO 2026-10-20] Used for the reason banner on Verification Detail
-  (`PENDING_REVIEW` / `REJECTED` / `FAILED`) and the Top-5 failure reasons charts. They are produced by the engine and fixed; a
+  (`PENDING_REVIEW` / `REJECTED` / `UNSUCCESSFUL`) and the Top-5 failure reasons charts. They are produced by the engine and fixed; a
   reviewer's reasons are the separate decision reasons (DEC-106).
 
   | Stage | Condition |
@@ -229,7 +232,7 @@ Rules changed on 2026-10-20 (Projects & Flows restructure) are marked **(changed
     information). **(changed 2026-10-23)** Verification Detail shows the duplicate-user result for information (DEC-105).
     It is not a decision reason; "Duplicate identity" in DEC-106 is the reviewer's own finding.
   - "(Retry Allowed)" conditions keep the case `PROCESSING`; "(Retry Not Allowed)" conditions are the final reason (DEC-16).
-    The ID capture (Onboarding "No valid face in ID", OCR) and V1 selfie quality conditions end as `FAILED` (DEC-112).
+    The ID capture (Onboarding "No valid face in ID", OCR) and V1 selfie quality conditions end as `UNSUCCESSFUL` (DEC-112).
 - **DEC-106** **(new)** Decision reasons [PO 2026-10-23]. What a reviewer picks on Approve or Reject. Separate from the
   DEC-35 conditions (what the engine found), so reviewer choices can be analysed on their own.
   - **Per project.** Managed in **Project Settings › Review operations**, card "Decision reasons", with the Project
@@ -284,7 +287,7 @@ Rules changed on 2026-10-20 (Projects & Flows restructure) are marked **(changed
   columns, per the FRS: Reference ID, Status, Risk, Last updated (never Full Name or Merchant). Each click on a
   column: ascending → descending → back to the default order (Last updated, oldest first, DEC-43; this replaces the FRS
   default "updatedAt descending" for the review queue). The column shows its state with a small icon (and `aria-sort`).
-  Status sorts in lifecycle order (Processing, Pending Review, Approved, Rejected, Failed); risk Low → High, cases without a risk
+  Status sorts in lifecycle order (Processing, Pending Review, Approved, Rejected, Unsuccessful); risk Low → High, cases without a risk
   result last either way; ties by Last updated, then Reference ID. A sort applies at once and is kept in the URL
   (`sort=status.asc`); it does not reset the filters. [FRS][PO 2026-10-22]
 - **DEC-101** **(new)** The Created filter is one date-range field, not "Created from" and "Created to" [PO 2026-10-22].
@@ -305,7 +308,7 @@ Rules changed on 2026-10-20 (Projects & Flows restructure) are marked **(changed
     High") and configuration revision · Created · Last updated. No Audit trail link [PO 2026-10-27] (the Audit Log is in the menu); the SDK is in the client metadata box, not repeated here. **Client metadata** (SDK, OS,
     device, IP address, location) sits in a compact box at the top right of the header [PO 2026-10-26]; on narrow screens
     it moves under the title. The claim bar sits directly under the header.
-  - **Reason banner** (`PENDING_REVIEW` / `REJECTED` / `FAILED`): the DEC-35 condition plus **target vs actual**, e.g. "Auto-Reject
+  - **Reason banner** (`PENDING_REVIEW` / `REJECTED` / `UNSUCCESSFUL`): the DEC-35 condition plus **target vs actual**, e.g. "Auto-Reject
     < 75 · Auto-Pass ≥ 85 · Actual 83.5".
   - **Row 1, three columns:** (1) **Evidence**: the document front and the face that was matched (selfie for V1, the
     liveness face for V3/V4/V5) side by side, with the similarity badge; (2) **Extracted data (OCR)**, titled with the
@@ -350,7 +353,7 @@ Rules changed on 2026-10-20 (Projects & Flows restructure) are marked **(changed
   |---|---|---|---|---|
   | General: name, description, workflow version (locked once active) | ✓ | ✓ | ✓ | ✓ |
   | Thresholds: similarity, liveness (DEC-19) | ✓ | ✓ | ✓ | ✓ |
-  | Retries allowed per phase: Document (OCR), Selfie (V1), Liveness (DEC-108) · cooldown after Rejected, cooldown after Failed (DEC-26) | ✓ | ✓ | ✓ | ✓ |
+  | Retries allowed per phase: Document (OCR), Selfie (V1), Liveness (DEC-108) · cooldown after Rejected, cooldown after Unsuccessful (DEC-26) | ✓ | ✓ | ✓ | ✓ |
   | Accepted documents (MyKad, Passport, Driving License) | ✓ | ✓ | ✓ | ✓ |
   | Session expiry | ✓ | ✓ | ✓ | ✓ |
   | Risk minimums per category (DEC-107) | | | read-only (fixed) | ✓ |
@@ -372,7 +375,7 @@ Rules changed on 2026-10-20 (Projects & Flows restructure) are marked **(changed
   merchant default) · **Integration** (API keys: name, created, last used, status, create / rotate / revoke, key shown once;
   webhook URL (HTTPS), signing secret, events; redirect URLs; allowed web origins; IP allowlist) · **Review operations**
   (auto-release claim timeout). No Routing tab (DEC-95). Changes are audited with old and new values. [MS]
-- **DEC-55** **(new)** Webhook delivery: on a change to `PENDING_REVIEW`, `APPROVED`, `REJECTED` or `FAILED` (DEC-112), POST
+- **DEC-55** **(new)** Webhook delivery: on a change to `PENDING_REVIEW`, `APPROVED`, `REJECTED` or `UNSUCCESSFUL` (DEC-112), POST
   `verification.status_changed` (Reference ID, new status, Last Updated By, timestamp), signed with the project's signing
   secret; non-2xx → up to 3 retries at increasing intervals, each attempt audited. Mock: deliveries are simulated only. [FRS]
   **(changed)** One webhook serves all the project's flows, so the body also names the **Verification ID** and the **flow ID**:
@@ -895,7 +898,7 @@ These keep the mock runnable. They are not signed-off requirements; change them 
   - Continuing a case (DEC-113) has no button in the mock [PO 2026-11-22]: the mock has no API, so its rules live in the
     domain (`caseSessions.ts`, with tests) and the demo data holds a record for every status and situation, including
     continued cases, for reference (docs/SCENARIOS.md).
-  - Dashboards count sessions by `createdAt`; pass rate = Approved / (Approved + Rejected + Failed) (DEC-112); drop-off = sessions still
+  - Dashboards count sessions by `createdAt`; pass rate = Approved / (Approved + Rejected + Unsuccessful) (DEC-112); drop-off = sessions still
     Processing, by the last phase reached.
 
 ## Superseded (kept so old `REQ:` tags can be traced)
@@ -917,11 +920,12 @@ These keep the mock runnable. They are not signed-off requirements; change them 
 | DEC-82 | Webhooks on hold | DEC-54, DEC-55 |
 | DEC-94 / MOCK-12 | Exactly one default flow per project: Set as default, Default badge, retiring the default blocked, `FLOW_DEFAULT_CHANGED` | No default flow; any Active flow can be retired (DEC-94) |
 | DEC-95 / OQ-18 | Routing rules and % shares set through the API, shown read-only in Project Settings › Routing | Every session names its flow (`flowId` required); no routing (DEC-95) |
-| DEC-01 | Exactly four statuses | Five: `FAILED` added (DEC-112) |
-| DEC-16 / DEC-108 | A document or V1 selfie still failing when its retries are used up → `REJECTED` | `FAILED` (DEC-112) |
+| DEC-01 | Exactly four statuses | Five: `UNSUCCESSFUL` added (DEC-112) |
+| DEC-112 / DEC-26 | Status `FAILED`, shown as "Failed"; "Cooldown after Failed" (`failedCooldownMin`) | `UNSUCCESSFUL`, shown as "Unsuccessful"; "Cooldown after Unsuccessful" (`unsuccessfulCooldownMin`) [PO 2026-11-23] |
+| DEC-16 / DEC-108 | A document or V1 selfie still failing when its retries are used up → `REJECTED` | `UNSUCCESSFUL` (DEC-112) |
 | DEC-97 | Our case ID `ver_…`, labelled "Case ID"; code fields `caseId`, `referenceNo` | Verification ID `vrf_…`; code fields `verificationId`, `referenceId` (DEC-114) |
-| DEC-26 / OQ-22 | One cooldown, after a rejection; same end user = same ID document number | Cooldown after Rejected + cooldown after Failed; same end user = same Reference ID (DEC-26, DEC-113) |
-| DEC-32 | Decisions are final; a returning end user gets a new case | No reviewer reopen; a returning Reference ID continues its `REJECTED` or `FAILED` case after the cooldown (DEC-113) |
+| DEC-26 / OQ-22 | One cooldown, after a rejection; same end user = same ID document number | Cooldown after Rejected + cooldown after Unsuccessful; same end user = same Reference ID (DEC-26, DEC-113) |
+| DEC-32 | Decisions are final; a returning end user gets a new case | No reviewer reopen; a returning Reference ID continues its `REJECTED` or `UNSUCCESSFUL` case after the cooldown (DEC-113) |
 | DEC-97 / OQ-17 | Reference ID uniqueness open (mock: per project) | Identifies the end user within a project; may repeat across projects; Verification ID is the unique key (DEC-113, DEC-114) |
 
 ## Conflict register (old FRS / Axure → latest decision)

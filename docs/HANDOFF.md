@@ -54,7 +54,7 @@ server-side**. The tests (Given/When/Then names) are a shared spec; port or mirr
 - `checkRules.evaluateRisk`: Low risk when every category ≥ its minimum (`FlowSettings.risk.minimums`); the registry's `riskMinimumsPerFlow` decides whether a flow may change them (V5) or they stay `DEFAULT_RISK_MINIMUMS` (V4) (DEC-107).
 - `telemetry.ts`: engine thresholds and the metric rows shown on the case page (DEC-105); the duplicate-user result is never an input to `checkRules`.
 - `claimRules.ts`: claim, cancel, expiry, overlay enablement, save-time ownership check, decisions (DEC-31).
-- `flowSettings.ts`, `flowRules.ts`, `thresholds.ts`: presets / Advanced, validation, revisions, lifecycle, cooldowns (after Rejected, after Failed: `cooldownFor`).
+- `flowSettings.ts`, `flowRules.ts`, `thresholds.ts`: presets / Advanced, validation, revisions, lifecycle, cooldowns (after Rejected, after Unsuccessful: `cooldownFor`).
 - `caseSessions.ts`: a returning Reference ID (DEC-113). `decideSessionStart` = new case / continue / refused (flow not active, in progress, in review, approved, cooldown with `allowedFrom`); `continueCase` moves the ended session into `Verification.sessions` (status, reason, by, tokens, attempts) and resets the case to PROCESSING by SYSTEM; audit `CASE_RESUMED`. Billing has one line per session (`dashboards.billingLines`).
 - `registryRules.ts`, `projectSettings.ts`, `conditions.ts`: registry statuses and who may choose a version (`selectableForNewFlow`, DEC-56), settings validation, reason catalogue.
 - `dashboards.ts`: KPI definitions (Auto-Clear = SYSTEM approvals; retries = submissions after the first in every phase; tokens =
