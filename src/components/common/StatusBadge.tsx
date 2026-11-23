@@ -8,7 +8,7 @@ const STYLES: Record<VerificationStatus, string> = {
   PENDING_REVIEW: 'bg-amber-50 text-amber-800 ring-amber-300 dark:bg-amber-500/15 dark:text-amber-300 dark:ring-amber-500/40',
   APPROVED: 'bg-green-50 text-green-800 ring-green-300 dark:bg-green-500/15 dark:text-green-300 dark:ring-green-500/40',
   REJECTED: 'bg-red-50 text-red-800 ring-red-300 dark:bg-red-500/15 dark:text-red-300 dark:ring-red-500/40',
-  FAILED: 'bg-orange-50 text-orange-800 ring-orange-300 dark:bg-orange-500/15 dark:text-orange-300 dark:ring-orange-500/40', // REQ: DEC-112
+  UNSUCCESSFUL: 'bg-orange-50 text-orange-800 ring-orange-300 dark:bg-orange-500/15 dark:text-orange-300 dark:ring-orange-500/40', // REQ: DEC-112
 }
 
 export function StatusBadge({ status, className }: { status: VerificationStatus; className?: string }) {

@@ -49,7 +49,7 @@ const flow = (overrides: Partial<Flow> = {}): Flow => ({
     checks: { FACE_MATCH: { threshold: { preset: 'STANDARD' } }, LIVENESS: { threshold: { preset: 'HIGH' } } },
     retries: { DOCUMENT: 3, SELFIE: 3, LIVENESS: 3 },
     cooldownMin: 0,
-    failedCooldownMin: 0,
+    unsuccessfulCooldownMin: 0,
     acceptedDocuments: ['PASSPORT'],
     sessionExpiryMin: 30,
     risk: { enabled: true, minimums: { EXIF: 50, NOISE: 50, EMAIL_VALIDITY: 50, OSINT: 50 } },
@@ -124,7 +124,7 @@ describe('flow lifecycle (DEC-94, DEC-51)', () => {
   })
 })
 
-describe('cooldowns after Rejected and after Failed (DEC-26, DEC-112)', () => {
+describe('cooldowns after Rejected and after Unsuccessful (DEC-26, DEC-112)', () => {
   const rejectedAt = '2026-10-20T01:00:00.000Z'
 
   it('Given cooldown 0, then a new session is allowed straight away', () => {
@@ -139,9 +139,9 @@ describe('cooldowns after Rejected and after Failed (DEC-26, DEC-112)', () => {
   })
 
   it('Given a flow with both cooldowns, then the case status picks one, whatever the phase; other statuses have none', () => {
-    const s = { cooldownMin: 120, failedCooldownMin: 30 }
+    const s = { cooldownMin: 120, unsuccessfulCooldownMin: 30 }
     expect(cooldownFor('REJECTED', s)).toBe(120) // incl. a V1 face mismatch and a reviewer's reject
-    expect(cooldownFor('FAILED', s)).toBe(30) // a document or V1 selfie with no usable image
+    expect(cooldownFor('UNSUCCESSFUL', s)).toBe(30) // a document or V1 selfie with no usable image
     for (const st of ['PROCESSING', 'PENDING_REVIEW', 'APPROVED'] as const) expect(cooldownFor(st, s)).toBe(0)
   })
 })

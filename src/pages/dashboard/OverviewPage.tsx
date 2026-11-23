@@ -25,7 +25,7 @@ function Breakdown({ title, rows, name }: { title: string; rows: GroupRow[]; nam
           columns={['Name', 'Cases', ...VERIFICATION_STATUSES.map((s) => STATUS_LABELS[s]), 'Auto-Clear', 'Pass rate', 'Oldest waiting', 'Average wait']}
           rows={rows.map((r) => [name(r.key), fmtInt(r.total), ...VERIFICATION_STATUSES.map((s) => fmtInt(r.byStatus[s])), fmtPct(pct(r.autoCleared, r.total)), rate(r), hours(r.oldestPendingHours), hours(r.avgPendingHours)])}
         />
-        <p className="mt-2 text-xs text-muted-foreground">Pass rate = Approved out of completed (Approved + Rejected + Failed). Waiting = cases in Pending Review, since their last status change.</p>
+        <p className="mt-2 text-xs text-muted-foreground">Pass rate = Approved out of completed (Approved + Rejected + Unsuccessful). Waiting = cases in Pending Review, since their last status change.</p>
       </div>
     </section>
   )

@@ -44,7 +44,7 @@ export interface GroupRow {
   total: number
   byStatus: Record<VerificationStatus, number>
   autoCleared: number // REQ: DEC-14 — APPROVED by SYSTEM
-  /** REQ: DEC-112 — APPROVED out of completed (APPROVED + REJECTED + FAILED); undefined when nothing is completed. */
+  /** REQ: DEC-112 — APPROVED out of completed (APPROVED + REJECTED + UNSUCCESSFUL); undefined when nothing is completed. */
   passRate?: number
   pending: number
   oldestPendingHours?: number // age of the case waiting longest in PENDING_REVIEW
@@ -72,7 +72,7 @@ function groupBy(rows: readonly Verification[], key: (v: Verification) => string
     .map(([k, vs]) => {
       const byStatus = zeroStatus()
       for (const v of vs) byStatus[v.status]++
-      const done = byStatus.APPROVED + byStatus.REJECTED + byStatus.FAILED // REQ: DEC-112
+      const done = byStatus.APPROVED + byStatus.REJECTED + byStatus.UNSUCCESSFUL // REQ: DEC-112
       // A case waits in PENDING_REVIEW since its last status change (DEC-03).
       const ages = vs.filter((v) => v.status === 'PENDING_REVIEW').map((v) => (now.getTime() - Date.parse(v.lastUpdatedAt)) / HOUR)
       const round1 = (n: number) => Math.round(n * 10) / 10

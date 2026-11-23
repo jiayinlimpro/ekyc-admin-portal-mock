@@ -4,7 +4,7 @@ import { fx } from '@/lib/ids'
 import { continueCase, decideSessionStart, resumedAuditDetails } from './caseSessions'
 
 const ACTIVE = { status: 'ACTIVE' } as const
-const RULES = { cooldownMin: 120, failedCooldownMin: 30 }
+const RULES = { cooldownMin: 120, unsuccessfulCooldownMin: 30 }
 const endedAt = (minAgo: number) => new Date(NOW.getTime() - minutes(minAgo)).toISOString()
 
 describe('decideSessionStart: a create-session request with a Reference ID (DEC-113, DEC-26)', () => {
@@ -31,15 +31,15 @@ describe('decideSessionStart: a create-session request with a Reference ID (DEC-
     })
   })
 
-  it('Given Failed 60 min ago, then the 30-min Failed cooldown applies (the status picks it), so the case continues', () => {
-    expect(decideSessionStart({ status: 'FAILED', lastUpdatedAt: endedAt(60) }, ACTIVE, RULES, NOW)).toEqual({ kind: 'CONTINUE_CASE' })
-    expect(decideSessionStart({ status: 'FAILED', lastUpdatedAt: endedAt(10) }, ACTIVE, RULES, NOW)).toMatchObject({ kind: 'REFUSED', code: 'COOLDOWN' })
+  it('Given Unsuccessful 60 min ago, then the 30-min Unsuccessful cooldown applies (the status picks it), so the case continues', () => {
+    expect(decideSessionStart({ status: 'UNSUCCESSFUL', lastUpdatedAt: endedAt(60) }, ACTIVE, RULES, NOW)).toEqual({ kind: 'CONTINUE_CASE' })
+    expect(decideSessionStart({ status: 'UNSUCCESSFUL', lastUpdatedAt: endedAt(10) }, ACTIVE, RULES, NOW)).toMatchObject({ kind: 'REFUSED', code: 'COOLDOWN' })
   })
 
-  it('Given cooldown 0 (the default), then a Rejected or Failed case continues at once', () => {
-    const none = { cooldownMin: 0, failedCooldownMin: 0 }
+  it('Given cooldown 0 (the default), then a Rejected or Unsuccessful case continues at once', () => {
+    const none = { cooldownMin: 0, unsuccessfulCooldownMin: 0 }
     expect(decideSessionStart({ status: 'REJECTED', lastUpdatedAt: endedAt(0) }, ACTIVE, none, NOW).kind).toBe('CONTINUE_CASE')
-    expect(decideSessionStart({ status: 'FAILED', lastUpdatedAt: endedAt(0) }, ACTIVE, none, NOW).kind).toBe('CONTINUE_CASE')
+    expect(decideSessionStart({ status: 'UNSUCCESSFUL', lastUpdatedAt: endedAt(0) }, ACTIVE, none, NOW).kind).toBe('CONTINUE_CASE')
   })
 })
 
@@ -70,11 +70,11 @@ describe('continueCase: the new session on the same case (DEC-113)', () => {
   })
 
   it('Given a third session, then sessions 1 and 2 are both kept', () => {
-    const second = { ...continueCase(rejectedByAli, target, NOW), status: 'FAILED' as const, lastUpdatedAt: NOW.toISOString() }
-    expect(continueCase(second, target, new Date(NOW.getTime() + minutes(5))).sessions.map((s) => `${s.sessionNo} ${s.ended?.status ?? 'current'}`)).toEqual(['1 REJECTED', '2 FAILED', '3 current'])
+    const second = { ...continueCase(rejectedByAli, target, NOW), status: 'UNSUCCESSFUL' as const, lastUpdatedAt: NOW.toISOString() }
+    expect(continueCase(second, target, new Date(NOW.getTime() + minutes(5))).sessions.map((s) => `${s.sessionNo} ${s.ended?.status ?? 'current'}`)).toEqual(['1 REJECTED', '2 UNSUCCESSFUL', '3 current'])
   })
 
-  it('Given a case that is not Rejected or Failed, or a flow in another project, then it never continues (OQ-37, OQ-38)', () => {
+  it('Given a case that is not Rejected or Unsuccessful, or a flow in another project, then it never continues (OQ-37, OQ-38)', () => {
     expect(() => continueCase(verification({ status: 'APPROVED' }), target, NOW)).toThrow()
     expect(() => continueCase(rejectedByAli, { ...target, projectId: fx('PRJ-0002') }, NOW)).toThrow(/new case/)
   })

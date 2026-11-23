@@ -89,7 +89,7 @@ describe('verificationService.list', () => {
     const refs = (await list('referenceId', 'asc')).map((r) => r.referenceId)
     expect(refs).toEqual([...refs].sort())
     expect((await list('referenceId', 'desc')).map((r) => r.referenceId)).toEqual([...refs].reverse())
-    const order = ['PROCESSING', 'PENDING_REVIEW', 'APPROVED', 'REJECTED', 'FAILED'] // REQ: DEC-112
+    const order = ['PROCESSING', 'PENDING_REVIEW', 'APPROVED', 'REJECTED', 'UNSUCCESSFUL'] // REQ: DEC-112
     const statuses = (await list('status', 'asc')).map((r) => order.indexOf(r.status))
     expect(statuses).toEqual([...statuses].sort((a, b) => a - b))
     const down = (await list('status', 'desc')).map((r) => order.indexOf(r.status))
@@ -191,17 +191,17 @@ describe('verificationService.get detail sections (DEC-44)', () => {
     expect(d.rulesApplied.checks.LIVENESS.threshold).toEqual({ preset: 'LOW' })
   })
 
-  it('Given S18 rejected on a flow with Rejected 120 min and Failed 30 min, then "New session allowed from" is 2 h after the rejection (DEC-26)', async () => {
+  it('Given S18 rejected on a flow with Rejected 120 min and Unsuccessful 30 min, then "New session allowed from" is 2 h after the rejection (DEC-26)', async () => {
     const d = await svc.get(C(18), ALI)
     expect(d.status).toBe('REJECTED')
-    expect(d.rulesApplied).toMatchObject({ cooldownMin: 120, failedCooldownMin: 30 })
+    expect(d.rulesApplied).toMatchObject({ cooldownMin: 120, unsuccessfulCooldownMin: 30 })
     expect(Date.parse(d.newSessionAllowedAt!) - Date.parse(d.lastUpdatedAt)).toBe(minutes(120)) // the Rejected one
     expect((await svc.get(C(4), ALI)).newSessionAllowedAt).toBeUndefined() // cooldown 0
   })
 
-  it('Given S25 FAILED on a flow whose Cooldown after Failed is 0, then a new session is allowed at once (DEC-26, DEC-112)', async () => {
+  it('Given S25 UNSUCCESSFUL on a flow whose Cooldown after Unsuccessful is 0, then a new session is allowed at once (DEC-26, DEC-112)', async () => {
     const d = await svc.get(C(25), ALI)
-    expect(d.status).toBe('FAILED')
+    expect(d.status).toBe('UNSUCCESSFUL')
     expect(d.newSessionAllowedAt).toBeUndefined()
   })
 
@@ -346,10 +346,10 @@ describe('analyticsService scoping (DEC-86)', () => {
     expect(hafiz).toBeGreaterThan(0)
   })
 
-  it('Given S25 FAILED after 4 ID images, then Billing charges all 4 document submissions (DEC-60, DEC-112)', async () => {
+  it('Given S25 UNSUCCESSFUL after 4 ID images, then Billing charges all 4 document submissions (DEC-60, DEC-112)', async () => {
     const v = await svc.get(C(25), ALI)
     const report = await analyticsService.billing({ period: v.createdAt.slice(0, 7) }, ALI)
-    expect(report.lines.find((l) => l.referenceId === S(25))).toMatchObject({ status: 'FAILED', tokens: 4, retryTokens: 3 })
+    expect(report.lines.find((l) => l.referenceId === S(25))).toMatchObject({ status: 'UNSUCCESSFUL', tokens: 4, retryTokens: 3 })
   })
 
   it('Given S30 with 3 sessions, then 3 billing lines, each with its session result, and the case counts once (DEC-60, DEC-113)', async () => {
@@ -357,7 +357,7 @@ describe('analyticsService scoping (DEC-86)', () => {
     const lines = []
     for (const period of new Set(v.sessionRows.map((x) => mytDay(x.startedAt).slice(0, 7)))) // billing months are MYT
       lines.push(...(await analyticsService.billing({ period }, ALI)).lines.filter((l) => l.verificationId === v.verificationId))
-    expect(lines.map((l) => [l.sessionNo, l.status]).sort()).toEqual([[1, 'FAILED'], [2, 'REJECTED'], [3, 'APPROVED']])
+    expect(lines.map((l) => [l.sessionNo, l.status]).sort()).toEqual([[1, 'UNSUCCESSFUL'], [2, 'REJECTED'], [3, 'APPROVED']])
     expect(lines.find((l) => l.sessionNo === 1)!.tokens).toBe(4)
   })
 

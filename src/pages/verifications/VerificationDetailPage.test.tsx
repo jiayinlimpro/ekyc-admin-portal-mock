@@ -165,7 +165,7 @@ describe('Verification Detail', () => {
     await open(S(18))
     expect(region('Rules applied').getByText('Cooldown after Rejected')).toBeTruthy()
     expect(region('Rules applied').getByText('120 min')).toBeTruthy()
-    expect(region('Rules applied').getByText('Cooldown after Failed')).toBeTruthy()
+    expect(region('Rules applied').getByText('Cooldown after Unsuccessful')).toBeTruthy()
     expect(screen.getByText(/^New session allowed from .* MYT \(cooldown\)$/)).toBeTruthy()
   })
 
@@ -232,25 +232,25 @@ describe('Verification Detail', () => {
     expect(region('Checks').getByText('Not checked yet')).toBeTruthy() // duplicate user: no search without a face comparison
   })
 
-  it('Given S25, then the 4th ID image still failed with 3 of 3 Document retries used, so Failed by the engine (DEC-108, DEC-112)', async () => {
+  it('Given S25, then the 4th ID image still failed with 3 of 3 Document retries used, so Unsuccessful by the engine (DEC-108, DEC-112)', async () => {
     await open(S(25))
-    expect(screen.getAllByText('Failed').length).toBeGreaterThan(0) // status badge
+    expect(screen.getAllByText('Unsuccessful').length).toBeGreaterThan(0) // status badge
     expect(screen.getByText('ID image smaller than 320x320 (Retry Not Allowed)')).toBeTruthy()
     expect(region('Checks').getByText('3 earlier ID image(s) failed · 3 of 3 retries used')).toBeTruthy()
     expect(region('Rules applied').getByText('Document (OCR) 3 · Liveness 3')).toBeTruthy()
     // REQ: DEC-112 — nothing to review: no claim, no decision buttons.
-    expect(decision().getByRole('status').textContent).toBe('Failed: nothing to review')
+    expect(decision().getByRole('status').textContent).toBe('Unsuccessful: nothing to review')
     expect(screen.queryByRole('button', { name: 'Assign to me' })).toBeNull()
-    expect(screen.getByText(/^Failed: no usable image when retries ran out — SYSTEM\. Nothing to review; the same Reference ID can start a new session\.$/)).toBeTruthy()
+    expect(screen.getByText(/^Unsuccessful: no usable image when retries ran out — SYSTEM\. Nothing to review; the same Reference ID can start a new session\.$/)).toBeTruthy()
   })
 
-  it('Given S30 (3 sessions), then Sessions lists Failed, Rejected and the current Approved session with flow, rules and tokens (DEC-113)', async () => {
+  it('Given S30 (3 sessions), then Sessions lists Unsuccessful, Rejected and the current Approved session with flow, rules and tokens (DEC-113)', async () => {
     await open(S(30))
     const t = within(await screen.findByRole('table', { name: 'Sessions' }))
     const body = t.getAllByRole('row').slice(1).map((r) => [...r.querySelectorAll('th, td')].map((c) => c.textContent))
     expect(body.map((c) => c[0])).toEqual(['Session 1', 'Session 2', 'Session 3Current'])
     expect(body.map((c) => c[2])).toEqual(['Malaysian onboarding V4-R1', 'Malaysian onboarding V4-R1', 'Malaysian onboarding V4-R2'])
-    expect(body[0][3]).toMatch(/^Failed/)
+    expect(body[0][3]).toMatch(/^Unsuccessful/)
     expect(body[0][4]).toMatch(/^ID image smaller than 320x320 \(Retry Not Allowed\)1 attempt\(s\)/)
     expect(body[0][6]).toBe('4') // 4 ID images (DEC-60)
     expect(body[1][3]).toMatch(/^Rejected/)
@@ -263,13 +263,13 @@ describe('Verification Detail', () => {
     expect(screen.queryByRole('table', { name: 'Sessions' })).toBeNull()
   })
 
-  it('Given S33 Failed 17 min ago under a 30-min Cooldown after Failed, then the banner says when a new session is allowed (DEC-26, DEC-112)', async () => {
+  it('Given S33 Unsuccessful 17 min ago under a 30-min Cooldown after Unsuccessful, then the banner says when a new session is allowed (DEC-26, DEC-112)', async () => {
     await open(S(33))
     expect(screen.getByText(/^New session allowed from .* MYT \(cooldown\)$/)).toBeTruthy()
-    expect(region('Rules applied').getByText('Cooldown after Failed').nextElementSibling!.textContent).toBe('30 min')
+    expect(region('Rules applied').getByText('Cooldown after Unsuccessful').nextElementSibling!.textContent).toBe('30 min')
   })
 
-  it('Given S27, then 4 rejected selfies under Attempts and the case Failed with nothing compared (DEC-112)', async () => {
+  it('Given S27, then 4 rejected selfies under Attempts and the case ends Unsuccessful with nothing compared (DEC-112)', async () => {
     useSession.getState().switchUser(OTHER_MERCHANT_REVIEWER) // Vantage reviewer
     await open(S(27))
     expect(screen.getByText('No valid face in Selfie detected (Retry Not Allowed)')).toBeTruthy()

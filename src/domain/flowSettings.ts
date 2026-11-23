@@ -16,7 +16,7 @@ export function newFlowSettings(entry: Pick<RegistryEntry, 'phases'>): FlowSetti
     checks: { FACE_MATCH: { ...check }, LIVENESS: { ...check } },
     retries: { DOCUMENT: RETRY_LIMITS.default, SELFIE: RETRY_LIMITS.default, LIVENESS: RETRY_LIMITS.default }, // REQ: DEC-108
     cooldownMin: DEFAULT_COOLDOWN_MIN,
-    failedCooldownMin: DEFAULT_COOLDOWN_MIN, // REQ: DEC-26 / DEC-112
+    unsuccessfulCooldownMin: DEFAULT_COOLDOWN_MIN, // REQ: DEC-26 / DEC-112
     acceptedDocuments: [],
     sessionExpiryMin: Number.NaN,
     risk: hasRisk(entry) ? { enabled: true, minimums: { ...DEFAULT_RISK_MINIMUMS } } : undefined, // REQ: DEC-107
@@ -74,7 +74,7 @@ export function validateFlow(flow: Pick<Flow, 'name' | 'settings'>, entry: Pick<
     }
   }
   // REQ: DEC-26 — two cooldowns, whole minutes, 0 or more.
-  for (const [field, label] of [['cooldownMin', 'Cooldown after Rejected'], ['failedCooldownMin', 'Cooldown after Failed']] as const) {
+  for (const [field, label] of [['cooldownMin', 'Cooldown after Rejected'], ['unsuccessfulCooldownMin', 'Cooldown after Unsuccessful']] as const) {
     if (!Number.isFinite(s[field])) errors.push({ field, message: `${label} is required. Enter 0 for no cooldown` })
     else if (!whole(s[field], 0)) errors.push({ field, message: `${label} must be a whole number of minutes, 0 or more` })
   }
@@ -132,7 +132,7 @@ export function diffFlow(base: Pick<Flow, 'name' | 'description' | 'settings'>, 
   }
   for (const p of RETRY_PHASES) push(`retries.${p}`, show.num(base.settings.retries[p]), show.num(next.settings.retries[p]))
   push('cooldownMin', show.num(base.settings.cooldownMin), show.num(next.settings.cooldownMin))
-  push('failedCooldownMin', show.num(base.settings.failedCooldownMin), show.num(next.settings.failedCooldownMin))
+  push('unsuccessfulCooldownMin', show.num(base.settings.unsuccessfulCooldownMin), show.num(next.settings.unsuccessfulCooldownMin))
   push('sessionExpiryMin', show.num(base.settings.sessionExpiryMin), show.num(next.settings.sessionExpiryMin))
   push('acceptedDocuments', show.docs(base.settings.acceptedDocuments), show.docs(next.settings.acceptedDocuments))
   push('risk.enabled', String(base.settings.risk?.enabled ?? '—'), String(next.settings.risk?.enabled ?? '—'))

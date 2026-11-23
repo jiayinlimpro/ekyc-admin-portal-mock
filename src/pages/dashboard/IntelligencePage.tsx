@@ -42,7 +42,7 @@ export function IntelligencePage() {
       <div className={`grid gap-4 sm:grid-cols-3 transition-opacity ${loading && s ? 'opacity-60' : ''}`} aria-busy={loading}>
         <StatTile label="First-attempt pass rate" value={s ? fmtPct(pct(s.firstAttemptPass, s.submitted)) : '—'} note={s ? `${fmtInt(s.firstAttemptPass)} of ${fmtInt(s.submitted)} submitted sessions passed every check first time` : undefined} />
         <StatTile label="Average retries" value={s ? avg(s.retries, s.submitted) : '—'} note={s ? `${fmtInt(s.retries)} retries across document, selfie and liveness · retakes before submitting are free` : undefined} />
-        <StatTile label="Retries used up" value={s ? fmtInt(s.retriesExhausted) : '—'} note="The last attempt decided: Pending Review, Rejected, or Failed (no usable image)" />
+        <StatTile label="Retries used up" value={s ? fmtInt(s.retriesExhausted) : '—'} note="The last attempt decided: Pending Review, Rejected, or Unsuccessful (no usable image)" />
       </div>
 
       {s && (

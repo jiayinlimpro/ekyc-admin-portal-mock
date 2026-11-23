@@ -51,7 +51,7 @@ describe('Verifications List', () => {
     expect(header().getAttribute('aria-sort')).toBe('none')
     expect(within(table()).getByRole('columnheader', { name: 'Full Name' }).querySelector('button')).toBeNull() // not sortable (FRS)
     fireEvent.change(screen.getByLabelText('Full Name'), { target: { value: 'tan' } }) // not searched yet
-    const order = ['Processing', 'Pending Review', 'Approved', 'Rejected', 'Failed'] // REQ: DEC-112
+    const order = ['Processing', 'Pending Review', 'Approved', 'Rejected', 'Unsuccessful'] // REQ: DEC-112
     const statuses = async () => (await dataRows()).map((r) => order.findIndex((s) => r.textContent!.includes(s)))
     fireEvent.click(within(header()).getByRole('button'))
     await waitFor(() => expect(header().getAttribute('aria-sort')).toBe('ascending'))
@@ -59,7 +59,7 @@ describe('Verifications List', () => {
     expect(await statuses()).toEqual([...(await statuses())].sort((a, b) => a - b))
     fireEvent.click(within(header()).getByRole('button'))
     await waitFor(() => expect(header().getAttribute('aria-sort')).toBe('descending'))
-    expect((await statuses())[0]).toBe(4) // Failed (S25) first
+    expect((await statuses())[0]).toBe(4) // Unsuccessful (S25) first
     fireEvent.click(within(header()).getByRole('button'))
     await waitFor(() => expect(header().getAttribute('aria-sort')).toBe('none'))
     expect(router.state.location.search).toBe('?status=ALL')
@@ -111,17 +111,17 @@ describe('Verifications List', () => {
     for (const r of rows) expect(r.textContent).toContain('Processing')
   })
 
-  it('Given Status = Failed, when Search, then only Failed cases, S25 among them (DEC-112)', async () => {
+  it('Given Status = Unsuccessful, when Search, then only Unsuccessful cases, S25 among them (DEC-112)', async () => {
     const router = renderAt('/verifications')
     await dataRows()
     const status = within(screen.getByRole('group', { name: 'Status' }))
     fireEvent.click(status.getByRole('button', { name: 'Pending Review' })) // off: the default
-    fireEvent.click(status.getByRole('button', { name: 'Failed' }))
+    fireEvent.click(status.getByRole('button', { name: 'Unsuccessful' }))
     search()
-    await waitFor(() => expect(router.state.location.search).toBe('?status=FAILED'))
+    await waitFor(() => expect(router.state.location.search).toBe('?status=UNSUCCESSFUL'))
     const rows = await dataRows()
     expect(rows.some((r) => r.textContent!.includes('KYC-260901-900025'))).toBe(true)
-    for (const r of rows) expect(r.textContent).toContain('Failed')
+    for (const r of rows) expect(r.textContent).toContain('Unsuccessful')
   })
 
   it('Given a Verification ID, when Search, then only that case; the row shows it first with the Reference ID under it (DEC-114)', async () => {

@@ -37,7 +37,7 @@ const message = (e: unknown) => (isServiceError(e) ? e.message : 'Unexpected err
 const BANNER_STYLE = {
   PENDING_REVIEW: 'border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-100',
   REJECTED: 'border-red-200 bg-red-50 text-red-900 dark:border-red-500/40 dark:bg-red-500/10 dark:text-red-100',
-  FAILED: 'border-orange-200 bg-orange-50 text-orange-900 dark:border-orange-500/40 dark:bg-orange-500/10 dark:text-orange-100', // REQ: DEC-112
+  UNSUCCESSFUL: 'border-orange-200 bg-orange-50 text-orange-900 dark:border-orange-500/40 dark:bg-orange-500/10 dark:text-orange-100', // REQ: DEC-112
 } as const
 
 // REQ: DEC-105 / DEC-107 / DEC-112 — the condition plus target vs actual (the flow band and the score, or the risk minimums missed).

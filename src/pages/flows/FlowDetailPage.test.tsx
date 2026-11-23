@@ -66,7 +66,7 @@ describe('Flow Detail (DEC-18, DEC-19, DEC-50, DEC-51)', () => {
     expect(r.getByLabelText('Document (OCR) retries allowed').textContent).toBe('5')
     expect((r.getByRole('button', { name: 'More Document (OCR) retries' }) as HTMLButtonElement).disabled).toBe(true)
     expect(r.getByText(/up to 6 submissions/)).toBeTruthy()
-    expect(r.getByText(/Used up: Failed \(no usable ID image\)/)).toBeTruthy() // DEC-112
+    expect(r.getByText(/Used up: Unsuccessful \(no usable ID image\)/)).toBeTruthy() // DEC-112
     expect(r.getByText(/Used up: the last result decides \(Pending Review or Rejected\)/)).toBeTruthy() // liveness never fails
     expect((await card('Face match')).queryByText(/Retries allowed/)).toBeNull() // not in the threshold card
   })
@@ -77,22 +77,22 @@ describe('Flow Detail (DEC-18, DEC-19, DEC-50, DEC-51)', () => {
     const r = await card('Retries allowed')
     expect(r.getByLabelText('Selfie retries allowed').textContent).toBe('3')
     expect(r.getByText(/A submitted selfie that fails its quality check, or a face match below Auto-Pass/)).toBeTruthy()
-    expect(r.getByText(/Used up: Failed when no selfie was usable; otherwise the last face match decides/)).toBeTruthy() // DEC-112
+    expect(r.getByText(/Used up: Unsuccessful when no selfie was usable; otherwise the last face match decides/)).toBeTruthy() // DEC-112
   })
 
-  it('Given the Cooldown card, then one field after Rejected and one after Failed; a change saves in a new revision (DEC-26, DEC-112)', async () => {
+  it('Given the Cooldown card, then one field after Rejected and one after Unsuccessful; a change saves in a new revision (DEC-26, DEC-112)', async () => {
     renderAt(`/flows/${fx('FLW-0002')}`)
     const c = await card('Cooldown')
     expect((c.getByLabelText('Cooldown after Rejected (min)') as HTMLInputElement).value).toBe('120')
-    const failed = c.getByLabelText('Cooldown after Failed (min)') as HTMLInputElement
+    const failed = c.getByLabelText('Cooldown after Unsuccessful (min)') as HTMLInputElement
     expect(failed.value).toBe('30')
     fireEvent.change(failed, { target: { value: '-5' } })
     fireEvent.change(screen.getByLabelText(/Reason for change/), { target: { value: 'Longer wait after unusable images' } })
     fireEvent.click(screen.getByRole('button', { name: 'Save new revision' }))
-    expect(await screen.findByText('Cooldown after Failed must be a whole number of minutes, 0 or more')).toBeTruthy()
+    expect(await screen.findByText('Cooldown after Unsuccessful must be a whole number of minutes, 0 or more')).toBeTruthy()
     fireEvent.change(failed, { target: { value: '60' } })
     fireEvent.click(screen.getByRole('button', { name: 'Save new revision' }))
-    await waitFor(() => expect(flow(fx('FLW-0002')).settings.failedCooldownMin).toBe(60))
+    await waitFor(() => expect(flow(fx('FLW-0002')).settings.unsuccessfulCooldownMin).toBe(60))
     expect(flow(fx('FLW-0002')).settings.cooldownMin).toBe(120)
   })
 

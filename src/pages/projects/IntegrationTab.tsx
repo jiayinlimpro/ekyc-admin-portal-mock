@@ -181,7 +181,7 @@ export function IntegrationTab({ project }: { project: Project }) {
 
       <Card title="Webhook">
         <div className="space-y-3">
-          <FormField id="wh-url" label="Endpoint URL (HTTPS)" error={errors.url} hint="Receives verification.status_changed when a case becomes Pending Review, Approved, Rejected or Failed (DEC-55, DEC-112).">
+          <FormField id="wh-url" label="Endpoint URL (HTTPS)" error={errors.url} hint="Receives verification.status_changed when a case becomes Pending Review, Approved, Rejected or Unsuccessful (DEC-55, DEC-112).">
             <Input id="wh-url" readOnly={!d.canManage} value={url} onChange={(e) => setWebhookUrl(e.target.value)} placeholder="https://" aria-invalid={!!errors.url} />
           </FormField>
           <p className="text-sm">

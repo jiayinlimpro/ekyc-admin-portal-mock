@@ -3,8 +3,8 @@ import type { CheckEvaluation, PhaseEvaluation } from './checkRules'
 // Const arrays + derived types (not TS enums): loopable for dropdowns/badges and compatible with erasableSyntaxOnly.
 
 // REQ: DEC-01 — exactly 4 statuses. Never add more.
-// REQ: DEC-01 / DEC-112 — exactly these five, in lifecycle order (FAILED = no usable image when retries ran out).
-export const VERIFICATION_STATUSES = ['PROCESSING', 'PENDING_REVIEW', 'APPROVED', 'REJECTED', 'FAILED'] as const
+// REQ: DEC-01 / DEC-112 — exactly these five, in lifecycle order (UNSUCCESSFUL = no usable image when retries ran out).
+export const VERIFICATION_STATUSES = ['PROCESSING', 'PENDING_REVIEW', 'APPROVED', 'REJECTED', 'UNSUCCESSFUL'] as const
 export type VerificationStatus = (typeof VERIFICATION_STATUSES)[number]
 
 // REQ: DEC-10 — DOCUMENT = Capture & OCR; RISK_ASSESSMENT = internal engine, V4 only.
@@ -66,7 +66,7 @@ export interface CaseSession {
 
 /** REQ: DEC-113 / DEC-60 — how an earlier session ended, what it cost, and its attempts (kept for the history). */
 export interface SessionEnd {
-  status: 'REJECTED' | 'FAILED'
+  status: 'REJECTED' | 'UNSUCCESSFUL'
   reason?: string
   at: string
   by: UpdatedBy
@@ -225,7 +225,7 @@ export type VerificationDetail = Verification & {
   steps: { phases: OnboardingPhase[]; faceMatchMethod: FaceMatchMethod; runsRisk: boolean; riskMinimumsPerFlow: boolean } // from the registry version
   checks: CheckEvaluation[] // face match / liveness: threshold applied, result, retries used / allowed
   phases: PhaseEvaluation[] // REQ: DEC-108 — submissions and retries per phase
-  newSessionAllowedAt?: string // REQ: DEC-26 / DEC-113 — REJECTED or FAILED with a cooldown: when the same Reference ID may start a new session
+  newSessionAllowedAt?: string // REQ: DEC-26 / DEC-113 — REJECTED or UNSUCCESSFUL with a cooldown: when the same Reference ID may start a new session
   sessionRows: (CaseSession & { flowName: string; revisionLabel: string; tokens: number })[] // REQ: DEC-113 — for the Sessions section
   reasonOptions: DecisionReason[] // REQ: DEC-106 — the project's active decision reasons, for the decision panel
 }
@@ -415,7 +415,7 @@ export interface FlowSettings {
   checks: Record<Check, CheckSettings>
   retries: Record<RetryPhase, number> // REQ: DEC-108 — retries after the first submission, per phase (Selfie: V1 only)
   cooldownMin: number // REQ: DEC-26 — Cooldown after Rejected (min)
-  failedCooldownMin: number // REQ: DEC-26 / DEC-112 — Cooldown after Failed (min), whichever phase failed
+  unsuccessfulCooldownMin: number // REQ: DEC-26 / DEC-112 — Cooldown after Unsuccessful (min), whichever phase failed
   acceptedDocuments: DocumentType[]
   sessionExpiryMin: number
   risk?: RiskConfig // V4 / V5 (DEC-107)

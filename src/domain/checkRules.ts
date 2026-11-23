@@ -110,15 +110,15 @@ export function evaluateCase(input: CaseInput, flow: FlowContext, combination: P
   })
   const reasonFor = (e: CheckEvaluation, retryAllowed: boolean) => ({ reason: checkCondition(e.check, flow.faceMatchMethod, retryAllowed).label, detail: detail(e) })
 
-  // REQ: DEC-108 / DEC-16 / DEC-112 — a document (then a V1 selfie) whose last submission failed: retry pending, or FAILED
+  // REQ: DEC-108 / DEC-16 / DEC-112 — a document (then a V1 selfie) whose last submission failed: retry pending, or UNSUCCESSFUL
   // (no usable image) when the phase's retries are used up. Nothing after it ran.
   for (const [p, failed] of [['DOCUMENT', doc.lastFailed], ['SELFIE', v1 ? input.selfie?.lastFailed : undefined]] as const) {
     if (!failed) continue
     const out = of(p).retriesUsed >= of(p).retriesAllowed
     // REQ: DEC-112 — V1: once a selfie of the session was compared with the ID, the last face match score decides (below),
-    // so a blurry last selfie can't turn a face mismatch into FAILED.
+    // so a blurry last selfie can't turn a face mismatch into UNSUCCESSFUL.
     if (out && p === 'SELFIE' && fm.length > 0) break
-    return { status: out ? 'FAILED' : 'PROCESSING', reason: `${failed} (Retry ${out ? 'Not ' : ''}Allowed)`, checks, phases, exhaustedPhase: out ? p : undefined }
+    return { status: out ? 'UNSUCCESSFUL' : 'PROCESSING', reason: `${failed} (Retry ${out ? 'Not ' : ''}Allowed)`, checks, phases, exhaustedPhase: out ? p : undefined }
   }
   const final = checks.find((e) => e.state === 'REVIEW' || e.state === 'REJECT')
   const exhaustedPhase = final ? retryPhaseOf(final.check, flow.faceMatchMethod) : undefined

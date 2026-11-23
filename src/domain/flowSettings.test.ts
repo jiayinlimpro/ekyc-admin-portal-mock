@@ -20,7 +20,7 @@ describe('new flow (DEC-50, OQ-19)', () => {
     expect(f.settings.checks.LIVENESS).toEqual({ threshold: { preset: 'STANDARD' } })
     expect(f.settings.retries).toEqual({ DOCUMENT: 3, SELFIE: 3, LIVENESS: 3 }) // DEC-108
     expect(f.settings.cooldownMin).toBe(0)
-    expect(f.settings.failedCooldownMin).toBe(0) // DEC-26: a new session at once
+    expect(f.settings.unsuccessfulCooldownMin).toBe(0) // DEC-26: a new session at once
     expect(f.settings.risk).toEqual({ enabled: true, minimums: { EXIF: 50, NOISE: 50, EMAIL_VALIDITY: 50, OSINT: 50 } }) // DEC-107, OQ-34
     expect(newFlowSettings(V1).risk).toBeUndefined()
   })
@@ -46,9 +46,9 @@ describe('validation (DEC-53)', () => {
     const s = complete(draft().settings)
     s.retries = { DOCUMENT: 0, SELFIE: 9, LIVENESS: 6 }
     s.cooldownMin = -1
-    s.failedCooldownMin = 1.5
-    expect(fields(validateFlow({ name: 'x', settings: s }, V4))).toEqual(['retries.DOCUMENT', 'retries.LIVENESS', 'cooldownMin', 'failedCooldownMin']) // V4 has no selfie step
-    expect(fields(validateFlow({ name: 'x', settings: s }, V1))).toEqual(['retries.DOCUMENT', 'retries.SELFIE', 'retries.LIVENESS', 'cooldownMin', 'failedCooldownMin'])
+    s.unsuccessfulCooldownMin = 1.5
+    expect(fields(validateFlow({ name: 'x', settings: s }, V4))).toEqual(['retries.DOCUMENT', 'retries.LIVENESS', 'cooldownMin', 'unsuccessfulCooldownMin']) // V4 has no selfie step
+    expect(fields(validateFlow({ name: 'x', settings: s }, V1))).toEqual(['retries.DOCUMENT', 'retries.SELFIE', 'retries.LIVENESS', 'cooldownMin', 'unsuccessfulCooldownMin'])
   })
 })
 

@@ -50,17 +50,17 @@ export const EDGE_CASES: EdgeCaseExpectation[] = [
   { id: 'S22', title: 'V1: selfie too dark, rejected; user stopped, nothing compared', asUserId: fx('USR-2026-0044'), referenceId: 'KYC-260901-900022', flowId: fx('FLW-0005'), status: 'PROCESSING' },
   { id: 'S23', title: 'V5: High risk by its own OSINT minimum (22 < 30)', asUserId: fx('USR-2026-0012'), referenceId: 'KYC-260901-900023', flowId: fx('FLW-0014'), status: 'PENDING_REVIEW', reason: 'Risk Assessment: high risk' },
   { id: 'S24', title: 'V5: EXIF 45 is Low risk under the flow’s minimum 40 (a V4 flow would flag it)', asUserId: fx('USR-2026-0012'), referenceId: 'KYC-260901-900024', flowId: fx('FLW-0014'), status: 'APPROVED', lastUpdatedBy: 'SYSTEM' },
-  { id: 'S25', title: 'Document retries used up: 4th ID image still too small → Failed', asUserId: fx('USR-2026-0012'), referenceId: 'KYC-260901-900025', flowId: fx('FLW-0001'), status: 'FAILED', reason: 'ID image smaller than 320x320 (Retry Not Allowed)', lastUpdatedBy: 'SYSTEM' },
+  { id: 'S25', title: 'Document retries used up: 4th ID image still too small → Unsuccessful', asUserId: fx('USR-2026-0012'), referenceId: 'KYC-260901-900025', flowId: fx('FLW-0001'), status: 'UNSUCCESSFUL', reason: 'ID image smaller than 320x320 (Retry Not Allowed)', lastUpdatedBy: 'SYSTEM' },
   { id: 'S26', title: 'Internal test session on V6: not charged; hidden from Atoz’s users', asUserId: fx('USR-2026-0001'), referenceId: 'KYC-260901-900026', flowId: fx('FLW-0015'), status: 'APPROVED', lastUpdatedBy: 'SYSTEM' },
-  // REQ: DEC-112 — FAILED on V1 (selfie) and V3 (document), and the V1 rule that the face match decides once a selfie was compared.
-  { id: 'S27', title: 'V1: all 4 selfies failed the quality check, none compared → Failed', asUserId: fx('USR-2026-0044'), referenceId: 'KYC-260901-900027', flowId: fx('FLW-0005'), status: 'FAILED', reason: 'No valid face in Selfie detected (Retry Not Allowed)', lastUpdatedBy: 'SYSTEM' },
-  { id: 'S28', title: 'V3: Document retries used up, Address still not read → Failed', asUserId: fx('USR-2026-0020'), referenceId: 'KYC-260901-900028', flowId: fx('FLW-0004'), status: 'FAILED', reason: 'Address field not detected (Retry Not Allowed)', lastUpdatedBy: 'SYSTEM' },
-  { id: 'S29', title: 'V1: 3 compared selfies below Auto-Reject, the 4th blurry → Rejected (not Failed)', asUserId: fx('USR-2026-0044'), referenceId: 'KYC-260901-900029', flowId: fx('FLW-0005'), status: 'REJECTED', reason: 'ID face and Selfie face do not match (Retry Not Allowed)', lastUpdatedBy: 'SYSTEM' },
+  // REQ: DEC-112 — UNSUCCESSFUL on V1 (selfie) and V3 (document), and the V1 rule that the face match decides once a selfie was compared.
+  { id: 'S27', title: 'V1: all 4 selfies failed the quality check, none compared → Unsuccessful', asUserId: fx('USR-2026-0044'), referenceId: 'KYC-260901-900027', flowId: fx('FLW-0005'), status: 'UNSUCCESSFUL', reason: 'No valid face in Selfie detected (Retry Not Allowed)', lastUpdatedBy: 'SYSTEM' },
+  { id: 'S28', title: 'V3: Document retries used up, Address still not read → Unsuccessful', asUserId: fx('USR-2026-0020'), referenceId: 'KYC-260901-900028', flowId: fx('FLW-0004'), status: 'UNSUCCESSFUL', reason: 'Address field not detected (Retry Not Allowed)', lastUpdatedBy: 'SYSTEM' },
+  { id: 'S29', title: 'V1: 3 compared selfies below Auto-Reject, the 4th blurry → Rejected (not Unsuccessful)', asUserId: fx('USR-2026-0044'), referenceId: 'KYC-260901-900029', flowId: fx('FLW-0005'), status: 'REJECTED', reason: 'ID face and Selfie face do not match (Retry Not Allowed)', lastUpdatedBy: 'SYSTEM' },
   // REQ: DEC-113 / DEC-26 — a returning Reference ID continues its case; cooldowns.
-  { id: 'S30', title: 'Same Reference ID, 3 sessions: Failed → Rejected → Approved', asUserId: fx('USR-2026-0012'), referenceId: 'KYC-260901-900030', flowId: fx('FLW-0001'), status: 'APPROVED', lastUpdatedBy: 'SYSTEM', sessions: 3 },
+  { id: 'S30', title: 'Same Reference ID, 3 sessions: Unsuccessful → Rejected → Approved', asUserId: fx('USR-2026-0012'), referenceId: 'KYC-260901-900030', flowId: fx('FLW-0001'), status: 'APPROVED', lastUpdatedBy: 'SYSTEM', sessions: 3 },
   { id: 'S31', title: 'Rejected, came back after the 120-min cooldown: session 2 in progress', asUserId: fx('USR-2026-0012'), referenceId: 'KYC-260901-900031', flowId: fx('FLW-0002'), status: 'PROCESSING', sessions: 2 },
   { id: 'S32', title: 'Rejected by a reviewer, came back on another flow: session 2 in review', asUserId: fx('USR-2026-0012'), referenceId: 'KYC-260901-900032', flowId: fx('FLW-0014'), status: 'PENDING_REVIEW', reason: 'Liveness face does not match ID face (Retry Not Allowed)', sessions: 2 },
-  { id: 'S33', title: 'Failed 17 min ago; 30-min Cooldown after Failed running', asUserId: fx('USR-2026-0012'), referenceId: 'KYC-260901-900033', flowId: fx('FLW-0002'), status: 'FAILED', reason: 'ID image smaller than 320x320 (Retry Not Allowed)', lastUpdatedBy: 'SYSTEM' },
+  { id: 'S33', title: 'Unsuccessful 17 min ago; 30-min Cooldown after Unsuccessful running', asUserId: fx('USR-2026-0012'), referenceId: 'KYC-260901-900033', flowId: fx('FLW-0002'), status: 'UNSUCCESSFUL', reason: 'ID image smaller than 320x320 (Retry Not Allowed)', lastUpdatedBy: 'SYSTEM' },
   // REQ: DEC-113 — the same Reference ID in two projects of Atoz: two separate cases, each with its own Verification ID.
   { id: 'S34', title: 'Reference ID also used in SME app: here (Default) Rejected', asUserId: fx('USR-2026-0002'), referenceId: 'KYC-260901-900034', flowId: fx('FLW-0001'), status: 'REJECTED', reason: 'Face not live (Retry Not Allowed)', lastUpdatedBy: 'SYSTEM' },
   { id: 'S35', title: 'Same Reference ID as S34, in SME app: its own case, Approved', asUserId: fx('USR-2026-0002'), referenceId: 'KYC-260901-900034', flowId: fx('FLW-0004'), status: 'APPROVED', lastUpdatedBy: 'SYSTEM', idVariant: 'PRJ-0002' },
@@ -207,9 +207,9 @@ export function buildEdgeCases(ctx: { now: Date; catalog: Catalog }): {
     // Atoz "SME director check" FLW-0004 (V3, 3 Document retries): the 4th MyKad image still has no readable Address (DEC-112).
     make(28, fx('FLW-0004'), 25, {}, { softRejects: 3, idCapture: { faceConfidence: 98.1, imageWidth: 1600, imageHeight: 1000, ocrFieldsMissing: ['Address'] } }),
     // Vantage FLW-0005 (face match Advanced < 82): 3 compared selfies below Auto-Reject, then a blurry one: Selfie retries
-    // used up, but a selfie was compared, so the last face match decides → REJECTED, not FAILED (DEC-112).
+    // used up, but a selfie was compared, so the last face match decides → REJECTED, not UNSUCCESSFUL (DEC-112).
     make(29, fx('FLW-0005'), 22, { FACE_MATCH: [70.0, 72.5, 75.0] }, { lastSelfieFailed: { sharpness: 9.0, brightness: 55.0, yaw: 2.0, pitch: 1.0, eyesOpen: true, occluded: false } }),
-    // Atoz FLW-0001 (cooldowns 0): Failed at the document (R1, yesterday), then Rejected (liveness), then Approved today (R2).
+    // Atoz FLW-0001 (cooldowns 0): Unsuccessful at the document (R1, yesterday), then Rejected (liveness), then Approved today (R2).
     continued(
       make(30, fx('FLW-0001'), 1500, {}, { softRejects: 3, idCapture: { imageWidth: 300, imageHeight: 240 } }),
       make(30, fx('FLW-0001'), 1400, { FACE_MATCH: passes(4), LIVENESS: [20.0, 25.0, 30.0, 35.0] }, { sessionNo: 2 }),
@@ -226,7 +226,7 @@ export function buildEdgeCases(ctx: { now: Date; catalog: Catalog }): {
       rejectedBy(make(32, fx('FLW-0001'), 100, { FACE_MATCH: [86.0, 87.0, 88.0, 89.0], LIVENESS: passes(4) }, { riskScore: 15 }), ali, 70, ['FACE_MISMATCH']),
       make(32, fx('FLW-0014'), 40, { FACE_MATCH: [91.0, 92.0, 93.0, 94.5], LIVENESS: passes(4) }, { riskScore: 15, sessionNo: 2 }),
     ),
-    // Atoz FLW-0002 (Cooldown after Failed 30 min): the 4th passport image still too small, 17 min ago.
+    // Atoz FLW-0002 (Cooldown after Unsuccessful 30 min): the 4th passport image still too small, 17 min ago.
     make(33, fx('FLW-0002'), 20, {}, { documentType: 'PASSPORT', softRejects: 3, idCapture: { imageWidth: 300, imageHeight: 240 } }),
   ]
   // REQ: DEC-113 — the merchant sent the same Reference ID to two projects. Default: liveness below Auto-Reject → Rejected.

@@ -36,7 +36,7 @@ const FIELD_LABELS: Record<string, string> = {
   'checks.LIVENESS.threshold': 'Liveness threshold',
   ...Object.fromEntries(RETRY_PHASES.map((p) => [`retries.${p}`, `${RETRY_PHASE_LABELS[p]} retries allowed`])),
   cooldownMin: 'Cooldown after Rejected (min)',
-  failedCooldownMin: 'Cooldown after Failed (min)',
+  unsuccessfulCooldownMin: 'Cooldown after Unsuccessful (min)',
   sessionExpiryMin: 'Session expiry (min)',
   acceptedDocuments: 'Accepted documents',
   'risk.enabled': 'Risk assessment on',
@@ -120,8 +120,8 @@ function Editor({ detail, onSaved }: { detail: FlowDetail; onSaved: () => void }
           <FormField id="fl-cooldown" label="Cooldown after Rejected (min)" hint="How long the same Reference ID waits before a new session after a rejection, by the engine or a reviewer. 0 = no wait." error={errors.cooldownMin}>
             <Input id="fl-cooldown" type="number" min={0} step={1} value={shown(s.cooldownMin)} onChange={(e) => set({ cooldownMin: numberOrNaN(e.target.value) })} aria-invalid={!!errors.cooldownMin} />
           </FormField>
-          <FormField id="fl-failed-cooldown" label="Cooldown after Failed (min)" hint="How long the same Reference ID waits before a new session after Failed: no usable ID image or selfie when retries ran out. 0 = no wait." error={errors.failedCooldownMin}>
-            <Input id="fl-failed-cooldown" type="number" min={0} step={1} value={shown(s.failedCooldownMin)} onChange={(e) => set({ failedCooldownMin: numberOrNaN(e.target.value) })} aria-invalid={!!errors.failedCooldownMin} />
+          <FormField id="fl-unsuccessful-cooldown" label="Cooldown after Unsuccessful (min)" hint="How long the same Reference ID waits before a new session after Unsuccessful: no usable ID image or selfie when retries ran out. 0 = no wait." error={errors.unsuccessfulCooldownMin}>
+            <Input id="fl-unsuccessful-cooldown" type="number" min={0} step={1} value={shown(s.unsuccessfulCooldownMin)} onChange={(e) => set({ unsuccessfulCooldownMin: numberOrNaN(e.target.value) })} aria-invalid={!!errors.unsuccessfulCooldownMin} />
           </FormField>
         </fieldset>
       </Card>

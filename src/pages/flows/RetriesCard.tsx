@@ -14,8 +14,8 @@ const LAST_DECIDES = 'Used up: the last result decides (Pending Review or Reject
  * the selfie phase on V1, to liveness otherwise.
  */
 function usedBy(phase: RetryPhase, v1: boolean): string {
-  if (phase === 'DOCUMENT') return 'A submitted ID image that fails any check (face, size, OCR fields). Used up: Failed (no usable ID image).'
-  if (phase === 'SELFIE') return 'A submitted selfie that fails its quality check, or a face match below Auto-Pass. Used up: Failed when no selfie was usable; otherwise the last face match decides (Pending Review or Rejected).'
+  if (phase === 'DOCUMENT') return 'A submitted ID image that fails any check (face, size, OCR fields). Used up: Unsuccessful (no usable ID image).'
+  if (phase === 'SELFIE') return 'A submitted selfie that fails its quality check, or a face match below Auto-Pass. Used up: Unsuccessful when no selfie was usable; otherwise the last face match decides (Pending Review or Rejected).'
   return v1 ? `A liveness result below Auto-Pass. ${LAST_DECIDES}` : `A liveness or face match result below Auto-Pass (the face match uses the liveness face). ${LAST_DECIDES}`
 }
 

@@ -13,7 +13,7 @@ const STATUS_ICON: Record<VerificationStatus, typeof CheckCircle2> = {
   PENDING_REVIEW: Clock,
   REJECTED: XCircle,
   PROCESSING: Loader,
-  FAILED: ImageOff, // REQ: DEC-112 — no usable image
+  UNSUCCESSFUL: ImageOff, // REQ: DEC-112 — no usable image
 }
 
 /** Stat tile: label · value · optional delta vs a named period · optional note. Proportional figures for the value. */

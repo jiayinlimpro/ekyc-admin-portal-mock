@@ -63,7 +63,7 @@ describe('seedDatabase', () => {
     }
   })
 
-  it('Given every case, then its sessions are in order, the last is the current one, earlier ones ended Rejected or Failed, and each later one has a CASE_RESUMED entry (DEC-113)', () => {
+  it('Given every case, then its sessions are in order, the last is the current one, earlier ones ended Rejected or Unsuccessful, and each later one has a CASE_RESUMED entry (DEC-113)', () => {
     for (const v of db.verifications) {
       const last = v.sessions.at(-1)!
       expect(v.sessions.map((x) => x.sessionNo), v.referenceId).toEqual(v.sessions.map((_, i) => i + 1))
@@ -71,7 +71,7 @@ describe('seedDatabase', () => {
       expect(last, v.referenceId).toMatchObject({ flowId: v.flowId, workflowVersion: v.workflowVersion, configRevision: v.configRevision })
       expect(last.ended, v.referenceId).toBeUndefined()
       for (const [i, x] of v.sessions.slice(0, -1).entries()) {
-        expect(['REJECTED', 'FAILED'], v.referenceId).toContain(x.ended!.status)
+        expect(['REJECTED', 'UNSUCCESSFUL'], v.referenceId).toContain(x.ended!.status)
         expect(flowOf(x.flowId).projectId, v.referenceId).toBe(v.projectId) // another project would be a new case (OQ-37)
         expect(Date.parse(revisionOf(x.flowId, x.configRevision).savedAt)).toBeLessThanOrEqual(Date.parse(x.startedAt))
         expect(x.ended!.at < v.sessions[i + 1].startedAt, v.referenceId).toBe(true)
@@ -126,7 +126,7 @@ describe('seedDatabase', () => {
   })
 
   it('covers every status × V1/V3/V4 combination, both manual and system decisions, and both risk results', () => {
-    // REQ: DEC-112 — FAILED too: S27 (V1 selfie), S28 (V3 document), S25 (V4 document).
+    // REQ: DEC-112 — UNSUCCESSFUL too: S27 (V1 selfie), S28 (V3 document), S25 (V4 document).
     for (const status of VERIFICATION_STATUSES) {
       for (const wf of ['V1', 'V3', 'V4']) {
         expect(db.verifications.some((v) => v.status === status && v.workflowVersion === wf), `${status} × ${wf}`).toBe(true)
@@ -248,9 +248,9 @@ describe('telemetry, duplicate user and risk categories (DEC-105)', () => {
     expect(db.verifications.filter((v) => !v.riskScores).every((v) => v.riskResult === undefined)).toBe(true)
   })
 
-  it('S25 used its 3 Document retries: the 4th ID image is still too small, so FAILED by SYSTEM (DEC-108, DEC-112)', () => {
+  it('S25 used its 3 Document retries: the 4th ID image is still too small, so UNSUCCESSFUL by SYSTEM (DEC-108, DEC-112)', () => {
     const v = byRef('KYC-260901-900025')
-    expect(v).toMatchObject({ status: 'FAILED', statusReason: 'ID image smaller than 320x320 (Retry Not Allowed)', idCaptureSoftRejects: 3, lastUpdatedBy: { kind: 'SYSTEM' } })
+    expect(v).toMatchObject({ status: 'UNSUCCESSFUL', statusReason: 'ID image smaller than 320x320 (Retry Not Allowed)', idCaptureSoftRejects: 3, lastUpdatedBy: { kind: 'SYSTEM' } })
     expect(v.attempts).toMatchObject([{ phase: 'DOCUMENT', outcome: 'COMPLETED' }])
   })
 

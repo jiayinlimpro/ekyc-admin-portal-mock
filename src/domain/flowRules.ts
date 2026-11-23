@@ -89,10 +89,10 @@ export function duplicateFlow(flow: Flow, flowId: string, now: Date, by: By): Fl
 // ----- Cooldown -----------------------------------------------------------------------------------------------------
 
 // REQ: DEC-26 / DEC-112 — the case's status picks the cooldown, not the phase: Rejected (also a reviewer's reject) or
-// Failed. No cooldown for the other statuses.
-export function cooldownFor(status: VerificationStatus, settings: Pick<FlowSettings, 'cooldownMin' | 'failedCooldownMin'>): number {
+// Unsuccessful. No cooldown for the other statuses.
+export function cooldownFor(status: VerificationStatus, settings: Pick<FlowSettings, 'cooldownMin' | 'unsuccessfulCooldownMin'>): number {
   if (status === 'REJECTED') return settings.cooldownMin
-  if (status === 'FAILED') return settings.failedCooldownMin
+  if (status === 'UNSUCCESSFUL') return settings.unsuccessfulCooldownMin
   return 0
 }
 

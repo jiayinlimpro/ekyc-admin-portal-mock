@@ -43,7 +43,7 @@ describe('Overview', () => {
     const card = within(await screen.findByRole('region', { name: 'Status split' }))
     fireEvent.click(card.getByRole('button', { name: 'Show table' }))
     const rows = card.getAllByRole('row').slice(1).map((r) => within(r).getAllByRole('cell')[0].textContent)
-    expect(rows).toEqual(['Processing', 'Pending Review', 'Approved', 'Rejected', 'Failed'])
+    expect(rows).toEqual(['Processing', 'Pending Review', 'Approved', 'Rejected', 'Unsuccessful'])
   })
 
   it('Given Last 7 days, then the URL carries it and the daily table has 7 rows', async () => {

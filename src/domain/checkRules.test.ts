@@ -86,10 +86,10 @@ describe('case status in a flow (DEC-12 … DEC-16)', () => {
 })
 
 describe('retries per phase (DEC-108)', () => {
-  it('Given failed ID images, then each uses a Document retry; the 4th failing one is FAILED (not REJECTED) with its condition (DEC-112)', () => {
+  it('Given failed ID images, then each uses a Document retry; the 4th failing one is UNSUCCESSFUL (not REJECTED) with its condition (DEC-112)', () => {
     expect(evaluateCase({ submissions: {}, document: { failed: 3, lastFailed: 'ID image smaller than 320x320' } }, V4)).toMatchObject({ status: 'PROCESSING', reason: 'ID image smaller than 320x320 (Retry Allowed)' })
     const r = evaluateCase({ submissions: {}, document: { failed: 4, lastFailed: 'ID image smaller than 320x320' } }, V4)
-    expect(r).toMatchObject({ status: 'FAILED', reason: 'ID image smaller than 320x320 (Retry Not Allowed)', exhaustedPhase: 'DOCUMENT' })
+    expect(r).toMatchObject({ status: 'UNSUCCESSFUL', reason: 'ID image smaller than 320x320 (Retry Not Allowed)', exhaustedPhase: 'DOCUMENT' })
     expect(r.phases.find((p) => p.phase === 'DOCUMENT')).toEqual({ phase: 'DOCUMENT', submissions: 4, retriesUsed: 3, retriesAllowed: 3 })
   })
 
@@ -111,11 +111,11 @@ describe('retries per phase (DEC-108)', () => {
     expect(evaluateCase({ submissions: {}, selfie: { failed: 1, lastFailed: 'No valid face in Selfie detected' } }, V1)).toMatchObject({ status: 'PROCESSING', reason: 'No valid face in Selfie detected (Retry Allowed)' })
   })
 
-  it('Given V1 with Selfie retries used up and no selfie ever usable, then FAILED: no usable image (DEC-112)', () => {
-    expect(evaluateCase({ submissions: {}, selfie: { failed: 4, lastFailed: 'No valid face in Selfie detected' } }, V1)).toMatchObject({ status: 'FAILED', reason: 'No valid face in Selfie detected (Retry Not Allowed)', exhaustedPhase: 'SELFIE' })
+  it('Given V1 with Selfie retries used up and no selfie ever usable, then UNSUCCESSFUL: no usable image (DEC-112)', () => {
+    expect(evaluateCase({ submissions: {}, selfie: { failed: 4, lastFailed: 'No valid face in Selfie detected' } }, V1)).toMatchObject({ status: 'UNSUCCESSFUL', reason: 'No valid face in Selfie detected (Retry Not Allowed)', exhaustedPhase: 'SELFIE' })
   })
 
-  it('Given V1 with Selfie retries used up, a compared selfie below Auto-Reject and a blurry last selfie, then REJECTED by the face match, not FAILED (DEC-112)', () => {
+  it('Given V1 with Selfie retries used up, a compared selfie below Auto-Reject and a blurry last selfie, then REJECTED by the face match, not UNSUCCESSFUL (DEC-112)', () => {
     // Standard face match: Auto-Reject < 85. 3 compared selfies (60, 62, 58) + 1 blurry last one = 4 submissions.
     expect(evaluateCase({ submissions: { FACE_MATCH: [60, 62, 58] }, selfie: { failed: 1, lastFailed: 'No valid face in Selfie detected' } }, V1)).toMatchObject({ status: 'REJECTED', reason: 'ID face and Selfie face do not match (Retry Not Allowed)', exhaustedPhase: 'SELFIE' })
   })

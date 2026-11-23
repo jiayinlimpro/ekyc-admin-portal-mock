@@ -46,7 +46,7 @@ export interface CaseSpec {
   riskScores?: RiskScores
   /** V1 with no submission: the selfie the engine rejected when the user stopped (no similarity was run). */
   stoppedAtSelfie?: Partial<SelfieTelemetry>
-  /** V1 with `stoppedAtSelfie`: how many submitted selfies failed the quality check (default 1; all retries used → FAILED, DEC-112). */
+  /** V1 with `stoppedAtSelfie`: how many submitted selfies failed the quality check (default 1; all retries used → UNSUCCESSFUL, DEC-112). */
   selfieFailures?: number
   /** V1: after the compared selfies, one more submitted selfie failed the quality check (DEC-112: the face match still decides). */
   lastSelfieFailed?: Partial<SelfieTelemetry>
@@ -101,7 +101,7 @@ export function buildCase(spec: CaseSpec): Verification {
             attemptNo: 1,
             phase: stoppedSelfie ? 'SELFIE' : 'DOCUMENT',
             startedAt: at(0),
-            outcome: ev.status === 'FAILED' ? 'COMPLETED' : (spec.abandoned ?? 'ABORTED'), // REQ: DEC-108 / DEC-112 — retries used up, no usable image
+            outcome: ev.status === 'UNSUCCESSFUL' ? 'COMPLETED' : (spec.abandoned ?? 'ABORTED'), // REQ: DEC-108 / DEC-112 — retries used up, no usable image
             isUserRetake: false,
             phaseScores: {},
             ...(stoppedSelfie ? { faceImage: { fileId: stableId('file', `${key}:face:1`), url: '/mock/selfie.svg' }, telemetry: { selfieRetakes: [...earlierStopped, stoppedSelfie] } } : {}),
@@ -149,7 +149,7 @@ export function buildCase(spec: CaseSpec): Verification {
 
   // REQ: DEC-03 — lastUpdatedAt only moves on status change: PROCESSING was set when the user entered the flow.
   const lastUpdatedAt = ev.status === 'PROCESSING' ? at(0) : new Date(Date.parse(attempts.at(-1)!.startedAt) + 3 * 60_000).toISOString()
-  const decisive = ev.status === 'PENDING_REVIEW' || ev.status === 'REJECTED' || ev.status === 'FAILED'
+  const decisive = ev.status === 'PENDING_REVIEW' || ev.status === 'REJECTED' || ev.status === 'UNSUCCESSFUL'
   const image = { MYKAD: '/mock/mykad-front.svg', PASSPORT: '/mock/passport.svg', DRIVING_LICENSE: '/mock/driving-license.svg' }[spec.person.documentType]
   // REQ: DEC-44 — V4/V5 sessions require an email; reserved .example domain, never a real address.
   const email = spec.entry.requiredInputs.includes('EMAIL') ? emailFor(spec.person.pii.fullName, spec.referenceId) : undefined

@@ -1,4 +1,4 @@
-// REQ: DEC-113 — the case's sessions: a returning Reference ID continued it after a Rejected or Failed session.
+// REQ: DEC-113 — the case's sessions: a returning Reference ID continued it after a Rejected or Unsuccessful session.
 import { StatusBadge } from '@/components/common/StatusBadge'
 import { formatUpdatedBy } from '@/domain/audit'
 import type { VerificationDetail } from '@/domain/types'

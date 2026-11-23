@@ -103,7 +103,7 @@ export const STATUS_LABELS: Record<VerificationStatus, string> = {
   PENDING_REVIEW: 'Pending Review',
   APPROVED: 'Approved',
   REJECTED: 'Rejected',
-  FAILED: 'Failed', // REQ: DEC-112
+  UNSUCCESSFUL: 'Unsuccessful', // REQ: DEC-112
 }
 
 export const DOCUMENT_TYPE_LABELS: Record<DocumentType, string> = {

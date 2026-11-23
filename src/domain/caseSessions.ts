@@ -19,7 +19,7 @@ export type SessionStart =
 export function decideSessionStart(
   existing: Pick<Verification, 'status' | 'lastUpdatedAt'> | undefined,
   target: Pick<Flow, 'status'>,
-  rulesOfLastSession: Pick<FlowSettings, 'cooldownMin' | 'failedCooldownMin'> | undefined,
+  rulesOfLastSession: Pick<FlowSettings, 'cooldownMin' | 'unsuccessfulCooldownMin'> | undefined,
   now: Date,
 ): SessionStart {
   if (target.status !== 'ACTIVE') return { kind: 'REFUSED', code: 'FLOW_NOT_ACTIVE', message: 'The flow is not active.' } // DEC-95
@@ -28,18 +28,18 @@ export function decideSessionStart(
   if (existing.status === 'PROCESSING') return { kind: 'REFUSED', code: 'IN_PROGRESS', message: 'This Reference ID already has a session in progress.' }
   if (existing.status === 'PENDING_REVIEW') return { kind: 'REFUSED', code: 'IN_REVIEW', message: 'This Reference ID is waiting for review.' }
   if (existing.status === 'APPROVED') return { kind: 'REFUSED', code: 'APPROVED', message: 'This Reference ID is already approved.' }
-  // REJECTED or FAILED: the cooldown its status picks (DEC-26).
+  // REJECTED or UNSUCCESSFUL: the cooldown its status picks (DEC-26).
   const until = rulesOfLastSession ? newSessionAllowedAt(existing.lastUpdatedAt, cooldownFor(existing.status, rulesOfLastSession)) : undefined
   if (until && now < until) return { kind: 'REFUSED', code: 'COOLDOWN', message: 'Cooldown running.', allowedFrom: until.toISOString() }
   return { kind: 'CONTINUE_CASE' }
 }
 
 /**
- * REQ: DEC-113 — the new session on a REJECTED or FAILED case: the ended session goes into the history (status, reason,
+ * REQ: DEC-113 — the new session on a REJECTED or UNSUCCESSFUL case: the ended session goes into the history (status, reason,
  * by whom, tokens, attempts), the case is PROCESSING by SYSTEM again with fresh retries, on the given flow of its project.
  */
 export function continueCase(v: Verification, target: Pick<Flow, 'flowId' | 'projectId' | 'workflowVersion'> & { configRevision: number }, now: Date): Verification {
-  if (v.status !== 'REJECTED' && v.status !== 'FAILED') throw new Error(`Only a Rejected or Failed case continues (was ${v.status})`)
+  if (v.status !== 'REJECTED' && v.status !== 'UNSUCCESSFUL') throw new Error(`Only a Rejected or Unsuccessful case continues (was ${v.status})`)
   if (target.projectId !== v.projectId) throw new Error('A flow in another project starts a new case (OQ-37)')
   const current = v.sessions.at(-1)!
   const at = now.toISOString()

@@ -41,9 +41,9 @@ describe('overviewStats (DEC-14, DEC-20, DEC-86)', () => {
     expect(s.daily).toHaveLength(7)
   })
 
-  it('Given a FAILED case, then it is counted on its own and as completed in the pass rate (DEC-112)', () => {
-    const f = overviewStats([...rows, verification({ referenceId: 'F', status: 'FAILED' })], range.current, range.previous, NOW)
-    expect(f.byStatus).toMatchObject({ APPROVED: 2, REJECTED: 1, FAILED: 1 })
+  it('Given an UNSUCCESSFUL case, then it is counted on its own and as completed in the pass rate (DEC-112)', () => {
+    const f = overviewStats([...rows, verification({ referenceId: 'F', status: 'UNSUCCESSFUL' })], range.current, range.previous, NOW)
+    expect(f.byStatus).toMatchObject({ APPROVED: 2, REJECTED: 1, UNSUCCESSFUL: 1 })
     expect(f.byProject.find((r) => r.key === fx('PRJ-0001'))!.passRate).toBeCloseTo(1 / 3) // A / (A + E + F)
     expect(f.autoCleared).toBe(1)
   })
@@ -115,13 +115,13 @@ describe('billing (DEC-60)', () => {
     expect(billingLines({ ...base, attempts }, 0.5)[0]).toMatchObject({ tokens: 3, retryTokens: 2, cost: 1.5 })
   })
 
-  it('Given a case that continued (Failed, then a new session on another flow), then one line per session in the month it started; the case counts once (DEC-60, DEC-113)', () => {
+  it('Given a case that continued (Unsuccessful, then a new session on another flow), then one line per session in the month it started; the case counts once (DEC-60, DEC-113)', () => {
     const idCapture = { facesFound: 1, faceConfidence: 98, eyesOpen: true, occluded: false, imageWidth: 300, imageHeight: 240, ocrFieldsMissing: [] }
-    const failed = verification({ verificationId: 'vrf_f', status: 'FAILED', idCapture, idCaptureSoftRejects: 3, submissions: {}, attempts: [], createdAt: '2026-08-30T02:00:00.000Z', sessions: [{ sessionNo: 1, startedAt: '2026-08-30T02:00:00.000Z', flowId: fx('FLW-0001'), workflowVersion: 'V4', configRevision: 2 }] })
+    const failed = verification({ verificationId: 'vrf_f', status: 'UNSUCCESSFUL', idCapture, idCaptureSoftRejects: 3, submissions: {}, attempts: [], createdAt: '2026-08-30T02:00:00.000Z', sessions: [{ sessionNo: 1, startedAt: '2026-08-30T02:00:00.000Z', flowId: fx('FLW-0001'), workflowVersion: 'V4', configRevision: 2 }] })
     const resumed = { ...continueCase(failed, { flowId: fx('FLW-0002'), projectId: fx('PRJ-0001'), workflowVersion: 'V4', configRevision: 1 }, NOW), status: 'APPROVED' as const, submissions: { FACE_MATCH: [97], LIVENESS: [92] } }
     const ls = billingLines(resumed, 0.5)
     expect(ls.map((l) => [l.sessionNo, l.flowId, l.chargedAt.slice(0, 7), l.status, l.tokens, l.retryTokens])).toEqual([
-      [1, fx('FLW-0001'), '2026-08', 'FAILED', 4, 3],
+      [1, fx('FLW-0001'), '2026-08', 'UNSUCCESSFUL', 4, 3],
       [2, fx('FLW-0002'), NOW.toISOString().slice(0, 7), 'APPROVED', 1, 0],
     ])
     expect(billingTotals(ls, 0.5)).toMatchObject({ verifications: 1, tokens: 5 })
