@@ -486,6 +486,10 @@ export const mockUserAdminService: UserAdminService = {
     const known = db.state().accounts.find((a) => a.email.toLowerCase() === email)
     // The email is already a user of this merchant: add the project role to them, no second account (DEC-104).
     if (known && known.merchantId === p.merchantId) {
+      // REQ: DEC-77 — Users › Invite brings in new people only; adding an existing user to a project is Members › Add / remove.
+      if (!canInProject(me, 'manageMembers', p)) {
+        throw validation([{ field: 'email', message: `Already a user of this merchant. Adding an existing user to a project needs Members › Add / remove.` }])
+      }
       if (known.status === 'SUSPENDED') throw validation([{ field: 'email', message: `${known.fullName} is suspended. Reactivate them on the Users screen first.` }])
       notSelf(actor, known)
       const role = checkProjectRole(me, p, input.roleId)

@@ -142,7 +142,7 @@ describe('Project Settings (DEC-54, DEC-96)', () => {
 })
 
 describe('Members, in the project sidebar (DEC-77, DEC-109)', () => {
-  it('Given Hafiz (Project Admin of SME app), then inherited All projects users are marked and he adds Siti as Reviewer', async () => {
+  it('Given Hafiz (Project Admin of SME app), when he types Siti’s email, then she is recognised as a user of the merchant (no Full name, Add member) and added as Reviewer (DEC-77)', async () => {
     useSession.getState().switchUser(HAFIZ)
     renderAt('/members')
     const p = within(await screen.findByRole('region', { name: 'Members' }))
@@ -150,9 +150,12 @@ describe('Members, in the project sidebar (DEC-77, DEC-109)', () => {
     expect(owner.textContent).toContain('Owner · All projectsinherited')
     expect(within(owner).queryByRole('button')).toBeNull()
     expect(p.getByRole('button', { name: 'Remove Viewer for Ali Bin Ahmad' })).toBeTruthy()
-    const user = p.getByLabelText('User')
-    await waitFor(() => expect(within(user).getAllByRole('option').length).toBeGreaterThan(1))
-    fireEvent.change(user, { target: { value: fx('USR-2026-0031') } })
+    expect(p.queryByRole('radio')).toBeNull() // one field, no Existing / New tabs
+    const email = p.getByLabelText('Email')
+    await waitFor(() => expect(document.querySelectorAll('#mb-users option').length).toBeGreaterThan(1)) // suggestions
+    fireEvent.change(email, { target: { value: 'Siti.Yusof@atoz.example' } })
+    expect(p.getByText('· already a user of this merchant')).toBeTruthy()
+    expect(p.queryByLabelText('Full name')).toBeNull()
     const role = p.getByLabelText('Project role')
     await waitFor(() => expect(within(role).getAllByRole('option').map((o) => o.textContent)).not.toContain('Owner'))
     fireEvent.change(role, { target: { value: fx('ROL-2026-0003') } })
@@ -160,14 +163,14 @@ describe('Members, in the project sidebar (DEC-77, DEC-109)', () => {
     expect((await p.findByRole('rowheader', { name: 'Siti Aminah Binti Yusof' })).closest('tr')!.textContent).toContain('Reviewer')
   })
 
-  it('Given New person, then Hafiz invites someone new: listed here as Reviewer, Pending, and a Member of the merchant (DEC-77, OQ-27)', async () => {
+  it('Given an email that is not a user yet, then Full name appears and Hafiz invites them: listed here as Reviewer, Pending, and a Member of the merchant (DEC-77, OQ-27)', async () => {
     useSession.getState().switchUser(HAFIZ)
     renderAt('/members')
     const p = within(await screen.findByRole('region', { name: 'Members' }))
-    fireEvent.click(await p.findByRole('radio', { name: 'New person' }))
-    expect(p.queryByLabelText('User')).toBeNull()
+    expect(p.queryByLabelText('Full name')).toBeNull()
+    fireEvent.change(await p.findByLabelText('Email'), { target: { value: 'farah.ismail@atoz.example' } })
+    expect(p.getByText(/New to this merchant: they join as Member/)).toBeTruthy()
     fireEvent.change(p.getByLabelText('Full name'), { target: { value: 'Farah Binti Ismail' } })
-    fireEvent.change(p.getByLabelText('Email'), { target: { value: 'farah.ismail@atoz.example' } })
     const role = p.getByLabelText('Project role')
     await waitFor(() => expect(within(role).getAllByRole('option').length).toBeGreaterThan(1))
     fireEvent.change(role, { target: { value: fx('ROL-2026-0003') } })
@@ -179,14 +182,14 @@ describe('Members, in the project sidebar (DEC-77, DEC-109)', () => {
     expect(farah.assignments.map((x) => x.scope.kind)).toEqual(['ALL_PROJECTS', 'PROJECTS']) // Member + the project role
   })
 
-  it('Given Aaron (Users › Invite only), then Members opens with New person only, and no project role he could give (DEC-74, DEC-77)', async () => {
+  it('Given Aaron (Users › Invite only), then Members opens for inviting new people only (no suggestions), and no project role he could give (DEC-74, DEC-77)', async () => {
     useSession.getState().switchUser({ userId: fx('USR-2026-0022'), fullName: 'Aaron Teoh' })
     useSession.getState().selectProject(fx('PRJ-0001'))
     renderAt('/members')
     const p = within(await screen.findByRole('region', { name: 'Members' }))
     await waitFor(() => expect(p.getByLabelText('Project role')).toHaveProperty('disabled', true))
-    expect(p.queryByRole('radio', { name: 'Existing user' })).toBeNull()
-    expect(p.getByLabelText('Full name')).toBeTruthy()
+    expect(p.getByLabelText('Email').getAttribute('list')).toBeNull()
+    expect(p.getByText(/Adding an existing user to a project needs Members › Add \/ remove/)).toBeTruthy()
     expect(p.getByText(/You hold no project permissions/)).toBeTruthy()
     expect(p.queryByRole('button', { name: /^Remove / })).toBeNull()
   })

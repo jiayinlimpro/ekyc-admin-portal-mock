@@ -19,41 +19,45 @@ import { useSession } from '@/stores/sessionStore'
 import { AccessChip, AccessPreview, UserStatusBadge } from '../users/AccessFields'
 import { Card } from './settingsUi'
 
-type AddMode = 'EXISTING' | 'NEW'
+const looksLikeEmail = (s: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s.trim())
 
-// REQ: DEC-77 / OQ-27 — Existing user (Members › Add / remove) or New person (that, or Users › Invite at merchant level):
-// a new person joins the merchant as Member (no permissions) with the project role here.
+// REQ: DEC-77 / OQ-27 — one Email field; the form tells an existing user of this merchant (Members › Add / remove) from a
+// new person (that, or Users › Invite at merchant level). A new person joins the merchant as Member (no permissions) with
+// the project role here. No tabs, no second dialog (as Langfuse, MongoDB Atlas).
 function AddMember({ project, canExisting, onAdded }: { project: Project; canExisting: boolean; onAdded: () => void }) {
   const actor = useSession((s) => s.actor)
-  const [mode, setMode] = useState<AddMode>(canExisting ? 'EXISTING' : 'NEW')
+  // Suggestions only for those who may add existing users (they may already see who the users are).
   const candidates = useLoad(() => (canExisting ? userAdminService.memberCandidates(project.projectId, actor) : Promise.resolve([])), [project.projectId, actor.userId, canExisting])
   // REQ: DEC-77 / DEC-104 — this project's roles (Project Settings › Roles) that the actor may give here.
   const roles = useLoad(() => roleService.assignable(project.merchantId, actor, project.projectId), [project.merchantId, project.projectId, actor.userId])
-  const [userId, setUserId] = useState('')
-  const [fullName, setFullName] = useState('')
   const [email, setEmail] = useState('')
+  const [fullName, setFullName] = useState('')
   const [roleId, setRoleId] = useState('')
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [busy, setBusy] = useState(false)
+  const typed = email.trim().toLowerCase()
+  const match = typed ? candidates.data?.find((u) => u.email.toLowerCase() === typed) : undefined
+  // Without suggestions (Users › Invite only) the server decides; the form treats the email as a new person.
+  const isNew = !match && looksLikeEmail(email)
   const submit = async (e: FormEvent) => {
     e.preventDefault()
-    if (mode === 'EXISTING' && !userId) return setErrors({ userId: 'Choose a user.' })
-    if (mode === 'NEW' && (!fullName.trim() || !email.trim())) return setErrors(fullName.trim() ? { email: 'Enter an email address.' } : { fullName: 'Enter a full name.' })
+    if (!typed) return setErrors({ email: 'Enter an email address.' })
+    if (!match && !looksLikeEmail(email)) return setErrors({ email: 'Enter a valid email address.' })
+    if (!match && !fullName.trim()) return setErrors({ fullName: 'Enter a full name.' })
     if (!roleId) return setErrors({ roleId: 'Choose a role.' })
     setBusy(true)
     setErrors({})
+    const roleName = roles.data?.find((x) => x.roleId === roleId)?.name ?? 'the role'
     try {
-      if (mode === 'EXISTING') {
-        await userAdminService.addMember(project.projectId, userId, roleId, actor)
-        toast.success('Member added')
+      if (match) {
+        await userAdminService.addMember(project.projectId, match.userId, roleId, actor)
+        toast.success(`${match.fullName} added as ${roleName}`)
       } else {
         const r = await userAdminService.inviteMember(project.projectId, { fullName, email, roleId }, actor)
-        const roleName = roles.data?.find((x) => x.roleId === roleId)?.name ?? 'the role'
-        toast.success(r.existing ? `Already a user of this merchant: added as ${roleName}` : `Invitation sent to ${email.trim().toLowerCase()} · Member of the merchant, ${roleName} here`)
+        toast.success(r.existing ? `Already a user of this merchant: added as ${roleName}` : `Invitation sent to ${typed} · Member of the merchant, ${roleName} here`)
       }
-      setUserId('')
-      setFullName('')
       setEmail('')
+      setFullName('')
       setRoleId('')
       onAdded()
     } catch (err) {
@@ -62,56 +66,43 @@ function AddMember({ project, canExisting, onAdded }: { project: Project; canExi
       setBusy(false)
     }
   }
-  const error = errors.form ?? errors.scope ?? errors.roleId ?? errors.userId ?? errors.user ?? errors.fullName ?? errors.email
+  const error = errors.form ?? errors.scope ?? errors.roleId ?? errors.user ?? errors.email ?? errors.fullName
   const role = roles.data?.find((r) => r.roleId === roleId)
-  const user = candidates.data?.find((u) => u.userId === userId)
-  const who = mode === 'EXISTING' ? user?.fullName : fullName.trim() || undefined
+  const who = match?.fullName ?? (fullName.trim() || undefined)
   const noRoles = roles.data?.length === 0
   return (
     <form onSubmit={submit} noValidate className="space-y-3">
-      {canExisting && (
-        <div role="radiogroup" aria-label="Add" className="inline-flex rounded-md border p-0.5 text-sm">
-          {(['EXISTING', 'NEW'] as const).map((m) => (
-            <button
-              key={m}
-              type="button"
-              role="radio"
-              aria-checked={mode === m}
-              onClick={() => {
-                setMode(m)
-                setErrors({})
-              }}
-              className={cn('rounded px-3 py-1', mode === m ? 'bg-muted font-medium text-foreground' : 'text-muted-foreground hover:text-foreground')}
-            >
-              {m === 'EXISTING' ? 'Existing user' : 'New person'}
-            </button>
-          ))}
-        </div>
-      )}
       <div className="flex flex-wrap items-end gap-3">
         <FormField id="mb-project" label="Project" className="w-44">
           <Input id="mb-project" value={project.name} readOnly disabled />
         </FormField>
-        {mode === 'EXISTING' ? (
-          <FormField id="mb-user" label="User" className="w-64">
-            <NativeSelect id="mb-user" value={userId} onChange={(e) => setUserId(e.target.value)}>
-              <option value="">Choose a user</option>
-              {(candidates.data ?? []).map((u) => (
-                <option key={u.userId} value={u.userId}>
-                  {u.fullName} · {u.email}
-                </option>
-              ))}
-            </NativeSelect>
+        <FormField id="mb-email" label="Email" className="w-72">
+          <Input
+            id="mb-email"
+            type="email"
+            list={canExisting ? 'mb-users' : undefined}
+            placeholder={canExisting ? 'Type a name or email' : 'name@company.com'}
+            value={email}
+            onChange={(e) => {
+              setEmail(e.target.value)
+              setErrors({})
+            }}
+            autoComplete="off"
+            aria-invalid={!!errors.email}
+            aria-describedby="mb-who"
+          />
+        </FormField>
+        {canExisting && (
+          <datalist id="mb-users">
+            {(candidates.data ?? []).map((u) => (
+              <option key={u.userId} value={u.email} label={u.fullName} />
+            ))}
+          </datalist>
+        )}
+        {isNew && (
+          <FormField id="mb-name" label="Full name" className="w-56">
+            <Input id="mb-name" value={fullName} onChange={(e) => setFullName(e.target.value)} autoComplete="off" aria-invalid={!!errors.fullName} />
           </FormField>
-        ) : (
-          <>
-            <FormField id="mb-name" label="Full name" className="w-56">
-              <Input id="mb-name" value={fullName} onChange={(e) => setFullName(e.target.value)} autoComplete="off" aria-invalid={!!errors.fullName} />
-            </FormField>
-            <FormField id="mb-email" label="Email" className="w-64">
-              <Input id="mb-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="off" aria-invalid={!!errors.email} />
-            </FormField>
-          </>
         )}
         <FormField id="mb-role" label="Project role" className="w-48">
           <NativeSelect id="mb-role" value={roleId} onChange={(e) => setRoleId(e.target.value)} disabled={noRoles}>
@@ -124,9 +115,18 @@ function AddMember({ project, canExisting, onAdded }: { project: Project; canExi
           </NativeSelect>
         </FormField>
         <Button type="submit" disabled={busy || noRoles}>
-          <Plus aria-hidden /> {mode === 'EXISTING' ? 'Add member' : 'Invite'}
+          <Plus aria-hidden /> {match ? 'Add member' : 'Invite'}
         </Button>
       </div>
+      <p id="mb-who" className="text-sm" aria-live="polite">
+        {match ? (
+          <>
+            <span className="font-medium">{match.fullName}</span> <span className="text-muted-foreground">· already a user of this merchant</span>
+          </>
+        ) : isNew ? (
+          <span className="text-muted-foreground">New to this merchant: they join as Member (no access elsewhere) with the project role here, and get an invitation by email.</span>
+        ) : null}
+      </p>
       {role && who && <AccessPreview who={who} permissions={role.permissions} where={project.name} />}
       {error && (
         <p role="alert" className="text-sm text-destructive">
@@ -134,9 +134,7 @@ function AddMember({ project, canExisting, onAdded }: { project: Project; canExi
         </p>
       )}
       <p className="text-xs text-muted-foreground">
-        {mode === 'EXISTING'
-          ? 'Users of this merchant. Someone new? Choose New person.'
-          : 'They join the merchant as Member (no access elsewhere) with this project role here, and get an invitation by email. An email of an existing user of this merchant adds the role to them.'}
+        {canExisting ? 'A user of this merchant is recognised by their email; anyone else gets an invitation.' : 'Invite someone new to this merchant. Adding an existing user to a project needs Members › Add / remove.'}
         {noRoles && ' You hold no project permissions, so there is no project role you can give (only what you hold).'}
       </p>
     </form>

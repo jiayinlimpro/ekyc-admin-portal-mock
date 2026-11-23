@@ -252,6 +252,11 @@ describe('userAdminService.inviteMember: a new person from Project › Members (
     expect(await roleService.assignable(fx('MER-0001'), AARON, fx('PRJ-0001'))).toEqual([])
     await expect(users.inviteMember(fx('PRJ-0001'), NEW, AARON)).rejects.toMatchObject({ code: 'FORBIDDEN', message: GRANT_TOO_POWERFUL })
     await expect(users.addMember(fx('PRJ-0001'), SITI.userId, REVIEWER, AARON)).rejects.toMatchObject({ code: 'FORBIDDEN' }) // existing users: Members › Add / remove only
+    // REQ: DEC-77 — the email of an existing user: refused before any role check, with the reason.
+    await expect(users.inviteMember(fx('PRJ-0001'), { ...NEW, email: 'siti.yusof@atoz.example' }, AARON)).rejects.toMatchObject({
+      code: 'VALIDATION',
+      details: [{ field: 'email', message: 'Already a user of this merchant. Adding an existing user to a project needs Members › Add / remove.' }],
+    })
   })
 
   it('Given an archived project or a suspended user’s email, then refused', async () => {

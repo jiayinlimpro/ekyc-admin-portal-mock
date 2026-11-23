@@ -563,18 +563,25 @@ Rules changed on 2026-10-20 (Projects & Flows restructure) are marked **(changed
   archived project keeps its assignments read-only and leaves the switcher. [PO 2026-10-20] Adding from this tab fixes the
   project (shown, not changeable) and lists only roles the actor may give; inherited rows link to the user's details when
   the actor may open them. [PO 2026-10-21]
-  **(changed 2026-11-22) Invite a new person from Members** [PO 2026-11-22; answers OQ-27]. The add form has **Existing
-  user | New person**. New person = full name, email and the project role; in one step it creates the **merchant user**
-  with the **Member** merchant role (no permissions), status Pending, invitation sent (simulated), and gives the project
-  role in this project only. The person then shows on the Users screen (Member, Pending; project access in the details)
-  and on Members.
+  **(changed 2026-11-22) Invite a new person from Members** [PO 2026-11-22; answers OQ-27]. A new person (full name,
+  email, project role) is created in one step as a **merchant user** with the **Member** merchant role (no permissions),
+  status Pending, invitation sent (simulated), with the project role in this project only. The person then shows on the
+  Users screen (Member, Pending; project access in the details) and on Members. Whoever adds them, the merchant role is
+  always Member: merchant roles are given on Users only (DEC-104), so adding someone to a project never gives access to
+  other projects (Langfuse does the same for project admins: organization role "None").
+  - **(changed 2026-11-23) One Email field, no tabs, no second dialog** [PO 2026-11-23] (as Langfuse, MongoDB Atlas):
+    typing suggests users of this merchant (name · email), for those with Members › Add / remove. An email of a user of
+    this merchant shows "already a user of this merchant" and the button **Add member**; any other email shows "New to this
+    merchant: they join as Member …", a **Full name** field and the button **Invite**. The service decides again on save.
   - **Who:** **Members › Add / remove** in the project **or** **Users › Invite** (merchant level). A merchant role holds
     for the whole merchant, so a merchant role with either permission may do it in every project; a project role only in
-    its project. **Existing user** and removing stay with Members › Add / remove. The Members screen opens for either
+    its project. Adding an **existing user** and removing stay with Members › Add / remove: with Users › Invite only, the
+    email of an existing user is refused ("Already a user of this merchant. Adding an existing user to a project needs
+    Members › Add / remove.") [PO 2026-11-23], and the field has no suggestions. The Members screen opens for either
     permission (Users › Invite already sees every user and their project access on the Users screen).
   - The project roles offered are still only those the actor may give (DEC-74 "give only what you hold"), so a role with
     Users › Invite but no project permissions (e.g. Atoz's User Coordinator) has no project role to give here.
-  - An email already used by a user of **this** merchant adds the project role to that user (no second account); one of
+  - An email already used by a user of **this** merchant (Members › Add / remove) adds the project role to that user (no second account); one of
     another merchant or a company staff email is refused as on New user (one merchant per user, DEC-104). Suspended users
     are not added. Archived projects take no new members; nobody changes their own access.
   - Audit: `USER_INVITED` (noting the project) and `USER_ACCESS_ADDED` in that project.
