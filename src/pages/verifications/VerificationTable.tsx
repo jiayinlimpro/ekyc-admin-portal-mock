@@ -10,37 +10,21 @@ import { DOCUMENT_TYPE_LABELS } from '@/lib/labels'
 import { cn } from '@/lib/utils'
 import type { VerificationSort, VerificationSortKey } from '@/services/verificationService'
 
-type Column = 'Full Name' | 'Project' | 'Flow' | 'Document' | 'Status' | 'Risk' | 'Claimed By' | 'Created (MYT)' | 'Last updated (MYT)'
+type Column = 'Reference ID' | 'Full Name' | 'Project' | 'Flow' | 'Status' | 'Risk' | 'Claimed By' | 'Created (MYT)' | 'Last updated (MYT)'
 
-// Sticky first column: on narrow screens the table still scrolls sideways, with the Verification ID and Reference ID visible.
+// Sticky first column: on narrow screens the table still scrolls sideways, with the Verification ID visible.
 // REQ: DEC-40 — related values share a column (second line) so the list fits a desktop screen without scrolling.
 const STICKY = 'sticky left-0 z-10 bg-card group-hover:bg-muted'
 
-// REQ: DEC-100 — the FRS sortable columns; Full Name, Merchant and the rest are not sortable.
-const SORT_KEY: Partial<Record<Column | 'Reference ID', VerificationSortKey>> = {
-  'Reference ID': 'referenceId',
+// REQ: DEC-100 — sortable: Status, Risk, Last updated. Never the IDs (DEC-114), Full Name or Merchant.
+const SORT_KEY: Partial<Record<Column, VerificationSortKey>> = {
   Status: 'status',
   Risk: 'riskResult',
   'Last updated (MYT)': 'lastUpdatedAt',
 }
 
-/** REQ: DEC-100 — a sortable name inside a header cell (the first column's Reference ID line). */
-function SortLabel({ name, sort, onSort, className }: { name: 'Reference ID'; sort?: VerificationSort; onSort?: (by: VerificationSortKey) => void; className?: string }) {
-  const key = SORT_KEY[name]!
-  if (!onSort) return <div className={className}>{name}</div>
-  const dir = sort?.by === key ? sort.dir : undefined
-  const Icon = dir === 'asc' ? ArrowUp : dir === 'desc' ? ArrowDown : ChevronsUpDown
-  const next = dir === 'asc' ? 'sort descending' : dir === 'desc' ? 'back to the default order' : 'sort ascending'
-  return (
-    <button type="button" onClick={() => onSort(key)} title={`Click to ${next}`} className={cn('-mx-1 flex items-center gap-1 rounded px-1 hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none', dir && 'text-foreground', className)}>
-      {name}
-      <Icon aria-hidden className={cn('size-3', !dir && 'opacity-50')} />
-    </button>
-  )
-}
-
 /** REQ: DEC-100 — a column name that sorts on click (ascending → descending → default), with its state as an icon. */
-function HeaderCell({ name, sort, onSort, className }: { name: Column | 'Reference ID'; sort?: VerificationSort; onSort?: (by: VerificationSortKey) => void; className?: string }) {
+function HeaderCell({ name, sort, onSort, className }: { name: Column; sort?: VerificationSort; onSort?: (by: VerificationSortKey) => void; className?: string }) {
   const key = SORT_KEY[name]
   const th = cn('px-2 py-2 font-medium whitespace-nowrap', className)
   if (!key || !onSort) {
@@ -126,16 +110,19 @@ export function VerificationTable({
   /** REQ: DEC-100 — the column sort; undefined = the default order. Without `onSort` the headers don't sort. */
   sort?: VerificationSort
   onSort?: (by: VerificationSortKey) => void
-  /** REQ: DEC-104 — whether the Reference ID links to the case page (View details); otherwise plain text. */
+  /** REQ: DEC-104 — whether the Verification ID links to the case page (View details); otherwise plain text. */
   canOpen?: (row: VerificationSummary) => boolean
 }) {
   const now = useNow(1000) // drives the claim countdowns
   type Cell = [Column, (r: VerificationSummary) => React.ReactNode, boolean?]
   const all: Cell[] = [
+    // REQ: DEC-114 — the merchant's Reference ID in its own column, after our Verification ID; not sortable (DEC-100).
+    ['Reference ID', (r) => <span className="font-mono text-xs whitespace-nowrap">{r.referenceId}</span>],
     ['Full Name', (r) => <span className="block min-w-28">{r.fullName}</span>],
     ['Project', (r) => <TwoLines top={r.projectName} sub={showMerchant ? r.merchantName : undefined} />, showProject || showMerchant],
-    ['Flow', (r) => <TwoLines top={r.flowName} sub={r.workflowVersion} />],
-    ['Document', (r) => <span className="whitespace-nowrap">{DOCUMENT_TYPE_LABELS[r.documentType]}</span>],
+    // REQ: DEC-40 — the workflow and the document type share the Flow cell's second line ("W4 · MyKad").
+    // A long flow name wraps (like Full Name) so the list fits 1440 px (DEC-40).
+    ['Flow', (r) => <TwoLines top={<span className="block max-w-32 whitespace-normal">{r.flowName}</span>} sub={`${r.workflowVersion} · ${DOCUMENT_TYPE_LABELS[r.documentType]}`} />],
     ['Status', (r) => <StatusBadge status={r.status} />],
     ['Risk', (r) => <RiskBadge result={r.riskResult} />, showRisk],
     ['Claimed By', (r) => <ClaimedByCell row={r} now={now} currentUserId={currentUserId} />],
@@ -149,10 +136,9 @@ export function VerificationTable({
         <caption className="sr-only">Verifications. Personal data other than Full Name is shown on the detail page only.</caption>
         <thead className="bg-muted/50 text-left text-xs text-muted-foreground">
           <tr>
-            {/* REQ: DEC-114 — our Verification ID first, the merchant's Reference ID on the second line (still sortable, DEC-100). */}
-            <th scope="col" className="sticky left-0 z-10 bg-muted px-2 py-2 align-bottom font-medium whitespace-nowrap">
-              <div>Verification ID</div>
-              <SortLabel name="Reference ID" sort={sort} onSort={onSort} className="text-[11px] font-normal" />
+            {/* REQ: DEC-114 — our Verification ID first (pinned, opens the case), then the merchant's Reference ID. */}
+            <th scope="col" className="sticky left-0 z-10 bg-muted px-2 py-2 font-medium whitespace-nowrap">
+              Verification ID
             </th>
             {cells.map(([c]) => (
               <HeaderCell key={c} name={c} sort={sort} onSort={onSort} />
@@ -183,10 +169,6 @@ export function VerificationTable({
                     {r.verificationId}
                   </span>
                 )}
-                <div className="font-mono text-xs whitespace-nowrap text-muted-foreground">
-                  <span className="sr-only">Reference ID </span>
-                  {r.referenceId}
-                </div>
               </th>
               {cells.map(([c, render]) => (
                 <td key={c} className="px-2 py-2">

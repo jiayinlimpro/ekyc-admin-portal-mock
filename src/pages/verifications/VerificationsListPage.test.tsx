@@ -78,11 +78,13 @@ describe('Verifications List', () => {
     expect(screen.queryByLabelText(/^Merchant/)).toBeNull() // no merchant filter
   })
 
-  it('Given Atoz Default in the header, then the Risk column, version under Flow, no Project column or filter and no Actions column; SME app (W3) has no Risk (DEC-40, DEC-109)', async () => {
+  it('Given Atoz Default in the header, then Verification ID and Reference ID columns, the Risk column, workflow and document under Flow, no Project column or filter and no Actions column; SME app (W3) has no Risk (DEC-40, DEC-109, DEC-114)', async () => {
     renderAt('/verifications?status=ALL')
     await dataRows()
     const headers = within(table()).getAllByRole('columnheader').map((h) => h.textContent)
-    expect(headers).toEqual(['Verification IDReference ID', 'Full Name', 'Flow', 'Document', 'Status', 'Risk', 'Claimed By', 'Created (MYT)', 'Last updated (MYT)'])
+    expect(headers).toEqual(['Verification ID', 'Reference ID', 'Full Name', 'Flow', 'Status', 'Risk', 'Claimed By', 'Created (MYT)', 'Last updated (MYT)'])
+    for (const id of ['Verification ID', 'Reference ID']) expect(within(table()).getByRole('columnheader', { name: id }).querySelector('button')).toBeNull() // REQ: DEC-100 — not sortable
+    expect((await dataRows())[0].textContent).toMatch(/W[0-9]+ · (MyKad|Passport|Driving License)/)
     expect(screen.queryByLabelText('Project')).toBeNull()
     cleanup()
     useSession.getState().switchUser(HAFIZ) // one project (SME app, W3: no risk)
@@ -124,7 +126,7 @@ describe('Verifications List', () => {
     for (const r of rows) expect(r.textContent).toContain('Unsuccessful')
   })
 
-  it('Given a Verification ID, when Search, then only that case; the row shows it first with the Reference ID under it (DEC-114)', async () => {
+  it('Given a Verification ID, when Search, then only that case; the row shows it first, then the Reference ID in its own column (DEC-114)', async () => {
     const router = renderAt('/verifications?status=ALL')
     await dataRows()
     fireEvent.change(screen.getByLabelText('Verification ID'), { target: { value: ` ${verificationIdOf('KYC-260901-900003').toUpperCase()} ` } })
@@ -133,14 +135,8 @@ describe('Verifications List', () => {
     await waitFor(async () => expect(await dataRows()).toHaveLength(1))
     const th = within(table()).getAllByRole('rowheader')[0]
     expect(within(th).getByRole('link').textContent).toBe(verificationIdOf('KYC-260901-900003'))
-    expect(th.textContent).toBe(`${verificationIdOf('KYC-260901-900003')}Reference ID KYC-260901-900003`)
-  })
-
-  it('Given the Reference ID line in the first header, when clicked, then the list sorts by Reference ID (DEC-100, DEC-114)', async () => {
-    const router = renderAt('/verifications?status=ALL')
-    await dataRows()
-    fireEvent.click(within(table()).getByRole('button', { name: 'Reference ID' }))
-    await waitFor(() => expect(router.state.location.search).toContain('sort=referenceId.asc'))
+    expect(th.textContent).toBe(verificationIdOf('KYC-260901-900003'))
+    expect(th.nextElementSibling!.textContent).toBe('KYC-260901-900003')
   })
 
   it('Given Claim = Claimed by me, then S07 and S08 show with a "You" marker and the countdown under Claimed By', async () => {
@@ -177,7 +173,7 @@ describe('Verifications List', () => {
     useSession.getState().switchUser(ADMIN)
     renderAt('/verifications?status=ALL&referenceId=KYC-260901-900013', fx('PRJ-0003'))
     const row = (await screen.findByRole('link', { name: verificationIdOf('KYC-260901-900013') })).closest('tr')!
-    expect(row.textContent).toContain('KYC-260901-900013') // the Reference ID under it
+    expect(row.textContent).toContain('KYC-260901-900013') // the Reference ID column
     expect(row.textContent).toContain('Standard onboarding')
     expect(row.textContent).not.toContain('Vantage') // one project: no merchant line
   })

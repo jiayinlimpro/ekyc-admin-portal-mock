@@ -23,8 +23,8 @@ import { settleRetiringFlow } from './flowService'
 import { ServiceError } from './errors'
 import { clientIpFor, simulateNetwork, wire } from './network'
 
-/** REQ: DEC-100 — the columns the FRS lets the list sort on (never Full Name or Merchant). */
-export const VERIFICATION_SORT_KEYS = ['referenceId', 'status', 'riskResult', 'lastUpdatedAt'] as const
+/** REQ: DEC-100 — the columns the list sorts on: Status, Risk, Last updated (never the IDs, Full Name or Merchant). */
+export const VERIFICATION_SORT_KEYS = ['status', 'riskResult', 'lastUpdatedAt'] as const
 export type VerificationSortKey = (typeof VERIFICATION_SORT_KEYS)[number]
 export interface VerificationSort {
   by: VerificationSortKey
@@ -56,9 +56,9 @@ export interface VerificationQuery {
 const STATUS_ORDER = (s: VerificationStatus) => VERIFICATION_STATUSES.indexOf(s)
 const RISK_ORDER = (r?: RiskResult) => (r ? RISK_RESULTS.indexOf(r) : undefined)
 
-/** REQ: DEC-43 / DEC-100 — the chosen column, then the default order (Last updated oldest first, then Reference No.). */
+/** REQ: DEC-43 / DEC-100 — the chosen column, then the default order: Last updated oldest first, then Created (never an ID). */
 function compareBy(sort?: VerificationSort) {
-  const byDefault = (a: Verification, b: Verification) => a.lastUpdatedAt.localeCompare(b.lastUpdatedAt) || a.referenceId.localeCompare(b.referenceId)
+  const byDefault = (a: Verification, b: Verification) => a.lastUpdatedAt.localeCompare(b.lastUpdatedAt) || a.createdAt.localeCompare(b.createdAt)
   if (!sort) return byDefault
   const sign = sort.dir === 'asc' ? 1 : -1
   return (a: Verification, b: Verification) => {
@@ -67,7 +67,7 @@ function compareBy(sort?: VerificationSort) {
       if (x === undefined || y === undefined) return (x === undefined ? 1 : 0) - (y === undefined ? 1 : 0) || byDefault(a, b)
       return sign * (x - y) || byDefault(a, b)
     }
-    const c = sort.by === 'status' ? STATUS_ORDER(a.status) - STATUS_ORDER(b.status) : sort.by === 'referenceId' ? a.referenceId.localeCompare(b.referenceId) : byDefault(a, b)
+    const c = sort.by === 'status' ? STATUS_ORDER(a.status) - STATUS_ORDER(b.status) : byDefault(a, b)
     return sign * c || byDefault(a, b)
   }
 }

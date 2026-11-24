@@ -80,15 +80,15 @@ describe('verificationService.list', () => {
   it('Given no sort, then oldest Last updated first; Last updated descending reverses it (DEC-43)', async () => {
     const oldest = (await svc.list({ statuses: ['PENDING_REVIEW'], pageSize: 500 }, ALI)).items.map((r) => r.lastUpdatedAt)
     expect(oldest).toEqual([...oldest].sort())
+    // REQ: DEC-100 — the same Last updated: Created decides (never an ID).
+    const both = (await svc.list({ statuses: ['PENDING_REVIEW'], pageSize: 500 }, ALI)).items.map((r) => `${r.lastUpdatedAt}|${r.createdAt}`)
+    expect(both).toEqual([...both].sort())
     const newest = (await svc.list({ statuses: ['PENDING_REVIEW'], sort: { by: 'lastUpdatedAt', dir: 'desc' }, pageSize: 500 }, ALI)).items.map((r) => r.lastUpdatedAt)
     expect(newest).toEqual([...oldest].reverse())
   })
 
-  it('Given a column sort, then Reference ID, status (lifecycle order) and risk (Low → High, none last) sort both ways (DEC-100, DEC-107)', async () => {
-    const list = async (by: 'referenceId' | 'status' | 'riskResult', dir: 'asc' | 'desc') => (await svc.list({ sort: { by, dir }, pageSize: 500 }, OWNER)).items
-    const refs = (await list('referenceId', 'asc')).map((r) => r.referenceId)
-    expect(refs).toEqual([...refs].sort())
-    expect((await list('referenceId', 'desc')).map((r) => r.referenceId)).toEqual([...refs].reverse())
+  it('Given a column sort, then status (lifecycle order) and risk (Low → High, none last) sort both ways; the IDs never sort (DEC-100, DEC-107, DEC-114)', async () => {
+    const list = async (by: 'status' | 'riskResult', dir: 'asc' | 'desc') => (await svc.list({ sort: { by, dir }, pageSize: 500 }, OWNER)).items
     const order = ['PROCESSING', 'PENDING_REVIEW', 'APPROVED', 'REJECTED', 'UNSUCCESSFUL'] // REQ: DEC-112
     const statuses = (await list('status', 'asc')).map((r) => order.indexOf(r.status))
     expect(statuses).toEqual([...statuses].sort((a, b) => a - b))

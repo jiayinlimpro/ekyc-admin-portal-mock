@@ -258,14 +258,19 @@ Rules changed on 2026-10-20 (Projects & Flows restructure) are marked **(changed
   - The case stores the reasons chosen (code and name at the time); the decision audit entry records them.
 
 ## Visibility, PII & audit
-- **DEC-40** **(changed)** Verifications List columns: Verification ID with the Reference ID on its second line (DEC-114), Full Name, Project (when more than one project is in view),
+- **DEC-40** **(changed)** Verifications List columns: Verification ID, Reference ID (each its own column, DEC-114; changed 2026-11-24), Full Name, Project (when more than one project is in view),
   Flow, Workflow version, Document type, Status, Risk (Low risk / High risk; only when a flow in view runs risk, DEC-107), Claimed by (or "Unclaimed"),
   Claim expires, Created, Last updated. No other PII, no client metadata, no duplicate-user information. Enforced by the
   `VerificationSummary` type. [MS][FRS][PO 2026-10-20]
   - Layout, same information [PO 2026-10-21]: the list must fit a desktop screen without scrolling sideways, so related
-    values share a column on a second line: Flow / version, Claimed by / countdown and expiry time, Last updated / by whom
-    (SYSTEM or the user), Project / merchant (only when the rows span merchants, i.e. Platform Admin). Times are MYT (in the
-    header). No Actions column: the Reference ID opens the case.
+    values share a column on a second line: Flow / workflow and document type ("W4 · MyKad"; Document was its own column
+    until 2026-11-24), Claimed by / countdown and expiry time, Last updated / by whom (SYSTEM or the user), Project /
+    merchant (only when the rows span merchants, i.e. Platform Admin). Times are MYT (in the header). No Actions column: the
+    Verification ID opens the case (pinned on the left when the table scrolls sideways).
+  - **(changed 2026-11-24)** [PO 2026-11-24] The two IDs had shared one cell, with a sort button on the Reference ID line
+    only, which was confusing. Wherever both IDs are shown (Persona Accounts, Jumio Explorer) each has its own column.
+    Document joins the Flow cell so the extra column costs no width: none of the leaders checked has a document type column
+    by default (Persona's lists: ID, template, created, status).
 - **DEC-41** Detail view: full unmasked PII + client metadata. **Every** open writes a `SENSITIVE_PII_VIEW` audit entry.
 - **DEC-42** **(changed)** Every mutation writes an audit entry (actor or SYSTEM, role, project, event, target, old and new
   value, IP). Event actions:
@@ -284,11 +289,13 @@ Rules changed on 2026-10-20 (Projects & Flows restructure) are marked **(changed
   others), risk (Low risk / High risk), date range; search by Reference ID and Full Name. Default view: `PENDING_REVIEW` cases in the user's
   projects, oldest first. [MS][FRS]
 - **DEC-100** **(new)** Verifications List sorting is on the column names, not in the filters [PO 2026-10-22]. Sortable
-  columns, per the FRS: Reference ID, Status, Risk, Last updated (never Full Name or Merchant). Each click on a
+  columns: Status, Risk, Last updated (never Full Name or Merchant; **never an ID**: the Reference ID sort was dropped
+  2026-11-24 [PO 2026-11-24], as the Verification ID is random (DEC-97) and the Reference ID is the merchant's free text: a
+  case is found by searching or filtering on it, not by sorting). Each click on a
   column: ascending → descending → back to the default order (Last updated, oldest first, DEC-43; this replaces the FRS
   default "updatedAt descending" for the review queue). The column shows its state with a small icon (and `aria-sort`).
   Status sorts in lifecycle order (Processing, Pending Review, Approved, Rejected, Unsuccessful); risk Low → High, cases without a risk
-  result last either way; ties by Last updated, then Reference ID. A sort applies at once and is kept in the URL
+  result last either way; ties by Last updated, then Created (changed 2026-11-24: was Reference ID). A sort applies at once and is kept in the URL
   (`sort=status.asc`); it does not reset the filters. [FRS][PO 2026-10-22]
 - **DEC-101** **(new)** The Created filter is one date-range field, not "Created from" and "Created to" [PO 2026-10-22].
   It reads "08 Oct 2026 – 17 Oct 2026" (MYT) and opens a calendar of two months (one on a phone): the first click picks the
@@ -827,13 +834,14 @@ Rules changed on 2026-10-20 (Projects & Flows restructure) are marked **(changed
     `referenceNo`, from the FRS "Reference No.").
   - **Verification ID first, then Reference ID**, wherever both appear (Persona's inquiry Info panel lists the Inquiry ID,
     then the Reference ID).
-  - Verifications list: first column **Verification ID** (opens the case) with the **Reference ID** on its second line
-    (DEC-40 layout); still sortable by Reference ID (DEC-100), never by Verification ID (DEC-97). Filters: **Verification
-    ID** (exact) and **Reference ID**.
+  - Verifications list: first column **Verification ID** (opens the case, pinned), then a **Reference ID** column
+    (changed 2026-11-24: they had shared one cell). Neither sorts (DEC-100). Filters: **Verification ID** (exact) and
+    **Reference ID**.
   - Header search: an exact Verification ID opens the case; anything else is looked up as a Reference ID.
   - Case page: the heading is the Verification ID (copy), the Reference ID (copy) beside it; the browser tab and breadcrumb
     show the Verification ID.
-  - Billing and Audit Log: Verification ID (opens the case) and Reference ID columns; exports name both the same way.
+  - Billing and Audit Log: Verification ID (opens the case) and Reference ID, each its own column on screen (changed
+    2026-11-24: they had shared one cell) and in the exports.
   - The demo Reference IDs keep the `KYC-260901-9000NN` look: they stand for a merchant's value (MOCK-05).
   - Supersedes the [FRS] masks `KYC-YYMMDD-XXXXXX` (platform-generated Reference No. as key), `USR-2026-XXXX` and
     `ROL-2026-XXXX` and their columns (DEC-74, DEC-76, DEC-79).

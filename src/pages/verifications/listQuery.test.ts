@@ -54,16 +54,17 @@ describe('parseListParams / toSearchParams', () => {
     expect(toSearchParams({ filters: DEFAULT_FILTERS, sort: { by: 'status', dir: 'asc' }, page: 1, pageSize: DEFAULT_PAGE_SIZE }).toString()).toBe('sort=status.asc')
     expect(parse('sort=newest').sort).toEqual({ by: 'lastUpdatedAt', dir: 'desc' })
     expect(parse('sort=fullName.asc').sort).toBeUndefined() // not sortable (FRS)
+    expect(parse('sort=referenceId.asc').sort).toBeUndefined() // REQ: DEC-100 — IDs are not sortable (DEC-114)
     expect(parse('sort=status.sideways').sort).toBeUndefined()
   })
 
   it('Given clicks on one column, then ascending, descending, then the default order; another column starts at ascending (DEC-100)', () => {
-    const asc = nextSort(undefined, 'referenceId')
-    expect(asc).toEqual({ by: 'referenceId', dir: 'asc' })
-    const desc = nextSort(asc, 'referenceId')
-    expect(desc).toEqual({ by: 'referenceId', dir: 'desc' })
-    expect(nextSort(desc, 'referenceId')).toBeUndefined()
-    expect(nextSort(desc, 'status')).toEqual({ by: 'status', dir: 'asc' })
+    const asc = nextSort(undefined, 'status')
+    expect(asc).toEqual({ by: 'status', dir: 'asc' })
+    const desc = nextSort(asc, 'status')
+    expect(desc).toEqual({ by: 'status', dir: 'desc' })
+    expect(nextSort(desc, 'status')).toBeUndefined()
+    expect(nextSort(desc, 'riskResult')).toEqual({ by: 'riskResult', dir: 'asc' })
   })
 
   it('knows the default view whatever the status order', () => {
