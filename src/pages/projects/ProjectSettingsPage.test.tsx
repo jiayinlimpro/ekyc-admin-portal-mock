@@ -159,27 +159,66 @@ describe('Members, in the project sidebar (DEC-77, DEC-109)', () => {
     const role = p.getByLabelText('Project role')
     await waitFor(() => expect(within(role).getAllByRole('option').map((o) => o.textContent)).not.toContain('Owner'))
     fireEvent.change(role, { target: { value: fx('ROL-2026-0003') } })
-    fireEvent.click(p.getByRole('button', { name: /Add member/ }))
+    fireEvent.click(p.getByRole('button', { name: 'Add' }))
     expect((await p.findByRole('rowheader', { name: 'Siti Aminah Binti Yusof' })).closest('tr')!.textContent).toContain('Reviewer')
+    expect(screen.queryByRole('dialog')).toBeNull() // an existing user is added at once
   })
 
-  it('Given an email that is not a user yet, then Full name appears and Hafiz invites them: listed here as Reviewer, Pending, and a Member of the merchant (DEC-77, OQ-27)', async () => {
+  it('Given an email that is not a user yet, when Add, then the invitation dialog asks for the name and says what happens; Send invitation lists them as Reviewer, Pending, and a Member of the merchant (DEC-77, OQ-27)', async () => {
     useSession.getState().switchUser(HAFIZ)
     renderAt('/members')
     const p = within(await screen.findByRole('region', { name: 'Members' }))
     expect(p.queryByLabelText('Full name')).toBeNull()
     fireEvent.change(await p.findByLabelText('Email'), { target: { value: 'farah.ismail@atoz.example' } })
-    expect(p.getByText(/New to this merchant: they join as Member/)).toBeTruthy()
-    fireEvent.change(p.getByLabelText('Full name'), { target: { value: 'Farah Binti Ismail' } })
     const role = p.getByLabelText('Project role')
     await waitFor(() => expect(within(role).getAllByRole('option').length).toBeGreaterThan(1))
     fireEvent.change(role, { target: { value: fx('ROL-2026-0003') } })
-    fireEvent.click(p.getByRole('button', { name: /Invite/ }))
+    fireEvent.click(p.getByRole('button', { name: 'Add' }))
+    const dialog = within(await screen.findByRole('dialog', { name: 'Invite a new person to Atoz Software Tech?' }))
+    expect(dialog.getByText('farah.ismail@atoz.example')).toBeTruthy()
+    expect(dialog.getByText(/: no access in other projects\./)).toBeTruthy()
+    expect(dialog.getByText(/stays Pending until they accept/)).toBeTruthy()
+    fireEvent.click(dialog.getByRole('button', { name: 'Send invitation' }))
+    expect(await dialog.findByText('Enter a full name.')).toBeTruthy()
+    fireEvent.change(dialog.getByLabelText('Full name'), { target: { value: 'Farah Binti Ismail' } })
+    fireEvent.click(dialog.getByRole('button', { name: 'Send invitation' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
     const row = (await p.findByRole('rowheader', { name: 'Farah Binti Ismail' })).closest('tr')!
     expect(row.textContent).toContain('Reviewer')
     expect(row.textContent).toContain('Pending')
     const farah = db.state().accounts.find((a) => a.email === 'farah.ismail@atoz.example')!
     expect(farah.assignments.map((x) => x.scope.kind)).toEqual(['ALL_PROJECTS', 'PROJECTS']) // Member + the project role
+  })
+
+  it('Given a mistyped email, when Add, then the dialog says it is not a user yet, and Back returns to the form with the email kept (DEC-77)', async () => {
+    useSession.getState().switchUser(HAFIZ)
+    renderAt('/members')
+    const p = within(await screen.findByRole('region', { name: 'Members' }))
+    const email = (await p.findByLabelText('Email')) as HTMLInputElement
+    fireEvent.change(email, { target: { value: 'siti.yusuf@atoz.example' } }) // a typo of siti.yusof
+    const role = p.getByLabelText('Project role')
+    await waitFor(() => expect(within(role).getAllByRole('option').length).toBeGreaterThan(1))
+    fireEvent.change(role, { target: { value: fx('ROL-2026-0003') } })
+    fireEvent.click(p.getByRole('button', { name: 'Add' }))
+    const dialog = within(await screen.findByRole('dialog'))
+    expect(dialog.getByText(/isn’t a user of Atoz Software Tech yet/)).toBeTruthy()
+    fireEvent.click(dialog.getByRole('button', { name: 'Back' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    expect(email.value).toBe('siti.yusuf@atoz.example')
+    expect(db.state().accounts.some((a) => a.email === 'siti.yusuf@atoz.example')).toBe(false) // nothing saved
+  })
+
+  it('Given the email of another merchant’s user, when Add, then refused under the field, and no dialog opens (DEC-104)', async () => {
+    useSession.getState().switchUser(HAFIZ)
+    renderAt('/members')
+    const p = within(await screen.findByRole('region', { name: 'Members' }))
+    fireEvent.change(await p.findByLabelText('Email'), { target: { value: 'kavitha.s@vantage.example' } })
+    const role = p.getByLabelText('Project role')
+    await waitFor(() => expect(within(role).getAllByRole('option').length).toBeGreaterThan(1))
+    fireEvent.change(role, { target: { value: fx('ROL-2026-0003') } })
+    fireEvent.click(p.getByRole('button', { name: 'Add' }))
+    expect((await p.findByRole('alert')).textContent).toBe('This email belongs to a user of another merchant. A user belongs to one merchant only.')
+    expect(screen.queryByRole('dialog')).toBeNull()
   })
 
   it('Given Aaron (Users › Invite only), then Members opens for inviting new people only (no suggestions), and no project role he could give (DEC-74, DEC-77)', async () => {

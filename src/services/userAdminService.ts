@@ -8,6 +8,7 @@
 //   POST   /users/{id}/suspend | /reactivate        suspend/reactivate → 200 UserRow
 //   GET    /projects/{id}/members                   listMembers        → 200 MemberRow[]
 //   POST   /projects/{id}/members                   addMember          → 200 MemberRow[]
+//   POST   /projects/{id}/members/email-check       checkMemberEmail   → 200 MemberEmailCheck | 403 | 422
 //   POST   /projects/{id}/members/invitations       inviteMember       → 200 { members, userId, existing } | 403 | 422
 //   DELETE /projects/{id}/members/{uid}/{aid}       removeMember       → 200 MemberRow[]
 import { canAnyInProject, canInMerchant, canInProject, hasProject, isInternal } from '@/domain/access'
@@ -79,6 +80,14 @@ export interface InviteMemberInput {
   roleId: string
 }
 
+/**
+ * REQ: DEC-77 — Add on Project › Members checks the email first: a user of this merchant is added at once; a new email
+ * opens the invitation dialog; anything that can't be added is refused here, before any dialog.
+ */
+export type MemberEmailCheck =
+  | { kind: 'EXISTING'; userId: string; fullName: string; merchantName: string }
+  | { kind: 'NEW'; email: string; merchantName: string }
+
 export interface InviteMemberResult {
   members: MemberRow[]
   userId: string
@@ -112,6 +121,8 @@ export interface UserAdminService {
   addMember(projectId: string, userId: string, roleId: string, actor: Actor): Promise<MemberRow[]>
   /** REQ: DEC-77 / OQ-27 — New person: a merchant user with the Member role, plus the project role here. */
   inviteMember(projectId: string, input: InviteMemberInput, actor: Actor): Promise<InviteMemberResult>
+  /** REQ: DEC-77 — existing user, new person, or refused (VALIDATION on `email` / `roleId`), before anything is saved. */
+  checkMemberEmail(projectId: string, input: { email: string; roleId: string }, actor: Actor): Promise<MemberEmailCheck>
   removeMember(projectId: string, userId: string, assignmentId: string, actor: Actor): Promise<MemberRow[]>
 }
 
@@ -175,6 +186,36 @@ const USER_ACTION_TEXT = { viewUsers: 'view users', inviteUsers: 'invite users',
 // REQ: DEC-102 — each operation on the Users screen needs its own permission.
 function requireUsersScreen(me: AccountAccess, merchantId: string, action: keyof typeof USER_ACTION_TEXT = 'viewUsers') {
   if (!canInMerchant(me, action, merchantId)) throw new ServiceError('FORBIDDEN', `You do not have permission to ${USER_ACTION_TEXT[action]}.`)
+}
+
+/**
+ * REQ: DEC-77 / DEC-104 — what an email typed on Project › Members means: a user of this merchant (needs Members › Add /
+ * remove; not suspended; not yourself; not already this role here), or a new person (not a user anywhere, not a staff
+ * email). The project role is checked too ("give only what you hold", DEC-74). Throws VALIDATION / FORBIDDEN otherwise.
+ */
+function classifyMemberEmail(actor: Actor, me: AccountAccess, p: Project, rawEmail: string, roleId: string) {
+  if (p.status !== 'ACTIVE') throw validation([{ field: 'scope', message: 'Archived projects keep their members but take no new ones.' }])
+  const email = rawEmail.trim().toLowerCase()
+  if (!EMAIL.test(email)) throw validation([{ field: 'email', message: 'Enter a valid email address' }])
+  if (!roleId) throw validation([{ field: 'roleId', message: 'Choose a role.' }])
+  const known = db.state().accounts.find((a) => a.email.toLowerCase() === email)
+  if (known && known.merchantId === p.merchantId) {
+    // Users › Invite brings in new people only; adding an existing user to a project is Members › Add / remove.
+    if (!canInProject(me, 'manageMembers', p)) {
+      throw validation([{ field: 'email', message: 'Already a user of this merchant. Adding an existing user to a project needs Members › Add / remove.' }])
+    }
+    if (known.status === 'SUSPENDED') throw validation([{ field: 'email', message: `${known.fullName} is suspended. Reactivate them on the Users screen first.` }])
+    notSelf(actor, known)
+    const role = checkProjectRole(me, p, roleId)
+    if (known.assignments.some((x) => x.roleId === role.roleId && x.scope.kind === 'PROJECTS' && x.scope.projectIds.includes(p.projectId))) {
+      throw validation([{ field: 'email', message: `${known.fullName} is already ${role.name} in this project.` }])
+    }
+    return { kind: 'EXISTING' as const, account: known as UserAccount & { merchantId: string }, role, email }
+  }
+  // One merchant per user (DEC-104); staff use staff accounts. No merchant-less account exists (DEC-77).
+  if (isStaffEmail(email, STAFF_EMAIL_DOMAIN)) throw validation([{ field: 'email', message: `Company staff emails (@${STAFF_EMAIL_DOMAIN}) can’t be used for merchant users.` }])
+  if (known) throw validation([{ field: 'email', message: 'This email belongs to a user of another merchant. A user belongs to one merchant only.' }])
+  return { kind: 'NEW' as const, role: checkProjectRole(me, p, roleId), email }
 }
 
 /** A merchant user the actor may see, or "not found". Super admins and staff are internal and not listed here (DEC-70). */
@@ -476,34 +517,31 @@ export const mockUserAdminService: UserAdminService = {
 
   // REQ: DEC-77 / OQ-27 — Members › Add / remove here, or Users › Invite (merchant level). One step: the merchant user with
   // the Member role (no permissions; Pending, invitation sent) and the project role in this project only.
+  async checkMemberEmail(projectId, input, actor) {
+    await simulateNetwork('check member email')
+    const me = requireActive(actor)
+    const p = membersProject(actor, projectId, 'inviteMembers')
+    const c = classifyMemberEmail(actor, me, p, input.email, input.roleId)
+    const merchant = merchantName(p.merchantId)
+    return wire(c.kind === 'EXISTING' ? { kind: 'EXISTING', userId: c.account.userId, fullName: c.account.fullName, merchantName: merchant } : { kind: 'NEW', email: c.email, merchantName: merchant })
+  },
+
   async inviteMember(projectId, input, actor) {
     await simulateNetwork('invite member')
     const me = requireActive(actor)
     const p = membersProject(actor, projectId, 'inviteMembers')
-    if (p.status !== 'ACTIVE') throw validation([{ field: 'scope', message: 'Archived projects keep their members but take no new ones.' }])
-    if (!input.roleId) throw validation([{ field: 'roleId', message: 'Choose a role.' }])
-    const email = input.email.trim().toLowerCase()
-    const known = db.state().accounts.find((a) => a.email.toLowerCase() === email)
+    const c = classifyMemberEmail(actor, me, p, input.email, input.roleId)
     // The email is already a user of this merchant: add the project role to them, no second account (DEC-104).
-    if (known && known.merchantId === p.merchantId) {
-      // REQ: DEC-77 — Users › Invite brings in new people only; adding an existing user to a project is Members › Add / remove.
-      if (!canInProject(me, 'manageMembers', p)) {
-        throw validation([{ field: 'email', message: `Already a user of this merchant. Adding an existing user to a project needs Members › Add / remove.` }])
-      }
-      if (known.status === 'SUSPENDED') throw validation([{ field: 'email', message: `${known.fullName} is suspended. Reactivate them on the Users screen first.` }])
-      notSelf(actor, known)
-      const role = checkProjectRole(me, p, input.roleId)
-      if (known.assignments.some((x) => x.roleId === role.roleId && x.scope.kind === 'PROJECTS' && x.scope.projectIds.includes(projectId))) {
-        throw validation([{ field: 'email', message: `${known.fullName} is already ${role.name} in this project.` }])
-      }
-      const assignment: RoleAssignment = { assignmentId: nextAssignmentId(), roleId: role.roleId, scope: { kind: 'PROJECTS', projectIds: [projectId] }, addedBy: by(actor), addedAt: now().toISOString() }
+    if (c.kind === 'EXISTING') {
+      const known = c.account
+      const assignment: RoleAssignment = { assignmentId: nextAssignmentId(), roleId: c.role.roleId, scope: { kind: 'PROJECTS', projectIds: [projectId] }, addedBy: by(actor), addedAt: now().toISOString() }
       putAccount({ ...known, assignments: [...known.assignments, assignment] })
       auditAccess(actor, 'USER_ACCESS_ADDED', p.merchantId, { userId: known.userId, fullName: known.fullName, assignmentId: assignment.assignmentId, summary: `${known.fullName}: ${label(assignment)} added` }, projectId)
       return wire({ members: membersOf(actor, p), userId: known.userId, existing: true })
     }
-    // Otherwise a new merchant user: the same checks as New user (another merchant's email, staff domain → refused).
-    requireNewUser(input, 'MERCHANT')
-    const role = checkProjectRole(me, p, input.roleId)
+    // A new merchant user: the same checks as New user (full name too).
+    const email = requireNewUser(input, 'MERCHANT')
+    const role = c.role
     const at = now().toISOString()
     const member = roleOf(DEFAULT_MERCHANT_ROLE_ID)!
     const project: RoleAssignment = { assignmentId: nextAssignmentId(), roleId: role.roleId, scope: { kind: 'PROJECTS', projectIds: [projectId] }, addedBy: by(actor), addedAt: at }

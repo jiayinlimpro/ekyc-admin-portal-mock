@@ -569,10 +569,24 @@ Rules changed on 2026-10-20 (Projects & Flows restructure) are marked **(changed
   Users screen (Member, Pending; project access in the details) and on Members. Whoever adds them, the merchant role is
   always Member: merchant roles are given on Users only (DEC-104), so adding someone to a project never gives access to
   other projects (Langfuse does the same for project admins: organization role "None").
-  - **(changed 2026-11-23) One Email field, no tabs, no second dialog** [PO 2026-11-23] (as Langfuse, MongoDB Atlas):
-    typing suggests users of this merchant (name · email), for those with Members › Add / remove. An email of a user of
-    this merchant shows "already a user of this merchant" and the button **Add member**; any other email shows "New to this
-    merchant: they join as Member …", a **Full name** field and the button **Invite**. The service decides again on save.
+  - **(changed 2026-11-24) Email + Project role + Add; a dialog only for a new email** [PO 2026-11-24, was "no second
+    dialog" 2026-11-23]. One Email field, no tabs (as Langfuse, MongoDB Atlas); typing suggests users of this merchant
+    (name · email) for those with Members › Add / remove. **Add checks the email first** (`checkMemberEmail`):
+    - A user of this merchant → added at once (toast "… added as Reviewer"), no dialog.
+    - Anything that can never be added → refused **under the Email field**, before any dialog: another merchant's user
+      ("A user belongs to one merchant only"), a staff email, a suspended user, a role they already hold here, an existing
+      user with Users › Invite only, an invalid email, no role.
+    - A new email → the dialog **"Invite a new person to {merchant}?"**: "{email} isn't a user of {merchant} yet",
+      **Full name** (focused), what will happen (joins {merchant} as Member, no access in other projects · the role in this
+      project · an invitation email, Pending until they accept), the access preview, and **Back** / **Send invitation**.
+      **Back** (also Esc, ×) keeps the email and role and selects the email: a mistyped email of an existing user is
+      the most likely reason. NN/g: a dialog only for the rarer action with wider effects; Google Workspace confirms
+      sharing outside the organisation the same way.
+  - **No merchant-less account ("third party")** [PO 2026-11-24]: a person added from a project always becomes a user
+    of the project's merchant (Member + the project role). An account type that "belongs to no merchant" is not used:
+    no merchant could see, suspend or review it, and it breaks one merchant per user (DEC-104). Langfuse does the same: a
+    project membership always hangs on an organization membership; an invited person without an account gets an
+    invitation carrying an organization role ("None" when a project admin adds them).
   - **Who:** **Members › Add / remove** in the project **or** **Users › Invite** (merchant level). A merchant role holds
     for the whole merchant, so a merchant role with either permission may do it in every project; a project role only in
     its project. Adding an **existing user** and removing stay with Members › Add / remove: with Users › Invite only, the

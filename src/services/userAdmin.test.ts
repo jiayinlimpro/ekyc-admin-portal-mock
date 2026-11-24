@@ -235,6 +235,21 @@ describe('userAdminService.inviteMember: a new person from Project › Members (
     await expect(users.inviteMember(fx('PRJ-0002'), { fullName: 'x', email: 'siti.yusof@atoz.example', roleId: REVIEWER }, HAFIZ)).rejects.toMatchObject({ message: 'Siti Aminah Binti Yusof is already Reviewer in this project.' })
   })
 
+  it('Given checkMemberEmail, then a user of this merchant is EXISTING, a new email is NEW (with the merchant name), and nothing is saved (DEC-77)', async () => {
+    const before = db.state().accounts.length
+    expect(await users.checkMemberEmail(fx('PRJ-0002'), { email: ' Siti.Yusof@atoz.example ', roleId: REVIEWER }, HAFIZ)).toEqual({ kind: 'EXISTING', userId: SITI.userId, fullName: 'Siti Aminah Binti Yusof', merchantName: 'Atoz Software Tech' })
+    expect(await users.checkMemberEmail(fx('PRJ-0002'), { email: NEW.email, roleId: REVIEWER }, HAFIZ)).toEqual({ kind: 'NEW', email: 'farah.ismail@atoz.example', merchantName: 'Atoz Software Tech' })
+    expect(db.state().accounts).toHaveLength(before)
+  })
+
+  it('Given checkMemberEmail, then what can never be added is refused before any dialog: another merchant’s user, a staff email, a bad email, no role (DEC-104)', async () => {
+    const check = (email: string, roleId = REVIEWER) => users.checkMemberEmail(fx('PRJ-0002'), { email, roleId }, HAFIZ)
+    await expect(check('kavitha.s@vantage.example')).rejects.toMatchObject({ code: 'VALIDATION', message: 'This email belongs to a user of another merchant. A user belongs to one merchant only.' })
+    await expect(check('someone@ekyc-platform.example')).rejects.toMatchObject({ code: 'VALIDATION', details: [expect.objectContaining({ field: 'email' })] })
+    await expect(check('not-an-email')).rejects.toMatchObject({ details: [{ field: 'email', message: 'Enter a valid email address' }] })
+    await expect(check(NEW.email, '')).rejects.toMatchObject({ details: [{ field: 'roleId', message: 'Choose a role.' }] })
+  })
+
   it('Given another merchant’s user or a company staff email, then refused as on New user (one merchant per user)', async () => {
     await expect(users.inviteMember(fx('PRJ-0002'), { ...NEW, email: 'kavitha.s@vantage.example' }, HAFIZ)).rejects.toMatchObject({ code: 'VALIDATION' })
     await expect(users.inviteMember(fx('PRJ-0002'), { ...NEW, email: 'someone@ekyc-platform.example' }, HAFIZ)).rejects.toMatchObject({ code: 'VALIDATION' })
