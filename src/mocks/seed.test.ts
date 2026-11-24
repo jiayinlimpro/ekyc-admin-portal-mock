@@ -5,7 +5,7 @@ import { isClaimActive } from '@/domain/claimRules'
 import { inCooldown, revisionLabel, validateProjectName } from '@/domain/flowRules'
 import { validateFlow } from '@/domain/flowSettings'
 import { evaluateRisk } from '@/domain/checkRules'
-import { hasRisk, validateRegistryInput } from '@/domain/registryRules'
+import { hasRisk, readDefinition, validateRegistryInput } from '@/domain/registryRules'
 import { caseInputOf, ENGINE_THRESHOLDS, idCaptureMetrics, selfiePasses } from '@/domain/telemetry'
 import { grantsOf, SYSTEM_ROLE_IDS } from '@/domain/roles'
 import { VERIFICATION_STATUSES, type UserAccount } from '@/domain/types'
@@ -346,7 +346,11 @@ describe('projects, flows and registry (DEC-56 … DEC-58, DEC-90 … DEC-95)', 
     expect(db.registry.map((e) => `${e.code}:${e.status}`)).toEqual(['V1:ACTIVE', 'V3:ACTIVE', 'V4:ACTIVE', 'V5:LIMITED_RELEASE', 'V6:INTERNAL_TESTING'])
     expect(db.registry.filter((e) => e.riskMinimumsPerFlow).map((e) => e.code)).toEqual(['V5'])
     expect(db.registry.filter((e) => e.isDefault).map((e) => e.code)).toEqual(['V1'])
-    for (const e of db.registry) expect(validateRegistryInput({ ...e, releaseNote: 'seed' }, [])).toEqual([])
+    for (const e of db.registry) {
+      expect(validateRegistryInput({ code: e.code, name: e.name, definition: e.definition, accessMerchantIds: e.accessMerchantIds }, [])).toEqual([])
+      // REQ: DEC-115 — what the portal stores is exactly what it reads from the version's JSON.
+      expect(readDefinition(e.definition, e.code).definition).toEqual({ phases: e.phases, faceMatchMethod: e.faceMatchMethod, configurableChecks: e.configurableChecks, riskMinimumsPerFlow: e.riskMinimumsPerFlow })
+    }
   })
 
   it('Given every merchant, then exactly one Default project, and projects are unique by name per merchant', () => {

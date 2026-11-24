@@ -15,7 +15,7 @@ import { revisionLabel } from '@/domain/flowRules'
 import type { FlowStatus } from '@/domain/types'
 import { errorMessage, useLoad } from '@/hooks/useLoad'
 import { formatMyt } from '@/lib/format'
-import { FLOW_STATUS_LABELS } from '@/lib/labels'
+import { FLOW_STATUS_LABELS, stepsText } from '@/lib/labels'
 import { cn } from '@/lib/utils'
 import { flowService, type FlowRow } from '@/services/flowService'
 import type { MyProject } from '@/services/projectService'
@@ -75,7 +75,7 @@ function NewFlowDialog({ project, onClose }: { project: MyProject; onClose: () =
           <FormField id="nf-desc" label="Who this flow is for">
             <Textarea id="nf-desc" rows={2} value={description} onChange={(e) => setDescription(e.target.value)} />
           </FormField>
-          <FormField id="nf-version" label="Workflow version" hint={entry ? `${entry.name}: ${entry.description}` : 'Only Active versions can be chosen.'}>
+          <FormField id="nf-version" label="Workflow version" hint={entry ? `${entry.name}: ${stepsText(entry.phases)}` : 'Only Active versions can be chosen.'}>
             <NativeSelect id="nf-version" value={chosen} onChange={(e) => setVersion(e.target.value)}>
               {options.map((v) => (
                 <option key={v.code} value={v.code}>

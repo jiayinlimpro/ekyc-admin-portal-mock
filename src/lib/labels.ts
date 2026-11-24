@@ -1,4 +1,11 @@
-import type { AttemptOutcome, AuditAction, DocumentType, FlowStatus, MerchantStatus, Permission, RiskResult, UserStatus, VerificationStatus } from '@/domain/types'
+import type { AttemptOutcome, AuditAction, DocumentType, FlowStatus, MerchantStatus, OnboardingPhase, Permission, RegistryEntry, RiskResult, UserStatus, VerificationStatus } from '@/domain/types'
+import { PHASE_LABELS } from '@/domain/types'
+
+// REQ: DEC-115 — what a version runs and what its flows can tune, as read from its workflow JSON.
+export const STEP_LABELS: Record<OnboardingPhase, string> = { ID_CAPTURE: 'Document', SELFIE_CAPTURE: 'Selfie', LIVENESS_CHECK: 'Liveness', RISK_ASSESSMENT: 'Risk assessment' }
+export const stepsText = (phases: readonly OnboardingPhase[]) => phases.map((p) => STEP_LABELS[p]).join(' → ')
+export const tunableText = (e: Pick<RegistryEntry, 'configurableChecks' | 'riskMinimumsPerFlow'>) =>
+  [...e.configurableChecks.map((c) => PHASE_LABELS[c]), ...(e.riskMinimumsPerFlow ? ['Risk minimums'] : [])].join(', ')
 
 export const FLOW_STATUS_LABELS: Record<FlowStatus, string> = { DRAFT: 'Draft', ACTIVE: 'Active', RETIRING: 'Retiring', INACTIVE: 'Inactive' }
 

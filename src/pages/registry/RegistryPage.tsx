@@ -9,8 +9,9 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
-import { isLocked, type RegistryInput } from '@/domain/registryRules'
-import { CHECKS, ONBOARDING_PHASES, PHASE_LABELS, REGISTRY_STATUSES, type FaceMatchMethod, type OnboardingPhase, type RegistryStatus } from '@/domain/types'
+import { CopyButton } from '@/components/common/CopyId'
+import { isLocked, readDefinition, type RegistryInput } from '@/domain/registryRules'
+import { REGISTRY_STATUSES, type RegistryStatus } from '@/domain/types'
 import { errorMessage, useLoad } from '@/hooks/useLoad'
 import { formatMyt } from '@/lib/format'
 import { cn } from '@/lib/utils'
@@ -18,11 +19,9 @@ import { isServiceError } from '@/services/errors'
 import { merchantService } from '@/services/merchantService'
 import { registryService, type RegistryRow } from '@/services/registryService'
 import { useSession } from '@/stores/sessionStore'
-import { FLOW_STATUS_LABELS } from '@/lib/labels'
+import { FLOW_STATUS_LABELS, stepsText, tunableText } from '@/lib/labels'
 import { useAccess } from '@/app/access'
 
-const PHASE_TEXT: Record<OnboardingPhase, string> = { ID_CAPTURE: 'ID Capture', SELFIE_CAPTURE: 'Selfie Capture', LIVENESS_CHECK: 'Liveness Check', RISK_ASSESSMENT: 'Risk Assessment' }
-const METHOD_TEXT: Record<FaceMatchMethod, string> = { ID_VS_SELFIE: 'ID vs selfie', ID_VS_LIVENESS: 'ID vs liveness face' }
 // REQ: DEC-56 — who may choose a version for a new flow follows its status.
 const STATUS_TEXT: Record<RegistryStatus, string> = { DRAFT: 'Draft', INTERNAL_TESTING: 'Internal testing', LIMITED_RELEASE: 'Limited release', ACTIVE: 'Active', DEPRECATED: 'Deprecated' }
 const STATUS_HINT: Record<RegistryStatus, string> = {
@@ -40,10 +39,12 @@ const STATUS_TONE: Record<RegistryStatus, string> = {
   DEPRECATED: 'bg-amber-100 text-amber-800 dark:bg-amber-500/20 dark:text-amber-200',
 }
 
-const emptyInput = (): RegistryInput => ({ code: '', name: '', description: '', phases: ['ID_CAPTURE', 'LIVENESS_CHECK'], faceMatchMethod: 'ID_VS_LIVENESS', requiredInputs: [], configurableChecks: ['FACE_MATCH', 'LIVENESS'], riskMinimumsPerFlow: false, accessMerchantIds: [], stateMachineSandbox: '', stateMachineProduction: '', releaseNote: '' })
-const inputOf = (e: RegistryRow): RegistryInput => ({ ...e, stateMachineSandbox: e.stateMachineSandbox ?? '', stateMachineProduction: e.stateMachineProduction ?? '', releaseNote: '' })
+const EXAMPLE = '{\n  "workflowCode": "V7",\n  "steps": ["DOCUMENT", "LIVENESS"],\n  "tunable": ["FACE_MATCH", "LIVENESS"]\n}'
+const emptyInput = (): RegistryInput => ({ code: '', name: '', definition: '', accessMerchantIds: [] })
+const inputOf = (e: RegistryRow): RegistryInput => ({ code: e.code, name: e.name, definition: e.definition, accessMerchantIds: e.accessMerchantIds })
 
-// REQ: DEC-56 — FRS field rules; after first activation only name, description and state machines change.
+// REQ: DEC-115 — Register / Edit: the code, a name and the workflow JSON from the backend. The workflow decides what runs;
+// the portal shows what it read (steps, tunable). The JSON locks once the version has been Limited release or Active.
 function VersionDialog({ editing, onClose, onDone }: { editing?: RegistryRow; onClose: () => void; onDone: () => void }) {
   const actor = useSession((s) => s.actor)
   // REQ: DEC-56 — Limited release: the merchants that may choose this version.
@@ -52,9 +53,8 @@ function VersionDialog({ editing, onClose, onDone }: { editing?: RegistryRow; on
   const [v, setV] = useState<RegistryInput>(editing ? inputOf(editing) : emptyInput())
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [busy, setBusy] = useState(false)
-  const locked = (f: keyof RegistryInput) => !!editing && (f === 'code' || isLocked(editing, f))
-  const togglePhase = (p: OnboardingPhase) =>
-    setV({ ...v, phases: ONBOARDING_PHASES.filter((x) => (x === p ? !v.phases.includes(p) : v.phases.includes(x))) }) // keeps the fixed order
+  const jsonLocked = !!editing && isLocked(editing, 'definition')
+  const read = v.definition.trim() ? readDefinition(v.definition, v.code).definition : undefined
   const submit = async (e: FormEvent) => {
     e.preventDefault()
     setBusy(true)
@@ -62,7 +62,7 @@ function VersionDialog({ editing, onClose, onDone }: { editing?: RegistryRow; on
     try {
       if (editing) await registryService.update(editing.code, v, actor)
       else await registryService.register(v, actor)
-      toast.success(editing ? `${editing.code} updated` : `${v.code} registered as Draft`)
+      toast.success(editing ? `${editing.code} updated` : `${v.code.trim()} registered as Draft`)
       onDone()
     } catch (err) {
       if (isServiceError(err) && Array.isArray(err.details)) setErrors(Object.fromEntries((err.details as { field: string; message: string }[]).map((x) => [x.field, x.message])))
@@ -73,75 +73,50 @@ function VersionDialog({ editing, onClose, onDone }: { editing?: RegistryRow; on
   }
   return (
     <Dialog open onOpenChange={(o) => !o && !busy && onClose()}>
-      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
+      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-xl">
         <form onSubmit={submit} noValidate className="space-y-4">
           <DialogHeader>
             <DialogTitle>{editing ? `Edit ${editing.code}` : 'Register workflow version'}</DialogTitle>
-            <DialogDescription>{editing?.activatedAt ? 'This version has been active: only name, description and state machines can change. Anything else needs a new code.' : 'A record only: nothing here deploys or calls AWS.'}</DialogDescription>
+            <DialogDescription>
+              {jsonLocked
+                ? 'Flows may be built on this version: only the name can change. A different workflow needs a new version code.'
+                : 'The workflow decides what runs. Paste its JSON: the portal reads the steps and what flows can tune.'}
+            </DialogDescription>
           </DialogHeader>
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid gap-4 sm:grid-cols-[10rem_1fr]">
             <FormField id="r-code" label="Workflow code" hint="V<number>, never reused" error={errors.code}>
-              <Input id="r-code" value={v.code} disabled={locked('code')} onChange={(e) => setV({ ...v, code: e.target.value })} aria-invalid={!!errors.code} />
+              <Input id="r-code" value={v.code} disabled={!!editing} onChange={(e) => setV({ ...v, code: e.target.value })} aria-invalid={!!errors.code} />
             </FormField>
             <FormField id="r-name" label="Name" error={errors.name}>
               <Input id="r-name" value={v.name} onChange={(e) => setV({ ...v, name: e.target.value })} aria-invalid={!!errors.name} />
             </FormField>
-            <FormField id="r-desc" label="Description" error={errors.description} className="sm:col-span-2">
-              <Textarea id="r-desc" rows={2} value={v.description} onChange={(e) => setV({ ...v, description: e.target.value })} />
-            </FormField>
-            <fieldset disabled={locked('phases')}>
-              <legend className="mb-1 text-xs font-medium text-muted-foreground">Onboarding phases (in order)</legend>
-              {ONBOARDING_PHASES.map((p) => (
-                <label key={p} className="flex items-center gap-2 py-0.5 text-sm">
-                  <input type="checkbox" checked={v.phases.includes(p)} disabled={p === 'ID_CAPTURE'} onChange={() => togglePhase(p)} />
-                  {PHASE_TEXT[p]}
-                  {p === 'ID_CAPTURE' && <span className="text-xs text-muted-foreground">(always first)</span>}
-                </label>
-              ))}
-              {errors.phases && <p role="alert" className="text-xs text-destructive">{errors.phases}</p>}
-            </fieldset>
-            <div className="space-y-3">
-              <FormField id="r-method" label="Face match compares" error={errors.faceMatchMethod}>
-                <NativeSelect id="r-method" value={v.faceMatchMethod} disabled={locked('faceMatchMethod')} onChange={(e) => setV({ ...v, faceMatchMethod: e.target.value as FaceMatchMethod })}>
-                  {Object.entries(METHOD_TEXT).map(([k, l]) => (
-                    <option key={k} value={k}>
-                      {l}
-                    </option>
-                  ))}
-                </NativeSelect>
-              </FormField>
-              <label className="flex items-center gap-2 text-sm">
-                <input type="checkbox" checked={v.requiredInputs.includes('EMAIL')} disabled={locked('requiredInputs')} onChange={(e) => setV({ ...v, requiredInputs: e.target.checked ? ['EMAIL'] : [] })} />
-                Email required at session creation
-              </label>
-              <fieldset disabled={locked('configurableChecks')}>
-                <legend className="mb-1 text-xs font-medium text-muted-foreground">Configurable thresholds</legend>
-                {CHECKS.map((c) => (
-                  <label key={c} className="flex items-center gap-2 py-0.5 text-sm">
-                    <input type="checkbox" checked={v.configurableChecks.includes(c)} onChange={(e) => setV({ ...v, configurableChecks: e.target.checked ? CHECKS.filter((x) => x === c || v.configurableChecks.includes(x)) : v.configurableChecks.filter((x) => x !== c) })} />
-                    {PHASE_LABELS[c]}
-                  </label>
-                ))}
-                {errors.configurableChecks && <p role="alert" className="text-xs text-destructive">{errors.configurableChecks}</p>}
-              </fieldset>
-              {/* REQ: DEC-107 — V5-style versions let each flow set the risk minimums; otherwise they are fixed (V4). */}
-              {v.phases.includes('RISK_ASSESSMENT') && (
-                <label className="flex items-center gap-2 text-sm">
-                  <input type="checkbox" checked={v.riskMinimumsPerFlow} disabled={locked('riskMinimumsPerFlow')} onChange={(e) => setV({ ...v, riskMinimumsPerFlow: e.target.checked })} />
-                  Risk minimums set per flow
-                </label>
-              )}
-            </div>
-            <FormField id="r-sand" label="State machine ARN (sandbox)" error={errors.stateMachineSandbox} className="sm:col-span-2">
-              <Input id="r-sand" value={v.stateMachineSandbox} onChange={(e) => setV({ ...v, stateMachineSandbox: e.target.value })} placeholder="arn:aws:states:…" aria-invalid={!!errors.stateMachineSandbox} />
-            </FormField>
-            <FormField id="r-prod" label="State machine ARN (production)" error={errors.stateMachineProduction} className="sm:col-span-2">
-              <Input id="r-prod" value={v.stateMachineProduction} onChange={(e) => setV({ ...v, stateMachineProduction: e.target.value })} placeholder="arn:aws:states:…" aria-invalid={!!errors.stateMachineProduction} />
-            </FormField>
-            <FormField id="r-note" label="Release note" error={errors.releaseNote} className="sm:col-span-2">
-              <Textarea id="r-note" rows={2} value={v.releaseNote} onChange={(e) => setV({ ...v, releaseNote: e.target.value })} aria-invalid={!!errors.releaseNote} />
-            </FormField>
           </div>
+          <FormField
+            id="r-json"
+            label="Workflow JSON"
+            hint={jsonLocked ? 'Locked: flows may be built on this version.' : 'From the backend. Read: workflowCode, steps, tunable; other keys are kept.'}
+            error={errors.definition}
+          >
+            <Textarea
+              id="r-json"
+              rows={8}
+              spellCheck={false}
+              className={cn('font-mono text-xs', jsonLocked && 'bg-muted/50 text-muted-foreground')}
+              placeholder={EXAMPLE}
+              value={v.definition}
+              readOnly={jsonLocked}
+              onChange={(e) => setV({ ...v, definition: e.target.value })}
+              aria-invalid={!!errors.definition}
+            />
+          </FormField>
+          {read && (
+            <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 rounded-md border bg-muted/40 px-3 py-2 text-sm" aria-label="What the portal reads">
+              <dt className="text-muted-foreground">Steps</dt>
+              <dd>{stepsText(read.phases)}</dd>
+              <dt className="text-muted-foreground">Tunable</dt>
+              <dd>{tunableText(read)}</dd>
+            </dl>
+          )}
           {limited && (
             <fieldset className="rounded-md border p-3">
               <legend className="px-1 text-sm font-medium">Merchant access</legend>
@@ -232,7 +207,7 @@ function FlowsUsing({ code }: { code: string }) {
   )
 }
 
-// REQ: DEC-56 … DEC-58, DEC-85 — Super admin only. A record of versions; nothing here builds or deploys.
+// REQ: DEC-56 … DEC-58, DEC-85, DEC-115 — Super admin only. A record of versions (code, name, workflow JSON); nothing here builds or deploys.
 export function RegistryPage() {
   const actor = useSession((s) => s.actor)
   // REQ: DEC-99 — Registry View is read-only; registering and changing versions needs Manage.
@@ -272,7 +247,7 @@ export function RegistryPage() {
         <table className={cn('w-full text-sm', rows.loading && rows.data && 'opacity-60')} aria-busy={rows.loading}>
           <thead className="bg-muted/50 text-left text-xs text-muted-foreground">
             <tr>
-              {['Version', 'Status', 'Phases', 'Face match', 'Flows using it', 'Updated'].map((h) => (
+              {['Version', 'Status', 'Steps', 'Tunable', 'Flows using it', 'Updated'].map((h) => (
                 <th key={h} scope="col" className="px-3 py-2 font-medium whitespace-nowrap">{h}</th>
               ))}
               <th scope="col" className="px-3 py-2"><span className="sr-only">Actions</span></th>
@@ -286,14 +261,13 @@ export function RegistryPage() {
                     <span className="font-mono font-medium">{r.code}</span> · {r.name}
                     {r.isDefault && <span className="ml-2 rounded bg-blue-100 px-1.5 text-[10px] font-medium text-blue-800 uppercase dark:bg-blue-500/20 dark:text-blue-200">Default for new merchants</span>}
                   </button>
-                  <div className="text-xs text-muted-foreground">{r.description}</div>
                 </th>
                 <td className="px-3 py-2">
                   <span className={cn('rounded px-1.5 py-0.5 text-xs font-medium whitespace-nowrap', STATUS_TONE[r.status])} title={STATUS_HINT[r.status]}>{STATUS_TEXT[r.status]}</span>
                   {r.status === 'LIMITED_RELEASE' && <div className="mt-1 text-xs text-muted-foreground">{r.accessMerchantIds.length ? `${r.accessMerchantIds.length} merchant(s)` : 'No merchants yet'}</div>}
                 </td>
-                <td className="px-3 py-2 text-xs">{r.phases.map((p) => PHASE_TEXT[p]).join(' → ')}</td>
-                <td className="px-3 py-2 text-xs whitespace-nowrap">{METHOD_TEXT[r.faceMatchMethod]}{r.requiredInputs.includes('EMAIL') ? ' · email' : ''}</td>
+                <td className="px-3 py-2 text-xs">{stepsText(r.phases)}</td>
+                <td className="px-3 py-2 text-xs">{tunableText(r)}</td>
                 <td className="px-3 py-2 tabular-nums">{r.flowsUsing}</td>
                 <td className="px-3 py-2 whitespace-nowrap">{formatMyt(r.updatedAt).split(', ')[0]}<div className="text-xs text-muted-foreground">{r.updatedBy}</div></td>
                 <td className={cn('px-2 py-2 text-right whitespace-nowrap', !canManage && 'hidden')}>
@@ -313,13 +287,11 @@ export function RegistryPage() {
                         <FlowsUsing code={r.code} />
                       </div>
                       <div>
-                        <h3 className="mb-1 text-xs font-medium text-muted-foreground uppercase">Release notes</h3>
-                        <ol className="space-y-1 text-sm">
-                          {[...r.releaseNotes].reverse().map((n, i) => (
-                            <li key={i}><span className="text-xs text-muted-foreground">{formatMyt(n.at).split(', ')[0]} · {n.by}:</span> {n.text}</li>
-                          ))}
-                        </ol>
-                        <p className="mt-2 font-mono text-[11px] break-all text-muted-foreground">{r.stateMachineProduction ?? 'No production state machine yet'}</p>
+                        {/* REQ: DEC-115 — the workflow JSON as registered, read-only. */}
+                        <h3 className="mb-1 flex items-center gap-1 text-xs font-medium text-muted-foreground uppercase">
+                          Workflow JSON <CopyButton label="Workflow JSON" value={r.definition} />
+                        </h3>
+                        <pre className="max-h-64 overflow-auto rounded-md bg-muted p-3 font-mono text-xs" aria-label={`Workflow JSON of ${r.code}`}>{r.definition}</pre>
                       </div>
                     </div>
                   </td>

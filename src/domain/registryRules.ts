@@ -1,14 +1,24 @@
-// Workflow Registry rules (DEC-56, DEC-57, DEC-58; FRS Workflow Registry Notes B and C).
-// The registry is a record only: nothing here builds, deploys or calls AWS Step Functions.
-import type { RegistryEntry, RegistryStatus, RuleError, WorkflowCode } from './types'
+// Workflow Registry rules (DEC-56, DEC-57, DEC-58, DEC-115).
+// The registry is a record only: nothing here builds, deploys or calls the backend workflow. The workflow decides what
+// runs; the portal reads the version's workflow JSON (DEC-115) and pushes the flow's tunable settings.
+import { CHECKS, type Check, type FaceMatchMethod, type OnboardingPhase, type RegistryEntry, type RegistryStatus, type RuleError, type WorkflowCode } from './types'
 
 export const CODE_PATTERN = /^V[0-9]{1,3}$/
-export const ARN_PATTERN = /^arn:aws:states:[a-z0-9-]+:\d{12}:stateMachine:[A-Za-z0-9_-]+$/
 
-export type RegistryInput = Pick<
-  RegistryEntry,
-  'code' | 'name' | 'description' | 'phases' | 'faceMatchMethod' | 'requiredInputs' | 'configurableChecks' | 'riskMinimumsPerFlow' | 'accessMerchantIds' | 'stateMachineSandbox' | 'stateMachineProduction'
-> & { releaseNote: string }
+/** REQ: DEC-115 — Register / Edit: the code, a name and the workflow JSON; Merchant access while Limited release (DEC-56). */
+export interface RegistryInput {
+  code: string
+  name: string
+  definition: string
+  accessMerchantIds: string[]
+}
+
+/** What the portal reads from a workflow JSON (DEC-115). */
+export type WorkflowDefinition = Pick<RegistryEntry, 'phases' | 'faceMatchMethod' | 'configurableChecks' | 'riskMinimumsPerFlow'>
+
+// REQ: DEC-115 / OQ-39 — the step and tunable names in the workflow JSON (draft contract with engineering).
+export const DEFINITION_STEPS: Record<string, OnboardingPhase> = { DOCUMENT: 'ID_CAPTURE', SELFIE: 'SELFIE_CAPTURE', LIVENESS: 'LIVENESS_CHECK', RISK: 'RISK_ASSESSMENT' }
+export const DEFINITION_TUNABLES = ['FACE_MATCH', 'LIVENESS', 'RISK_MINIMUMS'] as const
 
 /** REQ: DEC-56 — a flow on an Internal testing version is for internal users only (super admins, platform staff). */
 export function internalOnlyFlow(versionStatus: RegistryStatus | undefined): boolean {
@@ -28,7 +38,56 @@ export function hasSelfie(e: Pick<RegistryEntry, 'phases'>): boolean {
   return e.phases.includes('SELFIE_CAPTURE')
 }
 
-/** FRS field rules for register and edit. `existingCodes` excludes the entry being edited. */
+const list = (xs: readonly string[]) => xs.join(', ')
+const strings = (v: unknown): v is string[] => Array.isArray(v) && v.every((x) => typeof x === 'string')
+
+/**
+ * REQ: DEC-115 / OQ-39 — reads a workflow JSON for version `code`: `workflowCode`, `steps` and `tunable`. Other keys are
+ * kept and not read. The face match method is not entered: a version with SELFIE matches ID vs selfie.
+ */
+export function readDefinition(json: string, code: string): { definition?: WorkflowDefinition; errors: RuleError[] } {
+  const fail = (message: string) => ({ errors: [{ field: 'definition', message }] })
+  if (!json.trim()) return fail('Paste the workflow JSON.')
+  let raw: unknown
+  try {
+    raw = JSON.parse(json)
+  } catch {
+    return fail('This is not valid JSON.')
+  }
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return fail('The workflow JSON must be an object, e.g. { "workflowCode": "V7", … }.')
+  const o = raw as Record<string, unknown>
+  if (typeof o.workflowCode !== 'string' || !o.workflowCode.trim()) return fail('The JSON has no "workflowCode".')
+  if (code.trim() && o.workflowCode.trim() !== code.trim()) return fail(`This JSON is for ${o.workflowCode.trim()}, not ${code.trim()}.`)
+  const steps = o.steps
+  if (!strings(steps) || steps.length === 0) return fail('The JSON needs "steps": a list such as ["DOCUMENT", "LIVENESS"].')
+  const unknownStep = steps.find((x) => !(x in DEFINITION_STEPS))
+  if (unknownStep !== undefined) return fail(`Unknown step "${unknownStep}". Steps are ${list(Object.keys(DEFINITION_STEPS))}.`)
+  if (new Set(steps).size !== steps.length) return fail('A step is listed twice.')
+  if (steps[0] !== 'DOCUMENT') return fail('DOCUMENT must be the first step.')
+  if (!steps.includes('LIVENESS')) return fail('Every workflow has a LIVENESS step.')
+  const tunable = o.tunable
+  if (!strings(tunable)) return fail('The JSON needs "tunable": a list such as ["FACE_MATCH", "LIVENESS"].')
+  const unknownTunable = tunable.find((x) => !(DEFINITION_TUNABLES as readonly string[]).includes(x))
+  if (unknownTunable !== undefined) return fail(`Unknown tunable "${unknownTunable}". Tunables are ${list(DEFINITION_TUNABLES)}.`)
+  const checks: Check[] = CHECKS.filter((c) => tunable.includes(c))
+  if (checks.length === 0) return fail('"tunable" needs at least one threshold: FACE_MATCH or LIVENESS.')
+  // REQ: DEC-107 — only a version with a risk step can let flows set the risk minimums.
+  if (tunable.includes('RISK_MINIMUMS') && !steps.includes('RISK')) return fail('RISK_MINIMUMS needs the RISK step.')
+  const phases = steps.map((x) => DEFINITION_STEPS[x])
+  const faceMatchMethod: FaceMatchMethod = phases.includes('SELFIE_CAPTURE') ? 'ID_VS_SELFIE' : 'ID_VS_LIVENESS'
+  return { definition: { phases, faceMatchMethod, configurableChecks: checks, riskMinimumsPerFlow: tunable.includes('RISK_MINIMUMS') }, errors: [] }
+}
+
+/** The JSON as stored: pretty-printed, so the same content always compares equal. Unparseable text is kept as typed. */
+export function normaliseDefinition(json: string): string {
+  try {
+    return JSON.stringify(JSON.parse(json), null, 2)
+  } catch {
+    return json.trim()
+  }
+}
+
+/** Register and edit rules (FRS code rules, DEC-115). `existingCodes` excludes the entry being edited. */
 export function validateRegistryInput(input: RegistryInput, existingCodes: readonly WorkflowCode[]): RuleError[] {
   const errors: RuleError[] = []
   const code = input.code.trim()
@@ -36,41 +95,23 @@ export function validateRegistryInput(input: RegistryInput, existingCodes: reado
   else if (!CODE_PATTERN.test(code)) errors.push({ field: 'code', message: 'Workflow code must follow the format V<number>, e.g., V5' })
   else if (existingCodes.includes(code)) errors.push({ field: 'code', message: 'Workflow code already exists' }) // never reused
   if (!input.name.trim()) errors.push({ field: 'name', message: 'Workflow name cannot be empty' })
-  if (input.description.length > 500) errors.push({ field: 'description', message: 'Description cannot exceed 500 characters' })
-  if (input.phases.length === 0) errors.push({ field: 'phases', message: 'Select at least one onboarding phase' })
-  else if (input.phases[0] !== 'ID_CAPTURE') errors.push({ field: 'phases', message: 'ID Capture is mandatory and must be the first phase' })
-  if (input.faceMatchMethod === 'ID_VS_SELFIE' && !hasSelfie(input)) {
-    errors.push({ field: 'faceMatchMethod', message: 'ID vs Selfie needs the Selfie Capture phase' })
-  }
-  if (input.configurableChecks.length === 0) errors.push({ field: 'configurableChecks', message: 'Select at least one configurable threshold' })
-  // REQ: DEC-107 — only a version with Risk Assessment can let flows set the risk minimums.
-  if (input.riskMinimumsPerFlow && !hasRisk(input)) errors.push({ field: 'riskMinimumsPerFlow', message: 'Risk minimums need the Risk Assessment phase' })
-  for (const f of ['stateMachineSandbox', 'stateMachineProduction'] as const) {
-    const arn = input[f]?.trim()
-    if (arn && !ARN_PATTERN.test(arn)) errors.push({ field: f, message: 'Enter a valid Step Functions state machine ARN' })
-  }
-  if (!input.releaseNote.trim()) errors.push({ field: 'releaseNote', message: 'Release notes are required' })
+  errors.push(...readDefinition(input.definition, CODE_PATTERN.test(code) ? code : '').errors)
   return errors
 }
 
-/** FRS Notes C: once a version has been Active, only these can change; anything else needs a new code. */
-export const EDITABLE_AFTER_ACTIVE = ['name', 'description', 'accessMerchantIds', 'stateMachineSandbox', 'stateMachineProduction'] as const
+/** REQ: DEC-115 — once a version has been Limited release or Active, only these change; a different workflow needs a new code. */
+export const EDITABLE_AFTER_ACTIVE = ['name', 'accessMerchantIds'] as const
 
-export function isLocked(e: Pick<RegistryEntry, 'activatedAt'>, field: keyof RegistryInput): boolean {
-  return !!e.activatedAt && !(EDITABLE_AFTER_ACTIVE as readonly string[]).includes(field) && field !== 'releaseNote'
+export function isLocked(e: Pick<RegistryEntry, 'activatedAt'>, field: string): boolean {
+  return !!e.activatedAt && !(EDITABLE_AFTER_ACTIVE as readonly string[]).includes(field)
 }
 
-/** REQ: DEC-56 — statuses under which sessions run, so the state machines must be recorded. */
-export const RUNNABLE_STATUSES: readonly RegistryStatus[] = ['INTERNAL_TESTING', 'LIMITED_RELEASE', 'ACTIVE']
-
-// REQ: DEC-56 / DEC-57 — no lifecycle: any status, with a reason. The default stays Active; running statuses need state machines.
-export function statusChangeError(e: Pick<RegistryEntry, 'status' | 'isDefault' | 'stateMachineSandbox' | 'stateMachineProduction'>, to: RegistryStatus, reason: string): string | undefined {
+// REQ: DEC-56 / DEC-57 / DEC-115 — no lifecycle: any status, with a reason. The default stays Active. (No state machine
+// references any more: the workflow JSON is required at registration.)
+export function statusChangeError(e: Pick<RegistryEntry, 'status' | 'isDefault'>, to: RegistryStatus, reason: string): string | undefined {
   if (e.status === to) return 'This version already has that status.'
   if (!reason.trim()) return 'Reason for change is required.'
   if (e.isDefault && to !== 'ACTIVE') return 'Set another version as default first: the default for new merchants must stay Active.'
-  if (RUNNABLE_STATUSES.includes(to) && (!e.stateMachineSandbox?.trim() || !e.stateMachineProduction?.trim())) {
-    return 'Add both state machine references first.'
-  }
   return undefined
 }
 

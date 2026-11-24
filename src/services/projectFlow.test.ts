@@ -88,7 +88,7 @@ describe('flowService access (DEC-70, DEC-75)', () => {
     expect(f).toMatchObject({ projectId: fx('PRJ-0003'), merchantId: fx('MER-0002'), status: 'DRAFT', workflowVersion: 'V3' })
     expect(f.settings.checks.LIVENESS.threshold).toEqual({ preset: 'STANDARD' })
     const v5 = db.state().registry.find((e) => e.code === 'V5')!
-    await registryService.register({ ...v5, code: 'V7', name: 'Next gen', stateMachineSandbox: undefined, stateMachineProduction: undefined, releaseNote: 'Draft' }, ADMIN)
+    await registryService.register({ code: 'V7', name: 'Next gen', definition: v5.definition.replace('"V5"', '"V7"'), accessMerchantIds: [] }, ADMIN)
     await expectError(flowService.create(fx('PRJ-0003'), { name: 'Next gen', description: '', workflowVersion: 'V7' }, ADMIN), 'VALIDATION', 'Choose a workflow version available to this merchant.')
     // REQ: DEC-56 — Internal testing (V6): internal users anywhere, never a merchant; Limited release (V5): Atoz, besides internal users.
     expect(await flowService.create(fx('PRJ-0003'), { name: 'Engine trial', description: '', workflowVersion: 'V6' }, ADMIN)).toMatchObject({ workflowVersion: 'V6' })

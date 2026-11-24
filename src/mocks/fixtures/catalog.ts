@@ -3,42 +3,44 @@
 // an archived project, and a merchant with two projects.
 import { diffFlow, newFlowSettings } from '@/domain/flowSettings'
 import { DEFAULT_RISK_MINIMUMS } from '@/domain/openQuestions'
+import { readDefinition } from '@/domain/registryRules'
 import { PROJECT_SETTING_DEFAULTS } from '@/domain/projectSettings'
 import type { DocumentType, Flow, FlowRevision, FlowSettings, FlowStatus, Project, RegistryEntry, RiskScores, ThresholdChoice } from '@/domain/types'
 import { fx, stableId } from '@/lib/ids'
 
 const HOUR = 3_600_000
 const DAY = 24 * HOUR
-const ARN = (name: string, env: 'sand' | 'prod') => `arn:aws:states:ap-southeast-1:123456789012:stateMachine:ekyc_${env}_${name}`
 const ADMIN = { userId: fx('USR-2026-0001'), fullName: 'Lim Wei Jie' }
 const SYSTEM = { userId: 'SYSTEM' as const, fullName: 'SYSTEM' as const }
 
 export function buildRegistry(now: Date): RegistryEntry[] {
   const ago = (days: number) => new Date(now.getTime() - days * DAY).toISOString()
-  const entry = (e: Pick<RegistryEntry, 'code' | 'name' | 'description' | 'phases' | 'faceMatchMethod' | 'requiredInputs' | 'status' | 'isDefault'> & Partial<Pick<RegistryEntry, 'riskMinimumsPerFlow' | 'accessMerchantIds'>>, days: number, sm?: string): RegistryEntry => ({
-    entryId: stableId('wfv', e.code),
-    riskMinimumsPerFlow: false,
-    accessMerchantIds: [],
-    ...e,
-    configurableChecks: ['FACE_MATCH', 'LIVENESS'],
-    stateMachineSandbox: sm && ARN(sm, 'sand'),
-    stateMachineProduction: sm && ARN(sm, 'prod'),
-    releaseNotes: [{ at: ago(days), by: ADMIN.fullName, text: `Registered ${e.code}.` }],
-    activatedAt: e.status === 'LIMITED_RELEASE' || e.status === 'ACTIVE' || e.status === 'DEPRECATED' ? ago(days) : undefined,
-    registeredAt: ago(days),
-    registeredBy: ADMIN.fullName,
-    updatedAt: ago(days),
-    updatedBy: ADMIN.fullName,
-  })
-  // REQ: DEC-58 — FRS initial records; V3 and V4 share a state machine.
+  // REQ: DEC-115 — each version is its code, a name and the workflow JSON from the backend; the rest is read from the JSON.
+  const entry = (e: Pick<RegistryEntry, 'code' | 'name' | 'status' | 'isDefault'> & Partial<Pick<RegistryEntry, 'accessMerchantIds'>>, days: number, steps: string[], tunable: string[]): RegistryEntry => {
+    const definition = JSON.stringify({ workflowCode: e.code, steps, tunable }, null, 2)
+    return {
+      entryId: stableId('wfv', e.code),
+      accessMerchantIds: [],
+      ...e,
+      definition,
+      ...readDefinition(definition, e.code).definition!,
+      activatedAt: e.status === 'LIMITED_RELEASE' || e.status === 'ACTIVE' || e.status === 'DEPRECATED' ? ago(days) : undefined,
+      registeredAt: ago(days),
+      registeredBy: ADMIN.fullName,
+      updatedAt: ago(days),
+      updatedBy: ADMIN.fullName,
+    }
+  }
+  const THRESHOLDS = ['FACE_MATCH', 'LIVENESS']
+  // REQ: DEC-58 — FRS initial records.
   return [
-    entry({ code: 'V1', name: 'ID + Selfie + Liveness', description: 'ID capture, selfie and liveness; face match ID vs selfie.', phases: ['ID_CAPTURE', 'SELFIE_CAPTURE', 'LIVENESS_CHECK'], faceMatchMethod: 'ID_VS_SELFIE', requiredInputs: [], status: 'ACTIVE', isDefault: true }, 400, 'onboard_v1'),
-    entry({ code: 'V3', name: 'ID + Liveness', description: 'ID capture and liveness; face match ID vs liveness face.', phases: ['ID_CAPTURE', 'LIVENESS_CHECK'], faceMatchMethod: 'ID_VS_LIVENESS', requiredInputs: [], status: 'ACTIVE', isDefault: false }, 300, 'onboard_v4'),
-    entry({ code: 'V4', name: 'ID + Liveness + Risk Assessment', description: 'V3 + risk assessment.', phases: ['ID_CAPTURE', 'LIVENESS_CHECK', 'RISK_ASSESSMENT'], faceMatchMethod: 'ID_VS_LIVENESS', requiredInputs: ['EMAIL'], status: 'ACTIVE', isDefault: false }, 300, 'onboard_v4'),
+    entry({ code: 'V1', name: 'ID + Selfie + Liveness', status: 'ACTIVE', isDefault: true }, 400, ['DOCUMENT', 'SELFIE', 'LIVENESS'], THRESHOLDS),
+    entry({ code: 'V3', name: 'ID + Liveness', status: 'ACTIVE', isDefault: false }, 300, ['DOCUMENT', 'LIVENESS'], THRESHOLDS),
+    entry({ code: 'V4', name: 'ID + Liveness + Risk Assessment', status: 'ACTIVE', isDefault: false }, 300, ['DOCUMENT', 'LIVENESS', 'RISK'], THRESHOLDS),
     // REQ: DEC-107 / DEC-56 — V5 = V4 with the risk minimums set per flow; Limited release to Atoz.
-    entry({ code: 'V5', name: 'ID + Liveness + component risk', description: 'V4 with a risk minimum per category set by each flow.', phases: ['ID_CAPTURE', 'LIVENESS_CHECK', 'RISK_ASSESSMENT'], faceMatchMethod: 'ID_VS_LIVENESS', requiredInputs: ['EMAIL'], riskMinimumsPerFlow: true, status: 'LIMITED_RELEASE', accessMerchantIds: [fx('MER-0001')], isDefault: false }, 10, 'onboard_v5'),
+    entry({ code: 'V5', name: 'ID + Liveness + component risk', status: 'LIMITED_RELEASE', accessMerchantIds: [fx('MER-0001')], isDefault: false }, 10, ['DOCUMENT', 'LIVENESS', 'RISK'], [...THRESHOLDS, 'RISK_MINIMUMS']),
     // REQ: DEC-56 — Internal testing: only super admins and platform staff can build flows on it; not charged.
-    entry({ code: 'V6', name: 'ID + Liveness (next engine build)', description: 'V3 on the next engine build, in internal testing.', phases: ['ID_CAPTURE', 'LIVENESS_CHECK'], faceMatchMethod: 'ID_VS_LIVENESS', requiredInputs: [], status: 'INTERNAL_TESTING', isDefault: false }, 3, 'onboard_v6'),
+    entry({ code: 'V6', name: 'ID + Liveness (next engine build)', status: 'INTERNAL_TESTING', isDefault: false }, 3, ['DOCUMENT', 'LIVENESS'], THRESHOLDS),
   ]
 }
 

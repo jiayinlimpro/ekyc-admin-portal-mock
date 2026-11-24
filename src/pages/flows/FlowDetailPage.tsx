@@ -181,12 +181,6 @@ function Editor({ detail, onSaved }: { detail: FlowDetail; onSaved: () => void }
         </Card>
       )}
 
-      {entry.requiredInputs.includes('EMAIL') && (
-        <Card title="Requirements">
-          <p className="text-sm">Email required at session creation ({entry.code}).</p>
-        </Card>
-      )}
-
       <Card title="Developer info">
         <p className="text-sm">
           <CopyId label="Flow ID" value={flow.flowId} className="text-sm" />
@@ -196,7 +190,7 @@ function Editor({ detail, onSaved }: { detail: FlowDetail; onSaved: () => void }
 Authorization: Bearer <your project's secret key>
 {
   "flowId": "${flow.flowId}",
-  "referenceId": "your-own-reference-for-this-user",${entry.requiredInputs.includes('EMAIL') ? '\n  "email": "user@mail.example",' : ''}
+  "referenceId": "your-own-reference-for-this-user",
   "redirectUrl": "https://app.example/kyc/done"
 }`}
         </pre>

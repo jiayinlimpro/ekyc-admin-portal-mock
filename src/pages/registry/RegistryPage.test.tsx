@@ -33,7 +33,6 @@ describe('Workflow Registry (DEC-56 … DEC-58)', () => {
     const access = within(await screen.findByRole('group', { name: 'Merchant access' }))
     expect((access.getByLabelText('Atoz Software Tech') as HTMLInputElement).checked).toBe(true)
     fireEvent.click(access.getByLabelText(/Vantage/))
-    fireEvent.change(screen.getByLabelText('Release note'), { target: { value: 'Pilot with Vantage' } })
     fireEvent.click(screen.getByRole('button', { name: 'Save' }))
     await waitFor(() => expect(entry('V5').accessMerchantIds).toHaveLength(2))
     fireEvent.click(within(await row('V4')).getByRole('button', { name: 'Edit V4' }))
@@ -50,10 +49,15 @@ describe('Workflow Registry (DEC-56 … DEC-58)', () => {
     expect(screen.getByText(/the merchants ticked under Merchant access/)).toBeTruthy()
   })
 
-  it('Given the list, then each version with status, default and the flows using it; expanding shows them', async () => {
+  it('Given the list, then each version with status, default, its steps and tunables (read from its JSON) and the flows using it; expanding shows them and the JSON (DEC-115)', async () => {
     renderAt('/registry')
     const v1 = await row('V1')
     expect(v1.textContent).toContain('Default for new merchants')
+    expect(v1.textContent).toContain('Document → Selfie → Liveness')
+    expect((await row('V5')).textContent).toContain('Face match, Liveness, Risk minimums')
+    fireEvent.click(within(v1).getByRole('button', { name: /^V1 ·/ }))
+    expect((await screen.findByLabelText('Workflow JSON of V1')).textContent).toContain('"SELFIE"')
+    expect(screen.getByRole('button', { name: 'Copy Workflow JSON' })).toBeTruthy()
     expect((await row('V5')).textContent).toContain('Limited release1 merchant(s)') // DEC-56: Atoz only
     expect((await row('V6')).textContent).toContain('Internal testing')
     fireEvent.click(within(await row('V3')).getByRole('button', { name: /^V3 ·/ }))
@@ -70,25 +74,31 @@ describe('Workflow Registry (DEC-56 … DEC-58)', () => {
     expect(await screen.findByRole('button', { name: 'Switch project. Current: SME app' })).toBeTruthy()
   })
 
-  it('Given a new version, then it is registered as Draft; a used code is refused', async () => {
+  it('Given Register version, then only code, name and the workflow JSON; the dialog shows what it reads; a used code is refused; V7 is registered as Draft (DEC-115)', async () => {
     renderAt('/registry')
     await row('V1')
     fireEvent.click(screen.getByRole('button', { name: /Register version/ }))
-    fireEvent.change(await screen.findByLabelText('Workflow code'), { target: { value: 'V4' } })
-    fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Duplicate' } })
-    fireEvent.change(screen.getByLabelText('Release note'), { target: { value: 'First draft' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Register' }))
-    expect(await screen.findByText('Workflow code already exists')).toBeTruthy()
-    fireEvent.change(screen.getByLabelText('Workflow code'), { target: { value: 'V7' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Register' }))
-    await waitFor(() => expect(entry('V7')).toMatchObject({ status: 'DRAFT', name: 'Duplicate' }))
+    const dialog = within(await screen.findByRole('dialog'))
+    expect(dialog.getAllByRole('textbox').map((x) => x.id)).toEqual(['r-code', 'r-name', 'r-json'])
+    expect(dialog.queryByRole('checkbox')).toBeNull()
+    fireEvent.change(dialog.getByLabelText('Workflow code'), { target: { value: 'V4' } })
+    fireEvent.change(dialog.getByLabelText('Name'), { target: { value: 'Duplicate' } })
+    fireEvent.change(dialog.getByLabelText('Workflow JSON'), { target: { value: '{"workflowCode": "V7", "steps": ["DOCUMENT", "LIVENESS"], "tunable": ["FACE_MATCH", "LIVENESS"]}' } })
+    fireEvent.click(dialog.getByRole('button', { name: 'Register' }))
+    expect(await dialog.findByText('Workflow code already exists')).toBeTruthy()
+    expect(dialog.getByText('This JSON is for V7, not V4.')).toBeTruthy()
+    fireEvent.change(dialog.getByLabelText('Workflow code'), { target: { value: 'V7' } })
+    expect(within(dialog.getByLabelText('What the portal reads')).getByText('Document → Liveness')).toBeTruthy()
+    fireEvent.click(dialog.getByRole('button', { name: 'Register' }))
+    await waitFor(() => expect(entry('V7')).toMatchObject({ status: 'DRAFT', name: 'Duplicate', phases: ['ID_CAPTURE', 'LIVENESS_CHECK'] }))
   })
 
-  it('Given an active version, then only name, description and state machines can be edited', async () => {
+  it('Given a version that has been active, then only the name can be edited; its JSON is read-only (DEC-115)', async () => {
     renderAt('/registry')
     fireEvent.click(within(await row('V4')).getByRole('button', { name: 'Edit V4' }))
-    expect((await screen.findByLabelText('Face match compares') as HTMLSelectElement).disabled).toBe(true)
+    expect((await screen.findByLabelText('Workflow JSON') as HTMLTextAreaElement).readOnly).toBe(true)
     expect((screen.getByLabelText('Name') as HTMLInputElement).disabled).toBe(false)
+    expect(screen.getByText(/A different workflow needs a new version code/)).toBeTruthy()
   })
 
   it('Given the default V1, then deprecating it is refused until another version is the default', async () => {

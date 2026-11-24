@@ -138,10 +138,11 @@ describe('Flow Detail (DEC-18, DEC-19, DEC-50, DEC-51)', () => {
     expect(screen.queryByRole('region', { name: 'Save changes' })).toBeNull()
   })
 
-  it('Given V4, then Risk and the email requirement show; V3 has neither (DEC-50)', async () => {
+  it('Given V4, then Risk shows, and no email requirement: the workflow handles it; V3 has no Risk (DEC-50, DEC-115)', async () => {
     renderAt(`/flows/${fx('FLW-0001')}`)
     expect(await card('Risk Assessment')).toBeTruthy()
-    expect(screen.getByText(/Email required at session creation/)).toBeTruthy()
+    expect(screen.queryByText(/Email required/)).toBeNull()
+    expect(screen.getByLabelText('Sample create-session request').textContent).not.toContain('email')
     cleanup()
     renderAt(`/flows/${fx('FLW-0004')}`)
     await card('Liveness')

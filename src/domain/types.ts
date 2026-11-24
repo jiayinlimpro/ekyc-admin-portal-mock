@@ -613,22 +613,19 @@ export type RegistryStatus = (typeof REGISTRY_STATUSES)[number]
 export const ONBOARDING_PHASES = ['ID_CAPTURE', 'SELFIE_CAPTURE', 'LIVENESS_CHECK', 'RISK_ASSESSMENT'] as const
 export type OnboardingPhase = (typeof ONBOARDING_PHASES)[number]
 export type FaceMatchMethod = 'ID_VS_SELFIE' | 'ID_VS_LIVENESS'
-export type SessionInput = 'EMAIL'
 
 export interface RegistryEntry {
   entryId: string // wfv_… — the internal key; people use the code (V1 … V5) (DEC-97)
   code: WorkflowCode
   name: string
-  description: string // purpose, e.g. "V3 + risk assessment"
-  phases: OnboardingPhase[] // ordered; ID_CAPTURE first
-  faceMatchMethod: FaceMatchMethod
-  requiredInputs: SessionInput[]
-  configurableChecks: Check[]
-  riskMinimumsPerFlow: boolean // REQ: DEC-107 — the flow sets the risk minimums (V5); otherwise they are fixed (V4)
+  // REQ: DEC-115 — the workflow JSON pasted from the backend, as stored (pretty-printed). The workflow decides what runs;
+  // the four fields below are only what the portal read from it at save (registryRules.readDefinition).
+  definition: string
+  phases: OnboardingPhase[] // `steps`, in order; ID_CAPTURE first
+  faceMatchMethod: FaceMatchMethod // follows from the steps (SELFIE → ID vs selfie); labels the case page only
+  configurableChecks: Check[] // `tunable` thresholds
+  riskMinimumsPerFlow: boolean // REQ: DEC-107 — `tunable` has RISK_MINIMUMS: the flow sets them (V5); otherwise fixed (V4)
   accessMerchantIds: string[] // REQ: DEC-56 — Limited release: the merchants that may choose it (internal users always may)
-  stateMachineSandbox?: string // record only, never called
-  stateMachineProduction?: string
-  releaseNotes: { at: string; by: string; text: string }[] // append-only
   status: RegistryStatus
   isDefault: boolean // REQ: DEC-57 — "Default for new merchants"
   activatedAt?: string // set the first time it becomes Active; locks most fields

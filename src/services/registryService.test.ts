@@ -28,22 +28,9 @@ async function expectError(p: Promise<unknown>, code: string, message?: string |
 }
 
 const entry = (code: string) => db.state().registry.find((e) => e.code === code)!
-const inputOf = (e: RegistryEntry, over: Partial<RegistryInput> = {}): RegistryInput => ({
-  code: e.code,
-  name: e.name,
-  description: e.description,
-  phases: e.phases,
-  faceMatchMethod: e.faceMatchMethod,
-  requiredInputs: e.requiredInputs,
-  configurableChecks: e.configurableChecks,
-  riskMinimumsPerFlow: e.riskMinimumsPerFlow,
-  accessMerchantIds: e.accessMerchantIds,
-  stateMachineSandbox: e.stateMachineSandbox,
-  stateMachineProduction: e.stateMachineProduction,
-  releaseNote: 'Test change',
-  ...over,
-})
-const ARN = (env: string) => `arn:aws:states:ap-southeast-1:123456789012:stateMachine:ekyc_${env}_onboard_v5`
+const inputOf = (e: RegistryEntry, over: Partial<RegistryInput> = {}): RegistryInput => ({ code: e.code, name: e.name, definition: e.definition, accessMerchantIds: e.accessMerchantIds, ...over })
+// REQ: DEC-115 — a workflow JSON as the backend hands it over.
+const def = (code: string, steps: string[], tunable = ['FACE_MATCH', 'LIVENESS']) => JSON.stringify({ workflowCode: code, steps, tunable })
 
 describe('registryService access (DEC-70)', () => {
   it('Given the Super admin, then every version with the number of flows using it; anyone else is refused', async () => {
@@ -53,10 +40,11 @@ describe('registryService access (DEC-70)', () => {
     await expectError(registryService.list(OWNER), 'FORBIDDEN')
   })
 
-  it('Given a flow creator, then only Active versions are offered, without state machine references (DEC-56)', async () => {
+  it('Given a flow creator, then only Active versions are offered, with what the portal read but not the JSON itself (DEC-56, DEC-115)', async () => {
     const versions = await registryService.listSelectable(OWNER)
     expect(versions.map((v) => v.code)).toEqual(['V1', 'V3', 'V4', 'V5'])
-    expect(JSON.stringify(versions)).not.toContain('stateMachine')
+    expect(versions[0]).toEqual({ code: 'V1', name: 'ID + Selfie + Liveness', phases: ['ID_CAPTURE', 'SELFIE_CAPTURE', 'LIVENESS_CHECK'], faceMatchMethod: 'ID_VS_SELFIE', configurableChecks: ['FACE_MATCH', 'LIVENESS'], riskMinimumsPerFlow: false, isDefault: true })
+    expect(JSON.stringify(versions)).not.toContain('workflowCode')
     await expectError(registryService.listSelectable(ALI), 'FORBIDDEN') // Reviewer and Viewer only
   })
 })
@@ -70,35 +58,40 @@ describe('registryService flows using a version (DEC-85)', () => {
 })
 
 describe('registryService lifecycle (DEC-56, DEC-57)', () => {
-  it('Given a new code, then it is registered as Draft; a used code is refused; the event is Super admin only', async () => {
-    const v7 = await registryService.register(inputOf(entry('V4'), { code: 'V7', name: 'V4 + document liveness', releaseNote: 'First draft' }), ADMIN)
-    expect(v7).toMatchObject({ code: 'V7', status: 'DRAFT', isDefault: false, releaseNotes: [{ text: 'First draft', by: 'Lim Wei Jie' }] })
+  it('Given a new code, a name and its JSON, then it is registered as Draft with what the portal read; a used code is refused; the event is Super admin only (DEC-115)', async () => {
+    const v7 = await registryService.register({ code: 'V7', name: 'V4 + document liveness', definition: def('V7', ['DOCUMENT', 'LIVENESS', 'RISK']), accessMerchantIds: [] }, ADMIN)
+    expect(v7).toMatchObject({ code: 'V7', status: 'DRAFT', isDefault: false, phases: ['ID_CAPTURE', 'LIVENESS_CHECK', 'RISK_ASSESSMENT'], faceMatchMethod: 'ID_VS_LIVENESS', riskMinimumsPerFlow: false })
+    expect(v7.definition).toBe(JSON.stringify(JSON.parse(def('V7', ['DOCUMENT', 'LIVENESS', 'RISK'])), null, 2)) // stored pretty-printed
     await expectError(registryService.register(inputOf(entry('V4'), { name: 'Copy' }), ADMIN), 'VALIDATION', 'Workflow code already exists')
+    await expectError(registryService.register({ code: 'V8', name: 'Pasted the wrong one', definition: entry('V4').definition, accessMerchantIds: [] }, ADMIN), 'VALIDATION', 'This JSON is for V4, not V8.')
     expect((await auditService.list({ actions: ['WORKFLOW_REGISTERED'] }, ADMIN)).items[0]).toMatchObject({ actorRole: 'Super admin', details: { code: 'V7' } })
     expect((await auditService.list({ actions: ['WORKFLOW_REGISTERED'] }, OWNER)).total).toBe(0)
   })
 
-  it('Given a version that has been Active, then only name, description and state machines can change', async () => {
-    await expectError(registryService.update('V4', inputOf(entry('V4'), { phases: ['ID_CAPTURE', 'LIVENESS_CHECK'] }), ADMIN), 'VALIDATION', /locked/)
-    const renamed = await registryService.update('V4', inputOf(entry('V4'), { name: 'ID + Liveness + Risk', releaseNote: 'Shorter name' }), ADMIN)
+  it('Given a version that has been Active, then only the name can change; its JSON is locked (DEC-115)', async () => {
+    await expectError(registryService.update('V4', inputOf(entry('V4'), { definition: def('V4', ['DOCUMENT', 'LIVENESS']) }), ADMIN), 'VALIDATION', 'The workflow JSON is locked: flows may be built on this version. Register a new version code instead.')
+    const renamed = await registryService.update('V4', inputOf(entry('V4'), { name: 'ID + Liveness + Risk', definition: JSON.stringify(JSON.parse(entry('V4').definition)) }), ADMIN) // the same JSON, compact: no change
     expect(renamed.name).toBe('ID + Liveness + Risk')
-    expect(renamed.releaseNotes.at(-1)!.text).toBe('Shorter name')
     expect((await auditService.list({ actions: ['WORKFLOW_UPDATED'] }, ADMIN)).items[0].details.changes).toEqual([
       { field: 'name', from: 'ID + Liveness + Risk Assessment', to: 'ID + Liveness + Risk' },
     ])
   })
 
-  it('Given a Draft V7, then a running status needs both state machine refs; any status after that, even back to Draft (DEC-56)', async () => {
-    await registryService.register(inputOf(entry('V5'), { code: 'V7', name: 'Next', accessMerchantIds: [], stateMachineSandbox: undefined, stateMachineProduction: undefined, releaseNote: 'Draft' }), ADMIN)
-    await expectError(registryService.changeStatus('V7', 'INTERNAL_TESTING', 'Engine build ready', ADMIN), 'VALIDATION', 'Add both state machine references first.')
-    await registryService.update('V7', inputOf(entry('V7'), { stateMachineSandbox: ARN('sand'), stateMachineProduction: ARN('prod') }), ADMIN)
+  it('Given a Draft V7, then any status with a reason; its JSON can be replaced in Internal testing, and locks once Active (DEC-56, DEC-115)', async () => {
+    await registryService.register({ code: 'V7', name: 'Next', definition: def('V7', ['DOCUMENT', 'LIVENESS']), accessMerchantIds: [] }, ADMIN)
     expect(await registryService.changeStatus('V7', 'INTERNAL_TESTING', 'Engine build ready', ADMIN)).toMatchObject({ status: 'INTERNAL_TESTING' })
-    expect(entry('V7').activatedAt).toBeUndefined() // Internal testing keeps the fields editable
+    expect(entry('V7').activatedAt).toBeUndefined() // Internal testing keeps the JSON editable
+    await registryService.update('V7', inputOf(entry('V7'), { definition: def('V7', ['DOCUMENT', 'SELFIE', 'LIVENESS']) }), ADMIN)
+    expect(entry('V7')).toMatchObject({ phases: ['ID_CAPTURE', 'SELFIE_CAPTURE', 'LIVENESS_CHECK'], faceMatchMethod: 'ID_VS_SELFIE' })
+    expect((await auditService.list({ actions: ['WORKFLOW_UPDATED'] }, ADMIN)).items[0].details.changes).toEqual([
+      { field: 'definition', from: def('V7', ['DOCUMENT', 'LIVENESS']), to: def('V7', ['DOCUMENT', 'SELFIE', 'LIVENESS']) },
+    ])
     expect((await registryService.listSelectable(OWNER)).map((v) => v.code)).not.toContain('V7') // merchants never see Internal testing
     expect((await registryService.listSelectable(ADMIN, fx('MER-0002'))).map((v) => v.code)).toContain('V7')
     const v7 = await registryService.changeStatus('V7', 'ACTIVE', 'Ready for everyone', ADMIN)
     expect(v7).toMatchObject({ status: 'ACTIVE', activatedAt: NOW.toISOString() })
     expect((await registryService.listSelectable(OWNER)).map((v) => v.code)).toContain('V7')
+    await expectError(registryService.update('V7', inputOf(entry('V7'), { definition: def('V7', ['DOCUMENT', 'LIVENESS']) }), ADMIN), 'VALIDATION', /locked/)
     expect(await registryService.changeStatus('V7', 'DRAFT', 'Pulled back', ADMIN)).toMatchObject({ status: 'DRAFT' })
   })
 
@@ -106,7 +99,7 @@ describe('registryService lifecycle (DEC-56, DEC-57)', () => {
     expect(entry('V5')).toMatchObject({ status: 'LIMITED_RELEASE', accessMerchantIds: [fx('MER-0001')] })
     expect((await registryService.listSelectable(OWNER)).map((v) => v.code)).toContain('V5')
     expect((await registryService.listSelectable(ADMIN, fx('MER-0002'))).map((v) => v.code)).toContain('V5')
-    await registryService.update('V5', inputOf(entry('V5'), { accessMerchantIds: [fx('MER-0001'), fx('MER-0002')], releaseNote: 'Pilot with Vantage' }), ADMIN)
+    await registryService.update('V5', inputOf(entry('V5'), { accessMerchantIds: [fx('MER-0001'), fx('MER-0002')] }), ADMIN)
     expect(entry('V5').accessMerchantIds).toEqual([fx('MER-0001'), fx('MER-0002')]) // editable although other fields are locked
   })
 

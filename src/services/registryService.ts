@@ -1,14 +1,15 @@
-// Workflow Registry API (mock). DEC-56 … DEC-58. A record only: nothing here builds, deploys or calls AWS Step Functions.
+// Workflow Registry API (mock). DEC-56 … DEC-58, DEC-115. A record only: nothing here builds, deploys or calls the workflow.
+// The workflow decides what runs; a version is its code, a name and the workflow JSON the portal reads (DEC-115).
 //   GET  /registry                    list           → 200 RegistryRow[]           (Super admin)
 //   GET  /registry/selectable?merchantId=  listSelectable → 200 SelectableVersion[]  (anyone who may create flows; DEC-56)
 //   POST /registry                    register       → 201 RegistryEntry | 422 VALIDATION
-//   PUT  /registry/{code}             update         → 200 RegistryEntry | 422 VALIDATION (locked fields)
+//   PUT  /registry/{code}             update         → 200 RegistryEntry | 422 VALIDATION (JSON locked once released)
 //   POST /registry/{code}/status      changeStatus   → 200 RegistryEntry | 422 VALIDATION
 //   POST /registry/{code}/default     setDefault     → 200 RegistryEntry | 422 VALIDATION
 //   GET  /registry/{code}/flows       flowsUsing     → 200 FlowUsingVersion[] (replaces the Merchant Workflow Directory, DEC-85)
 import { canOnPlatform, isInternal, projectsWhere } from '@/domain/access'
 import { makeAudit } from '@/domain/audit'
-import { isLocked, locksFields, selectableForNewFlow, setDefaultError, statusChangeError, validateRegistryInput, withDefault, type RegistryInput } from '@/domain/registryRules'
+import { isLocked, locksFields, normaliseDefinition, readDefinition, selectableForNewFlow, setDefaultError, statusChangeError, validateRegistryInput, withDefault, type RegistryInput } from '@/domain/registryRules'
 import type { Actor, AuditAction, Flow, RegistryEntry, RegistryStatus, SettingChange, WorkflowCode } from '@/domain/types'
 import { now } from '@/lib/clock'
 import { db } from '@/mocks/mockDb'
@@ -21,8 +22,8 @@ import { newId } from '@/lib/ids'
 /** Registry row with "flows using it" (DEC-85: replaces the Merchant Workflow Directory). */
 export type RegistryRow = RegistryEntry & { flowsUsing: number }
 
-/** What a flow creator needs to pick a version. State machine references are internal and left out. */
-export type SelectableVersion = Pick<RegistryEntry, 'code' | 'name' | 'description' | 'phases' | 'faceMatchMethod' | 'requiredInputs' | 'configurableChecks' | 'riskMinimumsPerFlow' | 'isDefault'>
+/** What a flow creator needs to pick a version: what the portal read from its JSON. The JSON itself stays internal. */
+export type SelectableVersion = Pick<RegistryEntry, 'code' | 'name' | 'phases' | 'faceMatchMethod' | 'configurableChecks' | 'riskMinimumsPerFlow' | 'isDefault'>
 
 /** A flow on a version, with where it lives. */
 export interface FlowUsingVersion {
@@ -40,7 +41,7 @@ export interface RegistryService {
   /** REQ: DEC-56 — what this user may choose for a new flow in that merchant (Internal testing: internal users only). */
   listSelectable(actor: Actor, merchantId?: string): Promise<SelectableVersion[]>
   register(input: RegistryInput, actor: Actor): Promise<RegistryEntry>
-  /** The code never changes. After first activation only name, description and state machine references can (DEC-56). */
+  /** The code never changes. Once Limited release or Active, only the name and Merchant access can (DEC-115). */
   update(code: WorkflowCode, input: RegistryInput, actor: Actor): Promise<RegistryEntry>
   changeStatus(code: WorkflowCode, to: RegistryStatus, reason: string, actor: Actor): Promise<RegistryEntry>
   setDefault(code: WorkflowCode, actor: Actor): Promise<RegistryEntry>
@@ -66,25 +67,28 @@ function audit(actor: Actor, action: AuditAction, code: WorkflowCode, details: R
   db.appendAudit(makeAudit({ id: '', now: now(), action, actor, actorRole: 'Super admin', ip: clientIpFor(actor), details: { code, ...details } }))
 }
 
-const FIELDS: (keyof RegistryInput)[] = ['name', 'description', 'phases', 'faceMatchMethod', 'requiredInputs', 'configurableChecks', 'riskMinimumsPerFlow', 'accessMerchantIds', 'stateMachineSandbox', 'stateMachineProduction']
-const text = (v: unknown) => (Array.isArray(v) ? v.join(' → ') || '—' : v === undefined || v === '' ? '—' : String(v))
-
-function diff(e: RegistryEntry, input: RegistryInput): SettingChange[] {
-  return FIELDS.filter((f) => text(e[f as keyof RegistryEntry]) !== text(input[f])).map((f) => ({ field: f, from: text(e[f as keyof RegistryEntry]), to: text(input[f]) }))
+// REQ: DEC-115 — what is stored: the name, the JSON (pretty-printed) and what the portal read from it.
+const fields = (input: RegistryInput) => {
+  const definition = normaliseDefinition(input.definition)
+  return {
+    name: input.name.trim(),
+    definition,
+    ...readDefinition(definition, input.code).definition!,
+    accessMerchantIds: input.accessMerchantIds.filter((id) => db.state().merchants.some((m) => m.merchantId === id)),
+  }
 }
 
-const fields = (input: RegistryInput) => ({
-  name: input.name.trim(),
-  description: input.description.trim(),
-  phases: input.phases,
-  faceMatchMethod: input.faceMatchMethod,
-  requiredInputs: input.requiredInputs,
-  configurableChecks: input.configurableChecks,
-  riskMinimumsPerFlow: input.riskMinimumsPerFlow && input.phases.includes('RISK_ASSESSMENT'),
-  accessMerchantIds: input.accessMerchantIds.filter((id) => db.state().merchants.some((m) => m.merchantId === id)),
-  stateMachineSandbox: input.stateMachineSandbox?.trim() || undefined,
-  stateMachineProduction: input.stateMachineProduction?.trim() || undefined,
-})
+const compact = (json: string) => JSON.stringify(JSON.parse(json))
+const merchantsText = (ids: readonly string[]) => ids.map((id) => db.state().merchants.find((m) => m.merchantId === id)?.name ?? id).join(', ') || '—'
+
+/** Old and new values for the audit entry: the name, the JSON (compact) and Merchant access. */
+function diff(e: RegistryEntry, next: ReturnType<typeof fields>): SettingChange[] {
+  const out: SettingChange[] = []
+  if (e.name !== next.name) out.push({ field: 'name', from: e.name, to: next.name })
+  if (e.definition !== next.definition) out.push({ field: 'definition', from: compact(e.definition), to: compact(next.definition) })
+  if (merchantsText(e.accessMerchantIds) !== merchantsText(next.accessMerchantIds)) out.push({ field: 'accessMerchantIds', from: merchantsText(e.accessMerchantIds), to: merchantsText(next.accessMerchantIds) })
+  return out
+}
 
 export const mockRegistryService: RegistryService = {
   async list(actor) {
@@ -115,13 +119,11 @@ export const mockRegistryService: RegistryService = {
     await simulateNetwork('list selectable versions')
     if (projectsWhere(accountOf(actor), 'createFlows', db.state().projects).length === 0) throw new ServiceError('FORBIDDEN', 'You do not have permission to create flows.')
     return wire(
-      selectableForNewFlow(db.state().registry, { internal: isInternal(accountOf(actor)), merchantId: merchantId ?? accountOf(actor).merchantId }).map(({ code, name, description, phases, faceMatchMethod, requiredInputs, configurableChecks, riskMinimumsPerFlow, isDefault }) => ({
+      selectableForNewFlow(db.state().registry, { internal: isInternal(accountOf(actor)), merchantId: merchantId ?? accountOf(actor).merchantId }).map(({ code, name, phases, faceMatchMethod, configurableChecks, riskMinimumsPerFlow, isDefault }) => ({
         code,
         name,
-        description,
         phases,
         faceMatchMethod,
-        requiredInputs,
         configurableChecks,
         riskMinimumsPerFlow,
         isDefault,
@@ -140,7 +142,6 @@ export const mockRegistryService: RegistryService = {
       entryId: newId('wfv'),
       code: input.code.trim(),
       ...fields(input),
-      releaseNotes: [{ at, by: actor.fullName, text: input.releaseNote.trim() }],
       status: 'DRAFT',
       isDefault: false,
       registeredAt: at,
@@ -160,21 +161,22 @@ export const mockRegistryService: RegistryService = {
     const e = load(code)
     if (input.code.trim() !== code) throw validation([{ field: 'code', message: 'The workflow code cannot be changed.' }])
     const errors = validateRegistryInput(input, db.state().registry.filter((x) => x.code !== code).map((x) => x.code))
-    const changes = diff(e, input)
-    // REQ: DEC-56 — after first activation, anything other than name, description and state machines needs a new code.
-    for (const c of changes) {
-      if (isLocked(e, c.field as keyof RegistryInput)) errors.push({ field: c.field, message: 'This field is locked once the version has been active. Register a new version code instead.' })
-    }
-    if (!changes.length) errors.push({ field: 'form', message: 'There are no changes to save.' })
     if (errors.length) throw validation(errors)
+    const next = fields(input)
+    const changes = diff(e, next)
+    // REQ: DEC-115 — once Limited release or Active, the JSON is locked: a different workflow needs a new code.
+    if (changes.some((c) => isLocked(e, c.field))) {
+      throw validation([{ field: 'definition', message: 'The workflow JSON is locked: flows may be built on this version. Register a new version code instead.' }])
+    }
+    if (!changes.length) throw validation([{ field: 'form', message: 'There are no changes to save.' }])
     const at = now().toISOString()
-    const updated: RegistryEntry = { ...e, ...fields(input), releaseNotes: [...e.releaseNotes, { at, by: actor.fullName, text: input.releaseNote.trim() }], updatedAt: at, updatedBy: actor.fullName }
+    const updated: RegistryEntry = { ...e, ...next, updatedAt: at, updatedBy: actor.fullName }
     put(updated)
-    audit(actor, 'WORKFLOW_UPDATED', code, { changes, releaseNote: input.releaseNote.trim() })
+    audit(actor, 'WORKFLOW_UPDATED', code, { changes })
     return wire(updated)
   },
 
-  // REQ: DEC-56 / DEC-57 — any status with a reason; the default stays Active; running statuses need state machines.
+  // REQ: DEC-56 / DEC-57 — any status with a reason; the default stays Active.
   async changeStatus(code, to, reason, actor) {
     await simulateNetwork('change workflow status')
     requireActive(actor)

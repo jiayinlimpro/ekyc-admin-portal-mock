@@ -151,8 +151,8 @@ export function buildCase(spec: CaseSpec): Verification {
   const lastUpdatedAt = ev.status === 'PROCESSING' ? at(0) : new Date(Date.parse(attempts.at(-1)!.startedAt) + 3 * 60_000).toISOString()
   const decisive = ev.status === 'PENDING_REVIEW' || ev.status === 'REJECTED' || ev.status === 'UNSUCCESSFUL'
   const image = { MYKAD: '/mock/mykad-front.svg', PASSPORT: '/mock/passport.svg', DRIVING_LICENSE: '/mock/driving-license.svg' }[spec.person.documentType]
-  // REQ: DEC-44 — V4/V5 sessions require an email; reserved .example domain, never a real address.
-  const email = spec.entry.requiredInputs.includes('EMAIL') ? emailFor(spec.person.pii.fullName, spec.referenceId) : undefined
+  // REQ: DEC-44 / DEC-115 — the risk workflows (V4/V5) collect an email; reserved .example domain, never a real address.
+  const email = hasRisk(spec.entry) ? emailFor(spec.person.pii.fullName, spec.referenceId) : undefined
   return {
     verificationId: verificationIdOf(spec.referenceId, spec.idVariant), // REQ: DEC-97 — stable for seeded cases (MOCK-05)
     referenceId: spec.referenceId,
