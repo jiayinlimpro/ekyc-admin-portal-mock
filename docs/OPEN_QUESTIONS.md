@@ -28,6 +28,7 @@ Each question is a **parameter**, not a fact. The mock uses the default below. I
 | OQ-32 | The engine sets FacePixelSizeThreshold = 50, but its Selfie Quality Check doesn't apply it. Should a selfie face smaller than 50 px fail? | Not checked; shown as information | `selfieMetrics` in `src/domain/telemetry.ts` |
 | OQ-36 | Test and live API keys (sandbox). An Onboarding merchant is "sandbox only" (DEC-98), but nothing says how a sandbox works. Separate test keys (`sk_test_…`) whose sessions use no tokens, aren't billed, are kept apart from real cases and get simulated results? Or a separate sandbox environment? (DEC-111) | Not modelled: one kind of key; Onboarding is a label only (MOCK) | Project Settings › Integration (not built) |
 | OQ-38 | The same Reference ID while its case is `PROCESSING`, `PENDING_REVIEW` or `APPROVED` (DEC-113). Not expected; what should the API answer? | Refused: "This Reference ID already has a case" | DEC-113 (create-session, backend) |
+| OQ-39 | The workflow JSON the backend hands over for each version (DEC-115): its key names and step / tunable names | `{ "workflowCode": "V1", "steps": ["DOCUMENT", "SELFIE", "LIVENESS"], "tunable": ["FACE_MATCH", "LIVENESS"] }`; other keys kept, not read | `readDefinition` in `src/domain/registryRules.ts` |
 | OQ-31 | The company staff email domain (DEC-99): platform staff and super admins must use it; merchant users may not | `ekyc-platform.example` | `STAFF_EMAIL_DOMAIN` in `src/domain/openQuestions.ts` |
 
 ## Answered (kept for traceability)

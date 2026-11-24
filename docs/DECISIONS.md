@@ -93,8 +93,8 @@ Rules changed on 2026-10-20 (Projects & Flows restructure) are marked **(changed
     instead of pass / fail so they are never confused with the case statuses. One minimum per category.
   - **V4:** the minimums are fixed by the platform; the merchant sees them read-only. **V5:** the flow sets one minimum per
     category (0–100) in Flow Detail, with the same rules as the thresholds (Change verification level and retries; saving
-    an active flow needs a reason and creates a revision). The registry entry says which versions allow it ("Risk minimums
-    set per flow"). Default minimums: 50 each (OQ-34).
+    an active flow needs a reason and creates a revision). The version's workflow JSON says which versions allow it
+    (`RISK_MINIMUMS` under `tunable`, DEC-115). Default minimums: 50 each (OQ-34).
   - Final status:
 
     | Biometric result | Risk result | Final status |
@@ -357,8 +357,8 @@ Rules changed on 2026-10-20 (Projects & Flows restructure) are marked **(changed
   | Accepted documents (MyKad, Passport, Driving License) | ✓ | ✓ | ✓ | ✓ |
   | Session expiry | ✓ | ✓ | ✓ | ✓ |
   | Risk minimums per category (DEC-107) | | | read-only (fixed) | ✓ |
-  | Requirements: "Email required at session creation" | | | ✓ | ✓ |
   | Developer info: flow ID, sample create-session request | ✓ | ✓ | ✓ | ✓ |
+  | ~~Requirements: "Email required at session creation"~~ (removed 2026-11-24, DEC-115) | | | | |
   | History: who, when, old and new value | ✓ | ✓ | ✓ | ✓ |
   [MS][PO 2026-10-20]
 - **DEC-51** **(changed)** No staged draft/deploy. A Draft flow is edited freely. On an Active flow, Save requires a
@@ -415,14 +415,37 @@ Rules changed on 2026-10-20 (Projects & Flows restructure) are marked **(changed
     Internal testing version (the uncharged test sessions), are seen by internal users only. Merchant users don't see them
     anywhere: Flows, Flow Detail ("not found"), flow filters, Verifications (the case is "not found"), dashboards and
     Billing. If the version moves on (e.g. to Limited release), the flow shows; its earlier test sessions stay internal.
-  - Fields lock once the version has been Limited release or Active (merchants may have built on it); Internal testing can
-    still be edited.
-  - No hard delete. Once a version has been Active, only name, description, state machine references and release notes can be
-    edited; anything else needs a new version code.
+  - **(changed 2026-11-24, DEC-115)** The workflow JSON locks once the version has been Limited release or Active (merchants
+    may have built on it); Internal testing can still be edited.
+  - No hard delete. Once a version has been Limited release or Active, only the name and Merchant access can be edited; a
+    different workflow needs a new version code (DEC-115).
+  - **(changed 2026-11-24, DEC-115)** No state machine references: a running status no longer needs them.
 - **DEC-57** **(new)** Exactly one version is "**Default for new merchants**" and it must be Active. It cannot be deprecated
   while it is the default. Changing the default affects new merchants only. [PO 2026-10-20]
 - **DEC-58** **(new)** Versions: V1 (ID → Selfie → Liveness; face match ID vs Selfie; default), V3 (ID → Liveness; ID vs
   liveness face), V4 (V3 + Risk Assessment; email required), V5 (Draft, TBC). No V2. [FRS][MS]
+- **DEC-115** **(new; replaces the register / edit fields of DEC-56 and the FRS Workflow Registry Notes B)** **The workflow
+  decides; the portal reads its JSON** [PO 2026-11-24]. The portal never decides what a workflow does (which steps run,
+  what the face is matched against, what the session needs): the backend workflow does. The portal pushes the chosen
+  version and the flow's tunable settings, and pulls the results back.
+  - **Register version:** **Workflow code** (V<number>, never reused), **Name**, and the **Workflow JSON** pasted from the
+    backend. Nothing else: no step checkboxes, face match select, email requirement, threshold checkboxes, risk-minimum
+    checkbox, state machine references, description or release notes.
+  - The portal reads the JSON and shows what it understood, read-only ("Document → Selfie → Liveness · Tunable: Face match,
+    Liveness"). Draft contract (OQ-39): `workflowCode` (must equal the code), `steps` (in order, from `DOCUMENT`, `SELFIE`,
+    `LIVENESS`, `RISK`; `DOCUMENT` first; `LIVENESS` always), `tunable` (from `FACE_MATCH`, `LIVENESS`, `RISK_MINIMUMS`;
+    at least one threshold; `RISK_MINIMUMS` only with `RISK`). Other keys are kept and shown, not read.
+  - **What is tunable is fixed by the version:** Flow Detail shows exactly what the version's JSON lists (thresholds, the
+    retries for its steps, risk minimums only when `RISK_MINIMUMS` is listed; otherwise V4-style fixed minimums). What the
+    face is matched against is not entered: a version with `SELFIE` matches ID vs selfie, otherwise ID vs liveness face; the
+    portal uses it only to label the case page.
+  - **No email requirement in the portal:** what a session must send (e.g. an email for risk) is the workflow's business.
+    Flow Detail has no Requirements section and the sample request has no email (replaces DEC-50's "Requirements" row).
+  - **Edit:** the name, and Merchant access while Limited release. The JSON can be replaced while Draft or Internal testing;
+    after Limited release or Active it is locked (a different workflow = a new code). Status, Default for new merchants and
+    Merchant access stay portal settings (DEC-56, DEC-57).
+  - The expanded row shows the JSON (read-only, Copy) and the flows using the version. Changes are audited
+    (`WORKFLOW_REGISTERED`, `WORKFLOW_UPDATED` with the old and new name or JSON).
 
 ## Charging
 - **DEC-60** **(changed again 2026-10-27)** Sessions on an **Internal testing** version (DEC-56) are not charged. Otherwise,
@@ -945,6 +968,7 @@ These keep the mock runnable. They are not signed-off requirements; change them 
 | DEC-112 / DEC-26 | Status `FAILED`, shown as "Failed"; "Cooldown after Failed" (`failedCooldownMin`) | `UNSUCCESSFUL`, shown as "Unsuccessful"; "Cooldown after Unsuccessful" (`unsuccessfulCooldownMin`) [PO 2026-11-23] |
 | DEC-16 / DEC-108 | A document or V1 selfie still failing when its retries are used up → `REJECTED` | `UNSUCCESSFUL` (DEC-112) |
 | DEC-97 | Our case ID `ver_…`, labelled "Case ID"; code fields `caseId`, `referenceNo` | Verification ID `vrf_…`; code fields `verificationId`, `referenceId` (DEC-114) |
+| DEC-56 / DEC-58 (FRS Registry Notes B) | Register / edit: description, onboarding phase checkboxes, face match method, "Email required", configurable thresholds, "Risk minimums set per flow", sandbox and production state machine ARNs, release notes | Code + Name + Workflow JSON; the portal reads steps and tunables from the JSON (DEC-115) [PO 2026-11-24] |
 | DEC-26 / OQ-22 | One cooldown, after a rejection; same end user = same ID document number | Cooldown after Rejected + cooldown after Unsuccessful; same end user = same Reference ID (DEC-26, DEC-113) |
 | DEC-32 | Decisions are final; a returning end user gets a new case | No reviewer reopen; a returning Reference ID continues its `REJECTED` or `UNSUCCESSFUL` case after the cooldown (DEC-113) |
 | DEC-97 / OQ-17 | Reference ID uniqueness open (mock: per project) | Identifies the end user within a project; may repeat across projects; Verification ID is the unique key (DEC-113, DEC-114) |
