@@ -10,6 +10,14 @@ type By = Flow['updatedBy']
  * A new flow starts on Standard with the default retries and cooldown. Session expiry and accepted documents have no
  * default: they are required fields until OQ-19 is answered.
  */
+/**
+ * REQ: DEC-115 / DEC-107 — a version's definition can gain a RISK step after its flows were made: such a flow has no risk
+ * minimums yet, so it shows and runs on the defaults (OQ-34) until it is saved.
+ */
+export function settingsForVersion(settings: FlowSettings, entry: Pick<RegistryEntry, 'phases'>): FlowSettings {
+  return hasRisk(entry) && !settings.risk ? { ...settings, risk: { enabled: true, minimums: { ...DEFAULT_RISK_MINIMUMS } } } : settings
+}
+
 export function newFlowSettings(entry: Pick<RegistryEntry, 'phases'>): FlowSettings {
   const check = { threshold: { preset: 'STANDARD' } as ThresholdChoice }
   return {

@@ -9,7 +9,7 @@
 //   POST /flows/{id}/retire            retire     → 200 Flow | 422 VALIDATION
 import { canInProject, isInternal } from '@/domain/access'
 import { activate, activateError, duplicateFlow, IN_FLIGHT_STATUSES, retire, retireError, settleRetiring } from '@/domain/flowRules'
-import { createFlow, saveFlow, validateFlow } from '@/domain/flowSettings'
+import { createFlow, saveFlow, validateFlow, settingsForVersion } from '@/domain/flowSettings'
 import { selectableForNewFlow } from '@/domain/registryRules'
 import type { Actor, Flow, FlowRevision, Project, RegistryEntry, RegistryStatus } from '@/domain/types'
 import { now } from '@/lib/clock'
@@ -98,10 +98,11 @@ export const mockFlowService: FlowService = {
   async get(flowId, actor) {
     await simulateNetwork('get flow')
     const { flow } = loadFlow(actor, flowId, 'viewFlows')
+    const entry = entryOf(flow.workflowVersion)!
     return wire({
-      flow,
+      flow: { ...flow, settings: settingsForVersion(flow.settings, entry) }, // REQ: DEC-115
       revisions: db.state().flowRevisions.filter((r) => r.flowId === flowId).sort((a, b) => a.revision - b.revision),
-      entry: entryOf(flow.workflowVersion)!,
+      entry,
       inFlightCases: inFlight(flowId),
     })
   },

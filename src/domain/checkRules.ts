@@ -1,7 +1,7 @@
 // SYSTEM status for a case in a flow (DEC-11 … DEC-16, DEC-108).
 // Manual decisions are not derived; they are applied by claimRules.
 import { checkCondition } from './conditions'
-import { POLICY, type PhaseCombination } from './openQuestions'
+import { DEFAULT_RISK_MINIMUMS, POLICY, type PhaseCombination } from './openQuestions'
 import { resolveThreshold, type Thresholds } from './thresholds'
 import { RISK_CATEGORIES, RISK_CATEGORY_LABELS, type Check, type FaceMatchMethod, type FlowSettings, type RetryPhase, type RiskConfig, type RiskResult, type RiskScores, type ThresholdChoice, type VerificationStatus } from './types'
 
@@ -147,7 +147,8 @@ export function evaluateCase(input: CaseInput, flow: FlowContext, combination: P
   if (flow.hasRisk) {
     if (!input.riskScores) return { status: 'PROCESSING', ...done } // risk has not run yet
     // REQ: DEC-107 — biometrics approve + High risk → PENDING_REVIEW (a biometric reject or review is decided above).
-    const risk = evaluateRisk(input.riskScores, flow.settings.risk)
+    // REQ: DEC-115 — a flow made before its version gained the risk step runs on the default minimums (OQ-34).
+    const risk = evaluateRisk(input.riskScores, flow.settings.risk ?? { enabled: true, minimums: DEFAULT_RISK_MINIMUMS })
     if (risk.result === 'HIGH') return { status: 'PENDING_REVIEW', reason: RISK_NOT_PASSED, detail: riskDetail(risk), ...done }
   }
   return { status: 'APPROVED', ...done } // REQ: DEC-14 — lastUpdatedBy = SYSTEM
