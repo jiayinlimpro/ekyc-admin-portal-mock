@@ -29,7 +29,7 @@ function groups(v: VerificationDetail): Group[] {
   if (v.idCapture) out.push({ stage: 'ID capture', rows: idCaptureMetrics(v.idCapture, v.documentType) })
   if (face?.telemetry?.selfie) out.push({ stage: 'Selfie', rows: selfieMetrics(face.telemetry.selfie) })
   const rejected = !face?.telemetry?.selfie ? face?.telemetry?.selfieRetakes?.at(-1) : undefined
-  // REQ: DEC-105 — V1: the selfie failed its quality check, so the run ended before the face comparison.
+  // REQ: DEC-105 — W1: the selfie failed its quality check, so the run ended before the face comparison.
   if (rejected) out.push({ stage: 'Selfie (rejected: not compared with the ID)', rows: selfieMetrics(rejected) })
   const fm = ev('FACE_MATCH')
   const subject = v.steps.faceMatchMethod === 'ID_VS_SELFIE' ? 'selfie' : 'liveness face'
@@ -129,7 +129,7 @@ export function AttemptsSection({ v }: { v: VerificationDetail }) {
               const retakes = a.telemetry?.selfieRetakes ?? []
               return (
                 <Fragment key={a.attemptId}>
-                {/* REQ: DEC-105 / DEC-108 / DEC-60 — V1: submitted selfies rejected by the quality check use a selfie retry and a token; never compared with the ID. */}
+                {/* REQ: DEC-105 / DEC-108 / DEC-60 — W1: submitted selfies rejected by the quality check use a selfie retry and a token; never compared with the ID. */}
                 {retakes.map((t, i) => (
                   <tr key={`${a.attemptId}-r${i}`} className="border-b align-top text-muted-foreground">
                     <th scope="row" className="py-1.5 pr-3 text-left font-normal">Attempt {a.attemptNo} · selfie retake</th>

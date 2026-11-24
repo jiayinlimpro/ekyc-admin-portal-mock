@@ -8,7 +8,7 @@ const STYLES: Record<RiskResult, string> = {
   HIGH: 'text-amber-700 border-amber-300 dark:text-amber-300 dark:border-amber-500/40',
 }
 
-/** Cases without a risk result (V1/V3, or risk not run yet): an em dash with an accessible "Not applicable". */
+/** Cases without a risk result (W1/W3, or risk not run yet): an em dash with an accessible "Not applicable". */
 export function RiskBadge({ result }: { result?: RiskResult }) {
   if (!result)
     return (

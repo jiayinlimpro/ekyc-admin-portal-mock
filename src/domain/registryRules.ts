@@ -3,7 +3,7 @@
 // runs; the portal reads the version's workflow JSON (DEC-115) and pushes the flow's tunable settings.
 import { CHECKS, type Check, type FaceMatchMethod, type OnboardingPhase, type RegistryEntry, type RegistryStatus, type RuleError, type WorkflowCode } from './types'
 
-export const CODE_PATTERN = /^V[0-9]{1,3}$/
+export const CODE_PATTERN = /^W[0-9]{1,3}$/
 
 /** REQ: DEC-115 — Register / Edit: the code, a name and the workflow JSON; Merchant access while Limited release (DEC-56). */
 export interface RegistryInput {
@@ -55,7 +55,7 @@ export function readDefinition(json: string, code: string): { definition?: Workf
   } catch {
     return fail('This is not valid JSON.')
   }
-  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return fail('The definition must be a JSON object, e.g. { "workflowCode": "V7", … }.')
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return fail('The definition must be a JSON object, e.g. { "workflowCode": "W7", … }.')
   const o = raw as Record<string, unknown>
   if (typeof o.workflowCode !== 'string' || !o.workflowCode.trim()) return fail('The JSON has no "workflowCode".')
   if (code.trim() && o.workflowCode.trim() !== code.trim()) return fail(`This JSON is for ${o.workflowCode.trim()}, not ${code.trim()}.`)
@@ -93,7 +93,7 @@ export function validateRegistryInput(input: RegistryInput, existingCodes: reado
   const errors: RuleError[] = []
   const code = input.code.trim()
   if (!code) errors.push({ field: 'code', message: 'Workflow code is required' })
-  else if (!CODE_PATTERN.test(code)) errors.push({ field: 'code', message: 'Workflow code must follow the format V<number>, e.g., V5' })
+  else if (!CODE_PATTERN.test(code)) errors.push({ field: 'code', message: 'Workflow code must follow the format W<number>, e.g., W5' })
   else if (existingCodes.includes(code)) errors.push({ field: 'code', message: 'Workflow code already exists' }) // never reused
   if (!input.name.trim()) errors.push({ field: 'name', message: 'Workflow name cannot be empty' })
   errors.push(...readDefinition(input.definition, CODE_PATTERN.test(code) ? code : '').errors)

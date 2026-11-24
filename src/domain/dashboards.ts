@@ -136,7 +136,7 @@ export interface FlowIntel {
   firstAttemptPass: number // every check passed on its first submission
   retries: number // REQ: DEC-108 — submissions after the first, in every phase
   retriesExhausted: number
-  /** Unfinished sessions (PROCESSING) by the last phase reached. Selfie only for flows with a selfie step (V1). */
+  /** Unfinished sessions (PROCESSING) by the last phase reached. Selfie only for flows with a selfie step (W1). */
   dropOff: { idCapture: number; selfie?: number; liveness: number }
 }
 
@@ -194,7 +194,7 @@ export function intelligenceStats(records: readonly Verification[], range: DateR
       f.retriesExhausted++
     }
     if (v.status === 'PROCESSING') {
-      // The last phase reached: nothing submitted = ID capture; a selfie match but no liveness yet = selfie (V1).
+      // The last phase reached: nothing submitted = ID capture; a selfie match but no liveness yet = selfie (W1).
       if (!submittedAny(v)) f.dropOff.idCapture++
       else if (ctx.hasSelfie && !(v.submissions.LIVENESS?.length ?? 0)) f.dropOff.selfie = (f.dropOff.selfie ?? 0) + 1
       else f.dropOff.liveness++
@@ -207,7 +207,7 @@ export function intelligenceStats(records: readonly Verification[], range: DateR
 
 // ----- Billing -----------------------------------------------------------------------------------------------------------
 
-/** REQ: DEC-60 — tokens = document (OCR) + V1 selfie + liveness submissions, whatever the final status (DEC-108, OQ-35). */
+/** REQ: DEC-60 — tokens = document (OCR) + W1 selfie + liveness submissions, whatever the final status (DEC-108, OQ-35). */
 export interface BillingLine {
   verificationId: string
   sessionNo: number // REQ: DEC-60 / DEC-113 — one line per session of the case
@@ -233,11 +233,11 @@ export interface BillingTotals {
 
 const round2 = (n: number) => Math.round(n * 100) / 100
 
-/** REQ: DEC-60 — tokens of the case's current session: document (OCR), V1 selfie and liveness submissions. */
+/** REQ: DEC-60 — tokens of the case's current session: document (OCR), W1 selfie and liveness submissions. */
 export function sessionTokens(v: Verification): { tokens: number; retryTokens: number } {
   // REQ: DEC-60 / DEC-56 — sessions on an Internal testing version are not charged.
   const documents = v.charged && v.idCapture ? v.idCaptureSoftRejects + 1 : 0
-  // V1: every submitted selfie, the ones the engine rejected and the ones compared with the ID (OQ-35).
+  // W1: every submitted selfie, the ones the engine rejected and the ones compared with the ID (OQ-35).
   const selfies = v.charged ? v.attempts.reduce((n, a) => n + (a.telemetry?.selfieRetakes?.length ?? 0) + (a.telemetry?.selfie ? 1 : 0), 0) : 0
   const liveness = v.charged ? (v.submissions.LIVENESS?.length ?? 0) : 0
   return { tokens: documents + selfies + liveness, retryTokens: Math.max(documents - 1, 0) + Math.max(selfies - 1, 0) + Math.max(liveness - 1, 0) }

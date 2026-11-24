@@ -24,7 +24,7 @@ describe('presetRange / monthRange', () => {
 describe('overviewStats (DEC-14, DEC-20, DEC-86)', () => {
   const rows = [
     verification({ referenceId: 'A', status: 'APPROVED', lastUpdatedBy: { kind: 'SYSTEM' } }),
-    verification({ referenceId: 'B', status: 'APPROVED', lastUpdatedBy: { kind: 'USER', userId: ALI.userId, fullName: ALI.fullName }, projectId: fx('PRJ-0002'), flowId: fx('FLW-0004'), workflowVersion: 'V3' }),
+    verification({ referenceId: 'B', status: 'APPROVED', lastUpdatedBy: { kind: 'USER', userId: ALI.userId, fullName: ALI.fullName }, projectId: fx('PRJ-0002'), flowId: fx('FLW-0004'), workflowVersion: 'W3' }),
     verification({ referenceId: 'C', status: 'PENDING_REVIEW', lastUpdatedAt: new Date(NOW.getTime() - 5 * HOUR).toISOString(), claimedBy: { userId: ALI.userId, fullName: ALI.fullName }, claimExpiresAt: at(minutes(5)).toISOString() }),
     verification({ referenceId: 'D', status: 'PENDING_REVIEW', lastUpdatedAt: new Date(NOW.getTime() - 1 * HOUR).toISOString() }),
     verification({ referenceId: 'E', status: 'REJECTED' }),
@@ -54,13 +54,13 @@ describe('overviewStats (DEC-14, DEC-20, DEC-86)', () => {
     expect(def.passRate).toBe(0.5) // A approved, E rejected
     expect(s.byProject.find((r) => r.key === fx('PRJ-0002'))!.passRate).toBe(1)
     expect(s.byFlow.map((r) => r.key).sort()).toEqual([fx('FLW-0001'), fx('FLW-0004')].sort())
-    expect(s.byVersion.find((r) => r.key === 'V3')!.total).toBe(1)
+    expect(s.byVersion.find((r) => r.key === 'W3')!.total).toBe(1)
   })
 })
 
 describe('intelligenceStats (DEC-18, DEC-86)', () => {
   const ctx = (v: Verification): CaseContext => {
-    const v1 = v.workflowVersion === 'V1'
+    const v1 = v.workflowVersion === 'W1'
     const flow = { checks: ['FACE_MATCH', 'LIVENESS'] as const, faceMatchMethod: v1 ? ('ID_VS_SELFIE' as const) : ('ID_VS_LIVENESS' as const), hasRisk: false, settings: { checks: { FACE_MATCH: { threshold: { preset: 'STANDARD' as const } }, LIVENESS: { threshold: { preset: 'STANDARD' as const } } }, retries: { DOCUMENT: 3, SELFIE: 3, LIVENESS: 3 } } }
     const ev = evaluateCase({ submissions: v.submissions, document: { failed: v.idCaptureSoftRejects } }, flow)
     return { checks: ev.checks, phases: ev.phases, exhaustedPhase: ev.exhaustedPhase, hasSelfie: v1 }
@@ -70,11 +70,11 @@ describe('intelligenceStats (DEC-18, DEC-86)', () => {
     verification({ referenceId: 'retried', status: 'APPROVED', submissions: { FACE_MATCH: [96, 96], LIVENESS: [60, 90] } }),
     verification({ referenceId: 'exhausted', status: 'PENDING_REVIEW', submissions: { FACE_MATCH: [96, 96, 96, 96], LIVENESS: [60, 61, 62, 75] } }),
     verification({ referenceId: 'id', status: 'PROCESSING', submissions: {} }),
-    verification({ referenceId: 'v1-selfie', status: 'PROCESSING', workflowVersion: 'V1', flowId: fx('FLW-0005'), submissions: { FACE_MATCH: [70] } }),
+    verification({ referenceId: 'v1-selfie', status: 'PROCESSING', workflowVersion: 'W1', flowId: fx('FLW-0005'), submissions: { FACE_MATCH: [70] } }),
   ]
   const s = intelligenceStats(rows, range.current, ctx)
 
-  it('counts retries per phase (face match and liveness share one liveness submission on V3/V4), first-attempt passes and retries used up (DEC-108)', () => {
+  it('counts retries per phase (face match and liveness share one liveness submission on W3/W4), first-attempt passes and retries used up (DEC-108)', () => {
     expect(s).toMatchObject({ sessions: 5, submitted: 4, firstAttemptPass: 1, retriedSessions: 2, retries: 1 + 3, retriesExhausted: 1 })
     expect(s.retriesByPhase).toEqual({ DOCUMENT: 0, SELFIE: 0, LIVENESS: 4 })
   })
@@ -105,7 +105,7 @@ describe('billing (DEC-60)', () => {
     expect(billingLines({ ...withDocs, charged: false }, 0.5)[0]).toMatchObject({ tokens: 0, retryTokens: 0, cost: 0 })
   })
 
-  it('Given a V1 case with a rejected selfie, then every submitted selfie costs a token, the rejected one included (DEC-60, OQ-35)', () => {
+  it('Given a W1 case with a rejected selfie, then every submitted selfie costs a token, the rejected one included (DEC-60, OQ-35)', () => {
     const selfie = { eyesOpen: true, occluded: false, sharpness: 60, brightness: 70, yaw: 2, pitch: -1, faceSizePx: 180 }
     const base = verification({ referenceId: 'E', submissions: { FACE_MATCH: [80, 96] } })
     const attempts = [
@@ -117,8 +117,8 @@ describe('billing (DEC-60)', () => {
 
   it('Given a case that continued (Unsuccessful, then a new session on another flow), then one line per session in the month it started; the case counts once (DEC-60, DEC-113)', () => {
     const idCapture = { facesFound: 1, faceConfidence: 98, eyesOpen: true, occluded: false, imageWidth: 300, imageHeight: 240, ocrFieldsMissing: [] }
-    const failed = verification({ verificationId: 'vrf_f', status: 'UNSUCCESSFUL', idCapture, idCaptureSoftRejects: 3, submissions: {}, attempts: [], createdAt: '2026-08-30T02:00:00.000Z', sessions: [{ sessionNo: 1, startedAt: '2026-08-30T02:00:00.000Z', flowId: fx('FLW-0001'), workflowVersion: 'V4', configRevision: 2 }] })
-    const resumed = { ...continueCase(failed, { flowId: fx('FLW-0002'), projectId: fx('PRJ-0001'), workflowVersion: 'V4', configRevision: 1 }, NOW), status: 'APPROVED' as const, submissions: { FACE_MATCH: [97], LIVENESS: [92] } }
+    const failed = verification({ verificationId: 'vrf_f', status: 'UNSUCCESSFUL', idCapture, idCaptureSoftRejects: 3, submissions: {}, attempts: [], createdAt: '2026-08-30T02:00:00.000Z', sessions: [{ sessionNo: 1, startedAt: '2026-08-30T02:00:00.000Z', flowId: fx('FLW-0001'), workflowVersion: 'W4', configRevision: 2 }] })
+    const resumed = { ...continueCase(failed, { flowId: fx('FLW-0002'), projectId: fx('PRJ-0001'), workflowVersion: 'W4', configRevision: 1 }, NOW), status: 'APPROVED' as const, submissions: { FACE_MATCH: [97], LIVENESS: [92] } }
     const ls = billingLines(resumed, 0.5)
     expect(ls.map((l) => [l.sessionNo, l.flowId, l.chargedAt.slice(0, 7), l.status, l.tokens, l.retryTokens])).toEqual([
       [1, fx('FLW-0001'), '2026-08', 'UNSUCCESSFUL', 4, 3],

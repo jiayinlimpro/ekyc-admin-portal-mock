@@ -53,7 +53,7 @@ describe('continueCase: the new session on the same case (DEC-113)', () => {
     attempts: [completed({ FACE_MATCH: 96, LIVENESS: 60 }, 1), completed({ FACE_MATCH: 96, LIVENESS: 62 }, 2)],
     submissions: { FACE_MATCH: [96, 96], LIVENESS: [60, 62] },
   })
-  const target = { flowId: fx('FLW-0002'), projectId: fx('PRJ-0001'), workflowVersion: 'V4', configRevision: 1 }
+  const target = { flowId: fx('FLW-0002'), projectId: fx('PRJ-0001'), workflowVersion: 'W4', configRevision: 1 }
 
   it('Given a case a reviewer rejected, then same Verification ID, PROCESSING by SYSTEM, fresh retries, on the new flow', () => {
     const next = continueCase(rejectedByAli, target, NOW)
@@ -66,7 +66,7 @@ describe('continueCase: the new session on the same case (DEC-113)', () => {
     const [first, second] = continueCase(rejectedByAli, target, NOW).sessions
     expect(first).toMatchObject({ sessionNo: 1, flowId: fx('FLW-0001'), ended: { status: 'REJECTED', reason: 'Face not live', at: endedAt(200), by: { kind: 'USER', fullName: ALI.fullName }, tokens: 2, retryTokens: 1 } })
     expect(first.ended!.attempts).toHaveLength(2)
-    expect(second).toEqual({ sessionNo: 2, startedAt: NOW.toISOString(), flowId: fx('FLW-0002'), workflowVersion: 'V4', configRevision: 1 })
+    expect(second).toEqual({ sessionNo: 2, startedAt: NOW.toISOString(), flowId: fx('FLW-0002'), workflowVersion: 'W4', configRevision: 1 })
   })
 
   it('Given a third session, then sessions 1 and 2 are both kept', () => {

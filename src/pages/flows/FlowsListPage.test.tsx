@@ -35,7 +35,7 @@ describe('Flows List (DEC-94)', () => {
     renderAt('/flows')
     const malaysian = await row('Malaysian onboarding')
     expect(malaysian.textContent).not.toContain('Default') // REQ: DEC-95 — no default flow
-    expect(malaysian.textContent).toContain('V4-R2')
+    expect(malaysian.textContent).toContain('W4-R2')
     expect((await row('Foreigner onboarding')).textContent).not.toContain('Rule P1')
     expect(screen.queryByRole('columnheader', { name: 'Routing' })).toBeNull() // REQ: DEC-95 — no routing
     const draft = await row('Tourist onboarding')
@@ -57,7 +57,7 @@ describe('Flows List (DEC-94)', () => {
     const router = renderAt('/flows')
     fireEvent.click(await screen.findByRole('button', { name: /New flow/ }))
     const version = await screen.findByLabelText('Workflow version')
-    await waitFor(() => expect(within(version).getAllByRole('option').map((o) => o.getAttribute('value'))).toEqual(['V1', 'V3', 'V4', 'V5']))
+    await waitFor(() => expect(within(version).getAllByRole('option').map((o) => o.getAttribute('value'))).toEqual(['W1', 'W3', 'W4', 'W5']))
     fireEvent.change(screen.getByLabelText('Flow name'), { target: { value: 'Students' } })
     fireEvent.click(screen.getByRole('button', { name: 'Create flow' }))
     await waitFor(() => expect(router.state.location.pathname).toMatch(/^\/flows\/flw_[a-z0-9]{24}$/))
@@ -77,7 +77,7 @@ describe('Flows List (DEC-94)', () => {
     expect(screen.getByRole('button', { name: /New flow/ })).toBeTruthy()
   })
 
-  it('Given Atoz Default, then the super admin sees the V6 trial marked Internal only; the Owner doesn’t see it (DEC-56)', async () => {
+  it('Given Atoz Default, then the super admin sees the W6 trial marked Internal only; the Owner doesn’t see it (DEC-56)', async () => {
     useSession.getState().switchUser(ADMIN)
     useSession.getState().selectProject(fx('PRJ-0001'))
     renderAt('/flows')

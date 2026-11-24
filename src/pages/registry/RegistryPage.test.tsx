@@ -32,22 +32,22 @@ beforeEach(async () => {
 afterEach(cleanup)
 
 describe('Workflow Registry (DEC-56 … DEC-58)', () => {
-  it('Given V5 in Limited release, then Edit shows Merchant access; ticking Vantage gives it access (DEC-56)', async () => {
+  it('Given W5 in Limited release, then Edit shows Merchant access; ticking Vantage gives it access (DEC-56)', async () => {
     renderAt('/registry')
-    await action('V5', 'Edit')
+    await action('W5', 'Edit')
     const access = within(await screen.findByRole('group', { name: 'Merchant access' }))
     expect((access.getByLabelText('Atoz Software Tech') as HTMLInputElement).checked).toBe(true)
     fireEvent.click(access.getByLabelText(/Vantage/))
     fireEvent.click(screen.getByRole('button', { name: 'Save' }))
-    await waitFor(() => expect(entry('V5').accessMerchantIds).toHaveLength(2))
-    await action('V4', 'Edit')
+    await waitFor(() => expect(entry('W5').accessMerchantIds).toHaveLength(2))
+    await action('W4', 'Edit')
     await screen.findByRole('dialog')
     expect(screen.queryByRole('group', { name: 'Merchant access' })).toBeNull() // only for Limited release
   })
 
   it('Given Change status, then every other status is offered, with what it means (DEC-56)', async () => {
     renderAt('/registry')
-    await action('V6', /Change status/)
+    await action('W6', /Change status/)
     const select = (await screen.findByLabelText('New status')) as HTMLSelectElement
     expect([...select.options].map((o) => o.textContent)).toEqual(['Draft', 'Limited release', 'Active', 'Deprecated'])
     fireEvent.change(select, { target: { value: 'LIMITED_RELEASE' } })
@@ -56,83 +56,83 @@ describe('Workflow Registry (DEC-56 … DEC-58)', () => {
 
   it('Given the list, then each version with status, default, its steps and tunables (read from its JSON) and the flows using it; expanding shows them and the JSON (DEC-115)', async () => {
     renderAt('/registry')
-    const v1 = await row('V1')
+    const v1 = await row('W1')
     expect(v1.textContent).toContain('Default for new merchants')
     expect(v1.textContent).toContain('Document → Selfie → Liveness')
-    expect((await row('V5')).textContent).toContain('Face match, Liveness, Risk minimums')
-    fireEvent.click(within(v1).getByRole('button', { name: /^V1 ·/ }))
-    expect((await screen.findByLabelText('Definition (JSON) of V1')).textContent).toContain('"SELFIE"')
+    expect((await row('W5')).textContent).toContain('Face match, Liveness, Risk minimums')
+    fireEvent.click(within(v1).getByRole('button', { name: /^W1 ·/ }))
+    expect((await screen.findByLabelText('Definition (JSON) of W1')).textContent).toContain('"SELFIE"')
     expect(screen.getByRole('button', { name: 'Copy Definition (JSON)' })).toBeTruthy()
-    expect((await row('V5')).textContent).toContain('Limited release1 merchant(s)') // DEC-56: Atoz only
-    expect((await row('V6')).textContent).toContain('Internal testing')
-    fireEvent.click(within(await row('V3')).getByRole('button', { name: /^V3 ·/ }))
-    const list = within(await screen.findByRole('list', { name: 'Flows using V3' }))
+    expect((await row('W5')).textContent).toContain('Limited release1 merchant(s)') // DEC-56: Atoz only
+    expect((await row('W6')).textContent).toContain('Internal testing')
+    fireEvent.click(within(await row('W3')).getByRole('button', { name: /^W3 ·/ }))
+    const list = within(await screen.findByRole('list', { name: 'Flows using W3' }))
     expect(list.getByText(/Atoz Software Tech › SME app ›/)).toBeTruthy()
   })
 
   it('Given a flow under a version, when its link is clicked, then the flow opens inside its project (DEC-109)', async () => {
     const router = renderAt('/registry')
-    fireEvent.click(within(await row('V3')).getByRole('button', { name: /^V3 ·/ }))
-    fireEvent.click(within(await screen.findByRole('list', { name: 'Flows using V3' })).getByRole('link', { name: 'SME director check' }))
+    fireEvent.click(within(await row('W3')).getByRole('button', { name: /^W3 ·/ }))
+    fireEvent.click(within(await screen.findByRole('list', { name: 'Flows using W3' })).getByRole('link', { name: 'SME director check' }))
     await waitFor(() => expect(router.state.location.pathname).toBe(`/flows/${fx('FLW-0004')}`))
     expect(useSession.getState().projectId).toBe(fx('PRJ-0002'))
     expect(await screen.findByRole('button', { name: 'Switch project. Current: SME app' })).toBeTruthy()
   })
 
-  it('Given Register version, then only code, name and the workflow JSON; the dialog shows what it reads; a used code is refused; V7 is registered as Draft (DEC-115)', async () => {
+  it('Given Register version, then only code, name and the workflow JSON; the dialog shows what it reads; a used code is refused; W7 is registered as Draft (DEC-115)', async () => {
     renderAt('/registry')
-    await row('V1')
+    await row('W1')
     fireEvent.click(screen.getByRole('button', { name: /Register version/ }))
     const dialog = within(await screen.findByRole('dialog'))
     expect(dialog.getAllByRole('textbox').map((x) => x.id)).toEqual(['r-code', 'r-name', 'r-json'])
     expect(dialog.queryByRole('checkbox')).toBeNull()
-    fireEvent.change(dialog.getByLabelText('Workflow code'), { target: { value: 'V4' } })
+    fireEvent.change(dialog.getByLabelText('Workflow code'), { target: { value: 'W4' } })
     fireEvent.change(dialog.getByLabelText('Name'), { target: { value: 'Duplicate' } })
-    fireEvent.change(dialog.getByLabelText('Definition (JSON)'), { target: { value: '{"workflowCode": "V7", "steps": ["DOCUMENT", "LIVENESS"], "tunable": ["FACE_MATCH", "LIVENESS"]}' } })
+    fireEvent.change(dialog.getByLabelText('Definition (JSON)'), { target: { value: '{"workflowCode": "W7", "steps": ["DOCUMENT", "LIVENESS"], "tunable": ["FACE_MATCH", "LIVENESS"]}' } })
     fireEvent.click(dialog.getByRole('button', { name: 'Register' }))
     expect(await dialog.findByText('Workflow code already exists')).toBeTruthy()
-    expect(dialog.getByText('This JSON is for V7, not V4.')).toBeTruthy()
-    fireEvent.change(dialog.getByLabelText('Workflow code'), { target: { value: 'V7' } })
+    expect(dialog.getByText('This JSON is for W7, not W4.')).toBeTruthy()
+    fireEvent.change(dialog.getByLabelText('Workflow code'), { target: { value: 'W7' } })
     expect(within(dialog.getByLabelText('What the portal reads')).getByText('Document → Liveness')).toBeTruthy()
     fireEvent.click(dialog.getByRole('button', { name: 'Register' }))
-    await waitFor(() => expect(entry('V7')).toMatchObject({ status: 'DRAFT', name: 'Duplicate', phases: ['ID_CAPTURE', 'LIVENESS_CHECK'] }))
+    await waitFor(() => expect(entry('W7')).toMatchObject({ status: 'DRAFT', name: 'Duplicate', phases: ['ID_CAPTURE', 'LIVENESS_CHECK'] }))
   })
 
-  it('Given Active V4 used by flows, when its definition changes, then the dialog says how many flows follow it and asks for a reason (DEC-115)', async () => {
+  it('Given Active W4 used by flows, when its definition changes, then the dialog says how many flows follow it and asks for a reason (DEC-115)', async () => {
     renderAt('/registry')
-    await action('V4', 'Edit')
+    await action('W4', 'Edit')
     const json = (await screen.findByLabelText('Definition (JSON)')) as HTMLTextAreaElement
     expect(json.readOnly).toBe(false)
     expect(screen.queryByLabelText('Reason for change')).toBeNull() // nothing changed yet
-    fireEvent.change(json, { target: { value: '{"workflowCode": "V4", "steps": ["DOCUMENT", "SELFIE", "LIVENESS", "RISK"], "tunable": ["FACE_MATCH", "LIVENESS"]}' } })
-    const flows = db.state().flows.filter((f) => f.workflowVersion === 'V4').length
-    expect(screen.getByRole('status').textContent).toContain(`${flows} flow(s) use V4`)
+    fireEvent.change(json, { target: { value: '{"workflowCode": "W4", "steps": ["DOCUMENT", "SELFIE", "LIVENESS", "RISK"], "tunable": ["FACE_MATCH", "LIVENESS"]}' } })
+    const flows = db.state().flows.filter((f) => f.workflowVersion === 'W4').length
+    expect(screen.getByRole('status').textContent).toContain(`${flows} flow(s) use W4`)
     fireEvent.click(screen.getByRole('button', { name: 'Save' }))
     expect(await screen.findByText(`Reason for change is required: ${flows} flow(s) use this version.`)).toBeTruthy()
     fireEvent.change(screen.getByLabelText('Reason for change'), { target: { value: 'Engine adds a selfie step' } })
     fireEvent.click(screen.getByRole('button', { name: 'Save' }))
-    await waitFor(() => expect(entry('V4').phases).toContain('SELFIE_CAPTURE'))
+    await waitFor(() => expect(entry('W4').phases).toContain('SELFIE_CAPTURE'))
   })
 
-  it('Given the default V1, then deprecating it is refused until another version is the default', async () => {
+  it('Given the default W1, then deprecating it is refused until another version is the default', async () => {
     renderAt('/registry')
-    await action('V1', /Change status/)
+    await action('W1', /Change status/)
     fireEvent.change(await screen.findByLabelText('Reason for change'), { target: { value: 'Replaced' } })
     fireEvent.click(screen.getByRole('button', { name: 'Change status' }))
     expect(await screen.findByText('Set another version as default first: the default for new merchants must stay Active.')).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
-    await action('V3', /Make default for new merchants/)
-    await waitFor(() => expect(entry('V3').isDefault).toBe(true))
+    await action('W3', /Make default for new merchants/)
+    await waitFor(() => expect(entry('W3').isDefault).toBe(true))
   })
 
   it('Given the actions menu, then Edit, Change status and Make default; Make default is disabled with the reason when the version is the default or not Active (DEC-57, DEC-78)', async () => {
     renderAt('/registry')
-    fireEvent.click(within(await row('V1')).getByRole('button', { name: 'Actions for V1' }))
+    fireEvent.click(within(await row('W1')).getByRole('button', { name: 'Actions for W1' }))
     expect((await screen.findAllByRole('menuitem')).map((m) => m.textContent!.trim())).toEqual(['Edit', 'Change status…', 'Make default for new merchantsThis version is already the default.'])
     expect(screen.getByRole('menuitem', { name: /Make default/ }).getAttribute('aria-disabled')).toBe('true')
     fireEvent.keyDown(screen.getByRole('menu'), { key: 'Escape' })
     await waitFor(() => expect(screen.queryByRole('menu')).toBeNull())
-    fireEvent.click(within(await row('V5')).getByRole('button', { name: 'Actions for V5' }))
+    fireEvent.click(within(await row('W5')).getByRole('button', { name: 'Actions for W5' }))
     expect((await screen.findByRole('menuitem', { name: /Make default/ })).textContent).toContain('Only an Active version can be the default.')
   })
 

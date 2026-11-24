@@ -19,7 +19,7 @@ Rules changed on 2026-10-20 (Projects & Flows restructure) are marked **(changed
   |---|---|
   | Merchant | Contract, plan, billing · user accounts · portal login security · default branding and language |
   | Project | Members and roles · auto-release claim timeout · API keys, webhook · redirect URLs, allowed web origins, IP allowlist · branding override, language · data retention (OQ-21) |
-  | Flow | Workflow version (locked once active) · check thresholds · retries allowed, cooldowns (after Rejected, after Unsuccessful) · accepted documents · risk thresholds (V4, V5) · session expiry |
+  | Flow | Workflow version (locked once active) · check thresholds · retries allowed, cooldowns (after Rejected, after Unsuccessful) · accepted documents · risk thresholds (W4, W5) · session expiry |
 
 - **DEC-92** Every merchant starts with a **Default** project. Creating a merchant also creates its Default project with one
   Draft flow, "First flow", built on the registry's default version (DEC-57), and its first user as Merchant Owner (FRS
@@ -55,11 +55,11 @@ Rules changed on 2026-10-20 (Projects & Flows restructure) are marked **(changed
   than 320x320 (Retry Not Allowed)"), and filters and reports always keep it apart from Rejected.
   - **Set by SYSTEM only**, when a phase's retries are used up (DEC-108) and its last submission still fails the engine's
     quality checks: the **Document (OCR)** phase (no valid face on the ID, image smaller than 320 × 320, OCR fields not
-    detected), or on **V1** the selfie quality check (eyes, covered face, sharpness, brightness, yaw, pitch). The reason is
+    detected), or on **W1** the selfie quality check (eyes, covered face, sharpness, brightness, yaw, pitch). The reason is
     the engine's condition with "(Retry Not Allowed)", e.g. "ID image smaller than 320x320 (Retry Not Allowed)".
   - **Not UNSUCCESSFUL:** a face match or liveness score (a judgement of the person) keeps its bands: below Auto-Reject →
-    `REJECTED`, review band → `PENDING_REVIEW`, on every version (the V1 selfie's face match too).
-  - **V1 selfie: UNSUCCESSFUL only when no selfie of the session was usable.** If any selfie of the session passed the quality
+    `REJECTED`, review band → `PENDING_REVIEW`, on every version (the W1 selfie's face match too).
+  - **W1 selfie: UNSUCCESSFUL only when no selfie of the session was usable.** If any selfie of the session passed the quality
     check and was compared with the ID, the last face match score decides (`REJECTED` / `PENDING_REVIEW`), even when the
     last selfie then failed its quality check. So a deliberately blurry last selfie can't turn a face mismatch into
     `UNSUCCESSFUL` (and its shorter cooldown). [PO 2026-11-22]
@@ -78,20 +78,20 @@ Rules changed on 2026-10-20 (Projects & Flows restructure) are marked **(changed
   [PO 2026-10-27; AWS face liveness and matching whitepaper §3.4, §6.1]. The internal code stays `FACE_MATCH`. ID capture and Selfie have no configurable thresholds; their quality checks are fixed by the
   engine. **(changed 2026-10-23)** Every engine metric (pitch, yaw, sharpness, brightness, face confidence …) is now
   **shown** on Verification Detail with its fixed threshold (DEC-105), but still never configurable. Risk Assessment runs for
-  V4 and V5 only. [MS][FRS][PO 2026-10-19][PO 2026-10-23]
+  W4 and W5 only. [MS][FRS][PO 2026-10-19][PO 2026-10-23]
 - **DEC-11** For similarity and liveness: score `>= autoPass` → pass; `< autoReject` → reject band; in between → review band.
 - **DEC-12** When every check has a final result, they combine: any reject → `REJECTED`; otherwise any review →
   `PENDING_REVIEW`; otherwise all pass. *(Precedence is OQ-01 and is configurable.)*
-- **DEC-13** **(changed)** V4 and V5: all checks passing is not enough; Risk Assessment must also be Low risk, otherwise
+- **DEC-13** **(changed)** W4 and W5: all checks passing is not enough; Risk Assessment must also be Low risk, otherwise
   `PENDING_REVIEW` with reason "Risk Assessment: high risk". The risk model is DEC-107.
-- **DEC-107** **(new)** Risk Assessment, V4 and V5 [PO 2026-10-26]. Replaces the risk levels (Low / Medium / High), the
+- **DEC-107** **(new)** Risk Assessment, W4 and W5 [PO 2026-10-26]. Replaces the risk levels (Low / Medium / High), the
   "maximum allowed risk level" and the overall risk score.
   - The engine returns **four category scores, each 0–100, higher = more genuine**: EXIF, Noise, Email Validity, OSINT.
     How each is computed and normalised (EXIF tag points, ELA and wavelet values, email points, OSINT social score 0–10)
     is not final (OQ-25); the portal shows only the four scores, no breakdown and no reason codes.
   - **Risk result:** **Low risk** when every category is at or above its minimum, otherwise **High risk**. These words are used
     instead of pass / fail so they are never confused with the case statuses. One minimum per category.
-  - **V4:** the minimums are fixed by the platform; the merchant sees them read-only. **V5:** the flow sets one minimum per
+  - **W4:** the minimums are fixed by the platform; the merchant sees them read-only. **W5:** the flow sets one minimum per
     category (0–100) in Flow Detail, with the same rules as the thresholds (Change verification level and retries; saving
     an active flow needs a reason and creates a revision). The version's workflow JSON says which versions allow it
     (`RISK_MINIMUMS` under `tunable`, DEC-115). Default minimums: 50 each (OQ-34).
@@ -121,7 +121,7 @@ Rules changed on 2026-10-20 (Projects & Flows restructure) are marked **(changed
   stays `PROCESSING`. An incomplete, aborted or timed-out run also stays `PROCESSING`. [PO 2026-10-20]
 - **DEC-16** **(changed)** When retries run out, the **last attempt** decides: below Auto-Reject → `REJECTED`; review band →
   `PENDING_REVIEW`. The reason is the matching condition from DEC-35 (e.g. "Liveness face does not match ID face (Retry Not
-  Allowed)"). [PO 2026-10-20] **(added 2026-10-27)** A document (OCR) or V1 selfie submission that still fails its engine
+  Allowed)"). [PO 2026-10-20] **(added 2026-10-27)** A document (OCR) or W1 selfie submission that still fails its engine
   checks when that phase's retries are used up → `REJECTED` by SYSTEM with the failing condition and "(Retry Not Allowed)",
   e.g. "ID image smaller than 320x320 (Retry Not Allowed)" (DEC-108). **(changed 2026-11-22)** That case is now `UNSUCCESSFUL`,
   not `REJECTED` (DEC-112). [PO 2026-11-22]
@@ -135,12 +135,12 @@ Rules changed on 2026-10-20 (Projects & Flows restructure) are marked **(changed
   | Phase | Versions | A retry is used by |
   |---|---|---|
   | **Document (OCR)** | all | a submitted ID image that fails any engine check (face, size, OCR fields) |
-  | **Selfie** | V1 | a submitted selfie that fails its quality check, or a face match below Auto-Pass |
-  | **Liveness** | all | a liveness result below Auto-Pass; on V3/V4/V5 also a face match below Auto-Pass (the face match uses the liveness face) |
+  | **Selfie** | W1 | a submitted selfie that fails its quality check, or a face match below Auto-Pass |
+  | **Liveness** | all | a liveness result below Auto-Pass; on W3/W4/W5 also a face match below Auto-Pass (the face match uses the liveness face) |
 
   - Retaking a photo **before** submitting is free and not counted; every **submitted** attempt that fails, whatever the
     reason in that phase, uses one retry.
-  - Retries used up: the last submission decides (DEC-16): face match and liveness by their bands; a document or V1 selfie
+  - Retries used up: the last submission decides (DEC-16): face match and liveness by their bands; a document or W1 selfie
     that still fails its engine checks → `UNSUCCESSFUL` (**changed 2026-11-22**, was `REJECTED`; DEC-112).
   - The retry KPIs (First-Attempt Pass Rate, Average Retries) count retries in every phase.
 - **DEC-26** **(new)** Cooldown (per flow, minutes, default 0): after a case is `REJECTED`, the **same end user** cannot start
@@ -148,9 +148,9 @@ Rules changed on 2026-10-20 (Projects & Flows restructure) are marked **(changed
   flow or the whole project, is OQ-22. Verification Detail shows "New case allowed from …" on rejected cases. [PO 2026-10-20]
   **(changed 2026-11-22)** Two kinds of cooldown per flow, each in whole minutes, `>= 0`, default 0 (= at once):
   - **Cooldown after Rejected** (the existing field, relabelled), after a `REJECTED` case.
-  - **Cooldown after Unsuccessful**, after an `UNSUCCESSFUL` case (DEC-112), whichever phase failed (Document, or the V1 selfie). One
+  - **Cooldown after Unsuccessful**, after an `UNSUCCESSFUL` case (DEC-112), whichever phase failed (Document, or the W1 selfie). One
     value per flow, not per phase [PO 2026-11-22].
-  - The case's status picks the cooldown, not the phase: in the V1 selfie stage, no usable selfie (`UNSUCCESSFUL`) uses the
+  - The case's status picks the cooldown, not the phase: in the W1 selfie stage, no usable selfie (`UNSUCCESSFUL`) uses the
     Unsuccessful cooldown and a face mismatch (`REJECTED`) the Rejected one. Liveness never ends in `UNSUCCESSFUL`. A reviewer's reject
     uses the Rejected cooldown.
   - The same end user is the **same Reference ID** of the same merchant (DEC-113; answers OQ-22). Until the cooldown ends a
@@ -232,7 +232,7 @@ Rules changed on 2026-10-20 (Projects & Flows restructure) are marked **(changed
     information). **(changed 2026-10-23)** Verification Detail shows the duplicate-user result for information (DEC-105).
     It is not a decision reason; "Duplicate identity" in DEC-106 is the reviewer's own finding.
   - "(Retry Allowed)" conditions keep the case `PROCESSING`; "(Retry Not Allowed)" conditions are the final reason (DEC-16).
-    The ID capture (Onboarding "No valid face in ID", OCR) and V1 selfie quality conditions end as `UNSUCCESSFUL` (DEC-112).
+    The ID capture (Onboarding "No valid face in ID", OCR) and W1 selfie quality conditions end as `UNSUCCESSFUL` (DEC-112).
 - **DEC-106** **(new)** Decision reasons [PO 2026-10-23]. What a reviewer picks on Approve or Reject. Separate from the
   DEC-35 conditions (what the engine found), so reviewer choices can be analysed on their own.
   - **Per project.** Managed in **Project Settings › Review operations**, card "Decision reasons", with the Project
@@ -297,22 +297,22 @@ Rules changed on 2026-10-20 (Projects & Flows restructure) are marked **(changed
   days, This month; Clear empties it. Closing with only a start keeps the previous dates. Like every filter it applies on
   Search (DEC-43); the URL still carries `from` / `to`. [FRS][PO 2026-10-22]
 - **DEC-44** **(new)** Verification Detail sections: header (Verification ID and Reference ID with copy (DEC-97, DEC-114), status, project, flow, workflow version,
-  configuration revision, created, last updated) · claim panel · end-user data (email for V4/V5) · ID capture (images, result,
-  soft rejects) · Selfie (V1 only: image, result) · Face match (result, threshold applied, score, retries used / allowed) ·
-  Liveness (result, threshold applied, retries used / allowed, cooldown applied) · Risk (V4/V5: each component's 0–100 score
+  configuration revision, created, last updated) · claim panel · end-user data (email for W4/W5) · ID capture (images, result,
+  soft rejects) · Selfie (W1 only: image, result) · Face match (result, threshold applied, score, retries used / allowed) ·
+  Liveness (result, threshold applied, retries used / allowed, cooldown applied) · Risk (W4/W5: each component's 0–100 score
   and reason codes, overall) · Rules applied (settings snapshot at session start) · Activity timeline. [MS]
   **(layout and content changed by DEC-105)**
 - **DEC-105** **(new)** Verification Detail layout and content [PO 2026-10-23]. Replaces the section list of DEC-44; the
   original Axure page and the DEC-44 page are combined ("hybrid").
-  - **Header strip:** Verification ID (heading, copy), Reference ID (copy), status (DEC-114) · Project › Flow · workflow version and preset (e.g. "V4 ·
+  - **Header strip:** Verification ID (heading, copy), Reference ID (copy), status (DEC-114) · Project › Flow · workflow version and preset (e.g. "W4 ·
     High") and configuration revision · Created · Last updated. No Audit trail link [PO 2026-10-27] (the Audit Log is in the menu); the SDK is in the client metadata box, not repeated here. **Client metadata** (SDK, OS,
     device, IP address, location) sits in a compact box at the top right of the header [PO 2026-10-26]; on narrow screens
     it moves under the title. The claim bar sits directly under the header.
   - **Reason banner** (`PENDING_REVIEW` / `REJECTED` / `UNSUCCESSFUL`): the DEC-35 condition plus **target vs actual**, e.g. "Auto-Reject
     < 75 · Auto-Pass ≥ 85 · Actual 83.5".
-  - **Row 1, three columns:** (1) **Evidence**: the document front and the face that was matched (selfie for V1, the
-    liveness face for V3/V4/V5) side by side, with the similarity badge; (2) **Extracted data (OCR)**, titled with the
-    document type (email for V4/V5); (3) **Checks and telemetry** and **Risk**.
+  - **Row 1, three columns:** (1) **Evidence**: the document front and the face that was matched (selfie for W1, the
+    liveness face for W3/W4/W5) side by side, with the similarity badge; (2) **Extracted data (OCR)**, titled with the
+    document type (email for W4/W5); (3) **Checks and telemetry** and **Risk**.
   - **Decision panel:** sticky on the right on wide screens; full width under the content on narrow screens. Buttons
     "Confirm Manual Pass" and "Reject" (DEC-30); never "Maintain Automated Rejection".
   - **Below the fold:** Attempts (each attempt's scores, metrics and images), Rules applied. **No Activity section**
@@ -328,32 +328,32 @@ Rules changed on 2026-10-20 (Projects & Flows restructure) are marked **(changed
     | ID capture | Eyes open · Face covered | open · not covered |
     | ID capture | Image size | ≥ 320 × 320 px |
     | ID capture | OCR fields detected | every field the document type needs (DEC-35) |
-    | Selfie (V1) | Eyes open · Face covered | open · not covered |
-    | Selfie (V1) | Sharpness · Brightness | > 25 · > 25 |
-    | Selfie (V1) | Yaw · Pitch | within ±30° · within ±30° |
-    | Selfie (V1) | Face size | information only: 50 px is configured but not checked (OQ-32) |
-    | Face match | Face match (similarity): the selfie (V1) or liveness face (V3/V4/V5) compared with the ID photo | flow band |
+    | Selfie (W1) | Eyes open · Face covered | open · not covered |
+    | Selfie (W1) | Sharpness · Brightness | > 25 · > 25 |
+    | Selfie (W1) | Yaw · Pitch | within ±30° · within ±30° |
+    | Selfie (W1) | Face size | information only: 50 px is configured but not checked (OQ-32) |
+    | Face match | Face match (similarity): the selfie (W1) or liveness face (W3/W4/W5) compared with the ID photo | flow band |
     | Face match | Face detection confidence: a face is clearly detected in the compared image (FaceMatchThreshold) | > 90 |
     | Liveness | Liveness confidence | flow band |
 
   - **Face match** (the flow band on the similarity of the face with the ID photo) and **Face detection confidence** (a face
     is clearly detected; not liveness) are two different numbers and never shown as one [PO 2026-10-26, 2026-10-27].
-  - **V1 order** (engine workflow): ID → selfie quality check → face comparison → existing-user search → liveness. A selfie
+  - **W1 order** (engine workflow): ID → selfie quality check → face comparison → existing-user search → liveness. A selfie
     that fails its check ends the run ("Invalid selfie"): no similarity, no face match. Once submitted it uses a selfie
     retry (DEC-108) and a token (DEC-60, OQ-35); rejected selfies are shown under Attempts as "Not run".
   - The **existing-user search** runs only after the face comparison passes (or lands in the review band).
   - **Duplicate user:** "New user", or "Existing user found" with the match similarity (≥ 90 = existing). Shown for
     information only: it never changes a check, the status or the decision buttons, and it stays off the list (DEC-40).
-  - **Risk** (V4/V5): the result (Low risk / High risk) and the four category scores against their minimums (DEC-107).
+  - **Risk** (W4/W5): the result (Low risk / High risk) and the four category scores against their minimums (DEC-107).
 
 ## Configuration
 - **DEC-50** **(changed)** Settings live on each **flow** (Flow Detail). The form shows only what applies to the flow's version:
 
-  | Section | V1 | V3 | V4 | V5 |
+  | Section | W1 | W3 | W4 | W5 |
   |---|---|---|---|---|
   | General: name, description, workflow version (locked once active) | ✓ | ✓ | ✓ | ✓ |
   | Thresholds: similarity, liveness (DEC-19) | ✓ | ✓ | ✓ | ✓ |
-  | Retries allowed per phase: Document (OCR), Selfie (V1), Liveness (DEC-108) · cooldown after Rejected, cooldown after Unsuccessful (DEC-26) | ✓ | ✓ | ✓ | ✓ |
+  | Retries allowed per phase: Document (OCR), Selfie (W1), Liveness (DEC-108) · cooldown after Rejected, cooldown after Unsuccessful (DEC-26) | ✓ | ✓ | ✓ | ✓ |
   | Accepted documents (MyKad, Passport, Driving License) | ✓ | ✓ | ✓ | ✓ |
   | Session expiry | ✓ | ✓ | ✓ | ✓ |
   | Risk minimums per category (DEC-107) | | | read-only (fixed) | ✓ |
@@ -421,13 +421,18 @@ Rules changed on 2026-10-20 (Projects & Flows restructure) are marked **(changed
   - **(changed 2026-11-24, DEC-115)** No state machine references: a running status no longer needs them.
 - **DEC-57** **(new)** Exactly one version is "**Default for new merchants**" and it must be Active. It cannot be deprecated
   while it is the default. Changing the default affects new merchants only. [PO 2026-10-20]
-- **DEC-58** **(new)** Versions: V1 (ID → Selfie → Liveness; face match ID vs Selfie; default), V3 (ID → Liveness; ID vs
-  liveness face), V4 (V3 + Risk Assessment; email required), V5 (Draft, TBC). No V2. [FRS][MS]
+- **DEC-58** **(new)** Versions: W1 (ID → Selfie → Liveness; face match ID vs Selfie; default), W3 (ID → Liveness; ID vs
+  liveness face), W4 (W3 + Risk Assessment; email required), W5 (Draft, TBC). No W2. [FRS][MS]
+- **DEC-116** **(new)** **Workflow codes are `W<number>`** (W1, W3, W4, W5, W6) [PO 2026-11-24]. Was `V<number>`: the "V"
+  read as "version", so W4 looked newer or better than W1, although each code is a different workflow (different steps),
+  not a version of one. Only the letter changes: the numbers, the rules per code, "never reused", and flow revision labels
+  (`W4-R2`) stay. A stable, meaningless key, as Jumio's numeric workflow keys; the name says what it does. The backend
+  contract uses the same codes (OQ-39).
 - **DEC-115** **(new; replaces the register / edit fields of DEC-56 and the FRS Workflow Registry Notes B)** **The workflow
   decides; the portal reads its JSON** [PO 2026-11-24]. The portal never decides what a workflow does (which steps run,
   what the face is matched against, what the session needs): the backend workflow does. The portal pushes the chosen
   version and the flow's tunable settings, and pulls the results back.
-  - **Register version:** **Workflow code** (V<number>, never reused), **Name**, and the **Definition (JSON)** pasted from the
+  - **Register version:** **Workflow code** (W<number>, never reused), **Name**, and the **Definition (JSON)** pasted from the
     backend. Nothing else: no step checkboxes, face match select, email requirement, threshold checkboxes, risk-minimum
     checkbox, state machine references, description or release notes.
   - The portal reads the JSON and shows what it understood, read-only ("Document → Selfie → Liveness · Tunable: Face match,
@@ -435,7 +440,7 @@ Rules changed on 2026-10-20 (Projects & Flows restructure) are marked **(changed
     `LIVENESS`, `RISK`; `DOCUMENT` first; `LIVENESS` always), `tunable` (from `FACE_MATCH`, `LIVENESS`, `RISK_MINIMUMS`;
     at least one threshold; `RISK_MINIMUMS` only with `RISK`). Other keys are kept and shown, not read.
   - **What is tunable is fixed by the version:** Flow Detail shows exactly what the version's JSON lists (thresholds, the
-    retries for its steps, risk minimums only when `RISK_MINIMUMS` is listed; otherwise V4-style fixed minimums). What the
+    retries for its steps, risk minimums only when `RISK_MINIMUMS` is listed; otherwise W4-style fixed minimums). What the
     face is matched against is not entered: a version with `SELFIE` matches ID vs selfie, otherwise ID vs liveness face; the
     portal uses it only to label the case page.
   - **No email requirement in the portal:** what a session must send (e.g. an email for risk) is the workflow's business.
@@ -453,7 +458,7 @@ Rules changed on 2026-10-20 (Projects & Flows restructure) are marked **(changed
 
 ## Charging
 - **DEC-60** **(changed again 2026-10-27)** Sessions on an **Internal testing** version (DEC-56) are not charged. Otherwise,
-  tokens are consumed per **document (OCR) submission**, per **V1 selfie submission** and per **liveness submission**,
+  tokens are consumed per **document (OCR) submission**, per **W1 selfie submission** and per **liveness submission**,
   whatever the final status (including cases still `PROCESSING`) [PO 2026-10-27]: everything submitted costs a token,
   including a selfie the engine rejects (OQ-35 answered) [PO 2026-10-27]. Retakes before submitting are free. "Cost of
   retries" = tokens from submissions after the first in each phase.
@@ -796,7 +801,7 @@ Rules changed on 2026-10-20 (Projects & Flows restructure) are marked **(changed
     user, `rol` role, `asg` role assignment, `inv` invitation, `key` API key, `whk` webhook endpoint, `wfv` registry version,
     `evt` audit event. Lists sort by created time, never by ID (cuid2 IDs are not time-ordered).
   - Not IDs: secrets (API key value, webhook signing secret, session links) are random tokens stored hashed; workflow
-    codes (V1 … V5), statuses and permission keys are fixed values; external IDs (Ballerine, AWS liveness) are stored as given.
+    codes (W1 … W5), statuses and permission keys are fixed values; external IDs (Ballerine, AWS liveness) are stored as given.
   - **Shown on screen** only where people copy or quote them: Flow ID (Flows List and Flow Detail, copy button: merchants
     send it as `flow_id`), Verification ID (Verifications list, Verification Detail, Billing, Audit Log; copy; in webhooks; DEC-114), API key (masked, `key_…a91f`), webhook event
     ID (delivery log; not in the mock). Internal screens may show Merchant ID (Merchants) and Project ID (Projects, for
@@ -958,7 +963,7 @@ These keep the mock runnable. They are not signed-off requirements; change them 
 | DEC-22 | Claim timeout per merchant; ends by Cancel, timeout or decision | DEC-22 |
 | DEC-31 | Reason code and audit comment required for both decisions; then (2026-10-20) Reject reasons = DEC-35 conditions, no Approve reason | DEC-31, DEC-106 |
 | DEC-10 / DEC-35 | Granular metrics and duplicate-user information never shown | Shown on Verification Detail (DEC-105) |
-| DEC-13 / MOCK-02 / OQ-05 / OQ-06 | Risk level Low / Medium / High from a 0–100 score; V4 "maximum allowed level" per flow | Four category scores, Low risk / High risk, minimums fixed (V4) or per flow (V5) (DEC-107) |
+| DEC-13 / MOCK-02 / OQ-05 / OQ-06 | Risk level Low / Medium / High from a 0–100 score; W4 "maximum allowed level" per flow | Four category scores, Low risk / High risk, minimums fixed (W4) or per flow (W5) (DEC-107) |
 | DEC-44 / DEC-105 | Activity timeline on the case page | Removed; history in the Audit Log |
 | DEC-42 | `PII_VIEW`, `CLAIM`, `CLAIM_RELEASE`, `CLAIM_TIMEOUT`, `DECISION`, `OWNERSHIP_CONFLICT`, `CONFIG_*`, `CREDENTIAL_ROTATION` | DEC-42 |
 | DEC-50/51 | One config per merchant, Save Draft / Discard / Deploy | DEC-50, DEC-51 |
@@ -970,8 +975,9 @@ These keep the mock runnable. They are not signed-off requirements; change them 
 | DEC-95 / OQ-18 | Routing rules and % shares set through the API, shown read-only in Project Settings › Routing | Every session names its flow (`flowId` required); no routing (DEC-95) |
 | DEC-01 | Exactly four statuses | Five: `UNSUCCESSFUL` added (DEC-112) |
 | DEC-112 / DEC-26 | Status `FAILED`, shown as "Failed"; "Cooldown after Failed" (`failedCooldownMin`) | `UNSUCCESSFUL`, shown as "Unsuccessful"; "Cooldown after Unsuccessful" (`unsuccessfulCooldownMin`) [PO 2026-11-23] |
-| DEC-16 / DEC-108 | A document or V1 selfie still failing when its retries are used up → `REJECTED` | `UNSUCCESSFUL` (DEC-112) |
+| DEC-16 / DEC-108 | A document or W1 selfie still failing when its retries are used up → `REJECTED` | `UNSUCCESSFUL` (DEC-112) |
 | DEC-97 | Our case ID `ver_…`, labelled "Case ID"; code fields `caseId`, `referenceNo` | Verification ID `vrf_…`; code fields `verificationId`, `referenceId` (DEC-114) |
+| DEC-58 / DEC-56 | Workflow codes `V1`, `V3`, `V4`, `V5`, `V6` (`V<number>`); revisions `V4-R2` | `W1` … `W6` (`W<number>`); revisions `W4-R2` (DEC-116) [PO 2026-11-24] |
 | DEC-56 / DEC-58 (FRS Registry Notes B) | Register / edit: description, onboarding phase checkboxes, face match method, "Email required", configurable thresholds, "Risk minimums set per flow", sandbox and production state machine ARNs, release notes | Code + Name + Definition (JSON); the portal reads steps and tunables from the JSON (DEC-115) [PO 2026-11-24] |
 | DEC-26 / OQ-22 | One cooldown, after a rejection; same end user = same ID document number | Cooldown after Rejected + cooldown after Unsuccessful; same end user = same Reference ID (DEC-26, DEC-113) |
 | DEC-32 | Decisions are final; a returning end user gets a new case | No reviewer reopen; a returning Reference ID continues its `REJECTED` or `UNSUCCESSFUL` case after the cooldown (DEC-113) |
@@ -987,7 +993,7 @@ These keep the mock runnable. They are not signed-off requirements; change them 
 | Detail buttons | "Maintain Automated Rejection" / "Confirm Manual Pass" | "Reject" / "Confirm Manual Pass" for the claim holder (DEC-30) |
 | Review queue | Separate screen | Removed (DEC-80) |
 | Supervisor actions | Assign / reassign / force-release | None (DEC-23) |
-| Retry limit | Retries per token-consuming phase (V1: selfie and liveness) | Face match and liveness only; selfie unlimited and free (DEC-18) |
+| Retry limit | Retries per token-consuming phase (W1: selfie and liveness) | Face match and liveness only; selfie unlimited and free (DEC-18) |
 | Roles | 7-role catalogue / Platform vs Merchant Admin / custom roles | [FRS] Users + Roles screens with custom roles, assigned with a scope (All / Selected projects) (DEC-70, DEC-74, DEC-76) |
 | Developers page | Merchant-level API key and webhook | Per project, Project Settings › Integration (DEC-54) |
 | Merchant Workflow Directory | Platform Admin edits merchant thresholds | Removed; Registry shows flows per version (DEC-85) |

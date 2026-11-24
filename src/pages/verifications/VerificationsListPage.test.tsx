@@ -78,14 +78,14 @@ describe('Verifications List', () => {
     expect(screen.queryByLabelText(/^Merchant/)).toBeNull() // no merchant filter
   })
 
-  it('Given Atoz Default in the header, then the Risk column, version under Flow, no Project column or filter and no Actions column; SME app (V3) has no Risk (DEC-40, DEC-109)', async () => {
+  it('Given Atoz Default in the header, then the Risk column, version under Flow, no Project column or filter and no Actions column; SME app (W3) has no Risk (DEC-40, DEC-109)', async () => {
     renderAt('/verifications?status=ALL')
     await dataRows()
     const headers = within(table()).getAllByRole('columnheader').map((h) => h.textContent)
     expect(headers).toEqual(['Verification IDReference ID', 'Full Name', 'Flow', 'Document', 'Status', 'Risk', 'Claimed By', 'Created (MYT)', 'Last updated (MYT)'])
     expect(screen.queryByLabelText('Project')).toBeNull()
     cleanup()
-    useSession.getState().switchUser(HAFIZ) // one project (SME app, V3: no risk)
+    useSession.getState().switchUser(HAFIZ) // one project (SME app, W3: no risk)
     renderAt('/verifications?status=ALL', fx('PRJ-0002'))
     await dataRows()
     expect(within(table()).getAllByRole('columnheader').map((h) => h.textContent)).not.toContain('Risk')
@@ -94,7 +94,7 @@ describe('Verifications List', () => {
   it('Given SME app in the header, then every row is from that project and the Flow filter lists only its flows (DEC-109)', async () => {
     renderAt('/verifications?status=ALL', fx('PRJ-0002'))
     const rows = await dataRows()
-    expect(within(screen.getByLabelText('Flow')).getAllByRole('option').map((o) => o.textContent)).toEqual(['All flows', 'SME director check (V3)'])
+    expect(within(screen.getByLabelText('Flow')).getAllByRole('option').map((o) => o.textContent)).toEqual(['All flows', 'SME director check (W3)'])
     for (const r of rows) expect(r.textContent).toContain('SME director check')
   })
 

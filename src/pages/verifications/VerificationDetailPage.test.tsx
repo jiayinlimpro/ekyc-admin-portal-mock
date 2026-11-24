@@ -146,7 +146,7 @@ describe('Verification Detail', () => {
   it('Given the header strip, then project › flow, version, rules applied revision and created; the SDK only in the metadata box (DEC-105)', async () => {
     await open(S(12))
     expect(screen.getByText('Malaysian onboarding')).toBeTruthy()
-    expect(region('Rules applied').getByText('V4-R1')).toBeTruthy()
+    expect(region('Rules applied').getByText('W4-R1')).toBeTruthy()
     expect(screen.getByText(/^Created /)).toBeTruthy()
     const meta = within(screen.getByRole('region', { name: 'Client metadata' })) // top right of the header (DEC-105)
     for (const label of ['SDK', 'OS', 'Device', 'IP address', 'Location']) expect(meta.getByText(label)).toBeTruthy()
@@ -169,7 +169,7 @@ describe('Verification Detail', () => {
     expect(screen.getByText(/^New session allowed from .* MYT \(cooldown\)$/)).toBeTruthy()
   })
 
-  it('Given V4 S02, then High risk with the four scores against the fixed minimums, and the banner lists the categories below (DEC-107)', async () => {
+  it('Given W4 S02, then High risk with the four scores against the fixed minimums, and the banner lists the categories below (DEC-107)', async () => {
     await open(S(2))
     const risk = region('Risk Assessment')
     expect(within(risk.getByRole('heading', { name: 'Risk Assessment' }).parentElement!).getByText('High risk')).toBeTruthy() // overall, in the section header
@@ -181,10 +181,10 @@ describe('Verification Detail', () => {
     expect(screen.queryByRole('region', { name: 'Risk signals' })).toBeNull() // no breakdown
     expect(screen.getByText('Risk Assessment: high risk')).toBeTruthy()
     expect(screen.getByText('EXIF Score 32 < 50 · Noise Score 18 < 50 · Email Validity Score 20 < 50 · OSINT Score 10 < 50')).toBeTruthy()
-    expect(region('Checks').queryByText('Selfie')).toBeNull() // V4 has no selfie phase
+    expect(region('Checks').queryByText('Selfie')).toBeNull() // W4 has no selfie phase
   })
 
-  it('Given V5 S23, then the flow’s own minimums apply: High risk by OSINT 22 < 30 only (DEC-107)', async () => {
+  it('Given W5 S23, then the flow’s own minimums apply: High risk by OSINT 22 < 30 only (DEC-107)', async () => {
     await open(S(23))
     const table = region('Risk Assessment').getByRole('table', { name: 'Risk categories' })
     expect(column(table, 'Minimum')).toEqual(['40', '60', '50', '30'])
@@ -193,7 +193,7 @@ describe('Verification Detail', () => {
     expect(screen.getByText('OSINT Score 22 < 30')).toBeTruthy()
   })
 
-  it('Given V1 S01, then no Risk section, a Selfie check, and every selfie metric with its engine threshold (DEC-105)', async () => {
+  it('Given W1 S01, then no Risk section, a Selfie check, and every selfie metric with its engine threshold (DEC-105)', async () => {
     useSession.getState().switchUser(OTHER_MERCHANT_REVIEWER) // Vantage reviewer
     await open(S(1))
     expect(screen.queryByRole('region', { name: 'Risk Assessment' })).toBeNull()
@@ -221,7 +221,7 @@ describe('Verification Detail', () => {
     expect(metric('Image size')[1]).toBe('≥ 320 × 320 px')
   })
 
-  it('Given V1 S22, whose selfie was too dark, then it was not compared: no face match, and the rejected selfie says why (DEC-105)', async () => {
+  it('Given W1 S22, whose selfie was too dark, then it was not compared: no face match, and the rejected selfie says why (DEC-105)', async () => {
     useSession.getState().switchUser(OTHER_MERCHANT_REVIEWER)
     await open(S(22))
     expect(region('Checks').getByText('Fail: not compared with the ID')).toBeTruthy()
@@ -249,7 +249,7 @@ describe('Verification Detail', () => {
     const t = within(await screen.findByRole('table', { name: 'Sessions' }))
     const body = t.getAllByRole('row').slice(1).map((r) => [...r.querySelectorAll('th, td')].map((c) => c.textContent))
     expect(body.map((c) => c[0])).toEqual(['Session 1', 'Session 2', 'Session 3Current'])
-    expect(body.map((c) => c[2])).toEqual(['Malaysian onboarding V4-R1', 'Malaysian onboarding V4-R1', 'Malaysian onboarding V4-R2'])
+    expect(body.map((c) => c[2])).toEqual(['Malaysian onboarding W4-R1', 'Malaysian onboarding W4-R1', 'Malaysian onboarding W4-R2'])
     expect(body[0][3]).toMatch(/^Unsuccessful/)
     expect(body[0][4]).toMatch(/^ID image smaller than 320x320 \(Retry Not Allowed\)1 attempt\(s\)/)
     expect(body[0][6]).toBe('4') // 4 ID images (DEC-60)
@@ -311,10 +311,10 @@ describe('Verification Detail', () => {
     const data = region('Extracted data · Driving License')
     for (const label of ['IC', 'Licence class', 'Valid until']) expect(data.getByText(label)).toBeTruthy()
     expect(metric('OCR fields detected')[0]).toBe('6 / 6')
-    expect(data.queryByText('Email')).toBeNull() // V1 has no email input
+    expect(data.queryByText('Email')).toBeNull() // W1 has no email input
   })
 
-  it('Given a V4 case, then Extracted data includes the email (DEC-44)', async () => {
+  it('Given a W4 case, then Extracted data includes the email (DEC-44)', async () => {
     await open(S(3))
     expect(region('Extracted data · MyKad').getByText(/@mail\.example$/)).toBeTruthy()
   })

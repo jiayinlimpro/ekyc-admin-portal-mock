@@ -49,7 +49,7 @@ describe('projectService (DEC-92, DEC-93, DEC-96)', () => {
   it('Given the Owner creates a project, then it starts with one Draft “First flow” on the registry default (MOCK-12), audited', async () => {
     const p = await projectService.create(fx('MER-0001'), { name: 'Branch kiosks' }, OWNER)
     expect(p).toMatchObject({ projectId: expect.stringMatching(/^prj_/), merchantId: fx('MER-0001'), status: 'ACTIVE', isDefault: false, claimTimeoutSec: 1800 })
-    expect(db.state().flows.filter((f) => f.projectId === p.projectId)).toMatchObject([{ name: 'First flow', status: 'DRAFT', workflowVersion: 'V1', revision: 0 }])
+    expect(db.state().flows.filter((f) => f.projectId === p.projectId)).toMatchObject([{ name: 'First flow', status: 'DRAFT', workflowVersion: 'W1', revision: 0 }])
     expect(await lastAudit('PROJECT_CREATED')).toMatchObject({ actorRole: 'Owner', projectId: p.projectId, details: { name: 'Branch kiosks' } })
     expect((await projectService.listMine(OWNER)).map((x) => x.projectId)).toContain(p.projectId)
   })
@@ -71,29 +71,29 @@ describe('projectService (DEC-92, DEC-93, DEC-96)', () => {
     await expectError(projectService.archive(fx('PRJ-0003'), VANTAGE_OWNER), 'VALIDATION', /only active project/)
     expect((await projectService.archive(fx('PRJ-0002'), OWNER)).status).toBe('ARCHIVED')
     expect((await verificationService.get(verificationIdOf('KYC-260901-900016'), OWNER)).status).toBe('PENDING_REVIEW') // DEC-93
-    await expectError(flowService.create(fx('PRJ-0002'), { name: 'Late flow', description: '', workflowVersion: 'V3' }, OWNER), 'VALIDATION', /archived/)
+    await expectError(flowService.create(fx('PRJ-0002'), { name: 'Late flow', description: '', workflowVersion: 'W3' }, OWNER), 'VALIDATION', /archived/)
   })
 })
 
 describe('flowService access (DEC-70, DEC-75)', () => {
   it('Given a Reviewer, then Flows are read-only (DEC-104: Flows View); outside the project they are "not found"', async () => {
     expect((await flowService.list(fx('PRJ-0001'), ALI)).length).toBeGreaterThan(0)
-    await expectError(flowService.create(fx('PRJ-0001'), { name: 'Not mine', description: '', workflowVersion: 'V3' }, ALI), 'FORBIDDEN')
+    await expectError(flowService.create(fx('PRJ-0001'), { name: 'Not mine', description: '', workflowVersion: 'W3' }, ALI), 'FORBIDDEN')
     await expectError(flowService.list(fx('PRJ-0001'), HAFIZ), 'NOT_FOUND')
     expect((await flowService.list(fx('PRJ-0002'), HAFIZ)).map((f) => f.flowId)).toEqual([fx('FLW-0004')])
   })
 
   it('Given the Super admin, then they manage flows in any merchant; Draft registry versions are never selectable (DEC-56)', async () => {
-    const f = await flowService.create(fx('PRJ-0003'), { name: 'Students', description: 'University sign-ups', workflowVersion: 'V3' }, ADMIN)
-    expect(f).toMatchObject({ projectId: fx('PRJ-0003'), merchantId: fx('MER-0002'), status: 'DRAFT', workflowVersion: 'V3' })
+    const f = await flowService.create(fx('PRJ-0003'), { name: 'Students', description: 'University sign-ups', workflowVersion: 'W3' }, ADMIN)
+    expect(f).toMatchObject({ projectId: fx('PRJ-0003'), merchantId: fx('MER-0002'), status: 'DRAFT', workflowVersion: 'W3' })
     expect(f.settings.checks.LIVENESS.threshold).toEqual({ preset: 'STANDARD' })
-    const v5 = db.state().registry.find((e) => e.code === 'V5')!
-    await registryService.register({ code: 'V7', name: 'Next gen', definition: v5.definition.replace('"V5"', '"V7"'), accessMerchantIds: [] }, ADMIN)
-    await expectError(flowService.create(fx('PRJ-0003'), { name: 'Next gen', description: '', workflowVersion: 'V7' }, ADMIN), 'VALIDATION', 'Choose a workflow version available to this merchant.')
-    // REQ: DEC-56 — Internal testing (V6): internal users anywhere, never a merchant; Limited release (V5): Atoz, besides internal users.
-    expect(await flowService.create(fx('PRJ-0003'), { name: 'Engine trial', description: '', workflowVersion: 'V6' }, ADMIN)).toMatchObject({ workflowVersion: 'V6' })
-    await expectError(flowService.create(fx('PRJ-0001'), { name: 'Sneak peek', description: '', workflowVersion: 'V6' }, OWNER), 'VALIDATION', 'Choose a workflow version available to this merchant.')
-    expect(await flowService.create(fx('PRJ-0001'), { name: 'Premium two', description: '', workflowVersion: 'V5' }, OWNER)).toMatchObject({ workflowVersion: 'V5' })
+    const v5 = db.state().registry.find((e) => e.code === 'W5')!
+    await registryService.register({ code: 'W7', name: 'Next gen', definition: v5.definition.replace('"W5"', '"W7"'), accessMerchantIds: [] }, ADMIN)
+    await expectError(flowService.create(fx('PRJ-0003'), { name: 'Next gen', description: '', workflowVersion: 'W7' }, ADMIN), 'VALIDATION', 'Choose a workflow version available to this merchant.')
+    // REQ: DEC-56 — Internal testing (W6): internal users anywhere, never a merchant; Limited release (W5): Atoz, besides internal users.
+    expect(await flowService.create(fx('PRJ-0003'), { name: 'Engine trial', description: '', workflowVersion: 'W6' }, ADMIN)).toMatchObject({ workflowVersion: 'W6' })
+    await expectError(flowService.create(fx('PRJ-0001'), { name: 'Sneak peek', description: '', workflowVersion: 'W6' }, OWNER), 'VALIDATION', 'Choose a workflow version available to this merchant.')
+    expect(await flowService.create(fx('PRJ-0001'), { name: 'Premium two', description: '', workflowVersion: 'W5' }, OWNER)).toMatchObject({ workflowVersion: 'W5' })
   })
 })
 
@@ -134,7 +134,7 @@ describe('flowService settings and lifecycle (DEC-51 … DEC-53, DEC-94)', () =>
   })
 
   it('Given a new Draft, then it saves freely, activates only when complete, and the first activation records R1', async () => {
-    const f = await flowService.create(fx('PRJ-0001'), { name: 'Students', description: '', workflowVersion: 'V4' }, OWNER)
+    const f = await flowService.create(fx('PRJ-0001'), { name: 'Students', description: '', workflowVersion: 'W4' }, OWNER)
     await expectError(flowService.activate(f.flowId, OWNER), 'VALIDATION')
     await flowService.save(f.flowId, { name: f.name, description: 'University sign-ups', settings: { ...f.settings, sessionExpiryMin: 30, acceptedDocuments: ['MYKAD'] } }, '', OWNER)
     const active = await flowService.activate(f.flowId, OWNER)

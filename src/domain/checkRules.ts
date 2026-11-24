@@ -13,7 +13,7 @@ export interface CheckEvaluation {
   state: CheckState
   thresholds: Thresholds
   submissions: number
-  retriesUsed: number // REQ: DEC-108 — of the check's phase (Selfie for the V1 face match, else Liveness)
+  retriesUsed: number // REQ: DEC-108 — of the check's phase (Selfie for the W1 face match, else Liveness)
   retriesAllowed: number
   lastScore?: number
 }
@@ -51,11 +51,11 @@ export interface CaseInput {
   riskScores?: RiskScores // REQ: DEC-107 — set once risk ran
   /** REQ: DEC-108 — submitted ID images that failed (the last one too when it failed) and its condition. Omitted = one that passed. */
   document?: { failed: number; lastFailed?: string }
-  /** REQ: DEC-108 — V1: submitted selfies that failed the quality check; `lastFailed` when the last one did (nothing compared after it). */
+  /** REQ: DEC-108 — W1: submitted selfies that failed the quality check; `lastFailed` when the last one did (nothing compared after it). */
   selfie?: { failed: number; lastFailed?: string }
 }
 
-/** REQ: DEC-108 — the phase whose retries a check uses: the V1 face match is part of the selfie phase. */
+/** REQ: DEC-108 — the phase whose retries a check uses: the W1 face match is part of the selfie phase. */
 export const retryPhaseOf = (check: Check, method: FaceMatchMethod): RetryPhase => (check === 'FACE_MATCH' && method === 'ID_VS_SELFIE' ? 'SELFIE' : 'LIVENESS')
 
 export const RISK_NOT_PASSED = 'Risk Assessment: high risk'
@@ -110,12 +110,12 @@ export function evaluateCase(input: CaseInput, flow: FlowContext, combination: P
   })
   const reasonFor = (e: CheckEvaluation, retryAllowed: boolean) => ({ reason: checkCondition(e.check, flow.faceMatchMethod, retryAllowed).label, detail: detail(e) })
 
-  // REQ: DEC-108 / DEC-16 / DEC-112 — a document (then a V1 selfie) whose last submission failed: retry pending, or UNSUCCESSFUL
+  // REQ: DEC-108 / DEC-16 / DEC-112 — a document (then a W1 selfie) whose last submission failed: retry pending, or UNSUCCESSFUL
   // (no usable image) when the phase's retries are used up. Nothing after it ran.
   for (const [p, failed] of [['DOCUMENT', doc.lastFailed], ['SELFIE', v1 ? input.selfie?.lastFailed : undefined]] as const) {
     if (!failed) continue
     const out = of(p).retriesUsed >= of(p).retriesAllowed
-    // REQ: DEC-112 — V1: once a selfie of the session was compared with the ID, the last face match score decides (below),
+    // REQ: DEC-112 — W1: once a selfie of the session was compared with the ID, the last face match score decides (below),
     // so a blurry last selfie can't turn a face mismatch into UNSUCCESSFUL.
     if (out && p === 'SELFIE' && fm.length > 0) break
     return { status: out ? 'UNSUCCESSFUL' : 'PROCESSING', reason: `${failed} (Retry ${out ? 'Not ' : ''}Allowed)`, checks, phases, exhaustedPhase: out ? p : undefined }

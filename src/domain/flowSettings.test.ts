@@ -5,28 +5,28 @@ import { fx } from '@/lib/ids'
 
 const NOW = new Date('2026-10-20T02:00:00.000Z')
 const OWNER = { userId: fx('USR-2026-0002'), fullName: 'Tan Mei Ling' }
-const V4: Pick<RegistryEntry, 'code' | 'phases' | 'configurableChecks'> = { code: 'V4', phases: ['ID_CAPTURE', 'LIVENESS_CHECK', 'RISK_ASSESSMENT'], configurableChecks: ['FACE_MATCH', 'LIVENESS'] }
-const V1: typeof V4 = { code: 'V1', phases: ['ID_CAPTURE', 'SELFIE_CAPTURE', 'LIVENESS_CHECK'], configurableChecks: ['FACE_MATCH', 'LIVENESS'] }
+const W4: Pick<RegistryEntry, 'code' | 'phases' | 'configurableChecks'> = { code: 'W4', phases: ['ID_CAPTURE', 'LIVENESS_CHECK', 'RISK_ASSESSMENT'], configurableChecks: ['FACE_MATCH', 'LIVENESS'] }
+const W1: typeof W4 = { code: 'W1', phases: ['ID_CAPTURE', 'SELFIE_CAPTURE', 'LIVENESS_CHECK'], configurableChecks: ['FACE_MATCH', 'LIVENESS'] }
 
 const complete = (s: FlowSettings): FlowSettings => ({ ...s, acceptedDocuments: ['MYKAD'], sessionExpiryMin: 30 })
-const draft = () => createFlow({ flowId: fx('FLW-0009'), project: { projectId: fx('PRJ-0001'), merchantId: fx('MER-0001') } }, { name: ' Malaysian onboarding ', description: '' }, V4, NOW, OWNER)
+const draft = () => createFlow({ flowId: fx('FLW-0009'), project: { projectId: fx('PRJ-0001'), merchantId: fx('MER-0001') } }, { name: ' Malaysian onboarding ', description: '' }, W4, NOW, OWNER)
 const active = (): Flow => ({ ...draft(), status: 'ACTIVE', revision: 2, settings: complete(draft().settings) })
 const fields = (e: { field: string }[]) => e.map((x) => x.field)
 
 describe('new flow (DEC-50, OQ-19)', () => {
-  it('Given a new V4 flow, then Draft, no revision, Standard presets, 3 retries, no cooldown and risk on', () => {
+  it('Given a new W4 flow, then Draft, no revision, Standard presets, 3 retries, no cooldown and risk on', () => {
     const f = draft()
-    expect(f).toMatchObject({ name: 'Malaysian onboarding', status: 'DRAFT', revision: 0, workflowVersion: 'V4' })
+    expect(f).toMatchObject({ name: 'Malaysian onboarding', status: 'DRAFT', revision: 0, workflowVersion: 'W4' })
     expect(f.settings.checks.LIVENESS).toEqual({ threshold: { preset: 'STANDARD' } })
     expect(f.settings.retries).toEqual({ DOCUMENT: 3, SELFIE: 3, LIVENESS: 3 }) // DEC-108
     expect(f.settings.cooldownMin).toBe(0)
     expect(f.settings.unsuccessfulCooldownMin).toBe(0) // DEC-26: a new session at once
     expect(f.settings.risk).toEqual({ enabled: true, minimums: { EXIF: 50, NOISE: 50, EMAIL_VALIDITY: 50, OSINT: 50 } }) // DEC-107, OQ-34
-    expect(newFlowSettings(V1).risk).toBeUndefined()
+    expect(newFlowSettings(W1).risk).toBeUndefined()
   })
 
   it('Given session expiry and accepted documents are open questions, then they start empty and are required', () => {
-    expect(fields(validateFlow(draft(), V4))).toEqual(['sessionExpiryMin', 'acceptedDocuments'])
+    expect(fields(validateFlow(draft(), W4))).toEqual(['sessionExpiryMin', 'acceptedDocuments'])
   })
 })
 
@@ -35,37 +35,37 @@ describe('validation (DEC-53)', () => {
     const s = complete(draft().settings)
     s.checks.FACE_MATCH.threshold = { preset: 'ADVANCED', autoReject: 90, autoPass: 80 }
     s.checks.LIVENESS.threshold = { preset: 'ADVANCED', autoReject: Number.NaN, autoPass: 120 }
-    expect(validateFlow({ name: 'x', settings: s }, V4).map((e) => e.message)).toEqual([
+    expect(validateFlow({ name: 'x', settings: s }, W4).map((e) => e.message)).toEqual([
       'Auto-Reject threshold must be lower than Auto-Pass threshold',
       'Auto-Reject threshold is required',
       'Value must be between 0.00 and 100.00',
     ])
   })
 
-  it('Given retries outside 1–5 or a negative cooldown, then errors per phase; Selfie only for V1 (OQ-03, DEC-108)', () => {
+  it('Given retries outside 1–5 or a negative cooldown, then errors per phase; Selfie only for W1 (OQ-03, DEC-108)', () => {
     const s = complete(draft().settings)
     s.retries = { DOCUMENT: 0, SELFIE: 9, LIVENESS: 6 }
     s.cooldownMin = -1
     s.unsuccessfulCooldownMin = 1.5
-    expect(fields(validateFlow({ name: 'x', settings: s }, V4))).toEqual(['retries.DOCUMENT', 'retries.LIVENESS', 'cooldownMin', 'unsuccessfulCooldownMin']) // V4 has no selfie step
-    expect(fields(validateFlow({ name: 'x', settings: s }, V1))).toEqual(['retries.DOCUMENT', 'retries.SELFIE', 'retries.LIVENESS', 'cooldownMin', 'unsuccessfulCooldownMin'])
+    expect(fields(validateFlow({ name: 'x', settings: s }, W4))).toEqual(['retries.DOCUMENT', 'retries.LIVENESS', 'cooldownMin', 'unsuccessfulCooldownMin']) // W4 has no selfie step
+    expect(fields(validateFlow({ name: 'x', settings: s }, W1))).toEqual(['retries.DOCUMENT', 'retries.SELFIE', 'retries.LIVENESS', 'cooldownMin', 'unsuccessfulCooldownMin'])
   })
 })
 
 describe('risk minimums (DEC-107)', () => {
   const ready = (minimums: RiskScores): Pick<Flow, 'name' | 'settings'> => ({
     name: 'x',
-    settings: { ...newFlowSettings(V4), acceptedDocuments: ['MYKAD'], sessionExpiryMin: 30, risk: { enabled: true, minimums } },
+    settings: { ...newFlowSettings(W4), acceptedDocuments: ['MYKAD'], sessionExpiryMin: 30, risk: { enabled: true, minimums } },
   })
   const custom = { EXIF: 40, NOISE: 60, EMAIL_VALIDITY: 50, OSINT: 30 }
 
-  it('Given V4 (fixed minimums), then changing one is refused; V5 (per flow) may set each', () => {
-    expect(validateFlow(ready(custom), { ...V4, riskMinimumsPerFlow: false })).toEqual([{ field: 'risk', message: 'Risk minimums are fixed for this workflow version' }])
-    expect(validateFlow(ready(custom), { ...V4, riskMinimumsPerFlow: true })).toEqual([])
+  it('Given W4 (fixed minimums), then changing one is refused; W5 (per flow) may set each', () => {
+    expect(validateFlow(ready(custom), { ...W4, riskMinimumsPerFlow: false })).toEqual([{ field: 'risk', message: 'Risk minimums are fixed for this workflow version' }])
+    expect(validateFlow(ready(custom), { ...W4, riskMinimumsPerFlow: true })).toEqual([])
   })
 
   it('Given a minimum outside 0–100 or not whole, then that category errors', () => {
-    expect(validateFlow(ready({ ...custom, NOISE: 101, OSINT: 2.5 }), { ...V4, riskMinimumsPerFlow: true }).map((e) => e.field)).toEqual(['risk.minimums.NOISE', 'risk.minimums.OSINT'])
+    expect(validateFlow(ready({ ...custom, NOISE: 101, OSINT: 2.5 }), { ...W4, riskMinimumsPerFlow: true }).map((e) => e.field)).toEqual(['risk.minimums.NOISE', 'risk.minimums.OSINT'])
   })
 
   it('Given a changed minimum, then the history names the category', () => {
@@ -96,7 +96,7 @@ describe('Advanced is Super admin only (DEC-19)', () => {
 })
 
 describe('save with revision (DEC-51, DEC-52)', () => {
-  const ctx = { entry: V4, canSetAdvanced: false, reason: '' }
+  const ctx = { entry: W4, canSetAdvanced: false, reason: '' }
 
   it('Given a Draft, then it saves without a reason and without a revision, even when incomplete', () => {
     const f = draft()

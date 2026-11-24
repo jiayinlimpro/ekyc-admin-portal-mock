@@ -24,11 +24,11 @@ Each question is a **parameter**, not a fact. The mock uses the default below. I
 | OQ-29 | How long are a Terminated merchant's cases and audit log kept, and are they then archived or deleted? Keeping them is required for compliance; the PDPA says not longer than needed (DEC-98) | Kept; nothing is deleted | — (backend policy) |
 | OQ-30 | Are invoices issued from this portal? If so, merchants also need registered address, TIN, SST number and a billing email (MyInvois) (DEC-98) | No; only the FRS fields | `Merchant` |
 | OQ-33 | EXIF edge cases: (a) the modern-maker list has no Samsung, Xiaomi, Huawei or Realme, so their photos get 0 for the maker; (b) a missing Megapixels value; (c) a missing DateTimeOriginal or FileModifyDate | (a) 0 points as listed; (b) 0 points; (c) counts as "differ" (−4) | `exifScore` in `src/domain/riskSignals.ts` |
-| OQ-34 | Default minimum per risk category: V4's fixed minimums and V5's starting values (DEC-107) | 50 for each category | `DEFAULT_RISK_MINIMUMS` in `src/domain/openQuestions.ts` |
+| OQ-34 | Default minimum per risk category: W4's fixed minimums and W5's starting values (DEC-107) | 50 for each category | `DEFAULT_RISK_MINIMUMS` in `src/domain/openQuestions.ts` |
 | OQ-32 | The engine sets FacePixelSizeThreshold = 50, but its Selfie Quality Check doesn't apply it. Should a selfie face smaller than 50 px fail? | Not checked; shown as information | `selfieMetrics` in `src/domain/telemetry.ts` |
 | OQ-36 | Test and live API keys (sandbox). An Onboarding merchant is "sandbox only" (DEC-98), but nothing says how a sandbox works. Separate test keys (`sk_test_…`) whose sessions use no tokens, aren't billed, are kept apart from real cases and get simulated results? Or a separate sandbox environment? (DEC-111) | Not modelled: one kind of key; Onboarding is a label only (MOCK) | Project Settings › Integration (not built) |
 | OQ-38 | The same Reference ID while its case is `PROCESSING`, `PENDING_REVIEW` or `APPROVED` (DEC-113). Not expected; what should the API answer? | Refused: "This Reference ID already has a case" | DEC-113 (create-session, backend) |
-| OQ-39 | The workflow JSON the backend hands over for each version (DEC-115): its key names and step / tunable names | `{ "workflowCode": "V1", "steps": ["DOCUMENT", "SELFIE", "LIVENESS"], "tunable": ["FACE_MATCH", "LIVENESS"] }`; other keys kept, not read | `readDefinition` in `src/domain/registryRules.ts` |
+| OQ-39 | The workflow JSON the backend hands over for each version (DEC-115): its key names and step / tunable names | `{ "workflowCode": "W1", "steps": ["DOCUMENT", "SELFIE", "LIVENESS"], "tunable": ["FACE_MATCH", "LIVENESS"] }`; other keys kept, not read | `readDefinition` in `src/domain/registryRules.ts` |
 | OQ-31 | The company staff email domain (DEC-99): platform staff and super admins must use it; merchant users may not | `ekyc-platform.example` | `STAFF_EMAIL_DOMAIN` in `src/domain/openQuestions.ts` |
 
 ## Answered (kept for traceability)
@@ -39,11 +39,11 @@ Each question is a **parameter**, not a fact. The mock uses the default below. I
 | OQ-27 | On a project's Members tab (DEC-77), can someone invite a new person, or only add existing users of the merchant? | Yes: one Email field recognises a user of the merchant or a new person (2026-11-23: no tabs). A new person becomes a merchant user with the Member role plus the project role. Allowed with Members › Add / remove in the project or Users › Invite at merchant level; existing users need Members › Add / remove (DEC-77) [PO 2026-11-22, 2026-11-23] |
 | OQ-22 | Cooldown (DEC-26): how is the "same end user" identified, and does the wait apply to this flow only or the whole project? | The same Reference ID of the same merchant, not the document; the wait applies to that case, in whichever flow it returns (DEC-26, DEC-113) [PO 2026-11-22] |
 | OQ-18 | Are routing rules and percentage splits set only through the API, or also edited in the portal? (MS OQ-2) | Neither: no routing. Every session names its flow (`flowId` required) (DEC-95) [PO 2026-11-20] |
-| OQ-35 | Does a submitted V1 selfie also cost a token (DEC-60)? | Yes: everything submitted costs a token, a rejected selfie included [PO 2026-10-27] |
+| OQ-35 | Does a submitted W1 selfie also cost a token (DEC-60)? | Yes: everything submitted costs a token, a rejected selfie included [PO 2026-10-27] |
 | OQ-07 | Are retakes charged per attempt? | Tokens per liveness submission; ID capture and selfie retakes are free (DEC-60) |
 | OQ-08 | Can Platform Admin claim and decide? | Yes, changed 2026-10-21 (DEC-75); was No (DEC-70) |
 | OQ-20 | Can internal staff (Platform Admin) view merchant cases for support? (MS OQ-7) | Yes; every open is audited (DEC-75) |
-| OQ-05 | V4 risk by level or by scores? V5 per component? Can risk reject? | Four category scores with a minimum each; V4 fixed, V5 per flow; risk never rejects (DEC-107) |
+| OQ-05 | W4 risk by level or by scores? W5 per component? Can risk reject? | Four category scores with a minimum each; W4 fixed, W5 per flow; risk never rejects (DEC-107) |
 | OQ-06 | Risk score → level bands | No levels any more: Low risk / High risk (DEC-107) |
 | OQ-10 | Decision reason code list | Changed 2026-10-23: per-project decision reasons, Reject one or more, Approve exactly one (DEC-106); was DEC-35 conditions, no approve code |
 | OQ-26 | Which reason rejects a case in review only for risk (DEC-13)? | "Risk not acceptable after review" (DEC-106) |

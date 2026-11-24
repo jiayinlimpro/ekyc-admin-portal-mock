@@ -21,7 +21,7 @@ describe('parseListParams / toSearchParams', () => {
         statuses: ['PENDING_REVIEW', 'REJECTED'],
         projectId: fx('PRJ-0002'),
         flowId: fx('FLW-0004'),
-        workflowVersion: 'V3',
+        workflowVersion: 'W3',
         claim: 'OTHERS',
         createdFrom: '2026-09-01',
         createdTo: '2026-09-25',

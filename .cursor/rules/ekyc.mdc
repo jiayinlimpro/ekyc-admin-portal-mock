@@ -31,7 +31,7 @@ UAT scenarios: `docs/SCENARIOS.md`.
 
 ## Domain rules (details and IDs in docs/DECISIONS.md)
 - VerificationStatus is EXACTLY: PROCESSING | PENDING_REVIEW | APPROVED | REJECTED | UNSUCCESSFUL. Never add MANUAL_APPROVED,
-  ERROR, EXPIRED, CLAIMED, IN_REVIEW, BLOCKED, FAILED. UNSUCCESSFUL (DEC-112) = no usable image: the Document phase, or the V1 selfie
+  ERROR, EXPIRED, CLAIMED, IN_REVIEW, BLOCKED, FAILED. UNSUCCESSFUL (DEC-112) = no usable image: the Document phase, or the W1 selfie
   quality check, still failing when its retries are used up. A face match or liveness score never gives UNSUCCESSFUL.
 - Manual vs automated = `lastUpdatedBy` (SYSTEM or user fullName + userId). It changes ONLY when status changes
   (never on claim, release or view).
@@ -51,14 +51,14 @@ UAT scenarios: `docs/SCENARIOS.md`.
   it identifies the end user within a project (DEC-113); the merchant's value may repeat across projects, each with its own case. Verification ID first, then Reference ID, wherever both appear.
 - Only FACE_MATCH (shown as **Face match**; it judges the similarity, face vs ID photo) and LIVENESS have thresholds: autoReject/autoPass, chosen as a Low/Standard/High preset, or Advanced
   (custom, super admin or staff with Calibrate). Never per individual metric. Every engine metric is shown on the case page with its fixed threshold (DEC-105).
-  "Face detection confidence" = the engine's fixed > 90 value, never configurable. Risk for V4/V5 only (DEC-107): four
+  "Face detection confidence" = the engine's fixed > 90 value, never configurable. Risk for W4/W5 only (DEC-107): four
   category scores 0–100 (EXIF / Noise / Email Validity / OSINT), Low risk when each ≥ its minimum, else High risk → review;
-  minimums fixed for V4, per flow for V5; risk never rejects. No risk levels.
+  minimums fixed for W4, per flow for W5; risk never rejects. No risk levels.
 - `>= autoPass` → pass; `< autoReject` → reject; between → review. Below autoPass with retries left → retry, case stays
-  PROCESSING. Retries used up → the last attempt decides. V4/V5: APPROVED also requires risk pass, else PENDING_REVIEW.
-- "Retries allowed" is per phase (DEC-108): Document (OCR), Selfie (V1), Liveness; default 3 each. A submitted attempt
-  that fails for any reason in that phase uses one; retakes before submitting are free. Documents / V1 selfies that still
-  fail when retries are used up → UNSUCCESSFUL (DEC-112). Tokens = every submission: document, V1 selfie, liveness (OQ-35). Retries keep the same referenceNo.
+  PROCESSING. Retries used up → the last attempt decides. W4/W5: APPROVED also requires risk pass, else PENDING_REVIEW.
+- "Retries allowed" is per phase (DEC-108): Document (OCR), Selfie (W1), Liveness; default 3 each. A submitted attempt
+  that fails for any reason in that phase uses one; retakes before submitting are free. Documents / W1 selfies that still
+  fail when retries are used up → UNSUCCESSFUL (DEC-112). Tokens = every submission: document, W1 selfie, liveness (OQ-35). Retries keep the same referenceNo.
 - PROCESSING records are read-only. No reviewer reopen, no Request Resubmission; a REJECTED or UNSUCCESSFUL case continues
   only when the same Reference ID starts a new session after its cooldown (DEC-113; cooldowns DEC-26: after Rejected, and
   after Unsuccessful, default 0). Reasons come from the project's

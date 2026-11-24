@@ -29,7 +29,7 @@ export function verification(overrides: Partial<Verification> = {}): Verificatio
     verificationId: 'vrf_testcase0000000000000001',
     referenceId: 'KYC-260925-000001',
     merchantId: fx('MER-0001'),
-    workflowVersion: 'V4',
+    workflowVersion: 'W4',
     status: 'PENDING_REVIEW',
     lastUpdatedBy: { kind: 'SYSTEM' },
     lastUpdatedAt: NOW.toISOString(),
@@ -54,7 +54,7 @@ export function verification(overrides: Partial<Verification> = {}): Verificatio
     createdAt: NOW.toISOString(),
     submissions: { FACE_MATCH: [95], LIVENESS: [95] },
     idCaptureSoftRejects: 0,
-    sessions: [{ sessionNo: 1, startedAt: NOW.toISOString(), flowId: overrides.flowId ?? fx('FLW-0001'), workflowVersion: overrides.workflowVersion ?? 'V4', configRevision: overrides.configRevision ?? 2 }],
+    sessions: [{ sessionNo: 1, startedAt: NOW.toISOString(), flowId: overrides.flowId ?? fx('FLW-0001'), workflowVersion: overrides.workflowVersion ?? 'W4', configRevision: overrides.configRevision ?? 2 }],
     ...overrides,
   }
 }

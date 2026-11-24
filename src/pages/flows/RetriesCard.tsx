@@ -11,7 +11,7 @@ const LAST_DECIDES = 'Used up: the last result decides (Pending Review or Reject
 
 /**
  * What uses a retry in each phase, and what happens when they are used up (DEC-16, DEC-112). The face match belongs to
- * the selfie phase on V1, to liveness otherwise.
+ * the selfie phase on W1, to liveness otherwise.
  */
 function usedBy(phase: RetryPhase, v1: boolean): string {
   if (phase === 'DOCUMENT') return 'A submitted ID image that fails any check (face, size, OCR fields). Used up: Unsuccessful (no usable ID image).'

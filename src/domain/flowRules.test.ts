@@ -43,7 +43,7 @@ const flow = (overrides: Partial<Flow> = {}): Flow => ({
   merchantId: fx('MER-0001'),
   name: 'Foreigner onboarding',
   description: 'Passport holders',
-  workflowVersion: 'V4',
+  workflowVersion: 'W4',
   status: 'ACTIVE',
   settings: {
     checks: { FACE_MATCH: { threshold: { preset: 'STANDARD' } }, LIVENESS: { threshold: { preset: 'HIGH' } } },
@@ -61,7 +61,7 @@ const flow = (overrides: Partial<Flow> = {}): Flow => ({
   ...overrides,
 })
 
-const V4 = { code: 'V4', status: 'ACTIVE' as const }
+const W4 = { code: 'W4', status: 'ACTIVE' as const }
 
 describe('projects (DEC-93)', () => {
   it('Given an empty or duplicate name, then refused', () => {
@@ -83,18 +83,18 @@ describe('flow lifecycle (DEC-94, DEC-51)', () => {
     const draft = flow({ status: 'DRAFT', revision: 0 })
     expect(revisionLabel(draft)).toBeUndefined()
     expect(versionLocked(draft)).toBe(false)
-    expect(activateError(draft, project(), V4)).toBeUndefined()
+    expect(activateError(draft, project(), W4)).toBeUndefined()
     const active = activate(draft, NOW, OWNER)
     expect(active).toMatchObject({ status: 'ACTIVE', revision: 1 })
-    expect(revisionLabel(active)).toBe('V4-R1')
+    expect(revisionLabel(active)).toBe('W4-R1')
     expect(versionLocked(active)).toBe(true)
   })
 
   it('Given a deprecated or draft version, or an archived project, then activation is refused', () => {
     const draft = flow({ status: 'DRAFT', revision: 0 })
-    expect(activateError(draft, project(), { code: 'V3', status: 'DEPRECATED' })).toBe('Workflow version V3 is deprecated; create a new flow on an active version.')
-    expect(activateError(draft, project(), { code: 'V5', status: 'DRAFT' })).toMatch(/V5 is draft/)
-    expect(activateError(draft, project({ status: 'ARCHIVED' }), V4)).toMatch(/archived/)
+    expect(activateError(draft, project(), { code: 'W3', status: 'DEPRECATED' })).toBe('Workflow version W3 is deprecated; create a new flow on an active version.')
+    expect(activateError(draft, project(), { code: 'W5', status: 'DRAFT' })).toMatch(/W5 is draft/)
+    expect(activateError(draft, project({ status: 'ARCHIVED' }), W4)).toMatch(/archived/)
   })
 
   it('Given a re-activated flow, then its revision is kept', () => {
@@ -140,8 +140,8 @@ describe('cooldowns after Rejected and after Unsuccessful (DEC-26, DEC-112)', ()
 
   it('Given a flow with both cooldowns, then the case status picks one, whatever the phase; other statuses have none', () => {
     const s = { cooldownMin: 120, unsuccessfulCooldownMin: 30 }
-    expect(cooldownFor('REJECTED', s)).toBe(120) // incl. a V1 face mismatch and a reviewer's reject
-    expect(cooldownFor('UNSUCCESSFUL', s)).toBe(30) // a document or V1 selfie with no usable image
+    expect(cooldownFor('REJECTED', s)).toBe(120) // incl. a W1 face mismatch and a reviewer's reject
+    expect(cooldownFor('UNSUCCESSFUL', s)).toBe(30) // a document or W1 selfie with no usable image
     for (const st of ['PROCESSING', 'PENDING_REVIEW', 'APPROVED'] as const) expect(cooldownFor(st, s)).toBe(0)
   })
 })

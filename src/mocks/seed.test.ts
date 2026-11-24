@@ -125,10 +125,10 @@ describe('seedDatabase', () => {
     for (const v of db.verifications.filter((x) => !hasRisk(entryOf(x.workflowVersion)))) expect(v.riskScores ?? v.riskResult, v.referenceId).toBeUndefined()
   })
 
-  it('covers every status × V1/V3/V4 combination, both manual and system decisions, and both risk results', () => {
-    // REQ: DEC-112 — UNSUCCESSFUL too: S27 (V1 selfie), S28 (V3 document), S25 (V4 document).
+  it('covers every status × W1/W3/W4 combination, both manual and system decisions, and both risk results', () => {
+    // REQ: DEC-112 — UNSUCCESSFUL too: S27 (W1 selfie), S28 (W3 document), S25 (W4 document).
     for (const status of VERIFICATION_STATUSES) {
-      for (const wf of ['V1', 'V3', 'V4']) {
+      for (const wf of ['W1', 'W3', 'W4']) {
         expect(db.verifications.some((v) => v.status === status && v.workflowVersion === wf), `${status} × ${wf}`).toBe(true)
       }
     }
@@ -188,7 +188,7 @@ describe('telemetry, duplicate user and risk categories (DEC-105)', () => {
     }
   })
 
-  it('Given each compared attempt, then a face image and face match > 90; a V1 selfie was compared only after passing its check', () => {
+  it('Given each compared attempt, then a face image and face match > 90; a W1 selfie was compared only after passing its check', () => {
     for (const v of db.verifications) {
       const v1 = entryOf(v.workflowVersion).faceMatchMethod === 'ID_VS_SELFIE'
       for (const a of v.attempts.filter((x) => x.phaseScores.FACE_MATCH !== undefined)) {
@@ -200,7 +200,7 @@ describe('telemetry, duplicate user and risk categories (DEC-105)', () => {
     }
   })
 
-  it('Given a V1 selfie rejected by its quality check, then it fails a check and nothing was compared on that run (DEC-105)', () => {
+  it('Given a W1 selfie rejected by its quality check, then it fails a check and nothing was compared on that run (DEC-105)', () => {
     const rejected = db.verifications.flatMap((v) => v.attempts.flatMap((a) => (a.telemetry?.selfieRetakes ?? []).map((t) => ({ v, a, t }))))
     expect(rejected.length).toBeGreaterThan(0)
     for (const { v, t } of rejected) {
@@ -221,7 +221,7 @@ describe('telemetry, duplicate user and risk categories (DEC-105)', () => {
     expect(byRef('KYC-260901-900019').duplicateUser).toBeUndefined() // S19: retry pending after 70.0
   })
 
-  it('Given an attempt, then it shows only the scores it submitted: V1 face match first, liveness last', () => {
+  it('Given an attempt, then it shows only the scores it submitted: W1 face match first, liveness last', () => {
     for (const v of db.verifications) {
       for (const c of ['FACE_MATCH', 'LIVENESS'] as const) {
         expect(v.attempts.flatMap((a) => (a.phaseScores[c] === undefined ? [] : [a.phaseScores[c]])), `${v.referenceId} ${c}`).toEqual(v.submissions[c] ?? [])
@@ -263,11 +263,11 @@ describe('telemetry, duplicate user and risk categories (DEC-105)', () => {
     }
   })
 
-  it('S02 is High risk in every category; S23 (V5) by its own OSINT minimum; S24 (V5) Low risk with EXIF 45 under its minimum 40', () => {
+  it('S02 is High risk in every category; S23 (W5) by its own OSINT minimum; S24 (W5) Low risk with EXIF 45 under its minimum 40', () => {
     expect(byRef('KYC-260901-900002')).toMatchObject({ riskResult: 'HIGH', statusDetail: 'EXIF Score 32 < 50 · Noise Score 18 < 50 · Email Validity Score 20 < 50 · OSINT Score 10 < 50' })
     expect(byRef('KYC-260901-900023')).toMatchObject({ riskResult: 'HIGH', status: 'PENDING_REVIEW', statusDetail: 'OSINT Score 22 < 30' })
     expect(byRef('KYC-260901-900024')).toMatchObject({ riskResult: 'LOW', status: 'APPROVED' })
-    expect(evaluateRisk(byRef('KYC-260901-900024').riskScores!, { enabled: true, minimums: { EXIF: 50, NOISE: 50, EMAIL_VALIDITY: 50, OSINT: 50 } }).result).toBe('HIGH') // V4's fixed minimums would flag it
+    expect(evaluateRisk(byRef('KYC-260901-900024').riskScores!, { enabled: true, minimums: { EXIF: 50, NOISE: 50, EMAIL_VALIDITY: 50, OSINT: 50 } }).result).toBe('HIGH') // W4's fixed minimums would flag it
   })
 
   it('S05 shows why the user stopped at ID capture; S21 found an existing user but is in review only for its face match', () => {
@@ -303,7 +303,7 @@ describe('named scenarios (docs/SCENARIOS.md)', () => {
     expect(v.attempts).toHaveLength(4)
   })
 
-  it('S12 started on V4-R1 and is still evaluated with it after R2 was saved (DEC-52)', () => {
+  it('S12 started on W4-R1 and is still evaluated with it after R2 was saved (DEC-52)', () => {
     const v = byRef('KYC-260901-900012')
     expect(v.configRevision).toBe(1)
     expect(flowOf(v.flowId).revision).toBe(2)
@@ -332,7 +332,7 @@ describe('named scenarios (docs/SCENARIOS.md)', () => {
     expect(v.pii.nric).toBeUndefined()
   })
 
-  it('S01 (V1) has no risk result; S02 (V4) does', () => {
+  it('S01 (W1) has no risk result; S02 (W4) does', () => {
     const risk = (ref: string) => db.verifications.find((v) => v.referenceId === ref)!.riskResult
     expect(risk('KYC-260901-900001')).toBeUndefined()
     expect(risk('KYC-260901-900002')).toBe('HIGH')
@@ -342,10 +342,10 @@ describe('named scenarios (docs/SCENARIOS.md)', () => {
 describe('projects, flows and registry (DEC-56 … DEC-58, DEC-90 … DEC-95)', () => {
   const entry = (code: string) => db.registry.find((e) => e.code === code)!
 
-  it('Given the registry, then V1, V3, V4, V5 Active, no V2, one Active default, and only V5 lets flows set risk minimums (DEC-57, DEC-107)', () => {
-    expect(db.registry.map((e) => `${e.code}:${e.status}`)).toEqual(['V1:ACTIVE', 'V3:ACTIVE', 'V4:ACTIVE', 'V5:LIMITED_RELEASE', 'V6:INTERNAL_TESTING'])
-    expect(db.registry.filter((e) => e.riskMinimumsPerFlow).map((e) => e.code)).toEqual(['V5'])
-    expect(db.registry.filter((e) => e.isDefault).map((e) => e.code)).toEqual(['V1'])
+  it('Given the registry, then W1, W3, W4, W5 Active, no W2, one Active default, and only W5 lets flows set risk minimums (DEC-57, DEC-107)', () => {
+    expect(db.registry.map((e) => `${e.code}:${e.status}`)).toEqual(['W1:ACTIVE', 'W3:ACTIVE', 'W4:ACTIVE', 'W5:LIMITED_RELEASE', 'W6:INTERNAL_TESTING'])
+    expect(db.registry.filter((e) => e.riskMinimumsPerFlow).map((e) => e.code)).toEqual(['W5'])
+    expect(db.registry.filter((e) => e.isDefault).map((e) => e.code)).toEqual(['W1'])
     for (const e of db.registry) {
       expect(validateRegistryInput({ code: e.code, name: e.name, definition: e.definition, accessMerchantIds: e.accessMerchantIds }, [])).toEqual([])
       // REQ: DEC-115 — what the portal stores is exactly what it reads from the version's JSON.
@@ -383,7 +383,7 @@ describe('projects, flows and registry (DEC-56 … DEC-58, DEC-90 … DEC-95)', 
     expect(new Set(db.flows.map((f) => f.status))).toEqual(new Set(['ACTIVE', 'DRAFT', 'RETIRING', 'INACTIVE']))
     const advanced = db.flowRevisions.find((r) => r.settings.checks.FACE_MATCH.threshold.preset === 'ADVANCED')!
     expect(advanced.savedBy.userId).toBe(fx('USR-2026-0001'))
-    expect(revisionLabel(db.flows.find((f) => f.flowId === fx('FLW-0001'))!)).toBe('V4-R2')
+    expect(revisionLabel(db.flows.find((f) => f.flowId === fx('FLW-0001'))!)).toBe('W4-R2')
     expect(db.flowRevisions.find((r) => r.flowId === fx('FLW-0001') && r.revision === 2)!.changes.length).toBeGreaterThan(0)
   })
 })

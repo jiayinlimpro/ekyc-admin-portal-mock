@@ -103,7 +103,7 @@ describe('System Intelligence (DEC-18, DEC-86)', () => {
 
   it('Given all flows, then no threshold lines (they differ per flow) and a By flow table with drop-off', async () => {
     useSession.getState().switchUser(ADMIN)
-    renderAt('/intelligence?days=90', fx('PRJ-0005')) // The Boring Company: a V1 and a V3 flow
+    renderAt('/intelligence?days=90', fx('PRJ-0005')) // The Boring Company: a W1 and a W3 flow
     const card = within(await screen.findByRole('region', { name: 'Score distribution' }))
     expect(card.getByText(/pick one flow/)).toBeTruthy()
     expect(card.queryByText(/Reject </)).toBeNull()

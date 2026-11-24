@@ -54,7 +54,7 @@ describe('verificationService.list', () => {
 
   it('Given a list row, then it names its project and flow and carries Created (DEC-40)', async () => {
     const row = (await svc.list({ referenceId: S(16) }, ALI)).items[0]
-    expect(row).toMatchObject({ projectId: fx('PRJ-0002'), projectName: 'SME app', flowId: fx('FLW-0004'), flowName: 'SME director check', workflowVersion: 'V3' })
+    expect(row).toMatchObject({ projectId: fx('PRJ-0002'), projectName: 'SME app', flowId: fx('FLW-0004'), flowName: 'SME director check', workflowVersion: 'W3' })
     expect(row.createdAt).toBe((await svc.get(C(16), ALI)).createdAt)
   })
 
@@ -64,7 +64,7 @@ describe('verificationService.list', () => {
     expect(sme.items.every((r) => r.projectId === fx('PRJ-0002'))).toBe(true)
     const foreigner = await svc.list({ flowId: fx('FLW-0002'), pageSize: 500 }, ALI)
     expect(foreigner.items.every((r) => r.flowId === fx('FLW-0002'))).toBe(true)
-    expect((await svc.list({ workflowVersion: 'V3', pageSize: 500 }, ALI)).items.every((r) => r.workflowVersion === 'V3')).toBe(true)
+    expect((await svc.list({ workflowVersion: 'W3', pageSize: 500 }, ALI)).items.every((r) => r.workflowVersion === 'W3')).toBe(true)
   })
 
   it('Given claim state filters, then unclaimed, mine and others split the active claims (DEC-43)', async () => {
@@ -179,7 +179,7 @@ describe('per-project case access (DEC-70, DEC-72)', () => {
 describe('verificationService.get detail sections (DEC-44)', () => {
   it('Given S03, then project, flow, revision, steps and each check with threshold applied and retries used / allowed', async () => {
     const d = await svc.get(C(3), ALI)
-    expect(d).toMatchObject({ projectName: 'Default', flowName: 'Malaysian onboarding', revisionLabel: 'V4-R2', steps: { runsRisk: true, faceMatchMethod: 'ID_VS_LIVENESS' } })
+    expect(d).toMatchObject({ projectName: 'Default', flowName: 'Malaysian onboarding', revisionLabel: 'W4-R2', steps: { runsRisk: true, faceMatchMethod: 'ID_VS_LIVENESS' } })
     const fm = d.checks.find((c) => c.check === 'FACE_MATCH')!
     expect(fm).toMatchObject({ state: 'REVIEW', thresholds: { autoReject: 85, autoPass: 95 }, lastScore: 88.5, submissions: 4, retriesUsed: 3, retriesAllowed: 3 })
     expect(d.rulesApplied.checks.FACE_MATCH.threshold).toEqual({ preset: 'STANDARD' })
@@ -187,7 +187,7 @@ describe('verificationService.get detail sections (DEC-44)', () => {
 
   it('Given S12 started on R1, then Rules applied are R1 even though R2 is live (DEC-52)', async () => {
     const d = await svc.get(C(12), ALI)
-    expect(d.revisionLabel).toBe('V4-R1')
+    expect(d.revisionLabel).toBe('W4-R1')
     expect(d.rulesApplied.checks.LIVENESS.threshold).toEqual({ preset: 'LOW' })
   })
 
@@ -374,10 +374,10 @@ describe('analyticsService scoping (DEC-86)', () => {
 })
 
 describe('Internal testing is hidden from merchant users (DEC-56)', () => {
-  const TRIAL = fx('FLW-0015') // Atoz Default, V6 (Internal testing); S26 is its test session
+  const TRIAL = fx('FLW-0015') // Atoz Default, W6 (Internal testing); S26 is its test session
   const month = NOW.toISOString().slice(0, 7)
 
-  it('Given the Atoz Owner, when listing or opening, then the V6 flow and its session are "not found" everywhere', async () => {
+  it('Given the Atoz Owner, when listing or opening, then the W6 flow and its session are "not found" everywhere', async () => {
     expect((await flowService.list(fx('PRJ-0001'), OWNER)).map((f) => f.flowId)).not.toContain(TRIAL)
     expect((await flowService.listRows(fx('PRJ-0001'), OWNER)).map((f) => f.flowId)).not.toContain(TRIAL)
     await expectError(flowService.get(TRIAL, OWNER), 'NOT_FOUND')

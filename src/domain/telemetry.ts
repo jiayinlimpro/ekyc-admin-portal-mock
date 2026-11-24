@@ -116,7 +116,7 @@ export function idCaptureCondition(t: IdCaptureTelemetry, documentType: Document
   return `${missing === 'Validity date' ? 'Validity Data' : missing} field not detected`
 }
 
-/** REQ: DEC-35 — the condition of a V1 selfie that fails its quality check. */
+/** REQ: DEC-35 — the condition of a W1 selfie that fails its quality check. */
 export const SELFIE_FAILED_CONDITION = 'No valid face in Selfie detected'
 
 /** REQ: DEC-108 — what the status rules need from a stored case: scores, risk, and the failed document and selfie submissions. */

@@ -44,22 +44,22 @@ describe('Flow Detail (DEC-18, DEC-19, DEC-50, DEC-51)', () => {
     expect(liveness.queryByRole('radio', { name: /Advanced/ })).toBeNull() // Owner: no Advanced
   })
 
-  it('Given an Active flow, then Save needs a reason; with one it creates V4-R3 for new sessions (DEC-51)', async () => {
+  it('Given an Active flow, then Save needs a reason; with one it creates W4-R3 for new sessions (DEC-51)', async () => {
     renderAt(`/flows/${fx('FLW-0001')}`)
     fireEvent.click((await card('Face match')).getByRole('radio', { name: /Low/ }))
-    expect(screen.getByText(/Creates V4-R3 · applies to new sessions only/)).toBeTruthy()
+    expect(screen.getByText(/Creates W4-R3 · applies to new sessions only/)).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: 'Save new revision' }))
     expect(await screen.findByText(/Reason for change is required/, { selector: '[role="alert"]' })).toBeTruthy()
     fireEvent.change(screen.getByLabelText(/Reason for change/), { target: { value: 'Too many good users sent to review' } })
     fireEvent.click(screen.getByRole('button', { name: 'Save new revision' }))
     await waitFor(() => expect(flow(fx('FLW-0001')).revision).toBe(3))
-    expect(await (await card('History')).findByText('V4-R3', { exact: false })).toBeTruthy()
+    expect(await (await card('History')).findByText('W4-R3', { exact: false })).toBeTruthy()
   })
 
-  it('Given Retries allowed, then its own card per phase (no Selfie on V4), each stepper within 1–5 (DEC-108, OQ-03)', async () => {
+  it('Given Retries allowed, then its own card per phase (no Selfie on W4), each stepper within 1–5 (DEC-108, OQ-03)', async () => {
     renderAt(`/flows/${fx('FLW-0001')}`)
     const r = await card('Retries allowed')
-    expect(r.queryByLabelText('Selfie retries allowed')).toBeNull() // V4 has no selfie step
+    expect(r.queryByLabelText('Selfie retries allowed')).toBeNull() // W4 has no selfie step
     expect(r.getByLabelText('Document (OCR) retries allowed').textContent).toBe('3')
     fireEvent.click(r.getByRole('button', { name: 'More Document (OCR) retries' }))
     fireEvent.click(r.getByRole('button', { name: 'More Document (OCR) retries' }))
@@ -71,7 +71,7 @@ describe('Flow Detail (DEC-18, DEC-19, DEC-50, DEC-51)', () => {
     expect((await card('Face match')).queryByText(/Retries allowed/)).toBeNull() // not in the threshold card
   })
 
-  it('Given a V1 flow, then Selfie retries too: a failed selfie or a face match below Auto-Pass uses one (DEC-108)', async () => {
+  it('Given a W1 flow, then Selfie retries too: a failed selfie or a face match below Auto-Pass uses one (DEC-108)', async () => {
     useSession.getState().switchUser(ADMIN)
     renderAt(`/flows/${fx('FLW-0005')}`)
     const r = await card('Retries allowed')
@@ -113,7 +113,7 @@ describe('Flow Detail (DEC-18, DEC-19, DEC-50, DEC-51)', () => {
     expect(await admin.findByText('Auto-Reject threshold must be lower than Auto-Pass threshold')).toBeTruthy()
   })
 
-  it('Given the Draft "Tourist onboarding", then Activate is refused until session expiry is set; then it activates as V4-R1', async () => {
+  it('Given the Draft "Tourist onboarding", then Activate is refused until session expiry is set; then it activates as W4-R1', async () => {
     renderAt(`/flows/${fx('FLW-0003')}`)
     fireEvent.click(await screen.findByRole('button', { name: 'Activate' }))
     await waitFor(() => expect(flow(fx('FLW-0003')).status).toBe('DRAFT'))
@@ -138,7 +138,7 @@ describe('Flow Detail (DEC-18, DEC-19, DEC-50, DEC-51)', () => {
     expect(screen.queryByRole('region', { name: 'Save changes' })).toBeNull()
   })
 
-  it('Given V4, then Risk shows, and no email requirement: the workflow handles it; V3 has no Risk (DEC-50, DEC-115)', async () => {
+  it('Given W4, then Risk shows, and no email requirement: the workflow handles it; W3 has no Risk (DEC-50, DEC-115)', async () => {
     renderAt(`/flows/${fx('FLW-0001')}`)
     expect(await card('Risk Assessment')).toBeTruthy()
     expect(screen.queryByText(/Email required/)).toBeNull()

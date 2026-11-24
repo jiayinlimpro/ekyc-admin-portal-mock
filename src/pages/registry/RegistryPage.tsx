@@ -43,7 +43,7 @@ const STATUS_TONE: Record<RegistryStatus, string> = {
 // REQ: DEC-57 — why a version can't become the default (already it, or not Active); undefined when it can.
 const defaultBlocked = (r: RegistryRow) => setDefaultError(r)
 
-const EXAMPLE = '{\n  "workflowCode": "V7",\n  "steps": ["DOCUMENT", "LIVENESS"],\n  "tunable": ["FACE_MATCH", "LIVENESS"]\n}'
+const EXAMPLE = '{\n  "workflowCode": "W7",\n  "steps": ["DOCUMENT", "LIVENESS"],\n  "tunable": ["FACE_MATCH", "LIVENESS"]\n}'
 const emptyInput = (): RegistryInput => ({ code: '', name: '', definition: '', accessMerchantIds: [] })
 const inputOf = (e: RegistryRow): RegistryInput => ({ code: e.code, name: e.name, definition: e.definition, accessMerchantIds: e.accessMerchantIds })
 
@@ -89,7 +89,7 @@ function VersionDialog({ editing, onClose, onDone }: { editing?: RegistryRow; on
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 sm:grid-cols-[10rem_1fr]">
-            <FormField id="r-code" label="Workflow code" hint="V<number>, never reused" error={errors.code}>
+            <FormField id="r-code" label="Workflow code" hint="W<number>, never reused" error={errors.code}>
               <Input id="r-code" value={v.code} disabled={!!editing} onChange={(e) => setV({ ...v, code: e.target.value })} aria-invalid={!!errors.code} />
             </FormField>
             <FormField id="r-name" label="Name" error={errors.name}>

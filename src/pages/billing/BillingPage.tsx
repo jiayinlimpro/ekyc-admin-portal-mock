@@ -41,7 +41,7 @@ function ByTable({ title, rows, name }: { title: string; rows: (BillingTotals & 
   )
 }
 
-// REQ: DEC-60 / DEC-86 — tokens per document (OCR), V1 selfie and liveness submission, whatever the final status; by project and flow; every role, scoped.
+// REQ: DEC-60 / DEC-86 — tokens per document (OCR), W1 selfie and liveness submission, whatever the final status; by project and flow; every role, scoped.
 export function BillingPage() {
   const d = useDashboardScope()
   const [sp, setSp] = useSearchParams()
@@ -74,7 +74,7 @@ export function BillingPage() {
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold">Billing</h1>
-          <p className="text-sm text-muted-foreground">{d.label} · one token per submission (document, V1 selfie, liveness), whatever the case’s status. Retakes before submitting are free.</p>
+          <p className="text-sm text-muted-foreground">{d.label} · one token per submission (document, W1 selfie, liveness), whatever the case’s status. Retakes before submitting are free.</p>
         </div>
         {canExport && (
           <Button variant="outline" disabled={!r?.lines.length} onClick={exportCsv}>

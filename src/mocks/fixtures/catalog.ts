@@ -34,13 +34,13 @@ export function buildRegistry(now: Date): RegistryEntry[] {
   const THRESHOLDS = ['FACE_MATCH', 'LIVENESS']
   // REQ: DEC-58 — FRS initial records.
   return [
-    entry({ code: 'V1', name: 'ID + Selfie + Liveness', status: 'ACTIVE', isDefault: true }, 400, ['DOCUMENT', 'SELFIE', 'LIVENESS'], THRESHOLDS),
-    entry({ code: 'V3', name: 'ID + Liveness', status: 'ACTIVE', isDefault: false }, 300, ['DOCUMENT', 'LIVENESS'], THRESHOLDS),
-    entry({ code: 'V4', name: 'ID + Liveness + Risk Assessment', status: 'ACTIVE', isDefault: false }, 300, ['DOCUMENT', 'LIVENESS', 'RISK'], THRESHOLDS),
-    // REQ: DEC-107 / DEC-56 — V5 = V4 with the risk minimums set per flow; Limited release to Atoz.
-    entry({ code: 'V5', name: 'ID + Liveness + component risk', status: 'LIMITED_RELEASE', accessMerchantIds: [fx('MER-0001')], isDefault: false }, 10, ['DOCUMENT', 'LIVENESS', 'RISK'], [...THRESHOLDS, 'RISK_MINIMUMS']),
+    entry({ code: 'W1', name: 'ID + Selfie + Liveness', status: 'ACTIVE', isDefault: true }, 400, ['DOCUMENT', 'SELFIE', 'LIVENESS'], THRESHOLDS),
+    entry({ code: 'W3', name: 'ID + Liveness', status: 'ACTIVE', isDefault: false }, 300, ['DOCUMENT', 'LIVENESS'], THRESHOLDS),
+    entry({ code: 'W4', name: 'ID + Liveness + Risk Assessment', status: 'ACTIVE', isDefault: false }, 300, ['DOCUMENT', 'LIVENESS', 'RISK'], THRESHOLDS),
+    // REQ: DEC-107 / DEC-56 — W5 = W4 with the risk minimums set per flow; Limited release to Atoz.
+    entry({ code: 'W5', name: 'ID + Liveness + component risk', status: 'LIMITED_RELEASE', accessMerchantIds: [fx('MER-0001')], isDefault: false }, 10, ['DOCUMENT', 'LIVENESS', 'RISK'], [...THRESHOLDS, 'RISK_MINIMUMS']),
     // REQ: DEC-56 — Internal testing: only super admins and platform staff can build flows on it; not charged.
-    entry({ code: 'V6', name: 'ID + Liveness (next engine build)', status: 'INTERNAL_TESTING', isDefault: false }, 3, ['DOCUMENT', 'LIVENESS'], THRESHOLDS),
+    entry({ code: 'W6', name: 'ID + Liveness (next engine build)', status: 'INTERNAL_TESTING', isDefault: false }, 3, ['DOCUMENT', 'LIVENESS'], THRESHOLDS),
   ]
 }
 
@@ -49,7 +49,7 @@ interface FlowSpec {
   projectId: string
   name: string
   description: string
-  version: 'V1' | 'V3' | 'V4' | 'V5' | 'V6'
+  version: 'W1' | 'W3' | 'W4' | 'W5' | 'W6'
   status: FlowStatus
   createdDaysAgo: number
   /** Saved revisions, oldest first: when (hours ago), who, why and the settings. Empty for a Draft. */
@@ -107,71 +107,71 @@ const OWNER_ATOZ = { userId: fx('USR-2026-0002'), fullName: 'Tan Mei Ling' }
 
 const FLOWS: FlowSpec[] = [
   {
-    flowId: fx('FLW-0001'), projectId: fx('PRJ-0001'), name: 'Malaysian onboarding', description: 'Malaysians with MyKad', version: 'V4', status: 'ACTIVE', createdDaysAgo: 400,
+    flowId: fx('FLW-0001'), projectId: fx('PRJ-0001'), name: 'Malaysian onboarding', description: 'Malaysians with MyKad', version: 'W4', status: 'ACTIVE', createdDaysAgo: 400,
     revisions: [
       { hoursAgo: 120 * 24, reason: 'Flow activated', settings: settings({ fm: preset('LOW'), l: preset('LOW'), risk: true }) },
       { hoursAgo: 2, by: OWNER_ATOZ, reason: 'Tighten face match and liveness after a fraud review', settings: settings({ risk: true }) }, // S12 is still on R1
     ],
   },
   {
-    flowId: fx('FLW-0002'), projectId: fx('PRJ-0001'), name: 'Foreigner onboarding', description: 'Passport holders', version: 'V4', status: 'ACTIVE', createdDaysAgo: 200,
+    flowId: fx('FLW-0002'), projectId: fx('PRJ-0001'), name: 'Foreigner onboarding', description: 'Passport holders', version: 'W4', status: 'ACTIVE', createdDaysAgo: 200,
     revisions: [{ hoursAgo: 200 * 24, by: OWNER_ATOZ, reason: 'Flow activated', settings: settings({ fm: preset('HIGH'), cooldownMin: 120, unsuccessfulCooldownMin: 30, docs: ['PASSPORT'], risk: true }) }],
   },
   {
-    // REQ: DEC-107 — V5: this flow's own risk minimums (EXIF looser, Noise stricter, OSINT looser than the defaults).
-    flowId: fx('FLW-0014'), projectId: fx('PRJ-0001'), name: 'Premium accounts', description: 'Premium customers, own risk minimums', version: 'V5', status: 'ACTIVE', createdDaysAgo: 9,
+    // REQ: DEC-107 — W5: this flow's own risk minimums (EXIF looser, Noise stricter, OSINT looser than the defaults).
+    flowId: fx('FLW-0014'), projectId: fx('PRJ-0001'), name: 'Premium accounts', description: 'Premium customers, own risk minimums', version: 'W5', status: 'ACTIVE', createdDaysAgo: 9,
     revisions: [{ hoursAgo: 9 * 24, by: OWNER_ATOZ, reason: 'Flow activated', settings: settings({ fm: preset('HIGH'), risk: { EXIF: 40, NOISE: 60, EMAIL_VALIDITY: 50, OSINT: 30 } }) }],
   },
   {
-    flowId: fx('FLW-0003'), projectId: fx('PRJ-0001'), name: 'Tourist onboarding', description: 'Short-stay visitors (draft)', version: 'V4', status: 'DRAFT', createdDaysAgo: 3,
+    flowId: fx('FLW-0003'), projectId: fx('PRJ-0001'), name: 'Tourist onboarding', description: 'Short-stay visitors (draft)', version: 'W4', status: 'DRAFT', createdDaysAgo: 3,
     revisions: [], draftSettings: { ...newFlowSettings({ phases: ['ID_CAPTURE', 'LIVENESS_CHECK', 'RISK_ASSESSMENT'] }), acceptedDocuments: ['PASSPORT'] },
   },
   {
-    flowId: fx('FLW-0004'), projectId: fx('PRJ-0002'), name: 'SME director check', description: 'Directors of SME customers', version: 'V3', status: 'ACTIVE', createdDaysAgo: 60,
+    flowId: fx('FLW-0004'), projectId: fx('PRJ-0002'), name: 'SME director check', description: 'Directors of SME customers', version: 'W3', status: 'ACTIVE', createdDaysAgo: 60,
     revisions: [{ hoursAgo: 60 * 24, by: OWNER_ATOZ, reason: 'Flow activated', settings: settings({ retries: 2, docs: ['MYKAD', 'PASSPORT'], expiry: 60 }) }],
   },
   {
-    flowId: fx('FLW-0005'), projectId: fx('PRJ-0003'), name: 'Standard onboarding', description: 'All Vantage customers', version: 'V1', status: 'ACTIVE', createdDaysAgo: 400,
+    flowId: fx('FLW-0005'), projectId: fx('PRJ-0003'), name: 'Standard onboarding', description: 'All Vantage customers', version: 'W1', status: 'ACTIVE', createdDaysAgo: 400,
     revisions: [
       { hoursAgo: 120 * 24, reason: 'Flow activated', settings: settings({ docs: ['MYKAD', 'PASSPORT'] }) },
       { hoursAgo: 30 * 24, by: ADMIN, reason: 'Custom face match band agreed with Vantage risk team', settings: settings({ fm: { preset: 'ADVANCED', autoReject: 82, autoPass: 93 }, docs: ['MYKAD', 'PASSPORT', 'DRIVING_LICENSE'] }) },
     ],
   },
   {
-    flowId: fx('FLW-0006'), projectId: fx('PRJ-0004'), name: 'Customer onboarding', description: 'All Tesla customers', version: 'V4', status: 'ACTIVE', createdDaysAgo: 300,
+    flowId: fx('FLW-0006'), projectId: fx('PRJ-0004'), name: 'Customer onboarding', description: 'All Tesla customers', version: 'W4', status: 'ACTIVE', createdDaysAgo: 300,
     revisions: [{ hoursAgo: 300 * 24, reason: 'Flow activated', settings: settings({ risk: true }) }],
   },
   {
-    flowId: fx('FLW-0013'), projectId: fx('PRJ-0004'), name: 'Customer onboarding (strict)', description: 'A/B test of stricter thresholds', version: 'V4', status: 'ACTIVE', createdDaysAgo: 45,
+    flowId: fx('FLW-0013'), projectId: fx('PRJ-0004'), name: 'Customer onboarding (strict)', description: 'A/B test of stricter thresholds', version: 'W4', status: 'ACTIVE', createdDaysAgo: 45,
     revisions: [{ hoursAgo: 45 * 24, by: { userId: fx('USR-2026-0052'), fullName: 'Wong Kah Heng' }, reason: 'Flow activated', settings: settings({ fm: preset('HIGH'), l: preset('HIGH'), risk: true }) }],
   },
   {
-    flowId: fx('FLW-0007'), projectId: fx('PRJ-0005'), name: 'Standard onboarding', description: 'All Boring Company customers', version: 'V1', status: 'ACTIVE', createdDaysAgo: 300,
+    flowId: fx('FLW-0007'), projectId: fx('PRJ-0005'), name: 'Standard onboarding', description: 'All Boring Company customers', version: 'W1', status: 'ACTIVE', createdDaysAgo: 300,
     revisions: [{ hoursAgo: 300 * 24, reason: 'Flow activated', settings: settings({}) }],
   },
   {
-    flowId: fx('FLW-0008'), projectId: fx('PRJ-0005'), name: 'Express (pilot)', description: 'Pilot without selfie, being retired', version: 'V3', status: 'RETIRING', createdDaysAgo: 120,
+    flowId: fx('FLW-0008'), projectId: fx('PRJ-0005'), name: 'Express (pilot)', description: 'Pilot without selfie, being retired', version: 'W3', status: 'RETIRING', createdDaysAgo: 120,
     revisions: [{ hoursAgo: 120 * 24, by: { userId: fx('USR-2026-0063'), fullName: 'Farah Binti Ismail' }, reason: 'Flow activated', settings: settings({ l: preset('LOW') }) }],
   },
   {
-    flowId: fx('FLW-0009'), projectId: fx('PRJ-0006'), name: 'Onboarding', description: 'All 3Nova customers', version: 'V4', status: 'ACTIVE', createdDaysAgo: 250,
+    flowId: fx('FLW-0009'), projectId: fx('PRJ-0006'), name: 'Onboarding', description: 'All 3Nova customers', version: 'W4', status: 'ACTIVE', createdDaysAgo: 250,
     revisions: [{ hoursAgo: 250 * 24, reason: 'Flow activated', settings: settings({ risk: true }) }],
   },
   {
-    flowId: fx('FLW-0010'), projectId: fx('PRJ-0007'), name: 'Wallet KYC', description: 'Wallet app sign-ups', version: 'V4', status: 'ACTIVE', createdDaysAgo: 90,
+    flowId: fx('FLW-0010'), projectId: fx('PRJ-0007'), name: 'Wallet KYC', description: 'Wallet app sign-ups', version: 'W4', status: 'ACTIVE', createdDaysAgo: 90,
     revisions: [{ hoursAgo: 90 * 24, by: { userId: fx('USR-2026-0071'), fullName: 'Ng Chee Keong' }, reason: 'Flow activated', settings: settings({ docs: ['MYKAD', 'PASSPORT'], risk: true }) }],
   },
   {
-    flowId: fx('FLW-0011'), projectId: fx('PRJ-0008'), name: 'Pilot flow', description: '2025 pilot (project archived)', version: 'V1', status: 'INACTIVE', createdDaysAgo: 240,
+    flowId: fx('FLW-0011'), projectId: fx('PRJ-0008'), name: 'Pilot flow', description: '2025 pilot (project archived)', version: 'W1', status: 'INACTIVE', createdDaysAgo: 240,
     revisions: [{ hoursAgo: 240 * 24, by: { userId: fx('USR-2026-0071'), fullName: 'Ng Chee Keong' }, reason: 'Flow activated', settings: settings({}) }],
   },
   {
-    flowId: fx('FLW-0012'), projectId: fx('PRJ-0009'), name: 'First flow', description: 'Created with the merchant', version: 'V1', status: 'ACTIVE', createdDaysAgo: 20,
+    flowId: fx('FLW-0012'), projectId: fx('PRJ-0009'), name: 'First flow', description: 'Created with the merchant', version: 'W1', status: 'ACTIVE', createdDaysAgo: 20,
     revisions: [{ hoursAgo: 20 * 24, reason: 'Flow activated', settings: settings({}) }],
   },
   {
-    // REQ: DEC-56 — built by the platform on the Internal testing V6: internal users see it; Atoz's own users never do.
-    flowId: fx('FLW-0015'), projectId: fx('PRJ-0001'), name: 'Next engine trial', description: 'Platform test of V6 (internal only)', version: 'V6', status: 'ACTIVE', createdDaysAgo: 5,
+    // REQ: DEC-56 — built by the platform on the Internal testing W6: internal users see it; Atoz's own users never do.
+    flowId: fx('FLW-0015'), projectId: fx('PRJ-0001'), name: 'Next engine trial', description: 'Platform test of W6 (internal only)', version: 'W6', status: 'ACTIVE', createdDaysAgo: 5,
     revisions: [{ hoursAgo: 5 * 24, by: ADMIN, reason: 'Internal test of the next engine build', settings: settings({}) }],
   },
 ]

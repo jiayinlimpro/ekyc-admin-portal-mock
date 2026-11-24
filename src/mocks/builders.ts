@@ -44,11 +44,11 @@ export interface CaseSpec {
   idCapture?: Partial<IdCaptureTelemetry>
   duplicateSimilarity?: number
   riskScores?: RiskScores
-  /** V1 with no submission: the selfie the engine rejected when the user stopped (no similarity was run). */
+  /** W1 with no submission: the selfie the engine rejected when the user stopped (no similarity was run). */
   stoppedAtSelfie?: Partial<SelfieTelemetry>
-  /** V1 with `stoppedAtSelfie`: how many submitted selfies failed the quality check (default 1; all retries used → UNSUCCESSFUL, DEC-112). */
+  /** W1 with `stoppedAtSelfie`: how many submitted selfies failed the quality check (default 1; all retries used → UNSUCCESSFUL, DEC-112). */
   selfieFailures?: number
-  /** V1: after the compared selfies, one more submitted selfie failed the quality check (DEC-112: the face match still decides). */
+  /** W1: after the compared selfies, one more submitted selfie failed the quality check (DEC-112: the face match still decides). */
   lastSelfieFailed?: Partial<SelfieTelemetry>
   /** REQ: DEC-113 — the session of the case this builds (default 1); later sessions get their own attempt IDs and telemetry. */
   sessionNo?: number
@@ -73,9 +73,9 @@ export function buildCase(spec: CaseSpec): Verification {
   // REQ: DEC-108 — failed ID submissions each used a Document retry; the last one may still be failing.
   const idFailed = idCaptureCondition(idCap, spec.person.documentType)
   const document = { failed: (spec.softRejects ?? 0) + (idFailed ? 1 : 0), lastFailed: idFailed }
-  // REQ: DEC-105 — V1: a selfie that fails the quality check ends the run before Face Match: nothing is compared.
+  // REQ: DEC-105 — W1: a selfie that fails the quality check ends the run before Face Match: nothing is compared.
   const stoppedSelfie = rounds === 0 && v1 && !idFailed && (spec.stoppedAtSelfie || rand() < 0.5) ? { ...failingSelfie(rand), ...spec.stoppedAtSelfie } : undefined
-  // REQ: DEC-108 — V1: sometimes one submitted selfie failed its check before a compared one. It used a Selfie retry, so it is
+  // REQ: DEC-108 — W1: sometimes one submitted selfie failed its check before a compared one. It used a Selfie retry, so it is
   // only added where the budget leaves the planned outcome unchanged.
   const fm = spec.submissions.FACE_MATCH ?? []
   const base = evaluateCase({ submissions: spec.submissions, document }, flow)
@@ -88,7 +88,7 @@ export function buildCase(spec: CaseSpec): Verification {
   const selfieFailed = stoppedSelfie ? (spec.selfieFailures ?? 1) : (retakeRound !== undefined ? 1 : 0) + (lastSelfie ? 1 : 0)
   const selfie = selfieFailed ? { failed: selfieFailed, lastFailed: stoppedSelfie || lastSelfie ? SELFIE_FAILED_CONDITION : undefined } : undefined
   const pre = evaluateCase({ submissions: spec.submissions, document, selfie }, flow)
-  // Risk runs once onboarding completes without a reject (FRS AWS flow: V4 runs risk after onboarding).
+  // Risk runs once onboarding completes without a reject (FRS AWS flow: W4 runs risk after onboarding).
   const riskRan = flow.hasRisk && spec.riskScore !== undefined && !document.lastFailed && pre.checks.every((c) => c.state === 'PASS' || c.state === 'REVIEW')
   const riskScores = riskRan ? (spec.riskScores ?? categoryScores(rand, spec.riskScore!)) : undefined
   const ev = evaluateCase({ submissions: spec.submissions, riskScores, document, selfie }, flow)
@@ -109,7 +109,7 @@ export function buildCase(spec: CaseSpec): Verification {
         ]
       : Array.from({ length: rounds }, (_, i) => {
           const scores: Attempt['phaseScores'] = {}
-          // REQ: DEC-105 — a score only on the attempt that submitted it. V1 runs face match before liveness, so its face
+          // REQ: DEC-105 — a score only on the attempt that submitted it. W1 runs face match before liveness, so its face
           // match submissions open the session and its liveness submissions close it.
           for (const c of flow.checks) {
             const s = spec.submissions[c] ?? []
@@ -133,7 +133,7 @@ export function buildCase(spec: CaseSpec): Verification {
                 }),
           }
         })
-  // REQ: DEC-112 — V1: the last submitted selfie failed the quality check after the compared ones; nothing compared after it.
+  // REQ: DEC-112 — W1: the last submitted selfie failed the quality check after the compared ones; nothing compared after it.
   if (lastSelfie)
     attempts.push({
       attemptId: stableId('att', `${key}:${rounds + 1}`),
@@ -151,7 +151,7 @@ export function buildCase(spec: CaseSpec): Verification {
   const lastUpdatedAt = ev.status === 'PROCESSING' ? at(0) : new Date(Date.parse(attempts.at(-1)!.startedAt) + 3 * 60_000).toISOString()
   const decisive = ev.status === 'PENDING_REVIEW' || ev.status === 'REJECTED' || ev.status === 'UNSUCCESSFUL'
   const image = { MYKAD: '/mock/mykad-front.svg', PASSPORT: '/mock/passport.svg', DRIVING_LICENSE: '/mock/driving-license.svg' }[spec.person.documentType]
-  // REQ: DEC-44 / DEC-115 — the risk workflows (V4/V5) collect an email; reserved .example domain, never a real address.
+  // REQ: DEC-44 / DEC-115 — the risk workflows (W4/W5) collect an email; reserved .example domain, never a real address.
   const email = hasRisk(spec.entry) ? emailFor(spec.person.pii.fullName, spec.referenceId) : undefined
   return {
     verificationId: verificationIdOf(spec.referenceId, spec.idVariant), // REQ: DEC-97 — stable for seeded cases (MOCK-05)
@@ -230,7 +230,7 @@ function failingSelfie(r: () => number): SelfieTelemetry {
   return { ...ok, occluded: true }
 }
 
-/** Lower similarity comes with a poorer (still passing) selfie, as in real sessions. V1: `retake` = a failed selfie before it. */
+/** Lower similarity comes with a poorer (still passing) selfie, as in real sessions. W1: `retake` = a failed selfie before it. */
 function attemptTelemetry(r: () => number, selfie: boolean, similarity: number | undefined, retake: boolean): AttemptTelemetry {
   const q = similarity === undefined ? 1 : Math.max(0, Math.min(1, (similarity - 60) / 40))
   const sign = () => (r() < 0.5 ? -1 : 1)

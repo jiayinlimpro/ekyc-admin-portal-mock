@@ -51,14 +51,14 @@ server-side**. The tests (Given/When/Then names) are a shared spec; port or mirr
 - `roles.ts`: System Default roles, grants from assignments, scope / grant / last-owner rules.
 - `access.ts`: each action's permission; `canInProject`, `canInMerchant` (merchant role only), `hasProject` (a role that gives nothing, like Member, opens no project).
 - `checkRules.ts`: per-check thresholds, retries per phase (`FlowSettings.retries`: DOCUMENT, SELFIE, LIVENESS; DEC-108), the last attempt decides (DEC-15, DEC-16), risk gate. `telemetry.caseInputOf` turns a stored case into its evaluation input.
-- `checkRules.evaluateRisk`: Low risk when every category ≥ its minimum (`FlowSettings.risk.minimums`); the registry's `riskMinimumsPerFlow` decides whether a flow may change them (V5) or they stay `DEFAULT_RISK_MINIMUMS` (V4) (DEC-107).
+- `checkRules.evaluateRisk`: Low risk when every category ≥ its minimum (`FlowSettings.risk.minimums`); the registry's `riskMinimumsPerFlow` decides whether a flow may change them (W5) or they stay `DEFAULT_RISK_MINIMUMS` (W4) (DEC-107).
 - `telemetry.ts`: engine thresholds and the metric rows shown on the case page (DEC-105); the duplicate-user result is never an input to `checkRules`.
 - `claimRules.ts`: claim, cancel, expiry, overlay enablement, save-time ownership check, decisions (DEC-31).
 - `flowSettings.ts`, `flowRules.ts`, `thresholds.ts`: presets / Advanced, validation, revisions, lifecycle, cooldowns (after Rejected, after Unsuccessful: `cooldownFor`).
 - `caseSessions.ts`: a returning Reference ID (DEC-113). `decideSessionStart` = new case / continue / refused (flow not active, in progress, in review, approved, cooldown with `allowedFrom`); `continueCase` moves the ended session into `Verification.sessions` (status, reason, by, tokens, attempts) and resets the case to PROCESSING by SYSTEM; audit `CASE_RESUMED`. Billing has one line per session (`dashboards.billingLines`).
 - `registryRules.ts`, `projectSettings.ts`, `conditions.ts`: registry statuses and who may choose a version (`selectableForNewFlow`, DEC-56), settings validation, reason catalogue.
 - `dashboards.ts`: KPI definitions (Auto-Clear = SYSTEM approvals; retries = submissions after the first in every phase; tokens =
-  document + V1 selfie + liveness submissions, DEC-60 / OQ-35).
+  document + W1 selfie + liveness submissions, DEC-60 / OQ-35).
 
 ## 3. What the mock cannot prove — backend must do
 

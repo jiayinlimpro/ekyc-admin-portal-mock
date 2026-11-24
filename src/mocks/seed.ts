@@ -18,7 +18,7 @@ import { fx, stableId } from '@/lib/ids'
 export const SEED = 2026
 export const BACKGROUND_COUNT = 300
 /** Bump when the shape of MockDbState changes: persisted demo data is then re-seeded. */
-export const DB_VERSION = 39
+export const DB_VERSION = 40
 
 export interface MockDbState {
   dbVersion: number
@@ -45,7 +45,7 @@ const DAY = 24 * 60 * MIN
 
 /** Share of background cases per flow (DRAFT flows never get cases; INACTIVE ones only before they were retired). */
 const FLOW_WEIGHTS: Record<string, number> = {
-  [fx('FLW-0001')]: 22, [fx('FLW-0002')]: 5, [fx('FLW-0014')]: 4, [fx('FLW-0004')]: 6, // Atoz: Default (3 flows, one V5) + SME app
+  [fx('FLW-0001')]: 22, [fx('FLW-0002')]: 5, [fx('FLW-0014')]: 4, [fx('FLW-0004')]: 6, // Atoz: Default (3 flows, one W5) + SME app
   [fx('FLW-0005')]: 20, // Vantage
   [fx('FLW-0006')]: 16, [fx('FLW-0013')]: 4, // Tesla: 20 % share on the strict flow
   [fx('FLW-0007')]: 12, [fx('FLW-0008')]: 3, // Boring: the Express pilot is retiring
@@ -60,7 +60,7 @@ function scoreIn(f: Faker, t: Thresholds, band: 'PASS' | 'REVIEW' | 'REJECT'): n
   return r(Math.max(0, t.autoReject - 30), t.autoReject - 0.1)
 }
 
-/** Per-check submissions for a profile. V3/V4 score face match on every liveness submission, so both lists have the same length. */
+/** Per-check submissions for a profile. W3/W4 score face match on every liveness submission, so both lists have the same length. */
 function submissionsFor(f: Faker, profile: Profile, rev: FlowRevision, entry: RegistryEntry): Partial<Record<Check, number[]>> {
   const t = (c: Check) => resolveThreshold(c, rev.settings.checks[c].threshold)
   const retries = (c: Check) => rev.settings.retries[retryPhaseOf(c, entry.faceMatchMethod)] // REQ: DEC-108
@@ -84,7 +84,7 @@ function submissionsFor(f: Faker, profile: Profile, rev: FlowRevision, entry: Re
       return build(f.number.int({ min: 2, max: retries(target) + 1 }), () => pass(target))
     case 'REVIEW':
       return build(retries(target) + 1, () => scoreIn(f, t(target), 'REVIEW'))
-    case 'REJECT': // a final reject ends the session: V1 never reaches liveness after a face match reject
+    case 'REJECT': // a final reject ends the session: W1 never reaches liveness after a face match reject
       return build(retries(target) + 1, () => scoreIn(f, t(target), 'REJECT'), !paired && target === 'FACE_MATCH')
     case 'RETRYING':
       return build(f.number.int({ min: 1, max: retries(target) }), () => below(target), !paired && target === 'FACE_MATCH')

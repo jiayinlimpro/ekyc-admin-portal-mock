@@ -75,7 +75,7 @@ export function validateFlow(flow: Pick<Flow, 'name' | 'settings'>, entry: Pick<
       }
     }
   }
-  // REQ: DEC-108 — retries per phase; Selfie only where the version has a selfie step (V1).
+  // REQ: DEC-108 — retries per phase; Selfie only where the version has a selfie step (W1).
   for (const p of RETRY_PHASES.filter((x) => x !== 'SELFIE' || entry.phases.includes('SELFIE_CAPTURE'))) {
     if (!whole(s.retries[p], RETRY_LIMITS.min, RETRY_LIMITS.max)) {
       errors.push({ field: `retries.${p}`, message: `${RETRY_PHASE_LABELS[p]} retries allowed must be a whole number between ${RETRY_LIMITS.min} and ${RETRY_LIMITS.max}` })
@@ -90,7 +90,7 @@ export function validateFlow(flow: Pick<Flow, 'name' | 'settings'>, entry: Pick<
   else if (!whole(s.sessionExpiryMin, 1)) errors.push({ field: 'sessionExpiryMin', message: 'Session expiry must be a whole number of minutes, at least 1' })
   if (s.acceptedDocuments.length === 0) errors.push({ field: 'acceptedDocuments', message: 'Select at least one accepted document' })
   if (hasRisk(entry) && !s.risk) errors.push({ field: 'risk', message: 'Risk settings are required for this workflow version' })
-  // REQ: DEC-107 — one minimum per category, 0–100; only versions with "Risk minimums set per flow" (V5) may change them.
+  // REQ: DEC-107 — one minimum per category, 0–100; only versions with "Risk minimums set per flow" (W5) may change them.
   if (s.risk) {
     for (const c of RISK_CATEGORIES) {
       if (!whole(s.risk.minimums[c], 0, 100)) errors.push({ field: `risk.minimums.${c}`, message: `${RISK_CATEGORY_LABELS[c]} minimum must be a whole number from 0 to 100` })

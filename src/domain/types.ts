@@ -7,7 +7,7 @@ import type { CheckEvaluation, PhaseEvaluation } from './checkRules'
 export const VERIFICATION_STATUSES = ['PROCESSING', 'PENDING_REVIEW', 'APPROVED', 'REJECTED', 'UNSUCCESSFUL'] as const
 export type VerificationStatus = (typeof VERIFICATION_STATUSES)[number]
 
-// REQ: DEC-10 — DOCUMENT = Capture & OCR; RISK_ASSESSMENT = internal engine, V4 only.
+// REQ: DEC-10 — DOCUMENT = Capture & OCR; RISK_ASSESSMENT = internal engine, W4 only.
 export const PHASES = ['DOCUMENT', 'SELFIE', 'FACE_MATCH', 'LIVENESS', 'RISK_ASSESSMENT'] as const
 export type Phase = (typeof PHASES)[number]
 
@@ -23,8 +23,8 @@ export const PHASE_LABELS: Record<Phase, string> = {
   RISK_ASSESSMENT: 'Risk Assessment',
 }
 
-// REQ: DEC-58 — known registry codes (no V2). Version-dependent behaviour comes from the registry entry, not this list.
-export const WORKFLOW_VERSIONS = ['V1', 'V3', 'V4', 'V5', 'V6'] as const
+// REQ: DEC-58 — known registry codes (no W2). Version-dependent behaviour comes from the registry entry, not this list.
+export const WORKFLOW_VERSIONS = ['W1', 'W3', 'W4', 'W5', 'W6'] as const
 export type WorkflowVersion = (typeof WORKFLOW_VERSIONS)[number]
 
 // REQ: DEC-107 — the risk result. Low risk / High risk, never pass / fail, so it is not confused with the case status.
@@ -83,7 +83,7 @@ export interface Attempt {
   outcome: AttemptOutcome
   isUserRetake: boolean // REQ: DEC-18 — Retry KPI counts only these
   phaseScores: Partial<Record<CapturePhase, number>> // FACE_MATCH = the similarity it judges (face vs ID photo), LIVENESS = liveness confidence
-  faceImage?: StoredFile // the face matched in this attempt: the selfie (V1) or the liveness frame (V3/V4/V5)
+  faceImage?: StoredFile // the face matched in this attempt: the selfie (W1) or the liveness frame (W3/W4/W5)
   telemetry?: AttemptTelemetry // REQ: DEC-105
 }
 
@@ -99,7 +99,7 @@ export interface IdCaptureTelemetry {
   ocrFieldsMissing: string[] // required fields of the document type (`OCR_FIELDS`) that were not read
 }
 
-/** V1 selfie quality (the engine's "Selfie Quality Check"). A selfie that fails it ends the run: no similarity. */
+/** W1 selfie quality (the engine's "Selfie Quality Check"). A selfie that fails it ends the run: no similarity. */
 export interface SelfieTelemetry {
   eyesOpen: boolean
   occluded: boolean
@@ -111,8 +111,8 @@ export interface SelfieTelemetry {
 }
 
 export interface AttemptTelemetry {
-  selfie?: SelfieTelemetry // V1 only: the selfie that passed and was compared
-  /** V1 only: submitted selfies the engine rejected before that one; each used a selfie retry and a token (DEC-108, DEC-60). None was compared with the ID. */
+  selfie?: SelfieTelemetry // W1 only: the selfie that passed and was compared
+  /** W1 only: submitted selfies the engine rejected before that one; each used a selfie retry and a token (DEC-108, DEC-60). None was compared with the ID. */
   selfieRetakes?: SelfieTelemetry[]
   /** Face detection confidence: a face is clearly detected in the compared image (> 90, engine). Not the similarity. */
   faceMatchConfidence?: number
@@ -136,7 +136,7 @@ export interface Pii {
   passportNo?: string // PASSPORT only
   licenceClass?: string // DRIVING_LICENSE only, e.g. "B2 D"
   licenceValidUntil?: string // DRIVING_LICENSE only, yyyy-MM-dd
-  email?: string // REQ: DEC-44 — V4/V5: the session's required EMAIL input
+  email?: string // REQ: DEC-44 — W4/W5: the session's required EMAIL input
   gender: 'LELAKI' | 'PEREMPUAN'
   dob: string // yyyy-MM-dd
   nationality: string
@@ -171,7 +171,7 @@ export interface Verification {
   claimedAt?: string
   claimExpiresAt?: string
   attempts: Attempt[]
-  riskScores?: RiskScores // REQ: DEC-107 — V4/V5, once risk ran: the engine's four category scores
+  riskScores?: RiskScores // REQ: DEC-107 — W4/W5, once risk ran: the engine's four category scores
   riskResult?: RiskResult // REQ: DEC-107 — against the minimums of the rules applied
   idCapture?: IdCaptureTelemetry // REQ: DEC-105 — absent when no ID image was submitted
   duplicateUser?: DuplicateUserCheck // REQ: DEC-105 — absent until a face was searched; never in VerificationSummary (DEC-40)
@@ -220,7 +220,7 @@ export type VerificationDetail = Verification & {
   merchantName: string
   projectName: string
   flowName: string
-  revisionLabel: string // "Rules applied", e.g. V4-R1 (DEC-51, DEC-52)
+  revisionLabel: string // "Rules applied", e.g. W4-R1 (DEC-51, DEC-52)
   rulesApplied: FlowSettings // the revision's settings: the snapshot at session start
   steps: { phases: OnboardingPhase[]; faceMatchMethod: FaceMatchMethod; runsRisk: boolean; riskMinimumsPerFlow: boolean } // from the registry version
   checks: CheckEvaluation[] // face match / liveness: threshold applied, result, retries used / allowed
@@ -230,7 +230,7 @@ export type VerificationDetail = Verification & {
   reasonOptions: DecisionReason[] // REQ: DEC-106 — the project's active decision reasons, for the decision panel
 }
 
-/** REQ: DEC-107 — one minimum per category: below any of them, the risk result is High risk. Fixed for V4, per flow for V5. */
+/** REQ: DEC-107 — one minimum per category: below any of them, the risk result is High risk. Fixed for W4, per flow for W5. */
 export interface RiskConfig {
   enabled: boolean
   minimums: RiskScores
@@ -327,7 +327,7 @@ export interface Paged<T> {
 // Projects & Flows (DEC-90 … DEC-96).
 // ---------------------------------------------------------------------------------------------------------------------
 
-/** Registry code, e.g. "V4". A string because Super admin can register new codes (DEC-56). */
+/** Registry code, e.g. "W4". A string because Super admin can register new codes (DEC-56). */
 export type WorkflowCode = string
 
 // REQ: DEC-10 — the only checks with configurable thresholds.
@@ -413,12 +413,12 @@ export interface CheckSettings {
 
 export interface FlowSettings {
   checks: Record<Check, CheckSettings>
-  retries: Record<RetryPhase, number> // REQ: DEC-108 — retries after the first submission, per phase (Selfie: V1 only)
+  retries: Record<RetryPhase, number> // REQ: DEC-108 — retries after the first submission, per phase (Selfie: W1 only)
   cooldownMin: number // REQ: DEC-26 — Cooldown after Rejected (min)
   unsuccessfulCooldownMin: number // REQ: DEC-26 / DEC-112 — Cooldown after Unsuccessful (min), whichever phase failed
   acceptedDocuments: DocumentType[]
   sessionExpiryMin: number
-  risk?: RiskConfig // V4 / V5 (DEC-107)
+  risk?: RiskConfig // W4 / W5 (DEC-107)
 }
 
 export interface Flow {
@@ -615,7 +615,7 @@ export type OnboardingPhase = (typeof ONBOARDING_PHASES)[number]
 export type FaceMatchMethod = 'ID_VS_SELFIE' | 'ID_VS_LIVENESS'
 
 export interface RegistryEntry {
-  entryId: string // wfv_… — the internal key; people use the code (V1 … V5) (DEC-97)
+  entryId: string // wfv_… — the internal key; people use the code (W1 … W5) (DEC-97)
   code: WorkflowCode
   name: string
   // REQ: DEC-115 — the workflow JSON pasted from the backend, as stored (pretty-printed). The workflow decides what runs;
@@ -624,7 +624,7 @@ export interface RegistryEntry {
   phases: OnboardingPhase[] // `steps`, in order; ID_CAPTURE first
   faceMatchMethod: FaceMatchMethod // follows from the steps (SELFIE → ID vs selfie); labels the case page only
   configurableChecks: Check[] // `tunable` thresholds
-  riskMinimumsPerFlow: boolean // REQ: DEC-107 — `tunable` has RISK_MINIMUMS: the flow sets them (V5); otherwise fixed (V4)
+  riskMinimumsPerFlow: boolean // REQ: DEC-107 — `tunable` has RISK_MINIMUMS: the flow sets them (W5); otherwise fixed (W4)
   accessMerchantIds: string[] // REQ: DEC-56 — Limited release: the merchants that may choose it (internal users always may)
   status: RegistryStatus
   isDefault: boolean // REQ: DEC-57 — "Default for new merchants"
@@ -650,7 +650,7 @@ export interface SettingChange {
 
 // REQ: DEC-51 — every saved revision of an active flow, oldest first. A case's "Rules applied" is its revision's settings.
 export interface FlowRevision {
-  revisionId: string // rev_…; shown as V4-R2
+  revisionId: string // rev_…; shown as W4-R2
   flowId: string
   revision: number // 1, 2, …
   savedAt: string

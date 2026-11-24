@@ -144,7 +144,7 @@ export function ChecksSection({ v }: { v: VerificationDetail }) {
   )
 }
 
-/** REQ: DEC-107 — V4/V5: Low risk / High risk, and each category's 0–100 score against its minimum (higher = more genuine). */
+/** REQ: DEC-107 — W4/W5: Low risk / High risk, and each category's 0–100 score against its minimum (higher = more genuine). */
 export function RiskSection({ v }: { v: VerificationDetail }) {
   if (!v.steps.runsRisk) return null
   const minimums = v.rulesApplied.risk?.minimums

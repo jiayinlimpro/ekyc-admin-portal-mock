@@ -26,7 +26,7 @@ export function archiveError(project: Pick<Project, 'projectId' | 'status' | 'is
 /** Cases not yet APPROVED or REJECTED. */
 export const IN_FLIGHT_STATUSES: readonly VerificationStatus[] = ['PROCESSING', 'PENDING_REVIEW']
 
-// REQ: DEC-51 — e.g. "V4-R3"; undefined while the flow has never been active.
+// REQ: DEC-51 — e.g. "W4-R3"; undefined while the flow has never been active.
 export function revisionLabel(flow: Pick<Flow, 'workflowVersion' | 'revision'>): string | undefined {
   return flow.revision > 0 ? `${flow.workflowVersion}-R${flow.revision}` : undefined
 }

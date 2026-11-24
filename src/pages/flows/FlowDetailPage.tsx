@@ -153,7 +153,7 @@ function Editor({ detail, onSaved }: { detail: FlowDetail; onSaved: () => void }
         </fieldset>
       </Card>
 
-      {/* REQ: DEC-107 — one minimum per category (0–100, higher = more genuine). V5: set by the flow; V4: fixed, read-only. */}
+      {/* REQ: DEC-107 — one minimum per category (0–100, higher = more genuine). W5: set by the flow; W4: fixed, read-only. */}
       {hasRisk(entry) && s.risk && (
         <Card title="Risk Assessment" aside={<OpenQuestionTag id="OQ-34" />}>
           <p className="mb-3 text-sm text-muted-foreground">

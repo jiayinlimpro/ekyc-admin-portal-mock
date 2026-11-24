@@ -81,7 +81,7 @@ export function IntelligencePage() {
               <BarList unit="retries" rows={RETRY_PHASES.map((p) => ({ label: RETRY_PHASE_LABELS[p], value: s.retriesByPhase[p] }))} />
             </ChartCard>
             <ChartCard
-              title="Risk result (V4/V5)"
+              title="Risk result (W4/W5)"
               subtitle={riskTotal ? `${fmtInt(riskTotal)} sessions with a risk result` : 'No sessions with a risk result in scope'}
               busy={loading}
               table={<DataTable caption="Risk results" columns={['Risk', 'Sessions', 'Share']} rows={RISK_RESULTS.map((l) => [RISK_RESULT_LABELS[l], s.riskResults[l], fmtPct(pct(s.riskResults[l], riskTotal))])} />}
@@ -116,7 +116,7 @@ export function IntelligencePage() {
                   fmtInt(f.dropOff.liveness),
                 ])}
               />
-              <p className="mt-2 text-xs text-muted-foreground">Drop-off = sessions still Processing, by the last phase they reached. Selfie applies to flows with a selfie step (V1).</p>
+              <p className="mt-2 text-xs text-muted-foreground">Drop-off = sessions still Processing, by the last phase they reached. Selfie applies to flows with a selfie step (W1).</p>
             </div>
           </section>
         </>
