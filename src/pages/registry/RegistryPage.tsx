@@ -1,16 +1,17 @@
 import { useState, type FormEvent } from 'react'
 import { Link } from 'react-router'
-import { Pencil, Plus, Star } from 'lucide-react'
+import { ArrowRightLeft, MoreVertical, Pencil, Plus, Star } from 'lucide-react'
 import { toast } from 'sonner'
 import { FormField } from '@/components/common/FormField'
 import { NativeSelect } from '@/components/common/NativeSelect'
 import { ErrorState } from '@/components/common/States'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { CopyButton } from '@/components/common/CopyId'
-import { isLocked, readDefinition, type RegistryInput } from '@/domain/registryRules'
+import { isLocked, readDefinition, setDefaultError, type RegistryInput } from '@/domain/registryRules'
 import { REGISTRY_STATUSES, type RegistryStatus } from '@/domain/types'
 import { errorMessage, useLoad } from '@/hooks/useLoad'
 import { formatMyt } from '@/lib/format'
@@ -38,6 +39,9 @@ const STATUS_TONE: Record<RegistryStatus, string> = {
   ACTIVE: 'bg-green-100 text-green-800 dark:bg-green-500/20 dark:text-green-200',
   DEPRECATED: 'bg-amber-100 text-amber-800 dark:bg-amber-500/20 dark:text-amber-200',
 }
+
+// REQ: DEC-57 — why a version can't become the default (already it, or not Active); undefined when it can.
+const defaultBlocked = (r: RegistryRow) => setDefaultError(r)
 
 const EXAMPLE = '{\n  "workflowCode": "V7",\n  "steps": ["DOCUMENT", "LIVENESS"],\n  "tunable": ["FACE_MATCH", "LIVENESS"]\n}'
 const emptyInput = (): RegistryInput => ({ code: '', name: '', definition: '', accessMerchantIds: [] })
@@ -270,12 +274,33 @@ export function RegistryPage() {
                 <td className="px-3 py-2 text-xs">{tunableText(r)}</td>
                 <td className="px-3 py-2 tabular-nums">{r.flowsUsing}</td>
                 <td className="px-3 py-2 whitespace-nowrap">{formatMyt(r.updatedAt).split(', ')[0]}<div className="text-xs text-muted-foreground">{r.updatedBy}</div></td>
-                <td className={cn('px-2 py-2 text-right whitespace-nowrap', !canManage && 'hidden')}>
-                  <Button variant="ghost" size="icon-sm" aria-label={`Edit ${r.code}`} title="Edit" onClick={() => setEditing(r)}><Pencil aria-hidden /></Button>
-                  <Button variant="ghost" size="sm" onClick={() => setStatus(r)} aria-label={`Change status of ${r.code}`}>Status</Button>
-                  {r.status === 'ACTIVE' && !r.isDefault && (
-                    <Button variant="ghost" size="icon-sm" aria-label={`Make ${r.code} the default`} title="Default for new merchants" onClick={() => void setDefault(r)}><Star aria-hidden /></Button>
-                  )}
+                {/* REQ: DEC-78 — one actions menu per row, as on Flows and Roles; what the state blocks is disabled with the reason. */}
+                <td className={cn('px-2 py-2 text-right', !canManage && 'hidden')}>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger
+                      render={
+                        <Button variant="ghost" size="icon-sm" aria-label={`Actions for ${r.code}`}>
+                          <MoreVertical aria-hidden />
+                        </Button>
+                      }
+                    />
+                    <DropdownMenuContent align="end" className="w-72">
+                      <DropdownMenuItem onClick={() => setEditing(r)}>
+                        <Pencil aria-hidden /> Edit
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => setStatus(r)}>
+                        <ArrowRightLeft aria-hidden /> Change status…
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem disabled={!!defaultBlocked(r)} onClick={() => void setDefault(r)} className="items-start">
+                        <Star aria-hidden className="mt-0.5" />
+                        <span>
+                          Make default for new merchants
+                          {defaultBlocked(r) && <span className="block text-xs text-muted-foreground">{defaultBlocked(r)}</span>}
+                        </span>
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </td>
               </tr>
               {open === r.code && (

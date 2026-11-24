@@ -18,6 +18,11 @@ function renderAt(path: string) {
 }
 const row = async (code: string) => (await screen.findByRole('button', { name: new RegExp(`^${code} ·`) })).closest('tr')!
 const entry = (code: string) => db.state().registry.find((e) => e.code === code)!
+/** Opens the row's actions menu and picks an item (DEC-78: one menu per row). */
+const action = async (code: string, item: RegExp | string) => {
+  fireEvent.click(within(await row(code)).getByRole('button', { name: `Actions for ${code}` }))
+  fireEvent.click(await screen.findByRole('menuitem', { name: item }))
+}
 
 beforeEach(async () => {
   useDevFlags.setState({ ...DEFAULT_DEV_FLAGS, simulateLatency: false })
@@ -29,20 +34,20 @@ afterEach(cleanup)
 describe('Workflow Registry (DEC-56 … DEC-58)', () => {
   it('Given V5 in Limited release, then Edit shows Merchant access; ticking Vantage gives it access (DEC-56)', async () => {
     renderAt('/registry')
-    fireEvent.click(within(await row('V5')).getByRole('button', { name: 'Edit V5' }))
+    await action('V5', 'Edit')
     const access = within(await screen.findByRole('group', { name: 'Merchant access' }))
     expect((access.getByLabelText('Atoz Software Tech') as HTMLInputElement).checked).toBe(true)
     fireEvent.click(access.getByLabelText(/Vantage/))
     fireEvent.click(screen.getByRole('button', { name: 'Save' }))
     await waitFor(() => expect(entry('V5').accessMerchantIds).toHaveLength(2))
-    fireEvent.click(within(await row('V4')).getByRole('button', { name: 'Edit V4' }))
+    await action('V4', 'Edit')
     await screen.findByRole('dialog')
     expect(screen.queryByRole('group', { name: 'Merchant access' })).toBeNull() // only for Limited release
   })
 
   it('Given Change status, then every other status is offered, with what it means (DEC-56)', async () => {
     renderAt('/registry')
-    fireEvent.click(within(await row('V6')).getByRole('button', { name: 'Change status of V6' }))
+    await action('V6', /Change status/)
     const select = (await screen.findByLabelText('New status')) as HTMLSelectElement
     expect([...select.options].map((o) => o.textContent)).toEqual(['Draft', 'Limited release', 'Active', 'Deprecated'])
     fireEvent.change(select, { target: { value: 'LIMITED_RELEASE' } })
@@ -95,7 +100,7 @@ describe('Workflow Registry (DEC-56 … DEC-58)', () => {
 
   it('Given a version that has been active, then only the name can be edited; its JSON is read-only (DEC-115)', async () => {
     renderAt('/registry')
-    fireEvent.click(within(await row('V4')).getByRole('button', { name: 'Edit V4' }))
+    await action('V4', 'Edit')
     expect((await screen.findByLabelText('Workflow JSON') as HTMLTextAreaElement).readOnly).toBe(true)
     expect((screen.getByLabelText('Name') as HTMLInputElement).disabled).toBe(false)
     expect(screen.getByText(/A different workflow needs a new version code/)).toBeTruthy()
@@ -103,13 +108,24 @@ describe('Workflow Registry (DEC-56 … DEC-58)', () => {
 
   it('Given the default V1, then deprecating it is refused until another version is the default', async () => {
     renderAt('/registry')
-    fireEvent.click(within(await row('V1')).getByRole('button', { name: 'Change status of V1' }))
+    await action('V1', /Change status/)
     fireEvent.change(await screen.findByLabelText('Reason for change'), { target: { value: 'Replaced' } })
     fireEvent.click(screen.getByRole('button', { name: 'Change status' }))
     expect(await screen.findByText('Set another version as default first: the default for new merchants must stay Active.')).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
-    fireEvent.click(within(await row('V3')).getByRole('button', { name: 'Make V3 the default' }))
+    await action('V3', /Make default for new merchants/)
     await waitFor(() => expect(entry('V3').isDefault).toBe(true))
+  })
+
+  it('Given the actions menu, then Edit, Change status and Make default; Make default is disabled with the reason when the version is the default or not Active (DEC-57, DEC-78)', async () => {
+    renderAt('/registry')
+    fireEvent.click(within(await row('V1')).getByRole('button', { name: 'Actions for V1' }))
+    expect((await screen.findAllByRole('menuitem')).map((m) => m.textContent!.trim())).toEqual(['Edit', 'Change status…', 'Make default for new merchantsThis version is already the default.'])
+    expect(screen.getByRole('menuitem', { name: /Make default/ }).getAttribute('aria-disabled')).toBe('true')
+    fireEvent.keyDown(screen.getByRole('menu'), { key: 'Escape' })
+    await waitFor(() => expect(screen.queryByRole('menu')).toBeNull())
+    fireEvent.click(within(await row('V5')).getByRole('button', { name: 'Actions for V5' }))
+    expect((await screen.findByRole('menuitem', { name: /Make default/ })).textContent).toContain('Only an Active version can be the default.')
   })
 
   it('Given a merchant user, then the registry is "No access"', async () => {
