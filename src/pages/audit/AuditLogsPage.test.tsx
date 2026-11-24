@@ -83,7 +83,7 @@ describe('Audit Logs', () => {
     expect(r[0].textContent).toContain('Session 2 started by the same Reference ID: Rejected → Processing · flow Malaysian onboarding → Premium accounts')
   })
 
-  it('Given a Verification ID filter, then only that case’s entries, each showing the Verification ID (link) and the Reference ID under it (DEC-114)', async () => {
+  it('Given a Verification ID filter, then only that case’s entries, each showing the Verification ID (link) and the Reference ID in its own column (DEC-114)', async () => {
     const id = verificationIdOf('KYC-260901-900011')
     renderAt(`/audit?vid=${id}`)
     const r = await rows('Audit entries')

@@ -234,7 +234,8 @@ export function AuditLogsPage() {
             <table className={cn('w-full text-sm', loading && data && 'opacity-60')} aria-busy={loading}>
               <thead className="bg-muted/50 text-left text-xs text-muted-foreground">
                 <tr>
-                  {['Time (MYT)', 'Event', 'Actor', 'Project', ...(isAdmin ? ['Merchant'] : []), 'Verification ID', 'IP', 'Details'].map((h) => (
+                  {/* REQ: DEC-114 — Verification ID, then Reference ID, each in its own column. */}
+                  {['Time (MYT)', 'Event', 'Actor', 'Project', ...(isAdmin ? ['Merchant'] : []), 'Verification ID', 'Reference ID', 'IP', 'Details'].map((h) => (
                     <th key={h} scope="col" className="px-3 py-2 font-medium whitespace-nowrap">
                       {h}
                     </th>
@@ -245,7 +246,7 @@ export function AuditLogsPage() {
                 {!data &&
                   Array.from({ length: 8 }, (_, i) => (
                     <tr key={i} className="border-t" aria-hidden>
-                      <td colSpan={8} className="px-3 py-3">
+                      <td colSpan={isAdmin ? 10 : 9} className="px-3 py-3">
                         <div className="h-3.5 animate-pulse rounded bg-muted" />
                       </td>
                     </tr>
@@ -273,18 +274,16 @@ export function AuditLogsPage() {
                     <td className="px-3 py-2 whitespace-nowrap">{projectName(e.projectId)}</td>
                     {isAdmin && <td className="px-3 py-2 whitespace-nowrap">{merchantName(e.merchantId)}</td>}
                     <td className="px-3 py-2">
-                      {/* REQ: DEC-114 — the Verification ID opens the case; the Reference ID on the second line. */}
+                      {/* REQ: DEC-114 — the Verification ID opens the case. */}
                       {e.verificationId ? (
-                        <>
-                          <Link to={`/verifications/${e.verificationId}`} className="font-mono text-xs whitespace-nowrap text-blue-700 hover:underline dark:text-blue-400">
-                            {e.verificationId}
-                          </Link>
-                          {e.referenceId && <div className="font-mono text-[11px] whitespace-nowrap text-muted-foreground">{e.referenceId}</div>}
-                        </>
+                        <Link to={`/verifications/${e.verificationId}`} className="font-mono text-xs whitespace-nowrap text-blue-700 hover:underline dark:text-blue-400">
+                          {e.verificationId}
+                        </Link>
                       ) : (
                         <span className="text-muted-foreground">—</span>
                       )}
                     </td>
+                    <td className="px-3 py-2 font-mono text-xs whitespace-nowrap">{e.referenceId ?? <span className="font-sans text-muted-foreground">—</span>}</td>
                     <td className="px-3 py-2 font-mono text-xs whitespace-nowrap">{e.ip}</td>
                     <td className="px-3 py-2">
                       <DetailsCell e={e} />

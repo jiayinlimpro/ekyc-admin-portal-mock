@@ -120,8 +120,9 @@ export function BillingPage() {
             <table className={cn('w-full text-sm', loading && r && 'opacity-60')} aria-busy={loading}>
               <thead className="bg-muted/50 text-left text-xs text-muted-foreground">
                 <tr>
-                  {['Verification ID', 'Project', 'Flow', 'Session started (MYT)', 'Verification Status', 'Tokens', 'Retry tokens', 'Cost'].map((h, i) => (
-                    <th key={h} scope="col" className={cn('px-3 py-2 font-medium whitespace-nowrap', i >= 5 && 'text-right')}>
+                  {/* REQ: DEC-114 — Verification ID, then Reference ID, each in its own column. */}
+                  {['Verification ID', 'Reference ID', 'Project', 'Flow', 'Session started (MYT)', 'Verification Status', 'Tokens', 'Retry tokens', 'Cost'].map((h, i) => (
+                    <th key={h} scope="col" className={cn('px-3 py-2 font-medium whitespace-nowrap', i >= 6 && 'text-right')}>
                       {h}
                     </th>
                   ))}
@@ -131,7 +132,7 @@ export function BillingPage() {
                 {!r &&
                   Array.from({ length: 8 }, (_, i) => (
                     <tr key={i} className="border-t" aria-hidden>
-                      <td colSpan={8} className="px-3 py-3">
+                      <td colSpan={9} className="px-3 py-3">
                         <div className="h-3.5 animate-pulse rounded bg-muted" />
                       </td>
                     </tr>
@@ -139,16 +140,14 @@ export function BillingPage() {
                 {r?.lines.slice((page - 1) * pageSize, page * pageSize).map((l) => (
                   <tr key={`${l.verificationId}:${l.sessionNo}`} className="border-t">
                     <td className="px-3 py-2">
-                      {/* REQ: DEC-114 — the Verification ID opens the case; the Reference ID on the second line. */}
+                      {/* REQ: DEC-114 — the Verification ID opens the case. */}
                       <Link to={`/verifications/${l.verificationId}`} className="font-mono text-xs whitespace-nowrap text-blue-700 hover:underline dark:text-blue-400">
                         {l.verificationId}
                       </Link>
-                      <div className="font-mono text-[11px] whitespace-nowrap text-muted-foreground">
-                        {l.referenceId}
-                        {/* REQ: DEC-113 — a continued case has a line per session */}
-                        {l.sessionNo > 1 && <span className="ml-1.5 font-sans">· Session {l.sessionNo}</span>}
-                      </div>
+                      {/* REQ: DEC-113 — a continued case has a line per session */}
+                      {l.sessionNo > 1 && <div className="text-[11px] whitespace-nowrap text-muted-foreground">Session {l.sessionNo}</div>}
                     </td>
+                    <td className="px-3 py-2 font-mono text-xs whitespace-nowrap">{l.referenceId}</td>
                     <td className="px-3 py-2 whitespace-nowrap">{d.names.projectName(l.projectId)}</td>
                     <td className="px-3 py-2 whitespace-nowrap">
                       {d.names.flowName(l.flowId)} <span className="text-xs text-muted-foreground">{l.workflowVersion}</span>
