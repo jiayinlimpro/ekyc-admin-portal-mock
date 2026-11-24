@@ -47,14 +47,14 @@ const strings = (v: unknown): v is string[] => Array.isArray(v) && v.every((x) =
  */
 export function readDefinition(json: string, code: string): { definition?: WorkflowDefinition; errors: RuleError[] } {
   const fail = (message: string) => ({ errors: [{ field: 'definition', message }] })
-  if (!json.trim()) return fail('Paste the workflow JSON.')
+  if (!json.trim()) return fail('Paste the definition (JSON).')
   let raw: unknown
   try {
     raw = JSON.parse(json)
   } catch {
     return fail('This is not valid JSON.')
   }
-  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return fail('The workflow JSON must be an object, e.g. { "workflowCode": "V7", … }.')
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return fail('The definition must be a JSON object, e.g. { "workflowCode": "V7", … }.')
   const o = raw as Record<string, unknown>
   if (typeof o.workflowCode !== 'string' || !o.workflowCode.trim()) return fail('The JSON has no "workflowCode".')
   if (code.trim() && o.workflowCode.trim() !== code.trim()) return fail(`This JSON is for ${o.workflowCode.trim()}, not ${code.trim()}.`)

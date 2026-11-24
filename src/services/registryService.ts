@@ -166,7 +166,7 @@ export const mockRegistryService: RegistryService = {
     const changes = diff(e, next)
     // REQ: DEC-115 — once Limited release or Active, the JSON is locked: a different workflow needs a new code.
     if (changes.some((c) => isLocked(e, c.field))) {
-      throw validation([{ field: 'definition', message: 'The workflow JSON is locked: flows may be built on this version. Register a new version code instead.' }])
+      throw validation([{ field: 'definition', message: 'The definition (JSON) is locked: flows may be built on this version. Register a new version code instead.' }])
     }
     if (!changes.length) throw validation([{ field: 'form', message: 'There are no changes to save.' }])
     const at = now().toISOString()

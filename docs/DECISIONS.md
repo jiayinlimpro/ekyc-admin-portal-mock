@@ -428,7 +428,7 @@ Rules changed on 2026-10-20 (Projects & Flows restructure) are marked **(changed
   decides; the portal reads its JSON** [PO 2026-11-24]. The portal never decides what a workflow does (which steps run,
   what the face is matched against, what the session needs): the backend workflow does. The portal pushes the chosen
   version and the flow's tunable settings, and pulls the results back.
-  - **Register version:** **Workflow code** (V<number>, never reused), **Name**, and the **Workflow JSON** pasted from the
+  - **Register version:** **Workflow code** (V<number>, never reused), **Name**, and the **Definition (JSON)** pasted from the
     backend. Nothing else: no step checkboxes, face match select, email requirement, threshold checkboxes, risk-minimum
     checkbox, state machine references, description or release notes.
   - The portal reads the JSON and shows what it understood, read-only ("Document → Selfie → Liveness · Tunable: Face match,
@@ -444,7 +444,7 @@ Rules changed on 2026-10-20 (Projects & Flows restructure) are marked **(changed
   - **Edit:** the name, and Merchant access while Limited release. The JSON can be replaced while Draft or Internal testing;
     after Limited release or Active it is locked (a different workflow = a new code). Status, Default for new merchants and
     Merchant access stay portal settings (DEC-56, DEC-57).
-  - The expanded row shows the JSON (read-only, Copy) and the flows using the version. Changes are audited
+  - The expanded row shows the Definition (JSON) (read-only, Copy) and the flows using the version. Changes are audited
     (`WORKFLOW_REGISTERED`, `WORKFLOW_UPDATED` with the old and new name or JSON).
 
 ## Charging
@@ -968,7 +968,7 @@ These keep the mock runnable. They are not signed-off requirements; change them 
 | DEC-112 / DEC-26 | Status `FAILED`, shown as "Failed"; "Cooldown after Failed" (`failedCooldownMin`) | `UNSUCCESSFUL`, shown as "Unsuccessful"; "Cooldown after Unsuccessful" (`unsuccessfulCooldownMin`) [PO 2026-11-23] |
 | DEC-16 / DEC-108 | A document or V1 selfie still failing when its retries are used up → `REJECTED` | `UNSUCCESSFUL` (DEC-112) |
 | DEC-97 | Our case ID `ver_…`, labelled "Case ID"; code fields `caseId`, `referenceNo` | Verification ID `vrf_…`; code fields `verificationId`, `referenceId` (DEC-114) |
-| DEC-56 / DEC-58 (FRS Registry Notes B) | Register / edit: description, onboarding phase checkboxes, face match method, "Email required", configurable thresholds, "Risk minimums set per flow", sandbox and production state machine ARNs, release notes | Code + Name + Workflow JSON; the portal reads steps and tunables from the JSON (DEC-115) [PO 2026-11-24] |
+| DEC-56 / DEC-58 (FRS Registry Notes B) | Register / edit: description, onboarding phase checkboxes, face match method, "Email required", configurable thresholds, "Risk minimums set per flow", sandbox and production state machine ARNs, release notes | Code + Name + Definition (JSON); the portal reads steps and tunables from the JSON (DEC-115) [PO 2026-11-24] |
 | DEC-26 / OQ-22 | One cooldown, after a rejection; same end user = same ID document number | Cooldown after Rejected + cooldown after Unsuccessful; same end user = same Reference ID (DEC-26, DEC-113) |
 | DEC-32 | Decisions are final; a returning end user gets a new case | No reviewer reopen; a returning Reference ID continues its `REJECTED` or `UNSUCCESSFUL` case after the cooldown (DEC-113) |
 | DEC-97 / OQ-17 | Reference ID uniqueness open (mock: per project) | Identifies the end user within a project; may repeat across projects; Verification ID is the unique key (DEC-113, DEC-114) |

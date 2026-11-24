@@ -69,7 +69,7 @@ describe('registryService lifecycle (DEC-56, DEC-57)', () => {
   })
 
   it('Given a version that has been Active, then only the name can change; its JSON is locked (DEC-115)', async () => {
-    await expectError(registryService.update('V4', inputOf(entry('V4'), { definition: def('V4', ['DOCUMENT', 'LIVENESS']) }), ADMIN), 'VALIDATION', 'The workflow JSON is locked: flows may be built on this version. Register a new version code instead.')
+    await expectError(registryService.update('V4', inputOf(entry('V4'), { definition: def('V4', ['DOCUMENT', 'LIVENESS']) }), ADMIN), 'VALIDATION', 'The definition (JSON) is locked: flows may be built on this version. Register a new version code instead.')
     const renamed = await registryService.update('V4', inputOf(entry('V4'), { name: 'ID + Liveness + Risk', definition: JSON.stringify(JSON.parse(entry('V4').definition)) }), ADMIN) // the same JSON, compact: no change
     expect(renamed.name).toBe('ID + Liveness + Risk')
     expect((await auditService.list({ actions: ['WORKFLOW_UPDATED'] }, ADMIN)).items[0].details.changes).toEqual([

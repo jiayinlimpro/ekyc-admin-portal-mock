@@ -84,7 +84,7 @@ function VersionDialog({ editing, onClose, onDone }: { editing?: RegistryRow; on
             <DialogDescription>
               {jsonLocked
                 ? 'Flows may be built on this version: only the name can change. A different workflow needs a new version code.'
-                : 'The workflow decides what runs. Paste its JSON: the portal reads the steps and what flows can tune.'}
+                : 'The workflow decides what runs. Paste its definition (JSON): the portal reads the steps and what flows can tune.'}
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 sm:grid-cols-[10rem_1fr]">
@@ -97,7 +97,7 @@ function VersionDialog({ editing, onClose, onDone }: { editing?: RegistryRow; on
           </div>
           <FormField
             id="r-json"
-            label="Workflow JSON"
+            label="Definition (JSON)"
             hint={jsonLocked ? 'Locked: flows may be built on this version.' : 'From the backend. Read: workflowCode, steps, tunable; other keys are kept.'}
             error={errors.definition}
           >
@@ -314,9 +314,9 @@ export function RegistryPage() {
                       <div>
                         {/* REQ: DEC-115 — the workflow JSON as registered, read-only. */}
                         <h3 className="mb-1 flex items-center gap-1 text-xs font-medium text-muted-foreground uppercase">
-                          Workflow JSON <CopyButton label="Workflow JSON" value={r.definition} />
+                          Definition (JSON) <CopyButton label="Definition (JSON)" value={r.definition} />
                         </h3>
-                        <pre className="max-h-64 overflow-auto rounded-md bg-muted p-3 font-mono text-xs" aria-label={`Workflow JSON of ${r.code}`}>{r.definition}</pre>
+                        <pre className="max-h-64 overflow-auto rounded-md bg-muted p-3 font-mono text-xs" aria-label={`Definition (JSON) of ${r.code}`}>{r.definition}</pre>
                       </div>
                     </div>
                   </td>

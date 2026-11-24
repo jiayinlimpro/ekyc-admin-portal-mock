@@ -61,8 +61,8 @@ describe('Workflow Registry (DEC-56 … DEC-58)', () => {
     expect(v1.textContent).toContain('Document → Selfie → Liveness')
     expect((await row('V5')).textContent).toContain('Face match, Liveness, Risk minimums')
     fireEvent.click(within(v1).getByRole('button', { name: /^V1 ·/ }))
-    expect((await screen.findByLabelText('Workflow JSON of V1')).textContent).toContain('"SELFIE"')
-    expect(screen.getByRole('button', { name: 'Copy Workflow JSON' })).toBeTruthy()
+    expect((await screen.findByLabelText('Definition (JSON) of V1')).textContent).toContain('"SELFIE"')
+    expect(screen.getByRole('button', { name: 'Copy Definition (JSON)' })).toBeTruthy()
     expect((await row('V5')).textContent).toContain('Limited release1 merchant(s)') // DEC-56: Atoz only
     expect((await row('V6')).textContent).toContain('Internal testing')
     fireEvent.click(within(await row('V3')).getByRole('button', { name: /^V3 ·/ }))
@@ -88,7 +88,7 @@ describe('Workflow Registry (DEC-56 … DEC-58)', () => {
     expect(dialog.queryByRole('checkbox')).toBeNull()
     fireEvent.change(dialog.getByLabelText('Workflow code'), { target: { value: 'V4' } })
     fireEvent.change(dialog.getByLabelText('Name'), { target: { value: 'Duplicate' } })
-    fireEvent.change(dialog.getByLabelText('Workflow JSON'), { target: { value: '{"workflowCode": "V7", "steps": ["DOCUMENT", "LIVENESS"], "tunable": ["FACE_MATCH", "LIVENESS"]}' } })
+    fireEvent.change(dialog.getByLabelText('Definition (JSON)'), { target: { value: '{"workflowCode": "V7", "steps": ["DOCUMENT", "LIVENESS"], "tunable": ["FACE_MATCH", "LIVENESS"]}' } })
     fireEvent.click(dialog.getByRole('button', { name: 'Register' }))
     expect(await dialog.findByText('Workflow code already exists')).toBeTruthy()
     expect(dialog.getByText('This JSON is for V7, not V4.')).toBeTruthy()
@@ -101,7 +101,7 @@ describe('Workflow Registry (DEC-56 … DEC-58)', () => {
   it('Given a version that has been active, then only the name can be edited; its JSON is read-only (DEC-115)', async () => {
     renderAt('/registry')
     await action('V4', 'Edit')
-    expect((await screen.findByLabelText('Workflow JSON') as HTMLTextAreaElement).readOnly).toBe(true)
+    expect((await screen.findByLabelText('Definition (JSON)') as HTMLTextAreaElement).readOnly).toBe(true)
     expect((screen.getByLabelText('Name') as HTMLInputElement).disabled).toBe(false)
     expect(screen.getByText(/A different workflow needs a new version code/)).toBeTruthy()
   })

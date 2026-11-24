@@ -52,9 +52,9 @@ describe('registry: the workflow JSON (DEC-115)', () => {
   })
 
   it('Given a JSON the portal can’t read, then one message under the field', () => {
-    expect(message('  ')).toBe('Paste the workflow JSON.')
+    expect(message('  ')).toBe('Paste the definition (JSON).')
     expect(message('{ steps: [')).toBe('This is not valid JSON.')
-    expect(message([V5])).toMatch(/must be an object/)
+    expect(message([V5])).toMatch(/must be a JSON object/)
     expect(message({ ...V5, workflowCode: undefined })).toBe('The JSON has no "workflowCode".')
     expect(message({ ...V5, workflowCode: 'V4' })).toBe('This JSON is for V4, not V5.')
     expect(message({ ...V5, steps: [] })).toMatch(/needs "steps"/)
