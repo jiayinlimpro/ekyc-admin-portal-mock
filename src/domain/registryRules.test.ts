@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { defaultVersion, internalOnlyFlow, internalOnlySession, isLocked, readDefinition, selectableForNewFlow, setDefaultError, statusChangeError, validateRegistryInput, withDefault, type RegistryInput } from './registryRules'
+import { defaultVersion, definitionChangeError, internalOnlyFlow, internalOnlySession, readDefinition, selectableForNewFlow, setDefaultError, statusChangeError, validateRegistryInput, withDefault, type RegistryInput } from './registryRules'
 import type { RegistryEntry, RegistryStatus } from './types'
 
 const V5 = { workflowCode: 'V5', steps: ['DOCUMENT', 'LIVENESS', 'RISK'], tunable: ['FACE_MATCH', 'LIVENESS', 'RISK_MINIMUMS'] }
@@ -83,12 +83,11 @@ describe('registry: register and edit (DEC-115)', () => {
     expect(validateRegistryInput(input({ name: ' ' }), [])).toEqual([{ field: 'name', message: 'Workflow name cannot be empty' }])
   })
 
-  it('Given a version that has been Limited release or Active, then only the name and Merchant access stay editable; the JSON is locked', () => {
-    const active = entry('V4', 'ACTIVE')
-    expect(isLocked(active, 'definition')).toBe(true)
-    expect(isLocked(active, 'name')).toBe(false)
-    expect(isLocked(active, 'accessMerchantIds')).toBe(false)
-    expect(isLocked(entry('V5', 'DRAFT'), 'definition')).toBe(false)
+  it('Given a changed definition, then a reason is needed only when flows use the version (DEC-115)', () => {
+    expect(definitionChangeError(7, true, ' ')).toBe('Reason for change is required: 7 flow(s) use this version.')
+    expect(definitionChangeError(7, true, 'Engine adds risk')).toBeUndefined()
+    expect(definitionChangeError(0, true, undefined)).toBeUndefined()
+    expect(definitionChangeError(7, false, undefined)).toBeUndefined() // a rename needs no reason
   })
 })
 

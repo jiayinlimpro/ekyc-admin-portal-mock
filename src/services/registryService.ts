@@ -3,13 +3,13 @@
 //   GET  /registry                    list           → 200 RegistryRow[]           (Super admin)
 //   GET  /registry/selectable?merchantId=  listSelectable → 200 SelectableVersion[]  (anyone who may create flows; DEC-56)
 //   POST /registry                    register       → 201 RegistryEntry | 422 VALIDATION
-//   PUT  /registry/{code}             update         → 200 RegistryEntry | 422 VALIDATION (JSON locked once released)
+//   PUT  /registry/{code}             update         → 200 RegistryEntry | 422 VALIDATION (a reason when flows use it)
 //   POST /registry/{code}/status      changeStatus   → 200 RegistryEntry | 422 VALIDATION
 //   POST /registry/{code}/default     setDefault     → 200 RegistryEntry | 422 VALIDATION
 //   GET  /registry/{code}/flows       flowsUsing     → 200 FlowUsingVersion[] (replaces the Merchant Workflow Directory, DEC-85)
 import { canOnPlatform, isInternal, projectsWhere } from '@/domain/access'
 import { makeAudit } from '@/domain/audit'
-import { isLocked, locksFields, normaliseDefinition, readDefinition, selectableForNewFlow, setDefaultError, statusChangeError, validateRegistryInput, withDefault, type RegistryInput } from '@/domain/registryRules'
+import { definitionChangeError, locksFields, normaliseDefinition, readDefinition, selectableForNewFlow, setDefaultError, statusChangeError, validateRegistryInput, withDefault, type RegistryInput } from '@/domain/registryRules'
 import type { Actor, AuditAction, Flow, RegistryEntry, RegistryStatus, SettingChange, WorkflowCode } from '@/domain/types'
 import { now } from '@/lib/clock'
 import { db } from '@/mocks/mockDb'
@@ -41,7 +41,7 @@ export interface RegistryService {
   /** REQ: DEC-56 — what this user may choose for a new flow in that merchant (Internal testing: internal users only). */
   listSelectable(actor: Actor, merchantId?: string): Promise<SelectableVersion[]>
   register(input: RegistryInput, actor: Actor): Promise<RegistryEntry>
-  /** The code never changes. Once Limited release or Active, only the name and Merchant access can (DEC-115). */
+  /** The code never changes; the name, definition and Merchant access can, at any status (DEC-115). */
   update(code: WorkflowCode, input: RegistryInput, actor: Actor): Promise<RegistryEntry>
   changeStatus(code: WorkflowCode, to: RegistryStatus, reason: string, actor: Actor): Promise<RegistryEntry>
   setDefault(code: WorkflowCode, actor: Actor): Promise<RegistryEntry>
@@ -164,15 +164,15 @@ export const mockRegistryService: RegistryService = {
     if (errors.length) throw validation(errors)
     const next = fields(input)
     const changes = diff(e, next)
-    // REQ: DEC-115 — once Limited release or Active, the JSON is locked: a different workflow needs a new code.
-    if (changes.some((c) => isLocked(e, c.field))) {
-      throw validation([{ field: 'definition', message: 'The definition (JSON) is locked: flows may be built on this version. Register a new version code instead.' }])
-    }
     if (!changes.length) throw validation([{ field: 'form', message: 'There are no changes to save.' }])
+    // REQ: DEC-115 — editable at any status; flows using it follow the new definition for new sessions, so say why.
+    const flowsUsing = db.state().flows.filter((f) => f.workflowVersion === code).length
+    const blocked = definitionChangeError(flowsUsing, changes.some((c) => c.field === 'definition'), input.reason)
+    if (blocked) throw validation([{ field: 'reason', message: blocked }])
     const at = now().toISOString()
     const updated: RegistryEntry = { ...e, ...next, updatedAt: at, updatedBy: actor.fullName }
     put(updated)
-    audit(actor, 'WORKFLOW_UPDATED', code, { changes })
+    audit(actor, 'WORKFLOW_UPDATED', code, { changes, ...(input.reason?.trim() ? { reason: input.reason.trim() } : {}) })
     return wire(updated)
   },
 

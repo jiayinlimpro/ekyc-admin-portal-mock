@@ -415,10 +415,9 @@ Rules changed on 2026-10-20 (Projects & Flows restructure) are marked **(changed
     Internal testing version (the uncharged test sessions), are seen by internal users only. Merchant users don't see them
     anywhere: Flows, Flow Detail ("not found"), flow filters, Verifications (the case is "not found"), dashboards and
     Billing. If the version moves on (e.g. to Limited release), the flow shows; its earlier test sessions stay internal.
-  - **(changed 2026-11-24, DEC-115)** The workflow JSON locks once the version has been Limited release or Active (merchants
-    may have built on it); Internal testing can still be edited.
-  - No hard delete. Once a version has been Limited release or Active, only the name and Merchant access can be edited; a
-    different workflow needs a new version code (DEC-115).
+  - **(changed 2026-11-24, DEC-115)** No field locks: the name, the Definition (JSON) and Merchant access can be edited at
+    any status. Changing the definition of a version that flows use needs a reason.
+  - No hard delete.
   - **(changed 2026-11-24, DEC-115)** No state machine references: a running status no longer needs them.
 - **DEC-57** **(new)** Exactly one version is "**Default for new merchants**" and it must be Active. It cannot be deprecated
   while it is the default. Changing the default affects new merchants only. [PO 2026-10-20]
@@ -441,9 +440,14 @@ Rules changed on 2026-10-20 (Projects & Flows restructure) are marked **(changed
     portal uses it only to label the case page.
   - **No email requirement in the portal:** what a session must send (e.g. an email for risk) is the workflow's business.
     Flow Detail has no Requirements section and the sample request has no email (replaces DEC-50's "Requirements" row).
-  - **Edit:** the name, and Merchant access while Limited release. The JSON can be replaced while Draft or Internal testing;
-    after Limited release or Active it is locked (a different workflow = a new code). Status, Default for new merchants and
-    Merchant access stay portal settings (DEC-56, DEC-57).
+  - **Edit** (changed 2026-11-24, PO: "the JSON should be editable"): the name, the Definition (JSON) at **any status**, and
+    Merchant access while Limited release. When flows use the version and the definition changes, the dialog says how many
+    flows follow it and asks for a **Reason for change** (audited with the old and new JSON). Those flows follow the new
+    definition for new sessions; Flow Detail shows the settings it allows. A flow made before its version gained a RISK step
+    shows and runs on the default risk minimums (OQ-34) until it is saved. Status, Default for new merchants and Merchant
+    access stay portal settings (DEC-56, DEC-57).
+    - Not modelled (mock): cases are not pinned to the definition they ran on, so an older case shows its version's current
+      steps; its status never changes. Industry practice (Persona, Onfido Studio) pins each case to the published version.
   - The expanded row shows the Definition (JSON) (read-only, Copy) and the flows using the version. Changes are audited
     (`WORKFLOW_REGISTERED`, `WORKFLOW_UPDATED` with the old and new name or JSON).
 

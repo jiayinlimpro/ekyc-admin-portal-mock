@@ -11,6 +11,7 @@ export interface RegistryInput {
   name: string
   definition: string
   accessMerchantIds: string[]
+  reason?: string // REQ: DEC-115 — required when the definition of a version that flows use changes
 }
 
 /** What the portal reads from a workflow JSON (DEC-115). */
@@ -99,11 +100,10 @@ export function validateRegistryInput(input: RegistryInput, existingCodes: reado
   return errors
 }
 
-/** REQ: DEC-115 — once a version has been Limited release or Active, only these change; a different workflow needs a new code. */
-export const EDITABLE_AFTER_ACTIVE = ['name', 'accessMerchantIds'] as const
-
-export function isLocked(e: Pick<RegistryEntry, 'activatedAt'>, field: string): boolean {
-  return !!e.activatedAt && !(EDITABLE_AFTER_ACTIVE as readonly string[]).includes(field)
+/** REQ: DEC-115 — the definition stays editable at every status; changing it for a version flows use needs a reason. */
+export function definitionChangeError(flowsUsing: number, changed: boolean, reason: string | undefined): string | undefined {
+  if (changed && flowsUsing > 0 && !reason?.trim()) return `Reason for change is required: ${flowsUsing} flow(s) use this version.`
+  return undefined
 }
 
 // REQ: DEC-56 / DEC-57 / DEC-115 — no lifecycle: any status, with a reason. The default stays Active. (No state machine
@@ -115,7 +115,7 @@ export function statusChangeError(e: Pick<RegistryEntry, 'status' | 'isDefault'>
   return undefined
 }
 
-/** REQ: DEC-56 — fields lock once merchants could build on it (Limited release or Active). */
+/** REQ: DEC-56 — records when merchants could first build on it (Limited release or Active). */
 export const locksFields = (to: RegistryStatus) => to === 'LIMITED_RELEASE' || to === 'ACTIVE'
 
 export function setDefaultError(e: Pick<RegistryEntry, 'status' | 'isDefault'>): string | undefined {

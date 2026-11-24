@@ -10,6 +10,7 @@ import { isServiceError } from './errors'
 import { flowService } from './flowService'
 import { registryService } from './registryService'
 import { fx } from '@/lib/ids'
+import { DEFAULT_RISK_MINIMUMS } from '@/domain/openQuestions'
 
 beforeEach(async () => {
   vi.useFakeTimers({ toFake: ['Date'] })
@@ -68,8 +69,17 @@ describe('registryService lifecycle (DEC-56, DEC-57)', () => {
     expect((await auditService.list({ actions: ['WORKFLOW_REGISTERED'] }, OWNER)).total).toBe(0)
   })
 
-  it('Given a version that has been Active, then only the name can change; its JSON is locked (DEC-115)', async () => {
-    await expectError(registryService.update('V4', inputOf(entry('V4'), { definition: def('V4', ['DOCUMENT', 'LIVENESS']) }), ADMIN), 'VALIDATION', 'The definition (JSON) is locked: flows may be built on this version. Register a new version code instead.')
+  it('Given Active V4 used by flows, then its definition can change with a reason, audited with the old and new JSON; its flows get the risk default if they lacked it (DEC-115)', async () => {
+    await expectError(registryService.update('V4', inputOf(entry('V4'), { definition: def('V4', ['DOCUMENT', 'LIVENESS']) }), ADMIN), 'VALIDATION', /Reason for change is required: \d+ flow\(s\) use this version\./)
+    await registryService.update('V4', inputOf(entry('V4'), { definition: def('V4', ['DOCUMENT', 'SELFIE', 'LIVENESS', 'RISK']), reason: 'Engine adds a selfie step' }), ADMIN)
+    expect(entry('V4')).toMatchObject({ status: 'ACTIVE', phases: ['ID_CAPTURE', 'SELFIE_CAPTURE', 'LIVENESS_CHECK', 'RISK_ASSESSMENT'], faceMatchMethod: 'ID_VS_SELFIE' })
+    expect((await auditService.list({ actions: ['WORKFLOW_UPDATED'] }, ADMIN)).items[0].details).toMatchObject({ reason: 'Engine adds a selfie step', changes: [{ field: 'definition' }] })
+    // REQ: DEC-115 — V3 gains a risk step: its flows show (and run on) the default minimums until saved.
+    await registryService.update('V3', inputOf(entry('V3'), { definition: def('V3', ['DOCUMENT', 'LIVENESS', 'RISK']), reason: 'Risk for everyone' }), ADMIN)
+    expect((await flowService.get(fx('FLW-0004'), ADMIN)).flow.settings.risk).toEqual({ enabled: true, minimums: DEFAULT_RISK_MINIMUMS })
+  })
+
+  it('Given a rename, then no reason is needed', async () => {
     const renamed = await registryService.update('V4', inputOf(entry('V4'), { name: 'ID + Liveness + Risk', definition: JSON.stringify(JSON.parse(entry('V4').definition)) }), ADMIN) // the same JSON, compact: no change
     expect(renamed.name).toBe('ID + Liveness + Risk')
     expect((await auditService.list({ actions: ['WORKFLOW_UPDATED'] }, ADMIN)).items[0].details.changes).toEqual([
@@ -77,7 +87,7 @@ describe('registryService lifecycle (DEC-56, DEC-57)', () => {
     ])
   })
 
-  it('Given a Draft V7, then any status with a reason; its JSON can be replaced in Internal testing, and locks once Active (DEC-56, DEC-115)', async () => {
+  it('Given a Draft V7, then any status with a reason; its definition can be replaced at any status (DEC-56, DEC-115)', async () => {
     await registryService.register({ code: 'V7', name: 'Next', definition: def('V7', ['DOCUMENT', 'LIVENESS']), accessMerchantIds: [] }, ADMIN)
     expect(await registryService.changeStatus('V7', 'INTERNAL_TESTING', 'Engine build ready', ADMIN)).toMatchObject({ status: 'INTERNAL_TESTING' })
     expect(entry('V7').activatedAt).toBeUndefined() // Internal testing keeps the JSON editable
@@ -91,7 +101,7 @@ describe('registryService lifecycle (DEC-56, DEC-57)', () => {
     const v7 = await registryService.changeStatus('V7', 'ACTIVE', 'Ready for everyone', ADMIN)
     expect(v7).toMatchObject({ status: 'ACTIVE', activatedAt: NOW.toISOString() })
     expect((await registryService.listSelectable(OWNER)).map((v) => v.code)).toContain('V7')
-    await expectError(registryService.update('V7', inputOf(entry('V7'), { definition: def('V7', ['DOCUMENT', 'LIVENESS']) }), ADMIN), 'VALIDATION', /locked/)
+    await registryService.update('V7', inputOf(entry('V7'), { definition: def('V7', ['DOCUMENT', 'LIVENESS']) }), ADMIN) // Active, no flows yet: no reason needed
     expect(await registryService.changeStatus('V7', 'DRAFT', 'Pulled back', ADMIN)).toMatchObject({ status: 'DRAFT' })
   })
 

@@ -98,12 +98,20 @@ describe('Workflow Registry (DEC-56 … DEC-58)', () => {
     await waitFor(() => expect(entry('V7')).toMatchObject({ status: 'DRAFT', name: 'Duplicate', phases: ['ID_CAPTURE', 'LIVENESS_CHECK'] }))
   })
 
-  it('Given a version that has been active, then only the name can be edited; its JSON is read-only (DEC-115)', async () => {
+  it('Given Active V4 used by flows, when its definition changes, then the dialog says how many flows follow it and asks for a reason (DEC-115)', async () => {
     renderAt('/registry')
     await action('V4', 'Edit')
-    expect((await screen.findByLabelText('Definition (JSON)') as HTMLTextAreaElement).readOnly).toBe(true)
-    expect((screen.getByLabelText('Name') as HTMLInputElement).disabled).toBe(false)
-    expect(screen.getByText(/A different workflow needs a new version code/)).toBeTruthy()
+    const json = (await screen.findByLabelText('Definition (JSON)')) as HTMLTextAreaElement
+    expect(json.readOnly).toBe(false)
+    expect(screen.queryByLabelText('Reason for change')).toBeNull() // nothing changed yet
+    fireEvent.change(json, { target: { value: '{"workflowCode": "V4", "steps": ["DOCUMENT", "SELFIE", "LIVENESS", "RISK"], "tunable": ["FACE_MATCH", "LIVENESS"]}' } })
+    const flows = db.state().flows.filter((f) => f.workflowVersion === 'V4').length
+    expect(screen.getByRole('status').textContent).toContain(`${flows} flow(s) use V4`)
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+    expect(await screen.findByText(`Reason for change is required: ${flows} flow(s) use this version.`)).toBeTruthy()
+    fireEvent.change(screen.getByLabelText('Reason for change'), { target: { value: 'Engine adds a selfie step' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+    await waitFor(() => expect(entry('V4').phases).toContain('SELFIE_CAPTURE'))
   })
 
   it('Given the default V1, then deprecating it is refused until another version is the default', async () => {

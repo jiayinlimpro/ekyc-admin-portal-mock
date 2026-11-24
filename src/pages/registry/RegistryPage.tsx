@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { Link } from 'react-router'
-import { ArrowRightLeft, MoreVertical, Pencil, Plus, Star } from 'lucide-react'
+import { AlertTriangle, ArrowRightLeft, MoreVertical, Pencil, Plus, Star } from 'lucide-react'
 import { toast } from 'sonner'
 import { FormField } from '@/components/common/FormField'
 import { NativeSelect } from '@/components/common/NativeSelect'
@@ -11,7 +11,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { CopyButton } from '@/components/common/CopyId'
-import { isLocked, readDefinition, setDefaultError, type RegistryInput } from '@/domain/registryRules'
+import { normaliseDefinition, readDefinition, setDefaultError, type RegistryInput } from '@/domain/registryRules'
 import { REGISTRY_STATUSES, type RegistryStatus } from '@/domain/types'
 import { errorMessage, useLoad } from '@/hooks/useLoad'
 import { formatMyt } from '@/lib/format'
@@ -48,7 +48,8 @@ const emptyInput = (): RegistryInput => ({ code: '', name: '', definition: '', a
 const inputOf = (e: RegistryRow): RegistryInput => ({ code: e.code, name: e.name, definition: e.definition, accessMerchantIds: e.accessMerchantIds })
 
 // REQ: DEC-115 — Register / Edit: the code, a name and the workflow JSON from the backend. The workflow decides what runs;
-// the portal shows what it read (steps, tunable). The JSON locks once the version has been Limited release or Active.
+// the portal shows what it read (steps, tunable). Editable at any status; for a version flows use, a changed definition
+// needs a reason, and those flows follow it for new sessions.
 function VersionDialog({ editing, onClose, onDone }: { editing?: RegistryRow; onClose: () => void; onDone: () => void }) {
   const actor = useSession((s) => s.actor)
   // REQ: DEC-56 — Limited release: the merchants that may choose this version.
@@ -57,7 +58,9 @@ function VersionDialog({ editing, onClose, onDone }: { editing?: RegistryRow; on
   const [v, setV] = useState<RegistryInput>(editing ? inputOf(editing) : emptyInput())
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [busy, setBusy] = useState(false)
-  const jsonLocked = !!editing && isLocked(editing, 'definition')
+  // REQ: DEC-115 — a changed definition of a version that flows use: say how many, and ask why.
+  const definitionChanged = !!editing && normaliseDefinition(v.definition) !== editing.definition
+  const affects = definitionChanged && editing.flowsUsing > 0 ? editing.flowsUsing : 0
   const read = v.definition.trim() ? readDefinition(v.definition, v.code).definition : undefined
   const submit = async (e: FormEvent) => {
     e.preventDefault()
@@ -82,9 +85,7 @@ function VersionDialog({ editing, onClose, onDone }: { editing?: RegistryRow; on
           <DialogHeader>
             <DialogTitle>{editing ? `Edit ${editing.code}` : 'Register workflow version'}</DialogTitle>
             <DialogDescription>
-              {jsonLocked
-                ? 'Flows may be built on this version: only the name can change. A different workflow needs a new version code.'
-                : 'The workflow decides what runs. Paste its definition (JSON): the portal reads the steps and what flows can tune.'}
+              The workflow decides what runs. Paste its definition (JSON): the portal reads the steps and what flows can tune.
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 sm:grid-cols-[10rem_1fr]">
@@ -98,17 +99,16 @@ function VersionDialog({ editing, onClose, onDone }: { editing?: RegistryRow; on
           <FormField
             id="r-json"
             label="Definition (JSON)"
-            hint={jsonLocked ? 'Locked: flows may be built on this version.' : 'From the backend. Read: workflowCode, steps, tunable; other keys are kept.'}
+            hint="From the backend. Read: workflowCode, steps, tunable; other keys are kept."
             error={errors.definition}
           >
             <Textarea
               id="r-json"
               rows={8}
               spellCheck={false}
-              className={cn('font-mono text-xs', jsonLocked && 'bg-muted/50 text-muted-foreground')}
+              className="font-mono text-xs"
               placeholder={EXAMPLE}
               value={v.definition}
-              readOnly={jsonLocked}
               onChange={(e) => setV({ ...v, definition: e.target.value })}
               aria-invalid={!!errors.definition}
             />
@@ -120,6 +120,19 @@ function VersionDialog({ editing, onClose, onDone }: { editing?: RegistryRow; on
               <dt className="text-muted-foreground">Tunable</dt>
               <dd>{tunableText(read)}</dd>
             </dl>
+          )}
+          {affects > 0 && (
+            <div className="space-y-3 rounded-md border border-amber-300 bg-amber-50 p-3 dark:border-amber-500/40 dark:bg-amber-500/10">
+              <p className="flex gap-2 text-sm" role="status">
+                <AlertTriangle className="mt-0.5 size-4 shrink-0 text-amber-700 dark:text-amber-300" aria-hidden />
+                <span>
+                  {affects} flow(s) use {editing!.code}. Their new sessions follow the new definition, and Flow Detail shows the settings it allows.
+                </span>
+              </p>
+              <FormField id="r-reason" label="Reason for change" error={errors.reason}>
+                <Input id="r-reason" value={v.reason ?? ''} onChange={(e) => setV({ ...v, reason: e.target.value })} aria-invalid={!!errors.reason} />
+              </FormField>
+            </div>
           )}
           {limited && (
             <fieldset className="rounded-md border p-3">
