@@ -45,7 +45,7 @@ export const PROJECT_ACTIONS = [
   'editProjectRoles',
   'changeProjectRoleStatus',
   'viewIntegration', // Integration tab, read-only
-  'manageIntegration', // API keys, webhook, redirect URLs, IP allowlist
+  'manageIntegration', // a flow's API keys and webhook (DEC-117)
   'viewProjectSettings', // General and Review operations, read-only
   'manageProjectSettings', // General and Review operations (DEC-54)
   'viewFlows', // Flows List / Detail, read-only

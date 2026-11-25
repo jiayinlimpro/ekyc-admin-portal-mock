@@ -302,7 +302,7 @@ export function FlowDetailPage() {
             <Button
               size="sm"
               variant="outline"
-              onClick={() => window.confirm(`Retire ${f.name}? New sessions sent with its Flow ID are refused. ${d.inFlightCases ? `It finishes its ${d.inFlightCases} open case(s), then becomes Inactive.` : 'It becomes Inactive.'}`) && void act(() => flowService.retire(f.flowId, actor), `${f.name} retired`)}
+              onClick={() => window.confirm(`Retire ${f.name}? New sessions with its API keys are refused. ${d.inFlightCases ? `It finishes its ${d.inFlightCases} open case(s), then becomes Inactive.` : 'It becomes Inactive.'}`) && void act(() => flowService.retire(f.flowId, actor), `${f.name} retired`)}
             >
               Retire
             </Button>

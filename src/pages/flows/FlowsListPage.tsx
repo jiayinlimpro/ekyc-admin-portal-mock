@@ -144,7 +144,7 @@ function Flows({ project }: { project: MyProject }) {
         <table className={cn('w-full text-sm', rows.loading && rows.data && 'opacity-60')} aria-busy={rows.loading}>
           <thead className="bg-muted/50 text-left text-xs text-muted-foreground">
             <tr>
-              {/* REQ: DEC-95 — no routing: every session names its flow by Flow ID [PO 2026-11-20]. */}
+              {/* REQ: DEC-95 / DEC-117 — no routing: every session runs on the flow of the API key it was sent with. */}
               {['Flow', 'Version', 'Rules applied', 'Status', 'Open cases', 'Updated'].map((h) => (
                 <th key={h} scope="col" className="px-3 py-2 font-medium whitespace-nowrap">
                   {h}
@@ -220,10 +220,10 @@ function Flows({ project }: { project: MyProject }) {
             <DialogHeader>
               <DialogTitle>Retire {retiring.name}?</DialogTitle>
               <DialogDescription>
-                {/* REQ: DEC-94 / DEC-95 — any Active flow can be retired; the merchant must stop sending its Flow ID. */}
+                {/* REQ: DEC-94 / DEC-117 — any Active flow can be retired; the merchant must switch to another flow's key. */}
                 {retiring.inFlightCases > 0
-                  ? `New sessions sent with its Flow ID are refused. It becomes Retiring until its ${retiring.inFlightCases} open case(s) are decided, then Inactive.`
-                  : 'New sessions sent with its Flow ID are refused. It has no open cases, so it becomes Inactive at once. Flows are never deleted; past cases keep their flow.'}
+                  ? `New sessions with its API keys are refused. It becomes Retiring until its ${retiring.inFlightCases} open case(s) are decided, then Inactive.`
+                  : 'New sessions with its API keys are refused. It has no open cases, so it becomes Inactive at once. Flows are never deleted; past cases keep their flow.'}
               </DialogDescription>
             </DialogHeader>
             <DialogFooter>

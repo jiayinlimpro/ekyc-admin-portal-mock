@@ -54,7 +54,7 @@ export function activate(flow: Flow, now: Date, by: By): Flow {
   return { ...flow, status: 'ACTIVE', revision: Math.max(flow.revision, 1), updatedAt: now.toISOString(), updatedBy: by }
 }
 
-// REQ: DEC-94 / DEC-95 — any Active flow can be retired; new sessions sent with its Flow ID are refused from then on.
+// REQ: DEC-94 / DEC-95 — any Active flow can be retired; new sessions with its API keys are refused from then on (DEC-117).
 export function retireError(flow: Pick<Flow, 'status'>): string | undefined {
   if (flow.status !== 'ACTIVE') return 'Only an active flow can be retired.'
   return undefined

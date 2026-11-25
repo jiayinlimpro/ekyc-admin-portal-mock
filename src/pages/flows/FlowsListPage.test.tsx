@@ -43,12 +43,12 @@ describe('Flows List (DEC-94)', () => {
     expect(within(draft).getAllByRole('cell')[1].textContent).toBe('—')
   })
 
-  it('Given any Active flow, when Retire is chosen, then the dialog warns that its Flow ID is refused from now on and Retire is enabled (DEC-95)', async () => {
+  it('Given any Active flow, when Retire is chosen, then the dialog warns that its API keys are refused from now on and Retire is enabled (DEC-95, DEC-117)', async () => {
     renderAt('/flows')
     const items = await menu('Malaysian onboarding')
     expect(items.map((m) => m.textContent)).not.toContain('Set as default')
     fireEvent.click(items.find((m) => m.textContent === 'Retire')!)
-    expect(await screen.findByText(/New sessions sent with its Flow ID are refused/)).toBeTruthy()
+    expect(await screen.findByText(/New sessions with its API keys are refused/)).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: 'Retire flow' }))
     await waitFor(() => expect(db.state().flows.find((f) => f.flowId === fx('FLW-0001'))!.status).toBe('RETIRING'))
   })

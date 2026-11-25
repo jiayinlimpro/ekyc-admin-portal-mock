@@ -188,7 +188,7 @@ export const NAV_ITEMS: NavItem[] = [
     access: { project: 'viewFlows' },
     priority: 'P0',
     built: true,
-    notes: ['Draft, Active, Retiring, Inactive; create, duplicate, activate, retire (DEC-94). No default flow: every session names its flow (DEC-95).'],
+    notes: ['Draft, Active, Retiring, Inactive; create, duplicate, activate, retire (DEC-94). No default flow: the API key picks the flow (DEC-95, DEC-117). Flow Detail › Integration: the flow\'s API keys and webhook (DEC-117).'],
   },
   {
     path: '/flows/:flowId',
@@ -250,7 +250,7 @@ export const NAV_ITEMS: NavItem[] = [
     access: { project: PROJECT_SETTINGS_ACTIONS },
     priority: 'P1',
     built: true,
-    notes: ['Tabs: General (name, rename, archive) · Integration · Review operations (DEC-54). No Routing: every session names its flow (DEC-95). Members and Roles are in the sidebar (DEC-109).'],
+    notes: ['Tabs: General (name, rename, archive) · Review operations (DEC-54). No Routing (DEC-95); no Integration: API keys and the webhook are on each flow (DEC-117). Members and Roles are in the sidebar (DEC-109).'],
   },
 ]
 
