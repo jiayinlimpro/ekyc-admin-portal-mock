@@ -83,15 +83,22 @@ const STATUS_NOTE: Partial<Record<Flow['status'], string>> = {
 // REQ: DEC-117 — the flow's API keys and webhook (Flow Detail › Integration). Saved at once: not a flow setting, so no
 // reason and no revision (DEC-51); audited. View / Manage API keys and webhook (DEC-75, DEC-102).
 export function FlowIntegration({ flow, canView }: { flow: Flow; canView: boolean }) {
-  if (!canView) {
-    return (
-      <div className="space-y-4">
-        <p className="rounded-md bg-muted px-3 py-2 text-sm text-muted-foreground">API keys and the webhook need the View API keys and webhook permission.</p>
-        <SampleRequest flow={flow} />
+  return (
+    <section aria-labelledby="flow-integration" className="space-y-4 pt-4">
+      <div>
+        <h2 id="flow-integration" className="text-lg font-semibold">Integration</h2>
+        <p className="text-sm text-muted-foreground">How your server connects to this flow. Key and webhook changes save at once: no reason, no new revision.</p>
       </div>
-    )
-  }
-  return <IntegrationCards flow={flow} />
+      {canView ? (
+        <IntegrationCards flow={flow} />
+      ) : (
+        <>
+          <p className="rounded-md bg-muted px-3 py-2 text-sm text-muted-foreground">API keys and the webhook need the View API keys and webhook permission.</p>
+          <SampleRequest flow={flow} />
+        </>
+      )}
+    </section>
+  )
 }
 
 function IntegrationCards({ flow }: { flow: Flow }) {
