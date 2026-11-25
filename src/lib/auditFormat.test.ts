@@ -37,6 +37,14 @@ describe('summarizeAudit', () => {
     expect(summarizeAudit(e('CASE_RESUMED', { ...d, toFlowId: 'flw_a', toFlowName: 'Malaysian onboarding' }))).toBe('Session 2 started by the same Reference ID: Unsuccessful → Processing')
   })
 
+  it('Given an API key or webhook event, then it names the flow and the key by name, never the key ID (DEC-117, DEC-97)', () => {
+    expect(summarizeAudit(e('API_KEY_CREATED', { keyId: 'key_abc123', name: 'Staging', flowId: 'flw_x', flowName: 'Malaysian onboarding' }))).toBe('Flow Malaysian onboarding · “Staging”')
+    const rotated = summarizeAudit(e('API_KEY_ROTATED', { keyId: 'key_abc123', name: 'Production', flowName: 'Malaysian onboarding', changes: [{ field: 'Secret', from: 'sk_mock_…1111', to: 'sk_mock_…2222' }] }))
+    expect(rotated).toBe('Flow Malaysian onboarding · “Production” · Secret: sk_mock_…1111 → sk_mock_…2222')
+    expect(rotated).not.toContain('key_abc123')
+    expect(summarizeAudit(e('WEBHOOK_CHANGED', { flowName: 'SME director check', changes: [{ field: 'URL', from: '—', to: 'https://hooks.example' }] }))).toBe('Flow SME director check · URL: — → https://hooks.example')
+  })
+
   it('CASE_DECISION_BLOCKED carries the refusal reason', () => {
     expect(summarizeAudit(e('CASE_DECISION_BLOCKED', { attempted: 'REJECT', reason: 'Your claim expired. No changes saved.' }))).toBe('Save refused (reject): Your claim expired. No changes saved.')
   })

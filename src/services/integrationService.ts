@@ -110,7 +110,7 @@ export const mockIntegrationService: IntegrationService = {
     const secret = mockSecret()
     const rotated = { ...key, secretHint: hint(secret), createdAt: now().toISOString(), createdBy: actor.fullName, lastUsedAt: undefined }
     putKey(rotated)
-    audit(actor, 'API_KEY_ROTATED', loaded, { keyId, changes: [{ field: 'Secret', from: key.secretHint, to: rotated.secretHint }] })
+    audit(actor, 'API_KEY_ROTATED', loaded, { keyId, name: key.name, changes: [{ field: 'Secret', from: key.secretHint, to: rotated.secretHint }] })
     return wire({ value: rotated, secret })
   },
 

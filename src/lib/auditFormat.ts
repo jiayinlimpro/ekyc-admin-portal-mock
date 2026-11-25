@@ -33,8 +33,14 @@ export function summarizeAudit(e: AuditEntry): string {
       const moved = str(d.fromFlowName) && str(d.toFlowName) && d.fromFlowId !== d.toFlowId ? ` · flow ${str(d.fromFlowName)} → ${str(d.toFlowName)}` : ''
       return `Session ${String(d.sessionNo ?? '?')} started by the same Reference ID: ${STATUS_LABELS[d.fromStatus as keyof typeof STATUS_LABELS] ?? '?'} → Processing${moved}`
     }
+    case 'API_KEY_CREATED':
     case 'API_KEY_ROTATED':
-      return `API key rotated${str(d.keyId) ? ` (${str(d.keyId)})` : ''}`
+    case 'API_KEY_REVOKED':
+    case 'WEBHOOK_CHANGED': {
+      // REQ: DEC-117 — keys and webhooks belong to a flow: name the flow, and the key by its name (never its full ID, DEC-97).
+      const changes = (d.changes as SettingChange[] | undefined)?.map((c) => `${c.field}: ${c.from} → ${c.to}`).join(' · ')
+      return [str(d.flowName) && `Flow ${str(d.flowName)}`, str(d.name) && `“${str(d.name)}”`, changes].filter(Boolean).join(' · ')
+    }
     default: {
       // Events whose details carry the changed fields (DEC-42 "old and new value").
       const changes = d.changes as SettingChange[] | undefined

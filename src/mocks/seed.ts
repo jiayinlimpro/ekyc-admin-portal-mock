@@ -204,7 +204,7 @@ export function seedDatabase(now: Date): MockDbState {
   // Atoz Default's production key was rotated by the Merchant Owner a week ago (DEC-54).
   const owner = accounts.find((a) => a.userId === fx('USR-2026-0002'))!
   audit.push(
-    makeAudit({ id: '', now: new Date(now.getTime() - 7 * DAY), action: 'API_KEY_ROTATED', actor: owner, actorRole: 'Merchant Owner', ip: fakeIp(f), merchantId: fx('MER-0001'), projectId: fx('PRJ-0001'), details: { keyId: seededKeyId(fx('FLW-0001')), flowId: fx('FLW-0001'), flowName: 'Malaysian onboarding' } }),
+    makeAudit({ id: '', now: new Date(now.getTime() - 7 * DAY), action: 'API_KEY_ROTATED', actor: owner, actorRole: 'Merchant Owner', ip: fakeIp(f), merchantId: fx('MER-0001'), projectId: fx('PRJ-0001'), details: { keyId: seededKeyId(fx('FLW-0001')), name: 'Production', flowId: fx('FLW-0001'), flowName: 'Malaysian onboarding' } }),
   )
 
   const edge = buildEdgeCases({ now, catalog })
