@@ -102,8 +102,9 @@ docs/           DECISIONS.md, OPEN_QUESTIONS.md, SCENARIOS.md
 
 ## Build status
 - **Projects & Flows restructure done** (DEC-85 screens): Overview, System Intelligence, Billing (every role, scoped),
-  Verifications List + Detail, Project Settings (General with rename / archive, Integration, Review operations),
-  Members, Roles (project sidebar), Flows List, Flow Detail (presets, band bar, retries, Advanced thresholds, history), Audit Log.
+  Verifications List + Detail, Project Settings (General with rename / archive, Review operations),
+  Members, Roles (project sidebar), Flows List, Flow Detail (presets, band bar, retries, Advanced thresholds, history,
+  Integration: the flow's API keys and webhook, DEC-117), Audit Log.
   Outer layer (DEC-109): Merchants page, Merchant settings (General, Users, Roles, Billing, Audit log), Platform Users
   (Users + Roles; the super admin read-only), Workflow Registry. Inner header: `Merchant ▾ / Project ▾` + roles in the project.
   Mock Login.

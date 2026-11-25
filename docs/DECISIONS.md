@@ -18,8 +18,11 @@ Rules changed on 2026-10-20 (Projects & Flows restructure) are marked **(changed
   | Level | Settings |
   |---|---|
   | Merchant | Contract, plan, billing · user accounts · portal login security · default branding and language |
-  | Project | Members and roles · auto-release claim timeout · API keys, webhook · redirect URLs, allowed web origins, IP allowlist · branding override, language · data retention (OQ-21) |
-  | Flow | Workflow version (locked once active) · check thresholds · retries allowed, cooldowns (after Rejected, after Unsuccessful) · accepted documents · risk thresholds (W4, W5) · session expiry |
+  | Project | Members and roles · auto-release claim timeout · branding override, language · data retention (OQ-21) |
+  | Flow | Workflow version (locked once active) · check thresholds · retries allowed, cooldowns (after Rejected, after Unsuccessful) · accepted documents · risk thresholds (W4, W5) · session expiry · **API keys, webhook** (DEC-117) |
+
+  **(changed 2026-11-25, DEC-117)** API keys and the webhook moved from the project to the flow; redirect URLs, allowed web
+  origins and the IP allowlist were removed. [PO 2026-11-25]
 
 - **DEC-92** Every merchant starts with a **Default** project. Creating a merchant also creates its Default project with one
   Draft flow, "First flow", built on the registry's default version (DEC-57), and its first user as Merchant Owner (FRS
@@ -31,11 +34,15 @@ Rules changed on 2026-10-20 (Projects & Flows restructure) are marked **(changed
   workflow version is locked once a flow is active; to change version, create a new flow. [MS]
   **(changed 2026-11-20)** No default flow (every session names its flow, DEC-95): no Default badge, no Set as default, and
   any Active flow can be retired. Retiring warns that new sessions sent with its Flow ID are refused from then on, so the
-  merchant must switch their `flowId` first. [PO 2026-11-20]
+  merchant must switch their `flowId` first. [PO 2026-11-20] **(changed 2026-11-25, DEC-117)** The flow's API keys pick
+  it, so retiring warns that new sessions with **its keys** are refused: the merchant switches to another flow's key first.
 - **DEC-95** **(changed 2026-11-20)** **No routing: every session names its flow.** Each create-session request must send
   `flowId` (required; the Flow ID is on Flows and Flow Detail). It is refused when `flowId` is missing or unknown, belongs
   to another project than the API key's, or the flow is not Active (Draft, Retiring, Inactive), or the project is
   archived. No routing rules or percentage shares, and no Routing tab in Project Settings (answers OQ-18). [PO 2026-11-20]
+  **(changed 2026-11-25, DEC-117)** The flow is still named on every session, but by the **API key** (each key belongs to
+  one flow), not by a `flowId` field, which is no longer sent. Refused when the key is unknown or revoked, the flow is not
+  Active (Draft, Retiring, Inactive) or the project is archived. Still no routing. [PO 2026-11-25]
 - **DEC-96** **(superseded by DEC-109: always one project)** Case lists may span all of a user's projects ("All my projects"). Settings pages always work on one selected
   project. [MS]
 
@@ -168,8 +175,8 @@ Rules changed on 2026-10-20 (Projects & Flows restructure) are marked **(changed
     (`lastUpdatedBy` SYSTEM), every phase's retries start again, the earlier sessions and their attempts stay in the case's
     history, and every submission costs a token as before (DEC-60).
   - This includes a case a reviewer rejected: the earlier decision stays in the case's history and the Audit Log.
-  - **Another Flow ID in the same project:** the case moves to that flow (it must be Active, DEC-95) and the new session
-    uses its current revision.
+  - **Another flow in the same project** (a key of another flow, DEC-117; was "another Flow ID"): the case moves to that
+    flow (it must be Active, DEC-95) and the new session uses its current revision.
   - **A flow in another project:** that project's own case for the Reference ID is used: none yet → a **new case** (new
     Verification ID) at once; one exists → the rules above apply to it. Projects are isolated: a case, its status and its
     cooldown in one project never affect another [PO 2026-11-22; answers OQ-37].
@@ -382,6 +389,9 @@ Rules changed on 2026-10-20 (Projects & Flows restructure) are marked **(changed
   merchant default) · **Integration** (API keys: name, created, last used, status, create / rotate / revoke, key shown once;
   webhook URL (HTTPS), signing secret, events; redirect URLs; allowed web origins; IP allowlist) · **Review operations**
   (auto-release claim timeout). No Routing tab (DEC-95). Changes are audited with old and new values. [MS]
+  **(changed 2026-11-25, DEC-117)** Tabs: **General** · **Review operations**. The Integration tab is gone: API keys and the
+  webhook are on each flow (Flow Detail › Integration); redirect URLs, allowed web origins and the IP allowlist were removed.
+  An old `?tab=integration` link opens General. [PO 2026-11-25]
 - **DEC-55** **(new)** Webhook delivery: on a change to `PENDING_REVIEW`, `APPROVED`, `REJECTED` or `UNSUCCESSFUL` (DEC-112), POST
   `verification.status_changed` (Reference ID, new status, Last Updated By, timestamp), signed with the project's signing
   secret; non-2xx → up to 3 retries at increasing intervals, each attempt audited. Mock: deliveries are simulated only. [FRS]
@@ -390,18 +400,37 @@ Rules changed on 2026-10-20 (Projects & Flows restructure) are marked **(changed
   (`WebhookEvent`, `src/domain/webhook.ts`). IDs only, no personal data. The Reference ID is the merchant's own value; the
   integration guide tells merchants to keep personal data (IC, phone, email) out of it. In the portal, the Verifications
   list's Flow filter does the same job. [PO 2026-11-18]
+  **(changed 2026-11-25, DEC-117)** Each **flow** has its own webhook (URL, signing secret, events), and a delivery goes to
+  the webhook of the case's flow, signed with that flow's secret. The body is unchanged: it still names the flow, as
+  several flows may send to the same URL. A flow with no webhook sends nothing (the merchant can ask the API). [PO 2026-11-25]
 - **DEC-111** **(new)** Calling the API (industry practice; agreed 2026-11-18, PO to confirm):
   - **Authentication:** the merchant's **server** sends the API key's secret on every call over HTTPS:
     `Authorization: Bearer <secret>`. The Key ID (`key_…`) only names the key on screen and in logs. The secret is never
     put in an app or web page; the user's browser only gets the session link. Shown once; Rotate / Revoke if it leaks.
-  - **Redirect:** `redirectUrl` in create-session is optional. If sent, it must **exactly** match one of the project's
-    Redirect URLs (no wildcards, no prefix match; as in the OAuth 2.0 security guidance, RFC 9700), else the request is
-    refused. If not sent, the user ends on the platform's own "Verification complete" page. An empty list allows no
-    redirect.
-  - **The redirect is not the result:** a user can open that URL themselves, so the merchant reads the outcome from the
-    webhook (DEC-55) or by asking the API for the case.
-  - **Which flow:** `flowId` is required in every create-session request (DEC-95).
+  - ~~**Redirect:** `redirectUrl` in create-session is optional; if sent, it must exactly match one of the project's
+    Redirect URLs.~~ **(removed 2026-11-25, DEC-117)** There is no redirect: the user always ends on the platform's own
+    "Verification complete" page, and the merchant's app or site decides what to show next.
+  - **The result comes from the webhook** (DEC-55) or by asking the API for the case, never from the user's browser.
+  - **Which flow:** ~~`flowId` is required in every create-session request (DEC-95).~~ **(changed 2026-11-25, DEC-117)** the
+    API key: each key belongs to one flow.
   - Test and live keys (sandbox): OQ-36.
+- **DEC-117** **(new)** **API keys and the webhook belong to the flow** [PO 2026-11-25].
+  - Each flow is one connection: its own **API keys** (name, Key ID masked, secret hint, status, created, last used; create /
+    rotate / revoke; the secret is shown once) and its own **webhook** (HTTPS URL, signing secret shown once, events). They
+    are on **Flow Detail › Integration**. Project Settings has no Integration tab (DEC-54).
+  - **The key picks the flow:** create-session sends only the key (`Authorization: Bearer <secret>`) and the Reference ID;
+    no `flowId` (DEC-95). Sessions start only while the flow is Active; keys can be created at any status (e.g. while
+    Draft, to build the integration), and Revoke always works.
+  - **Not a flow setting:** keys and the webhook are credentials, not verification settings. Changing them needs no reason
+    and creates no revision (DEC-51); every change is audited (`API_KEY_CREATED`, `API_KEY_ROTATED`, `API_KEY_REVOKED`,
+    `WEBHOOK_CHANGED`) with the flow named.
+  - **Access** unchanged: the "API keys and webhook" View / Manage permissions (DEC-102). Seeing the card also needs to
+    open Flow Detail (Flows View).
+  - **Removed:** redirect URLs (no redirect, DEC-111), allowed web origins (the verification runs only on our hosted page,
+    never embedded in the merchant's page) and the IP allowlist (the secret key over HTTPS is the baseline).
+  - The merchant's API access (DEC-98: live, sandbox only, stopped) shows on the card, as it did on the Integration tab.
+  - Industry: Veriff gives each integration its own API key, shared secret and webhook URL; Persona and Onfido keep keys
+    and webhooks per account. Ours follows the flow, the level that decides how a session runs.
 
 ## Workflow Registry
 - **DEC-56** **(changed again 2026-10-27)** Statuses [FRS][PO 2026-10-20][PO 2026-10-27]:
@@ -866,6 +895,7 @@ Rules changed on 2026-10-20 (Projects & Flows restructure) are marked **(changed
   - Platform-wide billing totals are dropped: billing is per merchant (Merchant settings) and per project.
   - **Members and Roles** of the project are sidebar entries (group User Management), no longer Project Settings tabs
     [PO 2026-10-27]. Project Settings keeps General, Integration and Review operations (Routing removed, DEC-95).
+    **(changed 2026-11-25)** General and Review operations: Integration moved to Flow Detail (DEC-117).
   - **No tab strip** [PO 2026-10-27]: pages don't open as tabs; the sidebar and the breadcrumb are the navigation. The case
     page's breadcrumb still ends with its Reference ID (DEC-97).
   - The outer **Super admins** module is gone (DEC-110): Platform staff lists the super admin too.
@@ -887,7 +917,7 @@ Rules changed on 2026-10-20 (Projects & Flows restructure) are marked **(changed
   the Dev menu (still true). [PO 2026-10-20]
 - **DEC-85** **(new)** Screens: Overview, System Intelligence, Billing (all roles, DEC-86), Verifications List, Verification
   Detail, Projects, Project Settings, Flows List, Flow Detail, Users, Roles, Audit Log; Platform Admin only: Merchants,
-  Workflow Registry, Admins (DEC-79). Replaced: eKYC Workflow → Flows List + Flow Detail; Developers → Project Settings › Integration;
+  Workflow Registry, Admins (DEC-79). Replaced: eKYC Workflow → Flows List + Flow Detail; Developers → Project Settings › Integration (now Flow Detail › Integration, DEC-117);
   Users and Access → Users + Roles ([FRS] method, DEC-74, DEC-76); Merchant Workflow Directory → Workflow Registry ("flows using it"); the [MS] Reports
   module → folded into the three dashboards (DEC-86). Overview, System Intelligence, Billing and Merchants otherwise follow
   [FRS]. [MS][PO 2026-10-20]
@@ -981,6 +1011,8 @@ These keep the mock runnable. They are not signed-off requirements; change them 
 | DEC-82 | Webhooks on hold | DEC-54, DEC-55 |
 | DEC-94 / MOCK-12 | Exactly one default flow per project: Set as default, Default badge, retiring the default blocked, `FLOW_DEFAULT_CHANGED` | No default flow; any Active flow can be retired (DEC-94) |
 | DEC-95 / OQ-18 | Routing rules and % shares set through the API, shown read-only in Project Settings › Routing | Every session names its flow (`flowId` required); no routing (DEC-95) |
+| DEC-54 / DEC-55 / DEC-91 | API keys, webhook, redirect URLs, allowed web origins and IP allowlist per project (Project Settings › Integration) | API keys and webhook per flow (Flow Detail › Integration); no redirect URLs, web origins or IP allowlist (DEC-117) |
+| DEC-95 / DEC-111 | `flowId` required in every create-session; optional `redirectUrl` matched against the project's list | The API key picks the flow; no `flowId`, no redirect (DEC-117) |
 | DEC-01 | Exactly four statuses | Five: `UNSUCCESSFUL` added (DEC-112) |
 | DEC-112 / DEC-26 | Status `FAILED`, shown as "Failed"; "Cooldown after Failed" (`failedCooldownMin`) | `UNSUCCESSFUL`, shown as "Unsuccessful"; "Cooldown after Unsuccessful" (`unsuccessfulCooldownMin`) [PO 2026-11-23] |
 | DEC-16 / DEC-108 | A document or W1 selfie still failing when its retries are used up → `REJECTED` | `UNSUCCESSFUL` (DEC-112) |
@@ -1003,7 +1035,7 @@ These keep the mock runnable. They are not signed-off requirements; change them 
 | Supervisor actions | Assign / reassign / force-release | None (DEC-23) |
 | Retry limit | Retries per token-consuming phase (W1: selfie and liveness) | Face match and liveness only; selfie unlimited and free (DEC-18) |
 | Roles | 7-role catalogue / Platform vs Merchant Admin / custom roles | [FRS] Users + Roles screens with custom roles, assigned with a scope (All / Selected projects) (DEC-70, DEC-74, DEC-76) |
-| Developers page | Merchant-level API key and webhook | Per project, Project Settings › Integration (DEC-54) |
+| Developers page | Merchant-level API key and webhook | Per flow, Flow Detail › Integration (DEC-117; was per project, DEC-54) |
 | Merchant Workflow Directory | Platform Admin edits merchant thresholds | Removed; Registry shows flows per version (DEC-85) |
 | Timestamps | Extra fields | `createdAt` and `lastUpdatedAt` (DEC-04) |
 | "System Failure Reason" banner | Red banner | Reason banner from the condition catalogue (DEC-35) |
