@@ -9,6 +9,9 @@ export default defineConfig({
   resolve: {
     alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) },
   },
+  // Allow Cloudflare quick tunnels (random subdomain each run) for sharing the mock with stakeholders.
+  server: { allowedHosts: ['.trycloudflare.com'] },
+  preview: { allowedHosts: ['.trycloudflare.com'] },
   test: {
     environment: 'node',
     include: ['src/**/*.test.ts', 'src/**/*.test.tsx'],
