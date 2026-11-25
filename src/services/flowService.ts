@@ -58,14 +58,20 @@ const inFlight = (flowId: string) => db.state().verifications.filter((v) => v.fl
 
 const FLOW_ACTION_TEXT = { viewFlows: 'view flows', createFlows: 'create flows', editFlows: 'edit flows', activateFlows: 'activate or retire flows' } as const
 
-// REQ: DEC-70 / DEC-75 / DEC-102 — each flow operation needs its own action; Super admin may do all in any merchant.
-function loadFlow(actor: Actor, flowId: string, action: keyof typeof FLOW_ACTION_TEXT): { flow: Flow; project: Project } {
+/** A flow the user can see, with its project, or "not found" (outside the user's projects, or an internal test flow). */
+export function findFlow(actor: Actor, flowId: string): { flow: Flow; project: Project } {
   const flow = db.state().flows.find((f) => f.flowId === flowId)
   const project = flow && projectById(flow.projectId)
   if (!flow || !project || !internalTestsFilter(actor).flow(flow)) throw new ServiceError('NOT_FOUND', `Flow ${flowId} not found.`)
   loadProject(actor, project.projectId) // "not found" outside the user's projects
-  requireInProject(actor, action, project, FLOW_ACTION_TEXT[action])
   return { flow, project }
+}
+
+// REQ: DEC-70 / DEC-75 / DEC-102 — each flow operation needs its own action; Super admin may do all in any merchant.
+function loadFlow(actor: Actor, flowId: string, action: keyof typeof FLOW_ACTION_TEXT): { flow: Flow; project: Project } {
+  const found = findFlow(actor, flowId)
+  requireInProject(actor, action, found.project, FLOW_ACTION_TEXT[action])
+  return found
 }
 
 function putFlow(flow: Flow) {

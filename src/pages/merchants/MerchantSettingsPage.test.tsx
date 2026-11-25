@@ -60,16 +60,16 @@ describe('Merchant settings (DEC-109, DEC-98, DEC-92)', () => {
 
     const wong = { userId: fx('USR-2026-0052') } // Tesla's owner
     expect(() => accountOf(wong)).toThrow('Tesla is suspended: its users can’t sign in.')
-    const teslaProject = db.state().projects.find((p) => p.merchantId === fx('MER-0003'))!.projectId
-    expect((await integrationService.get(teslaProject, ADMIN)).apiAccess).toBe('STOPPED')
+    const teslaFlow = db.state().flows.find((f) => f.merchantId === fx('MER-0003'))!.flowId // REQ: DEC-117 — keys are per flow
+    expect((await integrationService.get(teslaFlow, ADMIN)).apiAccess).toBe('STOPPED')
     await merchantAdminService.changeStatus(fx('MER-0003'), 'ACTIVE', 'Payment received in full', ADMIN)
     expect(accountOf(wong).userId).toBe(wong.userId)
   })
 
   it('Given an Onboarding merchant, then its API keys are sandbox only', async () => {
-    const project = db.state().projects.find((p) => p.merchantId === fx('MER-0006'))!.projectId
-    expect((await integrationService.get(project, ADMIN)).apiAccess).toBe('SANDBOX_ONLY')
-    expect((await integrationService.get(fx('PRJ-0001'), ADMIN)).apiAccess).toBe('LIVE')
+    const flow = db.state().flows.find((f) => f.merchantId === fx('MER-0006'))!.flowId
+    expect((await integrationService.get(flow, ADMIN)).apiAccess).toBe('SANDBOX_ONLY')
+    expect((await integrationService.get(fx('FLW-0001'), ADMIN)).apiAccess).toBe('LIVE')
   })
 
   it('Given Onboarding with a Pending owner, then the invitation can be resent', async () => {

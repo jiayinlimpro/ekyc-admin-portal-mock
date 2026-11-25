@@ -24,7 +24,7 @@ import { FlowStatusBadge } from './FlowsListPage'
 import { RetriesCard } from './RetriesCard'
 import { ThresholdCard } from './ThresholdCard'
 import { Card } from '../projects/settingsUi'
-import { CopyId } from '@/components/common/CopyId'
+import { FlowIntegration } from './FlowIntegration'
 
 const DOCUMENTS: DocumentType[] = ['MYKAD', 'PASSPORT', 'DRIVING_LICENSE']
 
@@ -57,6 +57,7 @@ function Editor({ detail, onSaved }: { detail: FlowDetail; onSaved: () => void }
   // REQ: DEC-99 / DEC-102 — Flows View is read-only; saving needs Edit (staff: Flows Edit).
   const canEdit = !!account && !!project && canInProject(account, 'editFlows', project)
   const editable = canEdit && (flow.status === 'DRAFT' || flow.status === 'ACTIVE')
+  const canViewIntegration = !!account && !!project && canInProject(account, 'viewIntegration', project) // REQ: DEC-117
   const [draft, setDraft] = useState<FlowEdit>({ name: flow.name, description: flow.description, settings: structuredClone(flow.settings) })
   const [reason, setReason] = useState('')
   const [errors, setErrors] = useState<Record<string, string>>({})
@@ -181,24 +182,8 @@ function Editor({ detail, onSaved }: { detail: FlowDetail; onSaved: () => void }
         </Card>
       )}
 
-      <Card title="Developer info">
-        <p className="text-sm">
-          <CopyId label="Flow ID" value={flow.flowId} className="text-sm" />
-        </p>
-        <pre className="mt-2 overflow-x-auto rounded-md bg-muted p-3 font-mono text-xs" aria-label="Sample create-session request">
-          {`POST /v1/sessions   (sample, mock)
-Authorization: Bearer <your project's secret key>
-{
-  "flowId": "${flow.flowId}",
-  "referenceId": "your-own-reference-for-this-user",
-  "redirectUrl": "https://app.example/kyc/done"
-}`}
-        </pre>
-        {/* REQ: DEC-111 / DEC-95 — the secret goes in the header, from the merchant's server only; flowId is required. */}
-        <p className="mt-2 text-xs text-muted-foreground">
-          Call from your server only, never from an app or web page. flowId is required: it picks this flow. Keys and allowed redirect URLs are in Project Settings › Integration; redirectUrl is optional and must match one of them exactly.
-        </p>
-      </Card>
+      {/* REQ: DEC-117 — the flow's API keys and webhook; saved at once, outside the revision below. */}
+      <FlowIntegration flow={flow} canView={canViewIntegration} />
 
       <Card title="History">
         {detail.revisions.length === 0 ? (

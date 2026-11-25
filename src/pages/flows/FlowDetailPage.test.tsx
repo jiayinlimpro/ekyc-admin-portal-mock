@@ -124,11 +124,13 @@ describe('Flow Detail (DEC-18, DEC-19, DEC-50, DEC-51)', () => {
     await waitFor(() => expect(flow(fx('FLW-0003'))).toMatchObject({ status: 'ACTIVE', revision: 1 }))
   })
 
-  it('Given Developer info, then the sample request carries the secret in the header and the flow ID in the body (DEC-111)', async () => {
+  it('Given Developer info, then the sample request carries this flow\'s key in the header, and no flowId or redirectUrl (DEC-111, DEC-117)', async () => {
     renderAt(`/flows/${fx('FLW-0001')}`)
     const sample = (await screen.findByLabelText('Sample create-session request')).textContent!
-    expect(sample).toContain('Authorization: Bearer <your project\'s secret key>')
-    expect(sample).toContain(`"flowId": "${fx('FLW-0001')}"`)
+    expect(sample).toContain('Authorization: Bearer <a secret key of this flow>')
+    expect(sample).toContain('"referenceId"')
+    expect(sample).not.toContain('flowId')
+    expect(sample).not.toContain('redirectUrl')
   })
 
   it('Given a Retiring flow, then it is read-only', async () => {
@@ -148,5 +150,46 @@ describe('Flow Detail (DEC-18, DEC-19, DEC-50, DEC-51)', () => {
     await card('Liveness')
     expect(screen.queryByRole('region', { name: 'Risk Assessment' })).toBeNull()
     expect(screen.queryByText(/Email required/)).toBeNull()
+  })
+})
+
+describe('Flow Detail › Integration: the flow\'s API keys and webhook (DEC-117)', () => {
+  it('Given the Owner, when a key is created, then its secret is shown once, the key is listed, and no revision is made', async () => {
+    const revision = flow(fx('FLW-0001')).revision
+    renderAt(`/flows/${fx('FLW-0001')}`)
+    fireEvent.click((await card('API keys')).getByRole('button', { name: /Create key/ }))
+    fireEvent.change(await screen.findByLabelText('Key name'), { target: { value: 'Staging' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Create key' }))
+    expect((await screen.findByLabelText('Secret')).textContent).toMatch(/^sk_mock_[0-9a-f]{32}$/)
+    fireEvent.click(screen.getByRole('button', { name: 'Done' }))
+    await waitFor(() => expect((within(screen.getByRole('region', { name: 'API keys' })).getByRole('rowheader', { name: 'Staging' }))).toBeTruthy())
+    expect(db.state().apiKeys.find((k) => k.name === 'Staging')!.flowId).toBe(fx('FLW-0001'))
+    expect(flow(fx('FLW-0001')).revision).toBe(revision) // REQ: DEC-51 — credentials are not a flow setting
+  })
+
+  it('Given an http:// webhook, then the field error shows', async () => {
+    renderAt(`/flows/${fx('FLW-0001')}`)
+    const webhook = await card('Webhook')
+    fireEvent.change(await webhook.findByLabelText('Endpoint URL (HTTPS)'), { target: { value: 'http://hooks.example' } })
+    fireEvent.click(webhook.getByRole('button', { name: 'Save webhook' }))
+    expect((await webhook.findByRole('alert')).textContent).toBe('Webhook URL must start with https://')
+  })
+
+  it('Given the webhook, then the sample delivery names the case and the flow, with no personal data (DEC-55)', async () => {
+    renderAt(`/flows/${fx('FLW-0001')}`)
+    const sample = JSON.parse((await (await card('Webhook')).findByLabelText('Sample webhook delivery')).textContent!)
+    expect(Object.keys(sample)).toEqual(['event', 'verificationId', 'flowId', 'referenceId', 'status', 'lastUpdatedBy', 'occurredAt'])
+  })
+
+  it('Given a Draft flow, then keys can be made now and sessions start once it is activated', async () => {
+    renderAt(`/flows/${fx('FLW-0003')}`)
+    expect(await screen.findByText(/Draft: you can create keys and set the webhook now/)).toBeTruthy()
+    expect((await card('API keys')).getByRole('button', { name: /Create key/ })).toBeTruthy()
+  })
+
+  it('Given the Super admin on another merchant\'s flow, then keys can be managed (DEC-75)', async () => {
+    useSession.getState().switchUser(ADMIN)
+    renderAt(`/flows/${fx('FLW-0005')}`)
+    expect(await (await card('API keys')).findByRole('button', { name: /Create key/ })).toBeTruthy()
   })
 })

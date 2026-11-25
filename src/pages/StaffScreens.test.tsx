@@ -66,8 +66,8 @@ describe('screens for platform staff (DEC-99, DEC-104)', () => {
     expect(await screen.findByText('Read-only: you can view this flow but not change it.')).toBeTruthy()
   })
 
-  it('Given Support on Project Settings › Integration, then keys read-only (View, not Manage)', async () => {
-    renderAt('/project-settings?tab=integration')
+  it('Given Support on a flow\'s Integration, then keys read-only (View, not Manage) (DEC-117)', async () => {
+    renderAt(`/flows/${fx('FLW-0001')}`)
     expect(await screen.findByText(/Read-only: you can view API keys/)).toBeTruthy()
     expect(screen.queryByRole('button', { name: /Create key/ })).toBeNull()
   })

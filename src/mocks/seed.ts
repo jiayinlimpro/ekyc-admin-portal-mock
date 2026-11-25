@@ -6,7 +6,7 @@ import { makeAudit } from '@/domain/audit'
 import { RISK_NOT_PASSED, retryPhaseOf } from '@/domain/checkRules'
 import { applyDecision } from '@/domain/claimRules'
 import { resolveThreshold, type Thresholds } from '@/domain/thresholds'
-import type { Actor, AuditEntry, Check, Decision, Flow, ProjectApiKey, ProjectWebhook, FlowRevision, Merchant, Project, RegistryEntry, Role, UserAccount, Verification } from '@/domain/types'
+import type { Actor, AuditEntry, Check, Decision, Flow, FlowApiKey, FlowWebhook, FlowRevision, Merchant, Project, RegistryEntry, Role, UserAccount, Verification } from '@/domain/types'
 import { buildCase, refNo } from './builders'
 import { buildCatalog, revisionAt } from './fixtures/catalog'
 import { buildEdgeCases } from './fixtures/edgeCases'
@@ -18,7 +18,7 @@ import { fx, stableId } from '@/lib/ids'
 export const SEED = 2026
 export const BACKGROUND_COUNT = 300
 /** Bump when the shape of MockDbState changes: persisted demo data is then re-seeded. */
-export const DB_VERSION = 40
+export const DB_VERSION = 41
 
 export interface MockDbState {
   dbVersion: number
@@ -33,9 +33,9 @@ export interface MockDbState {
   flowRevisions: FlowRevision[]
   accounts: UserAccount[]
   roles: Role[] // REQ: DEC-76 — System Default (shared) and each merchant's Custom roles
-  // REQ: DEC-54 — per-project integration (Project Settings › Integration).
-  projectKeys: ProjectApiKey[]
-  webhooks: ProjectWebhook[]
+  // REQ: DEC-117 — per-flow integration (Flow Detail › Integration).
+  apiKeys: FlowApiKey[]
+  webhooks: FlowWebhook[]
 }
 
 type Profile = 'CLEAN' | 'RETAKE_THEN_CLEAN' | 'REVIEW' | 'REJECT' | 'ABANDONED' | 'RETRYING'
@@ -111,8 +111,8 @@ function decisionFor(f: Faker, reason: string | undefined): Decision {
   return { outcome: 'REJECT', reasonCodes: [fail], note: withNote ? 'Inconsistencies found during manual review.' : undefined }
 }
 
-/** The seeded production key of a project (one per project). */
-const seededKeyId = (projectId: string) => stableId('key', `${projectId}:production`)
+/** The seeded production key of a flow (one per flow that has been active). */
+const seededKeyId = (flowId: string) => stableId('key', `${flowId}:production`)
 
 export function seedDatabase(now: Date): MockDbState {
   const f = new Faker({ locale: [en] })
@@ -204,7 +204,7 @@ export function seedDatabase(now: Date): MockDbState {
   // Atoz Default's production key was rotated by the Merchant Owner a week ago (DEC-54).
   const owner = accounts.find((a) => a.userId === fx('USR-2026-0002'))!
   audit.push(
-    makeAudit({ id: '', now: new Date(now.getTime() - 7 * DAY), action: 'API_KEY_ROTATED', actor: owner, actorRole: 'Merchant Owner', ip: fakeIp(f), merchantId: fx('MER-0001'), projectId: fx('PRJ-0001'), details: { keyId: seededKeyId(fx('PRJ-0001')) } }),
+    makeAudit({ id: '', now: new Date(now.getTime() - 7 * DAY), action: 'API_KEY_ROTATED', actor: owner, actorRole: 'Merchant Owner', ip: fakeIp(f), merchantId: fx('MER-0001'), projectId: fx('PRJ-0001'), details: { keyId: seededKeyId(fx('FLW-0001')), flowId: fx('FLW-0001'), flowName: 'Malaysian onboarding' } }),
   )
 
   const edge = buildEdgeCases({ now, catalog })
@@ -219,17 +219,23 @@ export function seedDatabase(now: Date): MockDbState {
     ...catalog,
     accounts,
     roles,
-    // One production key per project (mock hints only, never real secrets); Atoz Default also has a webhook.
-    projectKeys: catalog.projects.map((p) => ({
-      keyId: seededKeyId(p.projectId),
-      projectId: p.projectId,
-      name: 'Production',
-      secretHint: `sk_mock_…${f.string.hexadecimal({ length: 4, casing: 'lower', prefix: '' })}`,
-      status: 'ACTIVE' as const,
-      createdAt: p.createdAt,
-      createdBy: p.createdBy,
-      lastUsedAt: p.status === 'ACTIVE' ? new Date(now.getTime() - f.number.int({ min: 5, max: 600 }) * MIN).toISOString() : undefined,
-    })),
-    webhooks: [{ webhookId: stableId('whk', fx('PRJ-0001')), projectId: fx('PRJ-0001'), url: 'https://hooks.atoz.example/ekyc', events: ['verification.status_changed'], secretHint: 'whsec_mock_…a1b2', updatedAt: new Date(now.getTime() - 30 * DAY).toISOString(), updatedBy: 'Tan Mei Ling' }],
+    // REQ: DEC-117 — one production key per flow that has been active (mock hints only, never real secrets); a Draft
+    // flow has none yet. Malaysian onboarding and Foreigner onboarding also have a webhook.
+    apiKeys: catalog.flows
+      .filter((fl) => fl.status !== 'DRAFT')
+      .map((fl) => ({
+        keyId: seededKeyId(fl.flowId),
+        flowId: fl.flowId,
+        name: 'Production',
+        secretHint: `sk_mock_…${f.string.hexadecimal({ length: 4, casing: 'lower', prefix: '' })}`,
+        status: 'ACTIVE' as const,
+        createdAt: fl.createdAt,
+        createdBy: catalog.projects.find((p) => p.projectId === fl.projectId)?.createdBy ?? 'SYSTEM',
+        lastUsedAt: fl.status === 'ACTIVE' || fl.status === 'RETIRING' ? new Date(now.getTime() - f.number.int({ min: 5, max: 600 }) * MIN).toISOString() : undefined,
+      })),
+    webhooks: [
+      { webhookId: stableId('whk', fx('FLW-0001')), flowId: fx('FLW-0001'), url: 'https://hooks.atoz.example/ekyc', events: ['verification.status_changed'], secretHint: 'whsec_mock_…a1b2', updatedAt: new Date(now.getTime() - 30 * DAY).toISOString(), updatedBy: 'Tan Mei Ling' },
+      { webhookId: stableId('whk', fx('FLW-0002')), flowId: fx('FLW-0002'), url: 'https://hooks.atoz.example/ekyc', events: ['verification.status_changed'], secretHint: 'whsec_mock_…c3d4', updatedAt: new Date(now.getTime() - 30 * DAY).toISOString(), updatedBy: 'Tan Mei Ling' },
+    ],
   }
 }

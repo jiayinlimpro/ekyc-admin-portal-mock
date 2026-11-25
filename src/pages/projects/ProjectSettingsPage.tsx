@@ -18,7 +18,6 @@ import type { Project } from '@/domain/types'
 import { errorMessage, useLoad } from '@/hooks/useLoad'
 import { projectService, type MyProject } from '@/services/projectService'
 import { useSession } from '@/stores/sessionStore'
-import { IntegrationTab } from './IntegrationTab'
 import { DecisionReasonsCard } from './DecisionReasonsCard'
 import { ProjectDialog, type ProjectEditing } from './ProjectDialog'
 import { Card } from './settingsUi'
@@ -26,9 +25,8 @@ import { PROJECT_SETTINGS_ACTIONS } from '@/app/nav'
 
 const TABS = [
   { value: 'general', label: 'General' },
-  { value: 'integration', label: 'Integration' },
   { value: 'review', label: 'Review operations' },
-] as const // REQ: DEC-109 — Members and Roles are in the project's sidebar. DEC-95: no Routing tab (every session names its flow).
+] as const // REQ: DEC-109 — Members and Roles are in the project's sidebar. DEC-95: no Routing tab. DEC-117: no Integration tab (keys and webhook are on each flow).
 type Tab = (typeof TABS)[number]['value']
 
 const ReadOnlyNote = ({ children }: { children: React.ReactNode }) => <p className="rounded-md bg-muted px-3 py-2 text-sm text-muted-foreground">{children}</p>
@@ -180,12 +178,6 @@ function Settings({ selected }: { selected: MyProject }) {
               )}
             </div>
           )}
-          {tab === 'integration' &&
-            (may('viewIntegration') ? (
-              <IntegrationTab project={p} />
-            ) : (
-              <ReadOnlyNote>API keys and webhooks need the View API keys and webhook permission.</ReadOnlyNote>
-            ))}
           {tab === 'review' &&
             (may('viewProjectSettings') ? (
               <ReviewTab key={p.projectId} project={p} canEdit={may('manageProjectSettings')} onSaved={project.reload} />

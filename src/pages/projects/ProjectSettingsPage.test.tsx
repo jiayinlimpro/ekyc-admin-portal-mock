@@ -53,40 +53,13 @@ describe('Project Settings (DEC-54, DEC-96)', () => {
     expect(db.state().audit.at(-1)).toMatchObject({ action: 'PROJECT_SETTING_CHANGED', projectId: fx('PRJ-0002') })
   })
 
-  it('Given Integration, when the Owner creates a key, then its secret is shown once and the key is listed', async () => {
-    useSession.getState().selectProject(fx('PRJ-0001'))
-    renderAt('/project-settings?tab=integration')
-    fireEvent.click((await panel()).getByRole('button', { name: /Create key/ }))
-    fireEvent.change(await screen.findByLabelText('Key name'), { target: { value: 'Staging' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Create key' }))
-    expect((await screen.findByLabelText('Secret')).textContent).toMatch(/^sk_mock_[0-9a-f]{32}$/)
-    fireEvent.click(screen.getByRole('button', { name: 'Done' }))
-    await waitFor(() => expect(screen.getByRole('rowheader', { name: 'Staging' })).toBeTruthy())
-  })
-
-  it('Given an http:// webhook, then the field error shows', async () => {
-    useSession.getState().selectProject(fx('PRJ-0001'))
-    renderAt('/project-settings?tab=integration')
-    const p = await panel()
-    fireEvent.change(await p.findByLabelText('Endpoint URL (HTTPS)'), { target: { value: 'http://hooks.example' } })
-    fireEvent.click(p.getByRole('button', { name: 'Save webhook' }))
-    expect((await p.findByRole('alert')).textContent).toBe('Webhook URL must start with https://')
-  })
-
-  it('Given Integration, then the sample webhook delivery names the case and the flow, with no personal data (DEC-55)', async () => {
-    useSession.getState().selectProject(fx('PRJ-0001'))
-    renderAt('/project-settings?tab=integration')
-    const sample = JSON.parse((await (await panel()).findByLabelText('Sample webhook delivery')).textContent!)
-    expect(Object.keys(sample)).toEqual(['event', 'verificationId', 'flowId', 'referenceId', 'status', 'lastUpdatedBy', 'occurredAt'])
-  })
-
-  it('Given the Super admin, then Integration and General are open to them (DEC-75)', async () => {
+  it('Given the Super admin, then General is open to them (DEC-75)', async () => {
     useSession.getState().switchUser(ADMIN)
     useSession.getState().selectProject(fx('PRJ-0003'))
-    renderAt('/project-settings?tab=integration')
-    expect(await (await panel()).findByRole('button', { name: /Create key/ })).toBeTruthy()
-    tab('General')
-    expect((await panel()).getByRole('button', { name: 'Save general settings' })).toBeTruthy()
+    renderAt('/project-settings')
+    expect(await (await panel()).findByRole('button', { name: 'Save general settings' })).toBeTruthy()
+    tab('Review operations')
+    expect(await (await panel()).findByLabelText(/claim timeout/i)).toBeTruthy()
   })
 
   it('Given Review operations, then minutes are typed, the seconds show beside them in brackets; 0 is refused and 20 min saves as 1,200 s (DEC-53)', async () => {
@@ -137,7 +110,15 @@ describe('Project Settings (DEC-54, DEC-96)', () => {
     useSession.getState().selectProject(fx('PRJ-0001'))
     renderAt('/project-settings?tab=routing')
     await panel()
-    expect(screen.getAllByRole('tab').map((t) => t.textContent)).toEqual(['General', 'Integration', 'Review operations'])
+    expect(screen.getAllByRole('tab').map((t) => t.textContent)).toEqual(['General', 'Review operations'])
+  })
+
+  it('Given an old ?tab=integration link, then General opens: API keys and the webhook are on each flow (DEC-117)', async () => {
+    useSession.getState().selectProject(fx('PRJ-0001'))
+    renderAt('/project-settings?tab=integration')
+    expect(await (await panel()).findByRole('button', { name: 'Save general settings' })).toBeTruthy()
+    expect(screen.queryByRole('tab', { name: 'Integration' })).toBeNull()
+    expect(screen.queryByText(/Redirect URLs|IP allowlist|web origins/)).toBeNull()
   })
 })
 

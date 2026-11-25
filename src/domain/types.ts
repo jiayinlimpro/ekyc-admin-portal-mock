@@ -357,10 +357,13 @@ export interface Project {
   decisionReasons: ProjectDecisionReasons // REQ: DEC-106 — Project Settings › Review operations
 }
 
-/** REQ: DEC-54 — an API key of one project. The secret is shown once, when created or rotated; only a hint is kept. */
-export interface ProjectApiKey {
+/**
+ * REQ: DEC-117 — an API key of one flow: it picks the flow, so create-session sends no flowId. The secret is shown once,
+ * when created or rotated; only a hint is kept.
+ */
+export interface FlowApiKey {
   keyId: string // key_… — shown masked (key_…a91f); the secret is separate and never stored (DEC-97)
-  projectId: string
+  flowId: string
   name: string
   secretHint: string // e.g. "sk_mock_…3f9a"
   status: 'ACTIVE' | 'REVOKED'
@@ -370,10 +373,10 @@ export interface ProjectApiKey {
   revokedAt?: string
 }
 
-/** REQ: DEC-54 / DEC-55 — the project's webhook. Deliveries are simulated in the mock (MOCK-11). */
-export interface ProjectWebhook {
+/** REQ: DEC-55 / DEC-117 — the flow's webhook (at most one per flow). Deliveries are simulated in the mock (MOCK-11). */
+export interface FlowWebhook {
   webhookId: string // whk_…
-  projectId: string
+  flowId: string
   url: string
   events: 'verification.status_changed'[]
   secretHint: string
@@ -382,8 +385,8 @@ export interface ProjectWebhook {
 }
 
 /**
- * REQ: DEC-55 — the body of a `verification.status_changed` delivery. One webhook serves every flow of the project, so it
- * names the case and the flow. IDs only: no personal data, no flow name (names change; IDs don't).
+ * REQ: DEC-55 — the body of a `verification.status_changed` delivery, sent to the webhook of the case's flow (DEC-117).
+ * It names the case and the flow, as several flows may send to one URL. IDs only: no personal data, no flow name.
  */
 export interface WebhookEvent {
   event: 'verification.status_changed'

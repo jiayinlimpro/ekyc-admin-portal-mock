@@ -165,7 +165,7 @@ describe('seedDatabase', () => {
       ['rol', db.roles.map((r) => r.roleId)],
       ['asg', db.accounts.flatMap((a) => a.assignments.map((x) => x.assignmentId))],
       ['inv', db.accounts.flatMap((a) => (a.invitationId ? [a.invitationId] : []))],
-      ['key', db.projectKeys.map((k) => k.keyId)],
+      ['key', db.apiKeys.map((k) => k.keyId)],
       ['whk', db.webhooks.map((w) => w.webhookId)],
       ['wfv', db.registry.map((e) => e.entryId)],
     ]

@@ -6,12 +6,13 @@ import { ErrorState } from '@/components/common/States'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
-import type { Project, ProjectApiKey, WebhookEvent } from '@/domain/types'
+import { CopyId } from '@/components/common/CopyId'
+import type { Flow, FlowApiKey, WebhookEvent } from '@/domain/types'
 import { errorMessage, useLoad } from '@/hooks/useLoad'
 import { formatMyt } from '@/lib/format'
 import { integrationService } from '@/services/integrationService'
 import { useSession } from '@/stores/sessionStore'
-import { Card } from './settingsUi'
+import { Card } from '../projects/settingsUi'
 import { cn } from '@/lib/utils'
 
 /** Shown once after create / rotate / regenerate: the mock secret, with Copy. */
@@ -51,10 +52,51 @@ const SAMPLE_EVENT: WebhookEvent = {
   occurredAt: '2026-11-18T02:15:00.000Z',
 }
 
-// REQ: DEC-54 / DEC-75 — Manage API keys and webhook (and Super admin).
-export function IntegrationTab({ project }: { project: Project }) {
+/** REQ: DEC-111 / DEC-117 — the secret goes in the header, from the merchant's server only; the key picks the flow. */
+function SampleRequest({ flow }: { flow: Flow }) {
+  return (
+    <Card title="Developer info">
+      <p className="text-sm">
+        <CopyId label="Flow ID" value={flow.flowId} className="text-sm" />
+        <span className="ml-2 text-xs text-muted-foreground">Named in each webhook delivery; not sent when starting a session.</span>
+      </p>
+      <pre className="mt-2 overflow-x-auto rounded-md bg-muted p-3 font-mono text-xs" aria-label="Sample create-session request">
+        {`POST /v1/sessions   (sample, mock)
+Authorization: Bearer <a secret key of this flow>
+{
+  "referenceId": "your-own-reference-for-this-user"
+}`}
+      </pre>
+      <p className="mt-2 text-xs text-muted-foreground">
+        Call from your server only, never from an app or web page. The key picks this flow, so no flowId is sent. When the user finishes, they see our “Verification complete” page and your app decides what comes next; the result arrives on the webhook.
+      </p>
+    </Card>
+  )
+}
+
+const STATUS_NOTE: Partial<Record<Flow['status'], string>> = {
+  DRAFT: 'Draft: you can create keys and set the webhook now; sessions start once the flow is activated.',
+  RETIRING: 'Retiring: new sessions with these keys are refused; cases already in progress still finish and are sent to the webhook.',
+  INACTIVE: 'Inactive: new sessions with these keys are refused.',
+}
+
+// REQ: DEC-117 — the flow's API keys and webhook (Flow Detail › Integration). Saved at once: not a flow setting, so no
+// reason and no revision (DEC-51); audited. View / Manage API keys and webhook (DEC-75, DEC-102).
+export function FlowIntegration({ flow, canView }: { flow: Flow; canView: boolean }) {
+  if (!canView) {
+    return (
+      <div className="space-y-4">
+        <p className="rounded-md bg-muted px-3 py-2 text-sm text-muted-foreground">API keys and the webhook need the View API keys and webhook permission.</p>
+        <SampleRequest flow={flow} />
+      </div>
+    )
+  }
+  return <IntegrationCards flow={flow} />
+}
+
+function IntegrationCards({ flow }: { flow: Flow }) {
   const actor = useSession((s) => s.actor)
-  const data = useLoad(() => integrationService.get(project.projectId, actor), [project.projectId, actor.userId])
+  const data = useLoad(() => integrationService.get(flow.flowId, actor), [flow.flowId, actor.userId])
   const [secret, setSecret] = useState<{ title: string; value: string }>()
   const [newKey, setNewKey] = useState<string>()
   const [keyError, setKeyError] = useState<string>()
@@ -89,7 +131,7 @@ export function IntegrationTab({ project }: { project: Project }) {
     void (async () => {
       setBusy(true)
       try {
-        const r = await integrationService.createKey(project.projectId, newKey ?? '', actor)
+        const r = await integrationService.createKey(flow.flowId, newKey ?? '', actor)
         setNewKey(undefined)
         setSecret({ title: `API key “${r.value.name}” created`, value: r.secret })
         data.reload()
@@ -101,13 +143,13 @@ export function IntegrationTab({ project }: { project: Project }) {
     })()
   }
 
-  const rotate = (k: ProjectApiKey) =>
+  const rotate = (k: FlowApiKey) =>
     window.confirm(`Rotate “${k.name}”? Its current secret stops working immediately.`) &&
     void run(async () => {
       const r = await integrationService.rotateKey(k.keyId, actor)
       setSecret({ title: `New secret for “${k.name}”`, value: r.secret })
     })
-  const revoke = (k: ProjectApiKey) =>
+  const revoke = (k: FlowApiKey) =>
     window.confirm(`Revoke “${k.name}”? Calls with this key are refused from now on. This cannot be undone.`) &&
     void run(async () => {
       await integrationService.revokeKey(k.keyId, actor)
@@ -116,7 +158,7 @@ export function IntegrationTab({ project }: { project: Project }) {
 
   const saveWebhook = (regenerateSecret = false) =>
     run(async () => {
-      const r = await integrationService.setWebhook(project.projectId, { url, regenerateSecret }, actor)
+      const r = await integrationService.setWebhook(flow.flowId, { url, regenerateSecret }, actor)
       setWebhookUrl(undefined)
       if (r.secret) setSecret({ title: 'Webhook signing secret', value: r.secret })
       else toast.success('Webhook saved')
@@ -131,6 +173,7 @@ export function IntegrationTab({ project }: { project: Project }) {
             : 'Sandbox only: the merchant is Onboarding, so live requests with these keys are refused until it goes live.'}
         </p>
       )}
+      {STATUS_NOTE[flow.status] && <p className="rounded-md bg-muted px-3 py-2 text-sm text-muted-foreground">{STATUS_NOTE[flow.status]}</p>}
       {!d.canManage && <p className="rounded-md bg-muted px-3 py-2 text-sm text-muted-foreground">Read-only: you can view API keys and the webhook but not change them.</p>}
       <Card title="API keys" aside={d.canManage ? <Button size="sm" onClick={() => setNewKey('')}><Plus aria-hidden /> Create key</Button> : undefined}>
         <div className="-m-4 overflow-x-auto">
@@ -169,14 +212,14 @@ export function IntegrationTab({ project }: { project: Project }) {
 
       <Card title="Webhook">
         <div className="space-y-3">
-          <FormField id="wh-url" label="Endpoint URL (HTTPS)" error={errors.url} hint="Receives verification.status_changed when a case becomes Pending Review, Approved, Rejected or Unsuccessful (DEC-55, DEC-112).">
+          <FormField id="wh-url" label="Endpoint URL (HTTPS)" error={errors.url} hint="Receives verification.status_changed when a case of this flow becomes Pending Review, Approved, Rejected or Unsuccessful (DEC-55, DEC-112).">
             <Input id="wh-url" readOnly={!d.canManage} value={url} onChange={(e) => setWebhookUrl(e.target.value)} placeholder="https://" aria-invalid={!!errors.url} />
           </FormField>
           <p className="text-sm">
             <span className="text-muted-foreground">Signing secret:</span> <span className="font-mono text-xs">{d.webhook?.secretHint ?? 'created with the first save'}</span>
           </p>
           <p className="text-xs text-muted-foreground">Non-2xx responses are retried up to 3 times at increasing intervals. Deliveries are simulated in the mock (MOCK-11).</p>
-          {/* REQ: DEC-55 — one webhook for all the project's flows: each delivery names the case and the flow. */}
+          {/* REQ: DEC-55 / DEC-117 — each delivery names the case and the flow (several flows may share one URL). */}
           <details className="text-sm">
             <summary className="cursor-pointer text-muted-foreground">Sample delivery</summary>
             <pre className="mt-2 overflow-x-auto rounded-md bg-muted p-3 font-mono text-xs" aria-label="Sample webhook delivery">{JSON.stringify(SAMPLE_EVENT, null, 2)}</pre>
@@ -199,7 +242,7 @@ export function IntegrationTab({ project }: { project: Project }) {
             <form onSubmit={createKey} noValidate className="space-y-4">
               <DialogHeader>
                 <DialogTitle>Create API key</DialogTitle>
-                <DialogDescription>For {project.name}. The secret is shown once.</DialogDescription>
+                <DialogDescription>For the flow {flow.name}. Sessions started with it run on this flow. The secret is shown once.</DialogDescription>
               </DialogHeader>
               <FormField id="k-name" label="Key name" error={keyError}>
                 <Input id="k-name" value={newKey} onChange={(e) => setNewKey(e.target.value)} placeholder="e.g. Staging" autoFocus aria-invalid={!!keyError} />
@@ -212,6 +255,7 @@ export function IntegrationTab({ project }: { project: Project }) {
           </DialogContent>
         </Dialog>
       )}
+      <SampleRequest flow={flow} />
       {secret && <SecretDialog title={secret.title} secret={secret.value} onClose={() => setSecret(undefined)} />}
     </div>
   )
