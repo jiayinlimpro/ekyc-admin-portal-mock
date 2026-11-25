@@ -351,12 +351,9 @@ export interface Project {
   claimTimeoutSec: number // REQ: DEC-22 / DEC-53 — seconds (entered in minutes); OQ-04
   createdAt: string
   createdBy: string // fullName, or SYSTEM
-  // REQ: DEC-54 — Project Settings › General (blank = the merchant default) and › Integration.
+  // REQ: DEC-54 — Project Settings › General (blank = the merchant default). No redirect URLs, web origins or IP allowlist (DEC-117).
   branding: { primaryColor?: string; logoUrl?: string }
   language?: 'en' | 'ms'
-  redirectUrls: string[]
-  allowedOrigins: string[]
-  ipAllowlist: string[] // IPv4 or CIDR
   decisionReasons: ProjectDecisionReasons // REQ: DEC-106 — Project Settings › Review operations
 }
 

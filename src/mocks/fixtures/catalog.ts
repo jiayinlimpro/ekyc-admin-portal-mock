@@ -82,7 +82,6 @@ const PROJECTS: ProjectSpec[] = [
   {
     projectId: fx('PRJ-0001'), merchantId: fx('MER-0001'), name: 'Default', status: 'ACTIVE', isDefault: true, claimTimeoutSec: 1800, createdDaysAgo: 400, createdBy: 'SYSTEM',
     branding: { primaryColor: '#1D4ED8' }, language: 'en',
-    redirectUrls: ['https://app.atoz.example/kyc/done'], allowedOrigins: ['https://app.atoz.example'], ipAllowlist: ['203.0.113.0/24'],
     // REQ: DEC-106 — the project's own reasons (codes generated when added).
     decisionReasons: {
       disabledSystemCodes: [],

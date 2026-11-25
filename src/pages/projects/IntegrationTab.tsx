@@ -6,7 +6,6 @@ import { ErrorState } from '@/components/common/States'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
-import { Textarea } from '@/components/ui/textarea'
 import type { Project, ProjectApiKey, WebhookEvent } from '@/domain/types'
 import { errorMessage, useLoad } from '@/hooks/useLoad'
 import { formatMyt } from '@/lib/format'
@@ -52,8 +51,6 @@ const SAMPLE_EVENT: WebhookEvent = {
   occurredAt: '2026-11-18T02:15:00.000Z',
 }
 
-const lines = (s: string) => s.split('\n').map((x) => x.trim()).filter(Boolean)
-
 // REQ: DEC-54 / DEC-75 — Manage API keys and webhook (and Super admin).
 export function IntegrationTab({ project }: { project: Project }) {
   const actor = useSession((s) => s.actor)
@@ -62,7 +59,6 @@ export function IntegrationTab({ project }: { project: Project }) {
   const [newKey, setNewKey] = useState<string>()
   const [keyError, setKeyError] = useState<string>()
   const [webhookUrl, setWebhookUrl] = useState<string>()
-  const [lists, setLists] = useState<{ redirectUrls: string; allowedOrigins: string; ipAllowlist: string }>()
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [busy, setBusy] = useState(false)
 
@@ -70,7 +66,6 @@ export function IntegrationTab({ project }: { project: Project }) {
   if (!data.data) return <div className="h-40 animate-pulse rounded-lg bg-muted" aria-busy />
   const d = data.data
   const url = webhookUrl ?? d.webhook?.url ?? ''
-  const l = lists ?? { redirectUrls: d.lists.redirectUrls.join('\n'), allowedOrigins: d.lists.allowedOrigins.join('\n'), ipAllowlist: d.lists.ipAllowlist.join('\n') }
 
   const run = async (fn: () => Promise<void>, failField?: string) => {
     setBusy(true)
@@ -126,13 +121,6 @@ export function IntegrationTab({ project }: { project: Project }) {
       if (r.secret) setSecret({ title: 'Webhook signing secret', value: r.secret })
       else toast.success('Webhook saved')
     }, 'url')
-
-  const saveLists = () =>
-    run(async () => {
-      await integrationService.updateLists(project.projectId, { redirectUrls: lines(l.redirectUrls), allowedOrigins: lines(l.allowedOrigins), ipAllowlist: lines(l.ipAllowlist) }, actor)
-      setLists(undefined)
-      toast.success('Access lists saved')
-    })
 
   return (
     <div className="space-y-4">
@@ -202,23 +190,6 @@ export function IntegrationTab({ project }: { project: Project }) {
               </Button>
             )}
           </div>
-        </div>
-      </Card>
-
-      <Card title="Redirect URLs, web origins and IP allowlist">
-        <div className="grid gap-4 md:grid-cols-3">
-          <FormField id="l-redirect" label="Redirect URLs" hint="One per line, HTTPS. A session’s redirectUrl must match one exactly (DEC-111)." error={errors.redirectUrls}>
-            <Textarea id="l-redirect" rows={4} value={l.redirectUrls} onChange={(e) => setLists({ ...l, redirectUrls: e.target.value })} />
-          </FormField>
-          <FormField id="l-origins" label="Allowed web origins" hint="One per line, https://host[:port]." error={errors.allowedOrigins}>
-            <Textarea id="l-origins" rows={4} value={l.allowedOrigins} onChange={(e) => setLists({ ...l, allowedOrigins: e.target.value })} />
-          </FormField>
-          <FormField id="l-ips" label="IP allowlist" hint="One per line, IPv4 or CIDR. Empty = any." error={errors.ipAllowlist}>
-            <Textarea id="l-ips" rows={4} value={l.ipAllowlist} onChange={(e) => setLists({ ...l, ipAllowlist: e.target.value })} />
-          </FormField>
-        </div>
-        <div className={cn('mt-3', !d.canManage && 'hidden')}>
-          <Button size="sm" disabled={busy} onClick={() => void saveLists()}>Save lists</Button>
         </div>
       </Card>
 

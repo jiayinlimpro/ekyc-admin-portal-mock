@@ -5,8 +5,8 @@
 //   POST   /api-keys/{keyId}/rotate            rotateKey    → 200 { key, secret }
 //   DELETE /api-keys/{keyId}                   revokeKey    → 200 key
 //   PUT    /projects/{id}/webhook              setWebhook   → 200 { webhook, secret? } (secret only when created or regenerated)
-//   PUT    /projects/{id}/access-lists         updateLists  → 200 AccessLists
-import { validateAccessLists, webhookUrlError, type AccessLists } from '@/domain/projectSettings'
+// REQ: DEC-117 — no redirect URLs, web origins or IP allowlist.
+import { webhookUrlError } from '@/domain/projectSettings'
 import type { Actor, ProjectApiKey, ProjectWebhook } from '@/domain/types'
 import { now } from '@/lib/clock'
 import { mockSecret } from '@/mocks/builders'
@@ -14,7 +14,7 @@ import { db } from '@/mocks/mockDb'
 import { requireActive } from './accessGuard'
 import { ServiceError } from './errors'
 import { simulateNetwork, wire } from './network'
-import { auditProject, loadProject, requireInProject, saveSettings, validation } from './projectService'
+import { auditProject, loadProject, requireInProject, validation } from './projectService'
 import { newId } from '@/lib/ids'
 import { mayInProject } from './accessGuard'
 import { apiAccess } from '@/domain/merchantRules'
@@ -25,7 +25,6 @@ export interface Integration {
   canManage: boolean
   keys: ProjectApiKey[] // newest first
   webhook?: ProjectWebhook
-  lists: AccessLists
 }
 
 /** A secret is returned once, on create / rotate / regenerate; afterwards only its hint is shown. */
@@ -40,7 +39,6 @@ export interface IntegrationService {
   rotateKey(keyId: string, actor: Actor): Promise<WithSecret<ProjectApiKey>>
   revokeKey(keyId: string, actor: Actor): Promise<ProjectApiKey>
   setWebhook(projectId: string, input: { url: string; regenerateSecret?: boolean }, actor: Actor): Promise<{ webhook: ProjectWebhook; secret?: string }>
-  updateLists(projectId: string, lists: AccessLists, actor: Actor): Promise<AccessLists>
 }
 
 const hint = (secret: string) => `${secret.slice(0, 8)}…${secret.slice(-4)}`
@@ -70,7 +68,6 @@ export const mockIntegrationService: IntegrationService = {
       canManage: mayInProject(actor, 'manageIntegration', projectId), // REQ: DEC-99 — View is read-only
       keys: s.projectKeys.filter((k) => k.projectId === projectId).sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
       webhook: s.webhooks.find((w) => w.projectId === projectId),
-      lists: { redirectUrls: p.redirectUrls, allowedOrigins: p.allowedOrigins, ipAllowlist: p.ipAllowlist },
     })
   },
 
@@ -147,21 +144,6 @@ export const mockIntegrationService: IntegrationService = {
     db.setState((st) => ({ webhooks: [...st.webhooks.filter((w) => w.projectId !== projectId), webhook] }))
     auditProject(actor, 'WEBHOOK_CHANGED', p, { changes })
     return wire({ webhook, secret })
-  },
-
-  async updateLists(projectId, lists, actor) {
-    await simulateNetwork('update access lists')
-    requireActive(actor)
-    const p = loadIntegration(actor, projectId)
-    const clean: AccessLists = {
-      redirectUrls: lists.redirectUrls.map((v) => v.trim()).filter(Boolean),
-      allowedOrigins: lists.allowedOrigins.map((v) => v.trim().replace(/\/$/, '')).filter(Boolean),
-      ipAllowlist: lists.ipAllowlist.map((v) => v.trim()).filter(Boolean),
-    }
-    const errors = validateAccessLists(clean)
-    if (errors.length) throw validation(errors)
-    const saved = saveSettings(actor, p, clean)
-    return wire({ redirectUrls: saved.redirectUrls, allowedOrigins: saved.allowedOrigins, ipAllowlist: saved.ipAllowlist })
   },
 }
 

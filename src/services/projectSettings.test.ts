@@ -62,10 +62,4 @@ describe('Project Settings › Integration (DEC-54, DEC-75)', () => {
     expect(changed.secret).toBeUndefined()
     expect(await last(['WEBHOOK_CHANGED'])).toMatchObject({ details: { changes: [{ field: 'URL', from: 'https://hooks.atoz.example/sme', to: 'https://hooks.atoz.example/sme-v2' }] } })
   })
-
-  it('Given access lists, then they are cleaned, validated and saved', async () => {
-    const lists = await svc.updateLists(fx('PRJ-0001'), { redirectUrls: [' https://app.atoz.example/kyc/done '], allowedOrigins: ['https://app.atoz.example/'], ipAllowlist: ['203.0.113.0/24', '198.51.100.9'] }, OWNER)
-    expect(lists).toEqual({ redirectUrls: ['https://app.atoz.example/kyc/done'], allowedOrigins: ['https://app.atoz.example'], ipAllowlist: ['203.0.113.0/24', '198.51.100.9'] })
-    await expect(svc.updateLists(fx('PRJ-0001'), { ...lists, ipAllowlist: ['nope'] }, OWNER)).rejects.toMatchObject({ code: 'VALIDATION' })
-  })
 })

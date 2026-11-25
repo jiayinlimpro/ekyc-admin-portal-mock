@@ -30,9 +30,6 @@ const project = (overrides: Partial<Project> = {}): Project => ({
   createdAt: NOW.toISOString(),
   createdBy: 'SYSTEM',
   branding: {},
-  redirectUrls: [],
-  allowedOrigins: [],
-  ipAllowlist: [],
   decisionReasons: { disabledSystemCodes: [], custom: [] },
   ...overrides,
 })
