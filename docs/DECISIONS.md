@@ -19,7 +19,7 @@ Rules changed on 2026-10-20 (Projects & Flows restructure) are marked **(changed
   |---|---|
   | Merchant | Contract, plan, billing · user accounts · portal login security · default branding and language |
   | Project | Members and roles · auto-release claim timeout · branding override, language · data retention (OQ-21) |
-  | Flow | Workflow version (locked once active) · check thresholds · retries allowed, cooldowns (after Rejected, after Unsuccessful) · accepted documents · risk thresholds (W4, W5) · session expiry · **API keys, webhook** (DEC-117) |
+  | Flow | Workflow version (locked once active) · check thresholds · retries allowed, cooldowns (after Rejected, after Unsuccessful) · accepted documents · risk thresholds (W4, W5) · ~~session expiry~~ (set by the platform, DEC-50) · **API keys, webhook** (DEC-117) |
 
   **(changed 2026-11-25, DEC-117)** API keys and the webhook moved from the project to the flow; redirect URLs, allowed web
   origins and the IP allowlist were removed. [PO 2026-11-25]
@@ -369,11 +369,18 @@ Rules changed on 2026-10-20 (Projects & Flows restructure) are marked **(changed
   | Thresholds: similarity, liveness (DEC-19) | ✓ | ✓ | ✓ | ✓ |
   | Retries allowed per phase: Document (OCR), Selfie (W1), Liveness (DEC-108) · cooldown after Rejected, cooldown after Unsuccessful (DEC-26) | ✓ | ✓ | ✓ | ✓ |
   | Accepted documents (MyKad, Passport, Driving License) | ✓ | ✓ | ✓ | ✓ |
-  | Session expiry | ✓ | ✓ | ✓ | ✓ |
+  | ~~Session expiry~~ (removed 2026-11-25: one fixed platform value, see below) | | | | |
   | Risk minimums per category (DEC-107) | | | read-only (fixed) | ✓ |
   | Developer info: flow ID, sample create-session request | ✓ | ✓ | ✓ | ✓ |
   | ~~Requirements: "Email required at session creation"~~ (removed 2026-11-24, DEC-115) | | | | |
   | History: who, when, old and new value | ✓ | ✓ | ✓ | ✓ |
+
+  **(changed 2026-11-25)** [PO 2026-11-25] **Session expiry is not a flow setting:** how long a session link stays valid is
+  one fixed value set by the platform (the workflow backend), like Veriff's fixed session validity; merchants rarely need
+  to tune it. Flow Detail and the case page's "Rules applied" no longer show it. **Accepted documents stay** on the flow:
+  the workflow defines which documents it can read, the flow chooses which ones this merchant accepts (e.g. Foreigner
+  onboarding = Passport only), as Persona templates, Onfido Studio and Veriff allow. It is pushed to the workflow like the
+  thresholds.
   [MS][PO 2026-10-20]
 - **DEC-51** **(changed)** No staged draft/deploy. A Draft flow is edited freely. On an Active flow, Save requires a
   "Reason for change" (min 10 characters), warns that changes apply to new sessions only, and creates a new **configuration
@@ -405,7 +412,9 @@ Rules changed on 2026-10-20 (Projects & Flows restructure) are marked **(changed
   several flows may send to the same URL. A flow with no webhook sends nothing (the merchant can ask the API). [PO 2026-11-25]
 - **DEC-111** **(new)** Calling the API (industry practice; agreed 2026-11-18, PO to confirm):
   - **Authentication:** the merchant's **server** sends the API key's secret on every call over HTTPS:
-    `Authorization: Bearer <secret>`. The Key ID (`key_…`) only names the key on screen and in logs. The secret is never
+    `Authorization: Bearer <secret>`. ~~The Key ID (`key_…`) only names the key on screen and in logs.~~ **(changed
+    2026-11-25, DEC-117)** The key *is* the secret: one value, as at Stripe, Onfido and Persona; people tell keys apart by
+    their name. The internal Key ID (`key_…`) is only for logs and the audit, never shown. The secret is never
     put in an app or web page; the user's browser only gets the session link. Shown once; Rotate / Revoke if it leaks.
   - ~~**Redirect:** `redirectUrl` in create-session is optional; if sent, it must exactly match one of the project's
     Redirect URLs.~~ **(removed 2026-11-25, DEC-117)** There is no redirect: the user always ends on the platform's own
@@ -415,9 +424,13 @@ Rules changed on 2026-10-20 (Projects & Flows restructure) are marked **(changed
     API key: each key belongs to one flow.
   - Test and live keys (sandbox): OQ-36.
 - **DEC-117** **(new)** **API keys and the webhook belong to the flow** [PO 2026-11-25].
-  - Each flow is one connection: its own **API keys** (name, Key ID masked, secret hint, status, created, last used; create /
-    rotate / revoke; the secret is shown once) and its own **webhook** (HTTPS URL, signing secret shown once, events). They
-    are on **Flow Detail › Integration**. Project Settings has no Integration tab (DEC-54).
+  - Each flow is one connection: its own **API keys** and its own **webhook**.
+  - **API keys table** (changed 2026-11-25) [PO 2026-11-25]: **Name · Key · Created (date and by whom) · Last used · ⋯**
+    (Rotate, Revoke). The **Key** is the secret itself, shown in full once (on create and rotate), then masked
+    (`sk_live_…dbf6`). No Key ID column (internal only, DEC-97) and no Status column: a revoked key leaves the list, and
+    the Audit Log keeps its history. (Was: name, Key ID masked, secret hint, status, created, last used.)
+  - The keys and the **webhook** (HTTPS URL, signing secret shown once, events) are on **Flow Detail › Integration**.
+    Project Settings has no Integration tab (DEC-54).
   - **The key picks the flow:** create-session sends only the key (`Authorization: Bearer <secret>`) and the Reference ID;
     no `flowId` (DEC-95). Sessions start only while the flow is Active; keys can be created at any status (e.g. while
     Draft, to build the integration), and Revoke always works.
@@ -839,7 +852,7 @@ Rules changed on 2026-10-20 (Projects & Flows restructure) are marked **(changed
   - Not IDs: secrets (API key value, webhook signing secret, session links) are random tokens stored hashed; workflow
     codes (W1 … W5), statuses and permission keys are fixed values; external IDs (Ballerine, AWS liveness) are stored as given.
   - **Shown on screen** only where people copy or quote them: Flow ID (Flows List and Flow Detail, copy button: merchants
-    send it as `flow_id`), Verification ID (Verifications list, Verification Detail, Billing, Audit Log; copy; in webhooks; DEC-114), API key (masked, `key_…a91f`), webhook event
+    send it as `flow_id`), Verification ID (Verifications list, Verification Detail, Billing, Audit Log; copy; in webhooks; DEC-114), API key (masked: the key itself, `sk_live_…a91f`, never its `key_…` ID, DEC-117), webhook event
     ID (delivery log; not in the mock). Internal screens may show Merchant ID (Merchants) and Project ID (Projects, for
     developers). Users, assignments, invitations, attempts, files and audit events are never shown; audit exports include
     the event ID. Exceptions [PO 2026-10-22]: the Role ID is shown read-only in the Role dialog (DEC-76), and the User ID

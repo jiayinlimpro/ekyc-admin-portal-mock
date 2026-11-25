@@ -16,7 +16,7 @@ Each question is a **parameter**, not a fact. The mock uses the default below. I
 | OQ-12 | Can a reviewer re-claim straight after their own claim times out? | Yes | `claimRules.ts` |
 | OQ-13 | What does the page show if the claim expires while the reviewer is typing? | Buttons disable; save fails with "This case is no longer assigned to you"; typed text is kept | Detail page |
 | OQ-14 | Price per token (by contract tier) | RM 0.50 per liveness submission | `TOKEN_PRICE` |
-| OQ-19 | Default session expiry and accepted documents for a new flow (MS OQ-4) | Required fields with no default on a new flow; seeded flows use 30 min and MyKad + Passport | Flow Detail |
+| OQ-19 | Default session expiry and accepted documents for a new flow (MS OQ-4) | Accepted documents: required, no default on a new flow. Session expiry: no longer a flow setting, one fixed platform value (DEC-50, PO 2026-11-25); its length is for the workflow backend | Flow Detail |
 | OQ-21 | Project data retention period | Not set; shown as a placeholder | Project Settings › General |
 | OQ-24 | Does the claim timeout run from claim time or from the last activity? (FRS TBC) | From claim time | `claimRules.ts` |
 | OQ-25 | How does the engine compute and normalise each risk category to 0–100 (EXIF tag points, ELA and wavelet values, email points, OSINT social score 0–10)? (DEC-107) | The engine returns the four 0–100 scores; the portal shows them as given | `Verification.riskScores` |

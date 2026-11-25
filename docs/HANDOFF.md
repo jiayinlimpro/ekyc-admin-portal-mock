@@ -16,7 +16,7 @@ What the mock gives engineering, and what the real backend must do that a mock c
 - **Identifiers (DEC-97):** every stored record has a prefixed cuid2 ID (`prj_…`, `flw_…`, `vrf_…`, `att_…`, `usr_…`, `rol_…`,
   `asg_…`, `inv_…`, `key_…`, `whk_…`, `wfv_…`, `rev_…`, `file_…`, `evt_…`, `mer_…`); sort lists by created time, never by ID.
   The **Verification ID** (`verificationId`, DEC-114) addresses a case in URLs, the API and webhooks; the **Reference ID**
-  (`referenceId`) is the merchant's own value, stored beside it (OQ-17, OQ-28). Only flow, verification, API key (masked) and webhook event IDs are shown in the UI. The mock makes
+  (`referenceId`) is the merchant's own value, stored beside it (OQ-17, OQ-28). Only flow, verification and webhook event IDs are shown in the UI; an API key shows as the masked key itself, never its `key_…` ID (DEC-117). The mock makes
   cuid2-shaped IDs itself (`src/lib/ids.ts`); use the cuid2 library (or UUIDv7) in the backend. Secrets are random
   tokens stored hashed, never IDs.
 - **Endpoints:** each file in `src/services/` starts with the REST shape it stands in for. Error codes map to HTTP
