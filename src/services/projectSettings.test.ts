@@ -69,6 +69,7 @@ describe('Flow Detail › Integration: API keys and webhook per flow (DEC-117, D
     const rotated = await svc.rotateKey(key.keyId, OWNER)
     expect(rotated.secret).not.toBe(secret)
     expect((await svc.revokeKey(key.keyId, OWNER)).status).toBe('REVOKED')
+    expect((await svc.get(fx('FLW-0001'), OWNER)).keys.map((k) => k.keyId)).not.toContain(key.keyId) // REQ: DEC-117 — a revoked key leaves the list
     await expect(svc.rotateKey(key.keyId, OWNER)).rejects.toMatchObject({ code: 'VALIDATION' })
     const actions = (await auditService.list({ projectId: fx('PRJ-0001'), actions: ['API_KEY_CREATED', 'API_KEY_ROTATED', 'API_KEY_REVOKED'] }, ADMIN)).items.map((e) => e.action)
     expect(actions.reverse().slice(-3)).toEqual(['API_KEY_CREATED', 'API_KEY_ROTATED', 'API_KEY_REVOKED']) // after the seeded rotation

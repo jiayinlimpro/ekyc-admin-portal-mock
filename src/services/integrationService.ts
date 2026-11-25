@@ -23,7 +23,7 @@ export interface Integration {
   /** REQ: DEC-98 — live only when the merchant is Active; Onboarding = sandbox only; Suspended / Terminated = stopped. */
   apiAccess: ReturnType<typeof apiAccess>
   canManage: boolean
-  keys: FlowApiKey[] // newest first
+  keys: FlowApiKey[] // active keys, newest first (DEC-117: a revoked key leaves the list; the Audit Log keeps it)
   webhook?: FlowWebhook
 }
 
@@ -72,7 +72,7 @@ export const mockIntegrationService: IntegrationService = {
     return wire({
       apiAccess: apiAccess(merchant?.status ?? 'ACTIVE'),
       canManage: mayInProject(actor, 'manageIntegration', project.projectId), // REQ: DEC-99 — View is read-only
-      keys: s.apiKeys.filter((k) => k.flowId === flowId).sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
+      keys: s.apiKeys.filter((k) => k.flowId === flowId && k.status === 'ACTIVE').sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
       webhook: s.webhooks.find((w) => w.flowId === flowId),
     })
   },

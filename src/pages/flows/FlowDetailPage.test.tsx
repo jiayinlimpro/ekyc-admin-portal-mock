@@ -167,6 +167,26 @@ describe('Flow Detail › Integration: the flow\'s API keys and webhook (DEC-117
     expect(flow(fx('FLW-0001')).revision).toBe(revision) // REQ: DEC-51 — credentials are not a flow setting
   })
 
+  it('Given the keys table, then Name, Key (masked secret), Created, Last used and one actions menu: no Key ID, no Status', async () => {
+    renderAt(`/flows/${fx('FLW-0001')}`)
+    const keys = await card('API keys')
+    const row = (await keys.findByRole('rowheader', { name: 'Production' })).closest('tr')!
+    expect(keys.getAllByRole('columnheader').map((h) => h.textContent)).toEqual(['Name', 'Key', 'Created', 'Last used', 'Actions'])
+    expect(row.textContent).toMatch(/sk_mock_…[0-9a-f]{4}/)
+    expect(row.textContent).not.toContain('key_')
+    expect(within(row).getByRole('button', { name: 'Actions for Production' })).toBeTruthy()
+  })
+
+  it('Given Revoke from the actions menu, then the key leaves the list (the Audit Log keeps it)', async () => {
+    vi.spyOn(window, 'confirm').mockReturnValue(true)
+    renderAt(`/flows/${fx('FLW-0001')}`)
+    const keys = await card('API keys')
+    fireEvent.click(await keys.findByRole('button', { name: 'Actions for Production' }))
+    fireEvent.click(await screen.findByRole('menuitem', { name: /Revoke/ }))
+    expect(await keys.findByText('No API keys yet. Create one to start sessions on this flow.')).toBeTruthy()
+    expect(db.state().audit.at(-1)).toMatchObject({ action: 'API_KEY_REVOKED', details: { flowName: 'Malaysian onboarding', name: 'Production' } })
+  })
+
   it('Given an http:// webhook, then the field error shows', async () => {
     renderAt(`/flows/${fx('FLW-0001')}`)
     const webhook = await card('Webhook')

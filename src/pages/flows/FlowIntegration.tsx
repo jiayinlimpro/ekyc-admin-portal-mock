@@ -1,10 +1,11 @@
 import { useState, type FormEvent } from 'react'
-import { Copy, KeyRound, Plus, RefreshCw, Trash2 } from 'lucide-react'
+import { Copy, KeyRound, MoreVertical, Plus, RefreshCw, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { FormField } from '@/components/common/FormField'
 import { ErrorState } from '@/components/common/States'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
 import { CopyId } from '@/components/common/CopyId'
 import type { Flow, FlowApiKey, WebhookEvent } from '@/domain/types'
@@ -37,9 +38,6 @@ function SecretDialog({ title, secret, onClose }: { title: string; secret: strin
     </Dialog>
   )
 }
-
-/** REQ: DEC-97 — an API key's ID is shown masked: key_…a91f. */
-const maskId = (id: string) => `${id.slice(0, id.indexOf('_') + 1)}…${id.slice(-4)}`
 
 // Typed, so the sample follows the contract in types.ts.
 const SAMPLE_EVENT: WebhookEvent = {
@@ -187,7 +185,8 @@ function IntegrationCards({ flow }: { flow: Flow }) {
           <table className="w-full text-sm">
             <thead className="bg-muted/50 text-left text-xs text-muted-foreground">
               <tr>
-                {['Name', 'Key ID', 'Secret', 'Status', 'Created', 'Last used'].map((h) => (
+                {/* REQ: DEC-117 — the key is its own secret: one masked value, no Key ID (DEC-97) and no Status (revoked keys leave the list). */}
+                {['Name', 'Key', 'Created', 'Last used'].map((h) => (
                   <th key={h} scope="col" className="px-4 py-2 font-medium">{h}</th>
                 ))}
                 <th scope="col" className="px-4 py-2"><span className="sr-only">Actions</span></th>
@@ -197,21 +196,38 @@ function IntegrationCards({ flow }: { flow: Flow }) {
               {d.keys.map((k) => (
                 <tr key={k.keyId} className="border-t">
                   <th scope="row" className="px-4 py-2 text-left font-medium">{k.name}</th>
-                  <td className="px-4 py-2 font-mono text-xs" title="Key ID, masked (DEC-97)">{maskId(k.keyId)}</td>
-                  <td className="px-4 py-2 font-mono text-xs">{k.secretHint}</td>
-                  <td className="px-4 py-2">{k.status === 'ACTIVE' ? 'Active' : `Revoked ${formatMyt(k.revokedAt!).split(', ')[0]}`}</td>
+                  <td className="px-4 py-2 font-mono text-xs" title="Shown in full once, when created or rotated">{k.secretHint}</td>
                   <td className="px-4 py-2 whitespace-nowrap">{formatMyt(k.createdAt).split(', ')[0]}<div className="text-xs text-muted-foreground">{k.createdBy}</div></td>
                   <td className="px-4 py-2 whitespace-nowrap">{k.lastUsedAt ? `${formatMyt(k.lastUsedAt)} MYT` : '—'}</td>
                   <td className="px-2 py-2 text-right whitespace-nowrap">
-                    {d.canManage && k.status === 'ACTIVE' && (
-                      <>
-                        <Button variant="ghost" size="icon-sm" aria-label={`Rotate ${k.name}`} title="Rotate" disabled={busy} onClick={() => rotate(k)}><RefreshCw aria-hidden /></Button>
-                        <Button variant="ghost" size="icon-sm" aria-label={`Revoke ${k.name}`} title="Revoke" disabled={busy} onClick={() => revoke(k)}><Trash2 aria-hidden /></Button>
-                      </>
+                    {/* REQ: DEC-78 / DEC-117 — one actions menu per row, as on Flows and the Workflow Registry. */}
+                    {d.canManage && (
+                      <DropdownMenu>
+                        <DropdownMenuTrigger
+                          render={
+                            <Button variant="ghost" size="icon-sm" aria-label={`Actions for ${k.name}`} disabled={busy}>
+                              <MoreVertical aria-hidden />
+                            </Button>
+                          }
+                        />
+                        <DropdownMenuContent align="end" className="w-44">
+                          <DropdownMenuItem onClick={() => rotate(k)}>
+                            <RefreshCw aria-hidden /> Rotate
+                          </DropdownMenuItem>
+                          <DropdownMenuItem variant="destructive" onClick={() => revoke(k)}>
+                            <Trash2 aria-hidden /> Revoke
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     )}
                   </td>
                 </tr>
               ))}
+              {d.keys.length === 0 && (
+                <tr className="border-t">
+                  <td colSpan={5} className="px-4 py-3 text-sm text-muted-foreground">No API keys yet. Create one to start sessions on this flow.</td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
