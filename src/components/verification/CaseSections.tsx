@@ -207,7 +207,6 @@ export function RulesAppliedSection({ v }: { v: VerificationDetail }) {
           ['Cooldown after Rejected', r.cooldownMin > 0 ? `${r.cooldownMin} min` : 'None'],
           ['Cooldown after Unsuccessful', r.unsuccessfulCooldownMin > 0 ? `${r.unsuccessfulCooldownMin} min` : 'None'],
           ['Accepted documents', r.acceptedDocuments.map((d) => DOCUMENT_TYPE_LABELS[d]).join(', ')],
-          ['Session expiry', Number.isFinite(r.sessionExpiryMin) ? `${r.sessionExpiryMin} min` : undefined],
           ...(r.risk ? ([['Risk minimums', r.risk.enabled ? RISK_CATEGORIES.map((c) => `${RISK_CATEGORY_LABELS[c].replace(' Score', '')} ${r.risk!.minimums[c]}`).join(' · ') : 'Off']] as [string, string][]) : []),
         ]}
       />

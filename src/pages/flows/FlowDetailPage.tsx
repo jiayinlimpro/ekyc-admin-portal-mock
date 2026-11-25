@@ -37,7 +37,6 @@ const FIELD_LABELS: Record<string, string> = {
   ...Object.fromEntries(RETRY_PHASES.map((p) => [`retries.${p}`, `${RETRY_PHASE_LABELS[p]} retries allowed`])),
   cooldownMin: 'Cooldown after Rejected (min)',
   unsuccessfulCooldownMin: 'Cooldown after Unsuccessful (min)',
-  sessionExpiryMin: 'Session expiry (min)',
   acceptedDocuments: 'Accepted documents',
   'risk.enabled': 'Risk assessment on',
   ...Object.fromEntries(RISK_CATEGORIES.map((c) => [`risk.minimums.${c}`, `${RISK_CATEGORY_LABELS[c]} minimum`])),
@@ -127,14 +126,11 @@ function Editor({ detail, onSaved }: { detail: FlowDetail; onSaved: () => void }
         </fieldset>
       </Card>
 
-      <Card title="Session">
-        <fieldset disabled={!editable} className="grid gap-4 sm:grid-cols-2">
-          <legend className="sr-only">Session</legend>
-          <FormField id="fl-expiry" label={<span className="flex items-center gap-2">Session expiry (min) <OpenQuestionTag id="OQ-19" /></span>} error={errors.sessionExpiryMin}>
-            <Input id="fl-expiry" type="number" min={1} step={1} value={shown(s.sessionExpiryMin)} onChange={(e) => set({ sessionExpiryMin: numberOrNaN(e.target.value) })} aria-invalid={!!errors.sessionExpiryMin} />
-          </FormField>
+      {/* REQ: DEC-50 — the documents this flow accepts, pushed to the workflow. No session expiry: a platform value (2026-11-25). */}
+      <Card title="Accepted documents" aside={<OpenQuestionTag id="OQ-19" />}>
+        <fieldset disabled={!editable}>
           <fieldset aria-describedby={errors.acceptedDocuments ? 'fl-docs-error' : undefined}>
-            <legend className="mb-1 text-xs font-medium text-muted-foreground">Accepted documents</legend>
+            <legend className="mb-1 text-sm text-muted-foreground">Which documents users of this flow can scan. The workflow reads them; at least one.</legend>
             {DOCUMENTS.map((d) => (
               <label key={d} className="flex items-center gap-2 py-0.5 text-sm">
                 <input

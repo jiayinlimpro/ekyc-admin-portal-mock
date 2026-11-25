@@ -48,7 +48,6 @@ const flow = (overrides: Partial<Flow> = {}): Flow => ({
     cooldownMin: 0,
     unsuccessfulCooldownMin: 0,
     acceptedDocuments: ['PASSPORT'],
-    sessionExpiryMin: 30,
     risk: { enabled: true, minimums: { EXIF: 50, NOISE: 50, EMAIL_VALIDITY: 50, OSINT: 50 } },
   },
   revision: 3,

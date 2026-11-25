@@ -416,8 +416,7 @@ export interface FlowSettings {
   retries: Record<RetryPhase, number> // REQ: DEC-108 — retries after the first submission, per phase (Selfie: W1 only)
   cooldownMin: number // REQ: DEC-26 — Cooldown after Rejected (min)
   unsuccessfulCooldownMin: number // REQ: DEC-26 / DEC-112 — Cooldown after Unsuccessful (min), whichever phase failed
-  acceptedDocuments: DocumentType[]
-  sessionExpiryMin: number
+  acceptedDocuments: DocumentType[] // REQ: DEC-50 — pushed to the workflow. No session expiry: a fixed platform value (2026-11-25)
   risk?: RiskConfig // W4 / W5 (DEC-107)
 }
 

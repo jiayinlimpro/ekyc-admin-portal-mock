@@ -8,7 +8,7 @@ const OWNER = { userId: fx('USR-2026-0002'), fullName: 'Tan Mei Ling' }
 const W4: Pick<RegistryEntry, 'code' | 'phases' | 'configurableChecks'> = { code: 'W4', phases: ['ID_CAPTURE', 'LIVENESS_CHECK', 'RISK_ASSESSMENT'], configurableChecks: ['FACE_MATCH', 'LIVENESS'] }
 const W1: typeof W4 = { code: 'W1', phases: ['ID_CAPTURE', 'SELFIE_CAPTURE', 'LIVENESS_CHECK'], configurableChecks: ['FACE_MATCH', 'LIVENESS'] }
 
-const complete = (s: FlowSettings): FlowSettings => ({ ...s, acceptedDocuments: ['MYKAD'], sessionExpiryMin: 30 })
+const complete = (s: FlowSettings): FlowSettings => ({ ...s, acceptedDocuments: ['MYKAD'] })
 const draft = () => createFlow({ flowId: fx('FLW-0009'), project: { projectId: fx('PRJ-0001'), merchantId: fx('MER-0001') } }, { name: ' Malaysian onboarding ', description: '' }, W4, NOW, OWNER)
 const active = (): Flow => ({ ...draft(), status: 'ACTIVE', revision: 2, settings: complete(draft().settings) })
 const fields = (e: { field: string }[]) => e.map((x) => x.field)
@@ -25,8 +25,9 @@ describe('new flow (DEC-50, OQ-19)', () => {
     expect(newFlowSettings(W1).risk).toBeUndefined()
   })
 
-  it('Given session expiry and accepted documents are open questions, then they start empty and are required', () => {
-    expect(fields(validateFlow(draft(), W4))).toEqual(['sessionExpiryMin', 'acceptedDocuments'])
+  it('Given accepted documents is an open question (OQ-19), then it starts empty and is required; session expiry is not a flow setting (DEC-50)', () => {
+    expect(fields(validateFlow(draft(), W4))).toEqual(['acceptedDocuments'])
+    expect(draft().settings).not.toHaveProperty('sessionExpiryMin')
   })
 })
 
@@ -55,7 +56,7 @@ describe('validation (DEC-53)', () => {
 describe('risk minimums (DEC-107)', () => {
   const ready = (minimums: RiskScores): Pick<Flow, 'name' | 'settings'> => ({
     name: 'x',
-    settings: { ...newFlowSettings(W4), acceptedDocuments: ['MYKAD'], sessionExpiryMin: 30, risk: { enabled: true, minimums } },
+    settings: { ...newFlowSettings(W4), acceptedDocuments: ['MYKAD'], risk: { enabled: true, minimums } },
   })
   const custom = { EXIF: 40, NOISE: 60, EMAIL_VALIDITY: 50, OSINT: 30 }
 

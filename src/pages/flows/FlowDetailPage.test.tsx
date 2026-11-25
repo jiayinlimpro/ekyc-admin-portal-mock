@@ -113,13 +113,15 @@ describe('Flow Detail (DEC-18, DEC-19, DEC-50, DEC-51)', () => {
     expect(await admin.findByText('Auto-Reject threshold must be lower than Auto-Pass threshold')).toBeTruthy()
   })
 
-  it('Given the Draft "Tourist onboarding", then Activate is refused until session expiry is set; then it activates as W4-R1', async () => {
+  it('Given the Draft "Tourist onboarding", then Activate is refused until an accepted document is chosen; then it activates as W4-R1; no session expiry field (DEC-50)', async () => {
     renderAt(`/flows/${fx('FLW-0003')}`)
+    expect(await card('Accepted documents')).toBeTruthy()
+    expect(screen.queryByLabelText(/Session expiry/)).toBeNull()
     fireEvent.click(await screen.findByRole('button', { name: 'Activate' }))
     await waitFor(() => expect(flow(fx('FLW-0003')).status).toBe('DRAFT'))
-    fireEvent.change(screen.getByLabelText(/Session expiry/), { target: { value: '30' } })
+    fireEvent.click(screen.getByLabelText('Passport'))
     fireEvent.click(screen.getByRole('button', { name: 'Save draft' }))
-    await waitFor(() => expect(flow(fx('FLW-0003')).settings.sessionExpiryMin).toBe(30))
+    await waitFor(() => expect(flow(fx('FLW-0003')).settings.acceptedDocuments).toEqual(['PASSPORT']))
     fireEvent.click(await screen.findByRole('button', { name: 'Activate' }))
     await waitFor(() => expect(flow(fx('FLW-0003'))).toMatchObject({ status: 'ACTIVE', revision: 1 }))
   })

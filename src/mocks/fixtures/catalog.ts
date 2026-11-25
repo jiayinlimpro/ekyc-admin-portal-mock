@@ -59,7 +59,7 @@ interface FlowSpec {
 
 const preset = (p: 'LOW' | 'STANDARD' | 'HIGH'): ThresholdChoice => ({ preset: p })
 
-function settings(o: { fm?: ThresholdChoice; l?: ThresholdChoice; retries?: number; cooldownMin?: number; unsuccessfulCooldownMin?: number; docs?: DocumentType[]; expiry?: number; risk?: boolean | RiskScores }): FlowSettings {
+function settings(o: { fm?: ThresholdChoice; l?: ThresholdChoice; retries?: number; cooldownMin?: number; unsuccessfulCooldownMin?: number; docs?: DocumentType[]; risk?: boolean | RiskScores }): FlowSettings {
   const r = o.retries ?? 3
   return {
     checks: { FACE_MATCH: { threshold: o.fm ?? preset('STANDARD') }, LIVENESS: { threshold: o.l ?? preset('STANDARD') } },
@@ -67,7 +67,6 @@ function settings(o: { fm?: ThresholdChoice; l?: ThresholdChoice; retries?: numb
     cooldownMin: o.cooldownMin ?? 0,
     unsuccessfulCooldownMin: o.unsuccessfulCooldownMin ?? 0, // REQ: DEC-26 / DEC-112
     acceptedDocuments: o.docs ?? ['MYKAD'],
-    sessionExpiryMin: o.expiry ?? 30,
     risk: o.risk ? { enabled: true, minimums: o.risk === true ? { ...DEFAULT_RISK_MINIMUMS } : o.risk } : undefined, // REQ: DEC-107
   }
 }
@@ -123,11 +122,11 @@ const FLOWS: FlowSpec[] = [
   },
   {
     flowId: fx('FLW-0003'), projectId: fx('PRJ-0001'), name: 'Tourist onboarding', description: 'Short-stay visitors (draft)', version: 'W4', status: 'DRAFT', createdDaysAgo: 3,
-    revisions: [], draftSettings: { ...newFlowSettings({ phases: ['ID_CAPTURE', 'LIVENESS_CHECK', 'RISK_ASSESSMENT'] }), acceptedDocuments: ['PASSPORT'] },
+    revisions: [], draftSettings: newFlowSettings({ phases: ['ID_CAPTURE', 'LIVENESS_CHECK', 'RISK_ASSESSMENT'] }),
   },
   {
     flowId: fx('FLW-0004'), projectId: fx('PRJ-0002'), name: 'SME director check', description: 'Directors of SME customers', version: 'W3', status: 'ACTIVE', createdDaysAgo: 60,
-    revisions: [{ hoursAgo: 60 * 24, by: OWNER_ATOZ, reason: 'Flow activated', settings: settings({ retries: 2, docs: ['MYKAD', 'PASSPORT'], expiry: 60 }) }],
+    revisions: [{ hoursAgo: 60 * 24, by: OWNER_ATOZ, reason: 'Flow activated', settings: settings({ retries: 2, docs: ['MYKAD', 'PASSPORT'] }) }],
   },
   {
     flowId: fx('FLW-0005'), projectId: fx('PRJ-0003'), name: 'Standard onboarding', description: 'All Vantage customers', version: 'W1', status: 'ACTIVE', createdDaysAgo: 400,

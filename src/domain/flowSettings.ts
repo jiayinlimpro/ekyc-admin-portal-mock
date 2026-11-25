@@ -7,8 +7,8 @@ import { CHECKS, RETRY_PHASE_LABELS, RETRY_PHASES, RISK_CATEGORIES, RISK_CATEGOR
 type By = Flow['updatedBy']
 
 /**
- * A new flow starts on Standard with the default retries and cooldown. Session expiry and accepted documents have no
- * default: they are required fields until OQ-19 is answered.
+ * A new flow starts on Standard with the default retries and cooldown. Accepted documents have no default: required until
+ * OQ-19 is answered. Session expiry is not a flow setting (DEC-50, 2026-11-25).
  */
 /**
  * REQ: DEC-115 / DEC-107 — a version's definition can gain a RISK step after its flows were made: such a flow has no risk
@@ -26,7 +26,6 @@ export function newFlowSettings(entry: Pick<RegistryEntry, 'phases'>): FlowSetti
     cooldownMin: DEFAULT_COOLDOWN_MIN,
     unsuccessfulCooldownMin: DEFAULT_COOLDOWN_MIN, // REQ: DEC-26 / DEC-112
     acceptedDocuments: [],
-    sessionExpiryMin: Number.NaN,
     risk: hasRisk(entry) ? { enabled: true, minimums: { ...DEFAULT_RISK_MINIMUMS } } : undefined, // REQ: DEC-107
   }
 }
@@ -86,8 +85,6 @@ export function validateFlow(flow: Pick<Flow, 'name' | 'settings'>, entry: Pick<
     if (!Number.isFinite(s[field])) errors.push({ field, message: `${label} is required. Enter 0 for no cooldown` })
     else if (!whole(s[field], 0)) errors.push({ field, message: `${label} must be a whole number of minutes, 0 or more` })
   }
-  if (!Number.isFinite(s.sessionExpiryMin)) errors.push({ field: 'sessionExpiryMin', message: 'Session expiry is required' })
-  else if (!whole(s.sessionExpiryMin, 1)) errors.push({ field: 'sessionExpiryMin', message: 'Session expiry must be a whole number of minutes, at least 1' })
   if (s.acceptedDocuments.length === 0) errors.push({ field: 'acceptedDocuments', message: 'Select at least one accepted document' })
   if (hasRisk(entry) && !s.risk) errors.push({ field: 'risk', message: 'Risk settings are required for this workflow version' })
   // REQ: DEC-107 — one minimum per category, 0–100; only versions with "Risk minimums set per flow" (W5) may change them.
@@ -141,7 +138,6 @@ export function diffFlow(base: Pick<Flow, 'name' | 'description' | 'settings'>, 
   for (const p of RETRY_PHASES) push(`retries.${p}`, show.num(base.settings.retries[p]), show.num(next.settings.retries[p]))
   push('cooldownMin', show.num(base.settings.cooldownMin), show.num(next.settings.cooldownMin))
   push('unsuccessfulCooldownMin', show.num(base.settings.unsuccessfulCooldownMin), show.num(next.settings.unsuccessfulCooldownMin))
-  push('sessionExpiryMin', show.num(base.settings.sessionExpiryMin), show.num(next.settings.sessionExpiryMin))
   push('acceptedDocuments', show.docs(base.settings.acceptedDocuments), show.docs(next.settings.acceptedDocuments))
   push('risk.enabled', String(base.settings.risk?.enabled ?? '—'), String(next.settings.risk?.enabled ?? '—'))
   for (const c of RISK_CATEGORIES) push(`risk.minimums.${c}`, show.num(base.settings.risk?.minimums[c] ?? Number.NaN), show.num(next.settings.risk?.minimums[c] ?? Number.NaN))

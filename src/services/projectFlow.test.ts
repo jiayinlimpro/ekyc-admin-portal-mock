@@ -136,7 +136,7 @@ describe('flowService settings and lifecycle (DEC-51 … DEC-53, DEC-94)', () =>
   it('Given a new Draft, then it saves freely, activates only when complete, and the first activation records R1', async () => {
     const f = await flowService.create(fx('PRJ-0001'), { name: 'Students', description: '', workflowVersion: 'W4' }, OWNER)
     await expectError(flowService.activate(f.flowId, OWNER), 'VALIDATION')
-    await flowService.save(f.flowId, { name: f.name, description: 'University sign-ups', settings: { ...f.settings, sessionExpiryMin: 30, acceptedDocuments: ['MYKAD'] } }, '', OWNER)
+    await flowService.save(f.flowId, { name: f.name, description: 'University sign-ups', settings: { ...f.settings, acceptedDocuments: ['MYKAD'] } }, '', OWNER)
     const active = await flowService.activate(f.flowId, OWNER)
     expect(active).toMatchObject({ status: 'ACTIVE', revision: 1 })
     expect((await flowService.get(f.flowId, OWNER)).revisions).toMatchObject([{ revision: 1, reason: 'Activated' }])
