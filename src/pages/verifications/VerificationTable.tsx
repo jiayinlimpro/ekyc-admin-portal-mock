@@ -118,11 +118,11 @@ export function VerificationTable({
   const all: Cell[] = [
     // REQ: DEC-114 — the merchant's Reference ID in its own column, after our Verification ID; not sortable (DEC-100).
     ['Reference ID', (r) => <span className="font-mono text-xs whitespace-nowrap">{r.referenceId}</span>],
-    ['Full Name', (r) => <span className="block min-w-28">{r.fullName}</span>],
+    ['Full Name', (r) => <span className="block max-w-28 text-xs">{r.fullName}</span>],
     ['Project', (r) => <TwoLines top={r.projectName} sub={showMerchant ? r.merchantName : undefined} />, showProject || showMerchant],
     // REQ: DEC-40 — the workflow and the document type share the Flow cell's second line ("W4 · MyKad").
-    // A long flow name wraps (like Full Name) so the list fits 1440 px (DEC-40).
-    ['Flow', (r) => <TwoLines top={<span className="block max-w-32 whitespace-normal">{r.flowName}</span>} sub={`${r.workflowVersion} · ${DOCUMENT_TYPE_LABELS[r.documentType]}`} />],
+    // The flow name gets room for one line; Full Name is smaller and wraps instead, so the list fits 1440 px (DEC-40).
+    ['Flow', (r) => <TwoLines top={<span className="block min-w-36 max-w-44 whitespace-normal">{r.flowName}</span>} sub={`${r.workflowVersion} · ${DOCUMENT_TYPE_LABELS[r.documentType]}`} />],
     ['Status', (r) => <StatusBadge status={r.status} />],
     ['Risk', (r) => <RiskBadge result={r.riskResult} />, showRisk],
     ['Claimed By', (r) => <ClaimedByCell row={r} now={now} currentUserId={currentUserId} />],
