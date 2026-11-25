@@ -327,6 +327,10 @@ Rules changed on 2026-10-20 (Projects & Flows restructure) are marked **(changed
   - **Row 1, three columns:** (1) **Evidence**: the document front and the face that was matched (selfie for W1, the
     liveness face for W3/W4/W5) side by side, with the similarity badge; (2) **Extracted data (OCR)**, titled with the
     document type (email for W4/W5); (3) **Checks and telemetry** and **Risk**.
+    **(changed 2026-11-25)** [PO 2026-11-25] **A fixed structure:** row 1 **Evidence | Extracted data**, row 2 **Checks**
+    and **Risk** at full width, then the rest as below. On desktop the columns follow the screen, not the space beside the
+    sidebar, so collapsing or expanding the sidebar only widens the columns: no section moves (it used to switch to three
+    columns, with Checks beside the other two, when the sidebar collapsed). Narrow screens: one column.
   - **Decision panel:** sticky on the right on wide screens; full width under the content on narrow screens. Buttons
     "Confirm Manual Pass" and "Reject" (DEC-30); never "Maintain Automated Rejection".
   - **Below the fold:** Attempts (each attempt's scores, metrics and images), Rules applied. **No Activity section**

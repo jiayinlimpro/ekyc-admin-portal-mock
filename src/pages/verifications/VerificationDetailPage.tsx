@@ -236,12 +236,13 @@ export function VerificationDetailPage() {
       <ReasonBanner v={v} />
 
       <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_340px]">
-        {/* REQ: DEC-105 — row 1: evidence | extracted data | checks and risk (columns follow the space available). */}
-        <div className="@container min-w-0 space-y-4">
-          <div className="grid items-start gap-4 @2xl:grid-cols-2 @4xl:grid-cols-3">
+        {/* REQ: DEC-105 — a fixed structure on desktop, whatever the sidebar does (columns follow the screen, not the space
+            left beside the sidebar, so nothing moves when it collapses): row 1 evidence | extracted data; row 2 checks and risk. */}
+        <div className="min-w-0 space-y-4">
+          <div className="grid items-start gap-4 lg:grid-cols-2">
             <EvidenceSection v={v} />
             <PiiSection v={v} />
-            <div className="space-y-4 @2xl:col-span-2 @4xl:col-span-1">
+            <div className="space-y-4 lg:col-span-2">
               <ChecksSection v={v} />
               <RiskSection v={v} />
             </div>
