@@ -96,7 +96,7 @@ function Editor({ detail, onSaved }: { detail: FlowDetail; onSaved: () => void }
           <FormField id="fl-version" label="Workflow version" hint={flow.revision > 0 ? 'Locked once the flow has been active. To change it, create a new flow.' : 'To use another version, create a new flow.'}>
             <Input id="fl-version" value={`${entry.code} — ${entry.name}`} readOnly />
           </FormField>
-          <FormField id="fl-desc" label="Who this flow is for" className="sm:col-span-2">
+          <FormField id="fl-desc" label="Description" className="sm:col-span-2">
             <Textarea id="fl-desc" rows={2} value={draft.description} onChange={(e) => setDraft({ ...draft, description: e.target.value })} />
           </FormField>
         </fieldset>

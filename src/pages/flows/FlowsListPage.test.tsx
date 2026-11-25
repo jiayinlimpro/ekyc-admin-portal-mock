@@ -47,6 +47,7 @@ describe('Flows List (DEC-94)', () => {
     renderAt('/flows')
     const items = await menu('Malaysian onboarding')
     expect(items.map((m) => m.textContent)).not.toContain('Set as default')
+    expect(items.map((m) => m.textContent)).not.toContain('Open') // the flow name opens it
     fireEvent.click(items.find((m) => m.textContent === 'Retire')!)
     expect(await screen.findByText(/New sessions with its API keys are refused/)).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: 'Retire flow' }))

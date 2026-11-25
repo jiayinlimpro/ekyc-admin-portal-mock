@@ -4,42 +4,62 @@ import { THRESHOLD_PRESETS } from '@/domain/openQuestions'
 import { bandSegments, describeBands, PRESET_LABELS, resolveThreshold, RETRY_NOTE, type Band } from '@/domain/thresholds'
 import { PHASE_LABELS, THRESHOLD_PRESETS_ORDER, type Check, type CheckSettings, type ThresholdChoice } from '@/domain/types'
 import { cn } from '@/lib/utils'
+import { labelPositions } from './bandLabels'
 
 const BAND_STYLE: Record<Band, { bar: string; label: string }> = {
-  REJECT: { bar: 'bg-red-500/80', label: 'Reject' },
-  REVIEW: { bar: 'bg-amber-400/90', label: 'Review' },
-  APPROVE: { bar: 'bg-green-600/80', label: 'Approve' },
+  REJECT: { bar: 'bg-red-500', label: 'Reject' },
+  REVIEW: { bar: 'bg-amber-400', label: 'Review' },
+  APPROVE: { bar: 'bg-green-600', label: 'Approve' },
 }
 
-/** REQ: DEC-19 — 0–100 bar of the Reject / Review / Approve bands; it follows the chosen preset or custom values. */
+const bandText = (band: Band, t: { autoReject: number; autoPass: number }) =>
+  band === 'REJECT' ? `below ${t.autoReject}` : band === 'REVIEW' ? `${t.autoReject} to ${t.autoPass}` : `${t.autoPass} and above`
+
+/**
+ * REQ: DEC-19 — 0–100 bar of the Reject / Review / Approve bands; it follows the chosen preset or custom values.
+ * No text inside the bar (a band can be a sliver); the two thresholds are marked under it, and a legend states each band's
+ * range in ink, so identity never relies on colour alone.
+ */
 export function BandBar({ check, choice }: { check: Check; choice: ThresholdChoice }) {
   const t = resolveThreshold(check, choice)
   const valid = Number.isFinite(t.autoReject) && Number.isFinite(t.autoPass) && t.autoReject < t.autoPass
+  const [rejectAt, passAt] = valid ? labelPositions(t.autoReject, t.autoPass) : [0, 0]
   return (
-    <figure className="space-y-1">
-      <div className="flex h-6 w-full overflow-hidden rounded-md border" role="img" aria-label={valid ? describeBands(t) : 'Bands not valid yet'}>
-        {valid &&
-          bandSegments(t).map((s) => (
-            <div key={s.band} className={cn('flex items-center justify-center text-[11px] font-medium text-white', BAND_STYLE[s.band].bar)} style={{ width: `${s.to - s.from}%` }}>
-              {s.to - s.from >= 8 ? BAND_STYLE[s.band].label : ''}
-            </div>
-          ))}
+    <figure className="space-y-1.5">
+      <div className="flex h-3 w-full gap-0.5" role="img" aria-label={valid ? describeBands(t) : 'Bands not valid yet'}>
+        {valid ? (
+          bandSegments(t).map((s) => <div key={s.band} className={cn('h-full first:rounded-l-full last:rounded-r-full', BAND_STYLE[s.band].bar)} style={{ width: `${s.to - s.from}%` }} />)
+        ) : (
+          <div className="h-full w-full rounded-full bg-muted" />
+        )}
       </div>
-      <div className="relative h-4 text-[11px] text-muted-foreground tabular-nums" aria-hidden>
-        <span className="absolute left-0">0</span>
+      <div className="relative h-4 text-xs tabular-nums" aria-hidden>
+        {(!valid || rejectAt > 7) && <span className="absolute left-0 text-muted-foreground">0</span>}
         {valid && (
           <>
-            <span className="absolute -translate-x-1/2" style={{ left: `${t.autoReject}%` }}>
+            <span className="absolute -translate-x-1/2 font-medium" style={{ left: `${rejectAt}%` }}>
               {t.autoReject}
             </span>
-            <span className="absolute -translate-x-1/2" style={{ left: `${t.autoPass}%` }}>
+            <span className="absolute -translate-x-1/2 font-medium" style={{ left: `${passAt}%` }}>
               {t.autoPass}
             </span>
           </>
         )}
-        <span className="absolute right-0">100</span>
+        {(!valid || passAt < 93) && <span className="absolute right-0 text-muted-foreground">100</span>}
       </div>
-      <figcaption className="text-xs text-muted-foreground">{valid ? describeBands(t) : 'Auto-Reject must be lower than Auto-Pass.'}</figcaption>
+      {valid ? (
+        <ul className="flex flex-wrap gap-x-4 gap-y-1 text-xs" aria-hidden>
+          {(['REJECT', 'REVIEW', 'APPROVE'] as const).map((b) => (
+            <li key={b} className="flex items-center gap-1.5">
+              <span className={cn('size-2.5 rounded-sm', BAND_STYLE[b].bar)} />
+              <span className="font-medium">{BAND_STYLE[b].label}</span>
+              <span className="text-muted-foreground tabular-nums">{bandText(b, t)}</span>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="text-xs text-muted-foreground">Auto-Reject must be lower than Auto-Pass.</p>
+      )}
     </figure>
   )
 }

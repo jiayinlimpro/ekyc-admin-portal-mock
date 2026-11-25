@@ -44,6 +44,17 @@ describe('Flow Detail (DEC-18, DEC-19, DEC-50, DEC-51)', () => {
     expect(liveness.queryByRole('radio', { name: /Advanced/ })).toBeNull() // Owner: no Advanced
   })
 
+  it('Given the band bar, then a legend states each band and its range in text, and the General card says Description', async () => {
+    renderAt(`/flows/${fx('FLW-0001')}`)
+    const face = await card('Face match')
+    fireEvent.click(face.getByRole('radio', { name: /High/ }))
+    expect(face.getByText('below 90')).toBeTruthy()
+    expect(face.getByText('90 to 97')).toBeTruthy()
+    expect(face.getByText('97 and above')).toBeTruthy()
+    expect(screen.getByLabelText('Description')).toBeTruthy()
+    expect(screen.queryByText('Who this flow is for')).toBeNull()
+  })
+
   it('Given an Active flow, then Save needs a reason; with one it creates W4-R3 for new sessions (DEC-51)', async () => {
     renderAt(`/flows/${fx('FLW-0001')}`)
     fireEvent.click((await card('Face match')).getByRole('radio', { name: /Low/ }))

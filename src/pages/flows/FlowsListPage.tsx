@@ -72,7 +72,7 @@ function NewFlowDialog({ project, onClose }: { project: MyProject; onClose: () =
           <FormField id="nf-name" label="Flow name">
             <Input id="nf-name" value={name} onChange={(e) => setName(e.target.value)} autoFocus />
           </FormField>
-          <FormField id="nf-desc" label="Who this flow is for">
+          <FormField id="nf-desc" label="Description">
             <Textarea id="nf-desc" rows={2} value={description} onChange={(e) => setDescription(e.target.value)} />
           </FormField>
           <FormField id="nf-version" label="Workflow version" hint={entry ? `${entry.name}: ${stepsText(entry.phases)}` : 'Only Active versions can be chosen.'}>
@@ -111,7 +111,6 @@ function Flows({ project }: { project: MyProject }) {
   // REQ: DEC-102 — Create (and Duplicate) and Activate / retire are separate permissions.
   const canCreate = !!account && canInProject(account, 'createFlows', project)
   const canActivate = !!account && canInProject(account, 'activateFlows', project)
-  const navigate = useNavigate()
   const rows = useLoad(() => flowService.listRows(project.projectId, actor), [project.projectId, actor.userId])
   const [creating, setCreating] = useState(false)
   const [retiring, setRetiring] = useState<FlowRow>()
@@ -190,6 +189,8 @@ function Flows({ project }: { project: MyProject }) {
                   <div className="text-xs text-muted-foreground">{f.updatedBy.fullName}</div>
                 </td>
                 <td className="px-2 py-2 text-right">
+                  {/* REQ: DEC-78 — no Open item (the flow name opens it); no menu at all when nothing in it is allowed. */}
+                  {(canCreate || canActivate) && (
                   <DropdownMenu>
                     <DropdownMenuTrigger
                       render={
@@ -199,7 +200,6 @@ function Flows({ project }: { project: MyProject }) {
                       }
                     />
                     <DropdownMenuContent align="end" className="w-44">
-                      <DropdownMenuItem onClick={() => navigate(`/flows/${f.flowId}`)}>Open</DropdownMenuItem>
                       {canCreate && <DropdownMenuItem onClick={() => void act(() => flowService.duplicate(f.flowId, actor), `${f.name} duplicated as Draft`)}>
                         <Copy aria-hidden /> Duplicate
                       </DropdownMenuItem>}
@@ -207,6 +207,7 @@ function Flows({ project }: { project: MyProject }) {
                       {canActivate && f.status === 'ACTIVE' && <DropdownMenuItem onClick={() => setRetiring(f)}>Retire</DropdownMenuItem>}
                     </DropdownMenuContent>
                   </DropdownMenu>
+                  )}
                 </td>
               </tr>
             ))}
